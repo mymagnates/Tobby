@@ -1,0 +1,30 @@
+
+> project_tobby@0.0.1 dev
+> quasar dev
+
+
+ .d88888b.
+d88P" "Y88b
+888     888
+888     888 888  888  8888b.  .d8888b   8888b.  888d888
+888     888 888  888     "88b 88K          "88b 888P"
+888 Y8b 888 888  888 .d888888 "Y8888b. .d888888 888
+Y88b.Y8b88P Y88b 888 888  888      X88 888  888 888
+ "Y888888"   "Y88888 "Y888888  88888P' "Y888888 888
+       Y8b
+
+ App • Using quasar.config.js in "esm" format
+
+ App • ⚠️  ️️Setting port to closest one available: 9001
+
+ App • Using .env files: .env
+
+ » Reported at............ 9/24/2025 10:47:57 PM
+ » App dir................ /Users/MacAirEZ/Desktop/projectTobby
+ » App URL................ http://localhost:9001/
+                           http://192.168.68.67:9001/
+ » Dev mode............... spa
+ » Pkg quasar............. v2.18.2
+ » Pkg @quasar/app-vite... v2.3.0
+ » Browser target......... es2022|firefox115|chrome115|safari14
+

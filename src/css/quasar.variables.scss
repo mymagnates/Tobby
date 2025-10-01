@@ -12,14 +12,19 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-$primary: #1976d2;
-$secondary: #26a69a;
-$accent: #9c27b0;
+// Modern Bright & Sharp Color Strategy - Matching CSS Variables
+$primary: #6366f1; // Electric Indigo (primary actions)
+$secondary: #06b6d4; // Bright Cyan (secondary/links)
+$accent: #ec4899; // Hot Pink (accent/highlights)
 
-$dark: #1d1d1d;
-$dark-page: #121212;
+$dark: #1e293b; // Slate 800
+$dark-page: #0f172a; // Slate 900
 
-$positive: #21ba45;
-$negative: #c10015;
-$info: #31ccec;
-$warning: #f2c037;
+$positive: #10b981; // Emerald green
+$negative: #ef4444; // Bright red
+$info: #8b5cf6; // Purple
+$warning: #f59e0b; // Bright amber
+
+// Additional colors for consistency
+$surface: #ffffff; // Pure white for cards/surfaces
+$background: #ffffff; // Pure white main background
