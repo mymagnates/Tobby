@@ -91,22 +91,46 @@
         class="col-12 col-md-6 q-gutter-md"
         style="margin-right: 5px"
       >
-        <q-card class="lease-card h-100">
+        <q-card class="lease-card h-100" clickable @click="viewLease(lease)">
           <!-- Header Section -->
           <q-card-section class="bg-primary text-white compact-header">
             <div class="row items-center justify-between">
-              <div class="text-subtitle1 text-weight-bold">
-                {{ getPropertyNameFromLease(lease) }}
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold">
+                  {{ lease.property_id?.nickname || lease.property_id?.displayName || 'N/A' }}
+                </div>
+                <div class="text-caption opacity-80">
+                  {{ lease.property_id?.address || 'N/A' }}
+                </div>
                 <q-chip
                   :color="getLeaseStatusColor(lease.status)"
                   text-color="white"
                   size="sm"
-                  class="q-mb-xs"
+                  class="q-mt-xs"
                 >
                   {{ lease.status || 'Unknown' }}
                 </q-chip>
               </div>
-              <q-btn color="primary" label="View" @click="viewLease(lease)" size="md" dense />
+              <div class="row q-gutter-xs">
+                <q-btn
+                  flat
+                  color="secondary"
+                  icon="inventory"
+                  label="Inventory"
+                  @click.stop="openInventoryDialog(lease)"
+                  class="inventory-btn"
+                  size="sm"
+                />
+                <q-btn
+                  flat
+                  color="secondary"
+                  icon="description"
+                  label="Documents"
+                  @click.stop="openDocumentsDialog(lease)"
+                  class="documents-btn"
+                  size="sm"
+                />
+              </div>
             </div>
             <div class="text-caption q-mt-xs opacity-80">ID: {{ lease.id || 'N/A' }}</div>
           </q-card-section>
@@ -119,6 +143,18 @@
                 ${{ formatAmount(lease.rate_amount) }}
               </div>
               <div class="text-caption text-grey-6">per {{ getRateType(lease) }}</div>
+            </div>
+
+            <!-- Property Details -->
+            <div class="row q-mb-sm" v-if="lease.property_id">
+              <div class="col-6">
+                <div class="text-caption text-grey-6">Property Type</div>
+                <div class="text-caption">{{ lease.property_id.spec?.type || 'N/A' }}</div>
+              </div>
+              <div class="col-6">
+                <div class="text-caption text-grey-6">Bedrooms</div>
+                <div class="text-caption">{{ lease.property_id.spec?.bedroom || 'N/A' }}</div>
+              </div>
             </div>
 
             <!-- Key Details -->
@@ -170,7 +206,13 @@
         <q-card-section class="dialog-header">
           <div class="row items-center justify-between">
             <div class="text-h5 text-weight-bold">
-              {{ selectedLease ? getPropertyNameFromLease(selectedLease) : 'Lease Details' }}
+              {{
+                selectedLease
+                  ? selectedLease.property_id?.nickname ||
+                    selectedLease.property_id?.displayName ||
+                    'Lease Details'
+                  : 'Lease Details'
+              }}
             </div>
             <div class="row q-gutter-sm">
               <q-btn
@@ -233,7 +275,23 @@
                 <div class="detail-item">
                   <div class="detail-label">Property</div>
                   <div class="detail-value">
-                    {{ getPropertyNameFromLease(selectedLease) }}
+                    <div class="text-weight-bold">
+                      {{
+                        selectedLease.property_id?.nickname ||
+                        selectedLease.property_id?.displayName ||
+                        'N/A'
+                      }}
+                    </div>
+                    <div class="text-caption text-grey-6">
+                      {{ selectedLease.property_id?.address || 'N/A' }}
+                    </div>
+                    <div v-if="selectedLease.property_id?.spec" class="property-details-mini">
+                      <div class="text-caption text-grey-5">
+                        {{ selectedLease.property_id.spec.type || 'N/A' }} •
+                        {{ selectedLease.property_id.spec.bedroom || 'N/A' }} bed •
+                        {{ selectedLease.property_id.spec.full_bathroom || 'N/A' }} bath
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -521,7 +579,12 @@ const filteredLeases = computed(() => {
 
   const query = searchQuery.value.toLowerCase().trim()
   return leases.filter((lease) => {
-    const propertyName = getPropertyNameFromLease(lease).toLowerCase()
+    const propertyName = (
+      lease.property_id?.nickname ||
+      lease.property_id?.displayName ||
+      lease.property_id?.address ||
+      'Unknown Property'
+    ).toLowerCase()
     const leaseId = (lease.id || '').toLowerCase()
     const specialTerms = (lease.special_terms || '').toLowerCase()
     const notes = (lease.additional_notes || '').toLowerCase()
@@ -545,49 +608,6 @@ const availableCount = computed(() => getStatusCount('Available'))
 const rentedCount = computed(() => getStatusCount('Rented'))
 const pendingCount = computed(() => getStatusCount('Pending'))
 const expiredCount = computed(() => getStatusCount('Expired'))
-
-// Get property name from lease object (handles flattened structure)
-const getPropertyNameFromLease = (lease) => {
-  console.log('=== GET PROPERTY NAME DEBUG ===')
-  console.log('Lease object:', lease)
-  console.log('lease.property_nickname:', lease.property_nickname)
-  console.log('lease.property_address:', lease.property_address)
-  console.log('lease.property?.nickname:', lease.property?.nickname)
-  console.log('lease.property?.address:', lease.property?.address)
-  console.log('lease.property_id:', lease.property_id)
-  console.log('===============================')
-
-  // Try flattened structure first
-  if (lease.property_nickname) {
-    console.log('Using property_nickname:', lease.property_nickname)
-    return lease.property_nickname
-  }
-  if (lease.property_address) {
-    console.log('Using property_address:', lease.property_address)
-    return lease.property_address
-  }
-
-  // Fallback to old nested structure
-  if (lease.property?.nickname) {
-    console.log('Using property.nickname:', lease.property.nickname)
-    return lease.property.nickname
-  }
-  if (lease.property?.address) {
-    console.log('Using property.address:', lease.property.address)
-    return lease.property.address
-  }
-
-  // Fallback to property lookup by ID
-  const extractedPropertyId = lease.property_id || lease.property?.id || lease.property_id?.id
-  console.log('Extracted property ID:', extractedPropertyId)
-  const property = userDataStore.getPropertyById(extractedPropertyId)
-  console.log('Found property by ID:', property)
-  const result = property
-    ? property.nickname || property.address || 'Unknown Property'
-    : 'Unknown Property'
-  console.log('Final result:', result)
-  return result
-}
 
 // Get rate type for display
 const getRateType = (lease) => {
@@ -678,8 +698,9 @@ const saveLeaseChanges = async () => {
 }
 
 // Inventory dialog functions
-const openInventoryDialog = () => {
-  if (selectedLease.value) {
+const openInventoryDialog = (lease) => {
+  if (lease) {
+    selectedLease.value = lease
     currentInventoryData.value = null // Could load existing inventory data here
     showInventoryDialog.value = true
   }
@@ -701,8 +722,9 @@ const onInventorySaved = (inventoryData) => {
 }
 
 // Documents dialog functions
-const openDocumentsDialog = () => {
-  if (selectedLease.value) {
+const openDocumentsDialog = (lease) => {
+  if (lease) {
+    selectedLease.value = lease
     showDocumentsDialog.value = true
   }
 }
@@ -776,6 +798,18 @@ watch(
   max-height: 400px;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.lease-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(36, 87, 115, 0.02) 0%, rgba(36, 87, 115, 0.05) 100%);
 }
 
 .compact-header {
@@ -866,6 +900,45 @@ watch(
 .cancel-btn,
 .close-btn {
   min-width: 80px;
+}
+
+.inventory-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.inventory-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.documents-btn {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white !important;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(240, 147, 251, 0.3);
+}
+
+.documents-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+}
+
+/* Property Details Styling */
+.property-details-mini {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(36, 87, 115, 0.05);
+  border-radius: 4px;
+  border-left: 2px solid var(--primary-color);
 }
 
 @media (max-width: 768px) {

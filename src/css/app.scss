@@ -3,49 +3,45 @@
 
 /*
   ╔══════════════════════════════════════════════════════════════════════════════╗
-  ║                    MODERN BRIGHT & SHARP COLOR STRATEGY                     ║
+  ║                    PROFESSIONAL & CLEAN COLOR STRATEGY                      ║
   ╚══════════════════════════════════════════════════════════════════════════════╝
 
-  Modern Bright Palette:
-  • #6366f1 - Electric Indigo (Primary Actions/CTAs)
-  • #ec4899 - Hot Pink (Accent/Highlights/Success)
-  • #f59e0b - Amber (Warning/Secondary Actions)
+  Professional Clean Palette:
+  • #245773 - Deep Teal Blue (Primary Actions/CTAs)
+  • #BBBDBC - Light Gray (Secondary/Links)
+  • #733E24 - Dark Brown (Accent/Highlights)
+  • #F2F0EF - Warm White (Backgrounds/Surfaces)
+
+  System Colors:
   • #10b981 - Emerald (Success/Positive)
   • #ef4444 - Red (Error/Danger)
   • #8b5cf6 - Purple (Info/Special)
-  • #06b6d4 - Cyan (Links/Interactive)
-
-  Backgrounds & Neutrals:
-  • #ffffff - Pure White (Cards/Surfaces)
-  • #f8fafc - Slate 50 (Main Background)
-  • #f1f5f9 - Slate 100 (Secondary Background)
-  • #0f172a - Slate 900 (Dark Text/Headers)
-  • #1e293b - Slate 800 (Medium Dark)
+  • #f59e0b - Amber (Warning/Secondary Actions)
 
   Design Philosophy:
+  • Professional and clean appearance
   • High contrast for accessibility
-  • Vibrant colors for modern appeal
-  • Sharp, clean aesthetics
-  • Perfect for dark/light mode compatibility
+  • Warm, inviting color palette
+  • Perfect for business applications
 */
 
-// Modern Bright & Sharp Color Strategy
+// Professional & Clean Color Strategy
 :root {
-  // Primary Colors - Electric & Vibrant
-  --primary-color: #6366f1; // Electric Indigo (primary actions)
-  --primary-light: #818cf8; // Lighter indigo
-  --primary-dark: #4f46e5; // Darker indigo
-  --primary-glow: rgba(99, 102, 241, 0.15);
+  // Primary Colors - Deep Teal Blue
+  --primary-color: #245773; // Deep teal blue (primary actions)
+  --primary-light: #3a6b85; // Lighter teal
+  --primary-dark: #1e4559; // Darker teal
+  --primary-glow: rgba(36, 87, 115, 0.15);
 
-  --accent-color: #ec4899; // Hot Pink (accent/highlights)
-  --accent-light: #f472b6; // Lighter pink
-  --accent-dark: #db2777; // Darker pink
-  --accent-glow: rgba(236, 72, 153, 0.15);
+  --accent-color: #733e24; // Dark brown (accent/highlights)
+  --accent-light: #8a4f2a; // Lighter brown
+  --accent-dark: #5d311c; // Darker brown
+  --accent-glow: rgba(115, 62, 36, 0.15);
 
-  --secondary-color: #06b6d4; // Bright Cyan (secondary/links)
-  --secondary-light: #22d3ee; // Lighter cyan
-  --secondary-dark: #0891b2; // Darker cyan
-  --secondary-glow: rgba(6, 182, 212, 0.15);
+  --secondary-color: #bbbdbc; // Light gray (secondary/links)
+  --secondary-light: #d1d3d2; // Lighter gray
+  --secondary-dark: #a5a7a6; // Darker gray
+  --secondary-glow: rgba(187, 189, 188, 0.15);
 
   // System Colors - Bright & Modern
   --success-color: #10b981; // Emerald green
@@ -68,25 +64,25 @@
   --info-dark: #7c3aed; // Darker purple
   --info-glow: rgba(139, 92, 246, 0.15);
 
-  // Background Colors - Clean & Sharp
-  --bg-primary: #ffffff; // Pure white (main background)
-  --bg-secondary: #f8fafc; // Slate 50 (secondary background)
-  --bg-tertiary: #f1f5f9; // Slate 100 (tertiary background)
+  // Background Colors - Warm & Professional
+  --bg-primary: #f2f0ef; // Warm white (main background)
+  --bg-secondary: #e8e6e4; // Slightly darker warm white (secondary background)
+  --bg-tertiary: #ddd9d6; // Even darker warm white (tertiary background)
   --bg-accent: #0f172a; // Slate 900 for dark headers
-  --bg-surface: #ffffff; // Pure white for cards/surfaces
-  --bg-muted: #f1f5f9; // Muted background
+  --bg-surface: #f2f0ef; // Warm white for cards/surfaces
+  --bg-muted: #e8e6e4; // Muted background
 
-  // Neutral Colors - Sharp Contrast
-  --neutral-50: #f8fafc; // Slate 50
-  --neutral-100: #f1f5f9; // Slate 100
-  --neutral-200: #e2e8f0; // Slate 200
-  --neutral-300: #cbd5e1; // Slate 300
-  --neutral-400: #94a3b8; // Slate 400
-  --neutral-500: #64748b; // Slate 500
-  --neutral-600: #475569; // Slate 600
-  --neutral-700: #334155; // Slate 700
-  --neutral-800: #1e293b; // Slate 800
-  --neutral-900: #0f172a; // Slate 900
+  // Neutral Colors - Warm & Professional
+  --neutral-50: #f2f0ef; // Warm white
+  --neutral-100: #e8e6e4; // Light warm gray
+  --neutral-200: #ddd9d6; // Medium warm gray
+  --neutral-300: #c7c2be; // Warm gray
+  --neutral-400: #a8a19c; // Medium warm gray
+  --neutral-500: #8a817a; // Warm gray
+  --neutral-600: #6b6158; // Dark warm gray
+  --neutral-700: #4a433c; // Dark warm gray
+  --neutral-800: #2d2822; // Very dark warm gray
+  --neutral-900: #1a1612; // Darkest warm gray
 
   --border-radius: 12px;
   --border-radius-sm: 8px;

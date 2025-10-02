@@ -32,22 +32,22 @@
           <div class="subcollection-header">
             <div class="subcollection-title">
               <q-icon name="vpn_key" class="q-mr-sm" color="primary" />
-              KTCS Subcollection
+              Standard Items
             </div>
-            <div class="subcollection-subtitle">Keys, Tokens, Cards, Security & Other Items</div>
+            <div class="subcollection-subtitle">Keys, Tokens, Cards</div>
           </div>
 
           <!-- Standard KTCS Items -->
           <div class="ktcs-items-section q-mb-md">
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Standard KTCS Items</div>
-            <div class="standard-items-grid">
+            <!-- Door Keys -->
+            <div class="">
               <!-- Door Keys -->
-              <div class="standard-item-card">
-                <div class="item-header">
+              <div class="item-status-row" style="display: flex; align-items: center; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
                   <q-icon name="key" class="item-icon" />
                   <div class="item-title">Door Keys</div>
                 </div>
-                <div class="item-status-row">
+                <div style="display: flex; align-items: center; gap: 4px">
                   <q-input
                     v-model.number="inventoryData.ktcs_items.door_keys.received"
                     label="Received"
@@ -55,7 +55,7 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                   <q-input
                     v-model.number="inventoryData.ktcs_items.door_keys.returned"
@@ -64,18 +64,18 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                 </div>
               </div>
 
               <!-- Garage Tokens -->
-              <div class="standard-item-card">
-                <div class="item-header">
+              <div class="item-status-row" style="display: flex; align-items: center; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
                   <q-icon name="garage" class="item-icon" />
                   <div class="item-title">Garage Tokens</div>
                 </div>
-                <div class="item-status-row">
+                <div style="display: flex; align-items: center; gap: 4px">
                   <q-input
                     v-model.number="inventoryData.ktcs_items.garage_tokens.received"
                     label="Received"
@@ -83,7 +83,7 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                   <q-input
                     v-model.number="inventoryData.ktcs_items.garage_tokens.returned"
@@ -92,18 +92,18 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                 </div>
               </div>
 
               <!-- Security Card/Key -->
-              <div class="standard-item-card">
-                <div class="item-header">
+              <div class="item-status-row" style="display: flex; align-items: center; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
                   <q-icon name="security" class="item-icon" />
                   <div class="item-title">Security Card/Key</div>
                 </div>
-                <div class="item-status-row">
+                <div style="display: flex; align-items: center; gap: 4px">
                   <q-input
                     v-model.number="inventoryData.ktcs_items.security_card.received"
                     label="Received"
@@ -111,7 +111,7 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                   <q-input
                     v-model.number="inventoryData.ktcs_items.security_card.returned"
@@ -120,18 +120,18 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                 </div>
               </div>
 
               <!-- Mailbox Keys -->
-              <div class="standard-item-card">
-                <div class="item-header">
+              <div class="item-status-row" style="display: flex; align-items: center; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 4px; min-width: 110px">
                   <q-icon name="mail" class="item-icon" />
                   <div class="item-title">Mailbox Keys</div>
                 </div>
-                <div class="item-status-row">
+                <div style="display: flex; align-items: center; gap: 4px">
                   <q-input
                     v-model.number="inventoryData.ktcs_items.mailbox_keys.received"
                     label="Received"
@@ -139,7 +139,7 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
                   <q-input
                     v-model.number="inventoryData.ktcs_items.mailbox_keys.returned"
@@ -148,120 +148,8 @@
                     min="0"
                     outlined
                     dense
-                    style="width: 100px"
+                    style="width: 80px"
                   />
-                </div>
-              </div>
-
-              <!-- Other Items -->
-              <div class="standard-item-card">
-                <div class="item-header">
-                  <q-icon name="category" class="item-icon" />
-                  <div class="item-title">Other Items</div>
-                </div>
-                <div class="item-status-row">
-                  <q-input
-                    v-model.number="inventoryData.ktcs_items.other_items.received"
-                    label="Received"
-                    type="number"
-                    min="0"
-                    outlined
-                    dense
-                    style="width: 100px"
-                  />
-                  <q-input
-                    v-model.number="inventoryData.ktcs_items.other_items.returned"
-                    label="Returned"
-                    type="number"
-                    min="0"
-                    outlined
-                    dense
-                    style="width: 100px"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Custom Other Items (Part of KTCS) -->
-            <div class="custom-other-items-section">
-              <div class="section-header">
-                <div class="text-subtitle1 text-weight-medium">Custom Other Items</div>
-                <q-btn
-                  color="primary"
-                  icon="add"
-                  label="Add Other Item"
-                  size="sm"
-                  @click="addCustomOtherItem"
-                />
-              </div>
-
-              <!-- Custom Other Items List -->
-              <div
-                v-if="inventoryData.ktcs_items.custom_other_items.length > 0"
-                class="custom-other-items-list q-mt-md"
-              >
-                <div
-                  v-for="(item, index) in inventoryData.ktcs_items.custom_other_items"
-                  :key="index"
-                  class="custom-other-item-card"
-                >
-                  <div class="custom-other-item-header">
-                    <q-icon name="category" class="custom-other-item-icon" />
-                    <div class="custom-other-item-title">Other Item {{ index + 1 }}</div>
-                    <q-btn
-                      flat
-                      round
-                      icon="delete"
-                      color="negative"
-                      size="sm"
-                      @click="removeCustomOtherItem(index)"
-                    />
-                  </div>
-
-                  <div class="custom-other-item-content">
-                    <!-- Item Name -->
-                    <div class="custom-other-item-field">
-                      <q-input
-                        v-model="item.name"
-                        label="Item Name *"
-                        outlined
-                        dense
-                        :rules="[(val) => !!val || 'Item name is required']"
-                        placeholder="e.g., Remote Controls, Manuals, etc."
-                      />
-                    </div>
-
-                    <!-- Quantities -->
-                    <div class="quantities-row">
-                      <q-input
-                        v-model.number="item.received"
-                        label="Received"
-                        type="number"
-                        min="0"
-                        outlined
-                        dense
-                        style="width: 120px"
-                      />
-                      <q-input
-                        v-model.number="item.returned"
-                        label="Returned"
-                        type="number"
-                        min="0"
-                        outlined
-                        dense
-                        style="width: 120px"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Empty State -->
-              <div v-else class="empty-custom-other-items">
-                <q-icon name="category" size="48px" color="grey-4" />
-                <div class="text-body2 text-grey-6 q-mt-sm">No custom other items added yet</div>
-                <div class="text-caption text-grey-5">
-                  Click "Add Other Item" to add custom items with quantities
                 </div>
               </div>
             </div>
@@ -272,7 +160,7 @@
           <div class="subcollection-header">
             <div class="subcollection-title">
               <q-icon name="inventory_2" class="q-mr-sm" color="secondary" />
-              Custom Items Subcollection
+              Propety Condition Items
             </div>
             <div class="subcollection-subtitle">
               Area-based items with move-in/move-out comments
@@ -282,7 +170,7 @@
           <!-- Custom Items -->
           <div class="custom-items-section">
             <div class="section-header">
-              <div class="text-subtitle1 text-weight-medium">Custom Items</div>
+              <div class="text-subtitle1 text-weight-medium"></div>
               <q-btn color="primary" icon="add" label="Add Item" size="sm" @click="addCustomItem" />
             </div>
 
@@ -307,80 +195,112 @@
                 </div>
 
                 <div class="custom-item-content">
-                  <!-- Area Selection -->
-                  <div class="custom-item-field">
-                    <q-select
-                      v-model="item.area"
-                      :options="areaOptions"
-                      label="Area *"
-                      outlined
-                      dense
-                      :rules="[(val) => !!val || 'Area is required']"
-                      class="col-12"
-                      @update:model-value="
-                        () => {
-                          item.item = ''
-                        }
-                      "
-                    />
+                  <!-- Area and Item Name in the same row -->
+                  <div class="row q-mb-sm">
+                    <div class="col-6 custom-item-field">
+                      <q-select
+                        v-model="item.area"
+                        :options="areaOptions"
+                        label="Area *"
+                        outlined
+                        dense
+                        :rules="[(val) => !!val || 'Area is required']"
+                        @update:model-value="
+                          () => {
+                            item.item = ''
+                          }
+                        "
+                      />
+                    </div>
+                    <div class="col-6 custom-item-field">
+                      <q-select
+                        v-model="item.item"
+                        :options="getItemSuggestionsForArea(item.area)"
+                        label="Item *"
+                        outlined
+                        dense
+                        use-input
+                        hide-selected
+                        fill-input
+                        input-debounce="0"
+                        @filter="(val, update) => filterItemSuggestions(index, val, update)"
+                        @new-value="createNewItem"
+                        :rules="[(val) => !!val || 'Item is required']"
+                        :disable="!item.area"
+                      >
+                        <template v-slot:no-option>
+                          <q-item>
+                            <q-item-section class="text-grey">
+                              {{
+                                item.area
+                                  ? 'Type to add a custom item'
+                                  : 'Please select an area first'
+                              }}
+                            </q-item-section>
+                          </q-item>
+                        </template>
+                      </q-select>
+                    </div>
                   </div>
 
-                  <!-- Item Name -->
-                  <div class="custom-item-field">
-                    <q-select
-                      v-model="item.item"
-                      :options="getItemSuggestionsForArea(item.area)"
-                      label="Item *"
-                      outlined
-                      dense
-                      use-input
-                      hide-selected
-                      fill-input
-                      input-debounce="0"
-                      @filter="(val, update) => filterItemSuggestions(index, val, update)"
-                      @new-value="createNewItem"
-                      :rules="[(val) => !!val || 'Item is required']"
-                      :disable="!item.area"
-                      class="col-12"
-                    >
-                      <template v-slot:no-option>
-                        <q-item>
-                          <q-item-section class="text-grey">
-                            {{
-                              item.area
-                                ? 'Type to add a custom item'
-                                : 'Please select an area first'
-                            }}
-                          </q-item-section>
-                        </q-item>
-                      </template>
-                    </q-select>
-                  </div>
-
-                  <!-- Move-in Comment -->
-                  <div class="custom-item-field">
-                    <q-input
-                      v-model="item.move_in_comment"
-                      label="Move-in Comment"
-                      type="textarea"
-                      rows="3"
-                      outlined
-                      dense
-                      placeholder="Condition and notes when tenant moved in..."
-                    />
-                  </div>
-
-                  <!-- Move-out Comment -->
-                  <div class="custom-item-field">
-                    <q-input
-                      v-model="item.move_out_comment"
-                      label="Move-out Comment"
-                      type="textarea"
-                      rows="3"
-                      outlined
-                      dense
-                      placeholder="Condition and notes when tenant moved out..."
-                    />
+                  <!-- Move-in and Move-out Comments and Pictures in the same row -->
+                  <div class="row q-col-gutter-sm">
+                    <!-- Move-in -->
+                    <div class="col-6">
+                      <div class="custom-item-field q-mb-xs">
+                        <q-input
+                          v-model="item.move_in_comment"
+                          label="Move-in Comment"
+                          type="textarea"
+                          rows="2"
+                          outlined
+                          dense
+                          placeholder="Condition and notes when tenant moved in..."
+                        />
+                      </div>
+                      <div class="custom-item-field">
+                        <q-uploader
+                          v-model="item.move_in_photos"
+                          label="Move-in Photos"
+                          accept="image/*"
+                          multiple
+                          max-files="5"
+                          style="width: 100%"
+                          :auto-upload="false"
+                          :hide-upload-btn="true"
+                          :hide-upload-progress="true"
+                          :hide-thumbnails="false"
+                        />
+                      </div>
+                    </div>
+                    <!-- Move-out -->
+                    <div class="col-6">
+                      <div class="custom-item-field q-mb-xs">
+                        <q-input
+                          v-model="item.move_out_comment"
+                          label="Move-out Comment"
+                          type="textarea"
+                          rows="2"
+                          outlined
+                          dense
+                          placeholder="Condition and notes when tenant moved out..."
+                        />
+                      </div>
+                      <div class="custom-item-field">
+                        <q-uploader
+                          v-model="item.move_out_photos"
+                          label="Move-out Photos"
+                          accept="image/*"
+                          multiple
+                          max-files="5"
+                          style="width: 100%"
+                          :auto-upload="false"
+                          :hide-upload-btn="true"
+                          :hide-upload-progress="true"
+                          :hide-thumbnails="false"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -389,10 +309,8 @@
             <!-- Empty State -->
             <div v-else class="empty-custom-items">
               <q-icon name="inventory_2" size="48px" color="grey-4" />
-              <div class="text-body2 text-grey-6 q-mt-sm">No custom items added yet</div>
-              <div class="text-caption text-grey-5">
-                Click "Add Item" to add custom inventory items
-              </div>
+              <div class="text-body2 text-grey-6 q-mt-sm">No items added yet</div>
+              <div class="text-caption text-grey-5">Click "Add Item" to add inventory items</div>
             </div>
           </div>
         </div>
@@ -504,8 +422,6 @@ const initializeInventoryData = () => {
       garage_tokens: { received: 0, returned: 0 },
       security_card: { received: 0, returned: 0 },
       mailbox_keys: { received: 0, returned: 0 },
-      other_items: { received: 0, returned: 0 },
-      custom_other_items: [], // User-added other items (saved to KTCS)
     },
     custom_items: [], // Area-based items with comments (saved to separate subcollection)
   }
@@ -643,20 +559,6 @@ const removeCustomItem = (index) => {
   inventoryData.value.custom_items.splice(index, 1)
 }
 
-// Add custom other item
-const addCustomOtherItem = () => {
-  inventoryData.value.ktcs_items.custom_other_items.push({
-    name: '',
-    received: 0,
-    returned: 0,
-  })
-}
-
-// Remove custom other item
-const removeCustomOtherItem = (index) => {
-  inventoryData.value.ktcs_items.custom_other_items.splice(index, 1)
-}
-
 // Save ktcs items (keys, tokens, cards, security, user-added other items)
 const saveKtcsItems = async (inventoryId) => {
   const ktcsPath = `properties/${props.propertyId}/inventories/${inventoryId}/ktcs`
@@ -667,7 +569,6 @@ const saveKtcsItems = async (inventoryId) => {
     { type: 'garage_tokens', ...inventoryData.value.ktcs_items.garage_tokens },
     { type: 'security_card', ...inventoryData.value.ktcs_items.security_card },
     { type: 'mailbox_keys', ...inventoryData.value.ktcs_items.mailbox_keys },
-    { type: 'other_items', ...inventoryData.value.ktcs_items.other_items },
   ]
 
   // Save each standard item
@@ -675,18 +576,6 @@ const saveKtcsItems = async (inventoryId) => {
     await createDocument(ktcsPath, {
       ...item,
       category: 'standard',
-      created_datetime: new Date().toISOString(),
-    })
-  }
-
-  // Save custom other items (user-added other items)
-  for (const item of inventoryData.value.ktcs_items.custom_other_items) {
-    await createDocument(ktcsPath, {
-      type: 'custom_other',
-      name: item.name,
-      received: item.received,
-      returned: item.returned,
-      category: 'custom_other',
       created_datetime: new Date().toISOString(),
     })
   }
@@ -719,18 +608,6 @@ const saveInventory = async () => {
         Notify.create({
           type: 'negative',
           message: 'All custom items must have a name',
-          position: 'top',
-        })
-        return
-      }
-    }
-
-    // Validate custom other items
-    for (const item of inventoryData.value.ktcs_items.custom_other_items) {
-      if (!item.name) {
-        Notify.create({
-          type: 'negative',
-          message: 'All custom other items must have a name',
           position: 'top',
         })
         return
