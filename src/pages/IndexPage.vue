@@ -35,7 +35,7 @@
             :class="{ active: loadingStep >= 4, completed: loadingStep > 4 }"
           >
             <q-icon name="build" size="20px" />
-            <span>Loading MX Records</span>
+            <span>Loading Tasks</span>
           </div>
           <div
             class="loading-step"
@@ -136,31 +136,23 @@
 
       <!-- Dashboard Sections -->
       <div class="dashboard-sections">
-        <div class="row q-gutter-">
+        <div class="row">
           <!-- Left Column -->
-          <div class="col-12 col-lg-6">
-            <!-- Recent MX Records -->
+          <div class="col-sm-6 col-lg-6">
+            <!-- Recent Tasks -->
             <q-card class="dashboard-section">
               <q-card-section class="section-header">
                 <div class="section-title">
                   <q-icon name="build" size="24px" color="primary" />
-                  <span class="text-h6 q-ml-sm">Recent MX Records</span>
+                  <span class="text-h6 q-ml-sm">Recent Tasks</span>
                 </div>
-                <q-btn
-                  dense
-                  label="View All"
-                  color="primary"
-                  text-color="white"
-                  class="btn-primary"
-                  @click="$router.push('/mx-records')"
-                />
               </q-card-section>
 
               <q-card-section class="section-content">
                 <div v-if="recentMxRecords.length === 0" class="empty-state">
                   <q-icon name="build" size="48px" color="grey-4" />
-                  <div class="text-h6 text-grey-6 q-mt-md">No MX Records</div>
-                  <div class="text-caption text-grey-5">Create your first maintenance record</div>
+                  <div class="text-h6 text-grey-6 q-mt-md">No Tasks</div>
+                  <div class="text-caption text-grey-5">Create your first maintenance task</div>
                 </div>
 
                 <div v-else class="records-list">
@@ -184,7 +176,7 @@
                           {{ record.status || 'Open' }}
                         </q-chip>
                         <span class="text-caption text-grey-6 q-mx-sm">
-                          {{ formatDate(record.created_at) }}
+                          {{ formatDate(record.report_date) }}
                         </span>
                         <span class="text-caption text-weight-bold text-primary">
                           ${{ formatCurrency(record.amount || 0) }}
@@ -195,11 +187,21 @@
                   </div>
                 </div>
               </q-card-section>
+              <q-card-actions align="center" class="q-pa-md">
+                <q-btn
+                  dense
+                  label="View All"
+                  color="primary"
+                  text-color="white"
+                  class="btn-primary"
+                  @click="$router.push('/mx-records')"
+                />
+              </q-card-actions>
             </q-card>
           </div>
 
           <!-- Right Column -->
-          <div class="col-12 col-lg-6">
+          <div class="col-sm-6 col-lg-6">
             <!-- Recent Transactions -->
             <q-card class="dashboard-section">
               <q-card-section class="section-header">
@@ -207,14 +209,6 @@
                   <q-icon name="receipt" size="24px" color="primary" />
                   <span class="text-h6 q-ml-sm">Recent Transactions</span>
                 </div>
-                <q-btn
-                  dense
-                  label="View All"
-                  color="primary"
-                  text-color="white"
-                  class="btn-primary"
-                  @click="$router.push('/transactions')"
-                />
               </q-card-section>
 
               <q-card-section class="section-content">
@@ -262,22 +256,171 @@
                   </div>
                 </div>
               </q-card-section>
+              <q-card-actions align="center" class="q-pa-md">
+                <q-btn
+                  dense
+                  label="View All"
+                  color="primary"
+                  text-color="white"
+                  class="btn-primary"
+                  @click="$router.push('/transactions')"
+                />
+              </q-card-actions>
             </q-card>
           </div>
         </div>
       </div>
 
-      <!-- Floating Action Button for Quick Actions -->
-      <q-page-sticky position="bottom-right" :offset="[20, 20]">
-        <q-btn
-          fab
-          icon="add"
-          color="primary"
-          size="lg"
-          @click="showQuickActions = true"
-          class="quick-actions-fab"
-        />
-      </q-page-sticky>
+      <!-- Reminders Card -->
+      <div class="reminders-section q-pa-md">
+        <div class="row">
+          <div class="col-12">
+            <q-card class="reminders-card">
+              <q-card-section>
+                <div class="text-h6 q-mb-md">
+                  <q-icon name="notifications" class="q-mr-sm" />
+                  Reminders
+                </div>
+
+                <!-- Reminders Grid -->
+                <div v-if="reminders.length > 0" class="reminders-grid">
+                  <q-card
+                    v-for="reminder in reminders.slice(0, 6)"
+                    :key="reminder.id"
+                    class="reminder-card"
+                    :class="{ 'reminder-overdue': isReminderOverdue(reminder) }"
+                  >
+                    <q-card-section class="reminder-card-content">
+                      <!-- Reminder Header -->
+                      <div class="reminder-header">
+                        <div class="reminder-title">{{ reminder.title }}</div>
+                        <div class="reminder-actions-header">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="refresh"
+                            color="primary"
+                            size="sm"
+                            class="reminder-renew-btn"
+                            @click="renewReminder(reminder)"
+                          >
+                            <q-tooltip>Defer reminder</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="check_circle"
+                            color="positive"
+                            size="sm"
+                            class="reminder-complete-btn"
+                            @click="markReminderComplete(reminder)"
+                          >
+                            <q-tooltip>Mark as complete</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
+
+                      <!-- Reminder Description -->
+                      <div class="reminder-description">{{ reminder.description }}</div>
+
+                      <!-- Reminder Footer -->
+                      <div class="reminder-footer">
+                        <div class="reminder-date">
+                          <q-icon name="event" size="12px" class="q-mr-xs" />
+                          <span>{{ formatReminderDate(reminder.due_date) }}</span>
+                          <q-badge
+                            v-if="reminder.renewals && reminder.renewals.length > 0"
+                            color="orange"
+                            :label="`${reminder.renewals.length}x`"
+                            class="q-ml-xs cursor-pointer"
+                            @click.stop="viewRenewalHistory(reminder)"
+                          >
+                            <q-tooltip>Click to view renewal history</q-tooltip>
+                          </q-badge>
+                        </div>
+                        <q-chip
+                          v-if="reminder.property_name"
+                          size="xs"
+                          color="primary"
+                          text-color="white"
+                        >
+                          {{ reminder.property_name }}
+                        </q-chip>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="empty-reminders text-center q-pa-lg">
+                  <q-icon name="notifications_off" size="48px" color="grey-4" />
+                  <div class="text-body2 text-grey-6 q-mt-sm">No reminders</div>
+                  <div class="text-caption text-grey-5">All caught up!</div>
+                </div>
+
+                <!-- View All Button -->
+                <div v-if="reminders.length > 5" class="text-center q-mt-md">
+                  <q-btn
+                    flat
+                    color="primary"
+                    label="View All Reminders"
+                    @click="$router.push('/reminders')"
+                  />
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Buttons at the Bottom of the Page -->
+      <div
+        class="quick-actions-bottom row justify-center q-gutter-sm q-pa-md"
+        style="position: fixed; bottom: 0; right: 0; left: 0; z-index: 100"
+      >
+        <div class="col-auto">
+          <q-btn
+            label="Create Property"
+            color="primary"
+            text-color="white"
+            class="btn-primary"
+            @click="showCreatePropertyDialog = true"
+            icon="home_work"
+          />
+        </div>
+        <div class="col-auto">
+          <q-btn
+            label="Create Lease"
+            color="primary"
+            text-color="white"
+            class="btn-primary"
+            @click="showCreateLeaseDialog = true"
+            icon="assignment"
+          />
+        </div>
+        <div class="col-auto">
+          <q-btn
+            label="Add Transaction"
+            color="primary"
+            text-color="white"
+            class="btn-primary"
+            @click="showCreateTransactionDialog = true"
+            icon="receipt"
+          />
+        </div>
+        <div class="col-auto">
+          <q-btn
+            label="Create Task"
+            color="primary"
+            text-color="white"
+            class="btn-primary"
+            @click="showCreateTaskDialog = true"
+            icon="dns"
+          />
+        </div>
+      </div>
 
       <!-- Quick Actions Dialog -->
       <q-dialog v-model="showQuickActions" position="bottom">
@@ -291,7 +434,7 @@
                   color="primary"
                   text-color="white"
                   class="btn-primary full-width"
-                  @click="navigateTo('/create-property')"
+                  @click="openCreatePropertyDialog"
                 />
               </div>
               <div class="col-6">
@@ -300,7 +443,7 @@
                   color="primary"
                   text-color="white"
                   class="btn-primary full-width"
-                  @click="navigateTo('/create-lease')"
+                  @click="openCreateLeaseDialog"
                 />
               </div>
               <div class="col-6">
@@ -309,16 +452,16 @@
                   color="primary"
                   text-color="white"
                   class="btn-primary full-width"
-                  @click="navigateTo('/create-transaction')"
+                  @click="openCreateTransactionDialog"
                 />
               </div>
               <div class="col-6">
                 <q-btn
-                  label="Create MX Record"
+                  label="Create Task"
                   color="primary"
                   text-color="white"
                   class="btn-primary full-width"
-                  @click="navigateTo('/create-mxrecord')"
+                  @click="openCreateTaskDialog"
                 />
               </div>
             </div>
@@ -326,11 +469,11 @@
         </q-card>
       </q-dialog>
 
-      <!-- MX Record Detail Dialog -->
+      <!-- Task Detail Dialog -->
       <q-dialog v-model="showMxRecordDetail" position="standard">
         <q-card class="mx-record-detail-dialog" style="min-width: 500px; max-width: 800px">
           <q-card-section class="row items-center q-pb-none">
-            <div class="text-h6">MX Record Details</div>
+            <div class="text-h6">Task Details</div>
             <q-space />
             <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
@@ -361,8 +504,8 @@
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="text-caption text-grey-6">Created Date</div>
-                <div class="text-body1">{{ formatDate(selectedMxRecord.created_at) }}</div>
+                <div class="text-caption text-grey-6">Report Date</div>
+                <div class="text-body1">{{ formatDate(selectedMxRecord.report_date) }}</div>
               </div>
 
               <div class="col-12 col-md-6">
@@ -470,6 +613,230 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <!-- Create Property Dialog -->
+      <q-dialog v-model="showCreatePropertyDialog" persistent>
+        <q-card style="min-width: 600px; max-width: 800px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">Create Property</div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                @click="showCreatePropertyDialog = false"
+                class="dialog-close-btn"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <CreateProperty
+              @property-created="onPropertyCreated"
+              @cancel="showCreatePropertyDialog = false"
+            />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <!-- Create Task Dialog -->
+      <q-dialog v-model="showCreateTaskDialog" persistent>
+        <q-card style="min-width: 600px; max-width: 800px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">Create Task</div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                @click="showCreateTaskDialog = false"
+                class="dialog-close-btn"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <CreateMxRecord
+              @mxrecord-created="onTaskCreated"
+              @cancel="showCreateTaskDialog = false"
+            />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <!-- Create Transaction Dialog -->
+      <q-dialog v-model="showCreateTransactionDialog" persistent>
+        <q-card style="min-width: 600px; max-width: 800px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">Create Transaction</div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                @click="showCreateTransactionDialog = false"
+                class="dialog-close-btn"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <CreateTransaction
+              @transaction-created="onTransactionCreated"
+              @cancel="showCreateTransactionDialog = false"
+            />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <!-- Create Lease Dialog -->
+      <q-dialog v-model="showCreateLeaseDialog" persistent>
+        <q-card style="min-width: 600px; max-width: 800px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">Create Lease</div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                @click="showCreateLeaseDialog = false"
+                class="dialog-close-btn"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <CreateLease @lease-created="onLeaseCreated" @cancel="showCreateLeaseDialog = false" />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <!-- Renewal History Dialog -->
+      <q-dialog v-model="showRenewalHistoryDialog" persistent>
+        <q-card style="min-width: 600px; max-width: 800px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">
+                <q-icon name="history" class="q-mr-sm" />
+                Renewal History
+              </div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                @click="closeRenewalHistoryDialog"
+                class="dialog-close-btn"
+              />
+            </div>
+          </q-card-section>
+
+          <q-card-section v-if="selectedReminderForHistory">
+            <!-- Reminder Info -->
+            <div class="renewal-reminder-info q-mb-md">
+              <div class="text-subtitle1 text-weight-medium">
+                {{ selectedReminderForHistory.property_name }}
+              </div>
+              <div class="text-caption text-grey-6">
+                {{ selectedReminderForHistory.title }}
+              </div>
+              <div class="text-caption text-grey-6">
+                Current Due Date: {{ formatReminderDate(selectedReminderForHistory.due_date) }}
+              </div>
+            </div>
+
+            <!-- Renewal History Timeline -->
+            <div
+              v-if="
+                selectedReminderForHistory.renewals &&
+                selectedReminderForHistory.renewals.length > 0
+              "
+            >
+              <div class="text-subtitle2 q-mb-md">
+                Total Renewals: {{ selectedReminderForHistory.renewals.length }}
+              </div>
+
+              <q-timeline color="primary" layout="comfortable">
+                <q-timeline-entry
+                  v-for="(renewal, index) in sortedRenewals"
+                  :key="index"
+                  :title="`Renewal #${selectedReminderForHistory.renewals.length - index}`"
+                  :subtitle="formatReminderDate(renewal.renewed_at)"
+                  icon="refresh"
+                  :color="index === 0 ? 'positive' : 'primary'"
+                >
+                  <div class="renewal-details">
+                    <div class="renewal-detail-item">
+                      <span class="detail-label">Renewed On:</span>
+                      <span class="detail-value">{{ formatDateTime(renewal.renewed_at) }}</span>
+                    </div>
+                    <div class="renewal-detail-item">
+                      <span class="detail-label">Previous Due Date:</span>
+                      <span class="detail-value">{{
+                        formatReminderDate(renewal.previous_due_date)
+                      }}</span>
+                    </div>
+                    <div class="renewal-detail-item">
+                      <span class="detail-label">New Due Date:</span>
+                      <span class="detail-value">{{
+                        formatReminderDate(renewal.new_due_date)
+                      }}</span>
+                    </div>
+                    <q-chip
+                      v-if="index === 0"
+                      color="positive"
+                      text-color="white"
+                      size="sm"
+                      icon="check_circle"
+                      class="q-mt-xs"
+                    >
+                      Most Recent
+                    </q-chip>
+                  </div>
+                </q-timeline-entry>
+
+                <!-- Initial Creation -->
+                <q-timeline-entry
+                  title="Initial Creation"
+                  :subtitle="
+                    formatReminderDate(
+                      selectedReminderForHistory.created_date ||
+                        selectedReminderForHistory.due_date,
+                    )
+                  "
+                  icon="add_circle"
+                  color="grey"
+                >
+                  <div class="renewal-details">
+                    <div class="renewal-detail-item">
+                      <span class="detail-label">Original Due Date:</span>
+                      <span class="detail-value">
+                        {{
+                          formatReminderDate(
+                            selectedReminderForHistory.created_date ||
+                              selectedReminderForHistory.due_date,
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </q-timeline-entry>
+              </q-timeline>
+            </div>
+
+            <!-- No Renewals State -->
+            <div v-else class="text-center q-pa-lg">
+              <q-icon name="history" size="48px" color="grey-4" />
+              <div class="text-body2 text-grey-6 q-mt-sm">No renewal history</div>
+              <div class="text-caption text-grey-5">This reminder has not been renewed yet</div>
+            </div>
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn flat label="Close" color="primary" @click="closeRenewalHistoryDialog" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </div>
   </q-page>
 </template>
@@ -479,6 +846,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
+import CreateProperty from '../components/CreateProperty.vue'
+import CreateMxRecord from '../components/CreateMxRecord.vue'
+import CreateTransaction from '../components/CreateTransaction.vue'
+import CreateLease from '../components/CreateLease.vue'
 
 const router = useRouter()
 
@@ -513,9 +884,22 @@ const showMxRecordDetail = ref(false)
 const selectedMxRecord = ref(null)
 const showTransactionDetail = ref(false)
 const selectedTransaction = ref(null)
+
+// Reminders data
+const reminders = ref([])
 const dashboardLoading = ref(false)
 const dataLoaded = ref(false)
 const loadingStep = ref(0)
+
+// Dialog states for create forms
+const showCreatePropertyDialog = ref(false)
+const showCreateTaskDialog = ref(false)
+const showCreateTransactionDialog = ref(false)
+const showCreateLeaseDialog = ref(false)
+
+// Renewal history dialog
+const showRenewalHistoryDialog = ref(false)
+const selectedReminderForHistory = ref(null)
 
 // Quick stats computed properties
 const monthlyIncome = computed(() => {
@@ -551,9 +935,8 @@ const monthlyExpense = computed(() => {
 })
 
 const openTasks = computed(() => {
-  return userDataStore.userAccessibleMxRecords.filter(
-    (mx) => mx.status === 'open' || mx.status === 'pending',
-  ).length
+  return userDataStore.userAccessibleMxRecords.filter((mx) => !mx.status || mx.status === 'open')
+    .length
 })
 
 const activeLeases = computed(() => {
@@ -627,9 +1010,9 @@ const loadDashboardData = async (isRefresh = false) => {
 const processDashboardData = () => {
   console.log('Processing dashboard data...')
 
-  // Get recent MX records (last 5)
+  // Get recent tasks (last 5)
   recentMxRecords.value = userDataStore.userAccessibleMxRecords
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .sort((a, b) => new Date(b.report_date) - new Date(a.report_date))
     .slice(0, 5)
 
   // Get recent transactions (last 5)
@@ -660,6 +1043,38 @@ const formatDate = (date) => {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+// Computed property for sorted renewals (most recent first)
+const sortedRenewals = computed(() => {
+  if (!selectedReminderForHistory.value?.renewals) return []
+
+  return [...selectedReminderForHistory.value.renewals].sort((a, b) => {
+    return new Date(b.renewed_at) - new Date(a.renewed_at)
+  })
+})
+
+// Renewal history functions
+const viewRenewalHistory = (reminder) => {
+  selectedReminderForHistory.value = reminder
+  showRenewalHistoryDialog.value = true
+}
+
+const closeRenewalHistoryDialog = () => {
+  showRenewalHistoryDialog.value = false
+  selectedReminderForHistory.value = null
 }
 
 const getStatusColor = (status) => {
@@ -721,12 +1136,28 @@ const refreshDashboard = async () => {
   })
 }
 
-const navigateTo = (path) => {
+// Quick actions dialog handlers
+const openCreatePropertyDialog = () => {
+  showCreatePropertyDialog.value = true
   showQuickActions.value = false
-  router.push(path)
 }
 
-// MX Record functions
+const openCreateLeaseDialog = () => {
+  showCreateLeaseDialog.value = true
+  showQuickActions.value = false
+}
+
+const openCreateTransactionDialog = () => {
+  showCreateTransactionDialog.value = true
+  showQuickActions.value = false
+}
+
+const openCreateTaskDialog = () => {
+  showCreateTaskDialog.value = true
+  showQuickActions.value = false
+}
+
+// Task functions
 const viewMxRecordDetail = (record) => {
   selectedMxRecord.value = record
   showMxRecordDetail.value = true
@@ -734,7 +1165,7 @@ const viewMxRecordDetail = (record) => {
 
 const addLogToMxRecord = (record) => {
   showMxRecordDetail.value = false
-  // Navigate to MX records page with the specific record selected for adding a log
+  // Navigate to tasks page with the specific record selected for adding a log
   router.push(`/mx-records?recordId=${record.id}&action=addLog`)
 }
 
@@ -748,6 +1179,212 @@ const getPropertyName = (propertyId) => {
   if (!propertyId) return 'Unknown Property'
   const property = userDataStore.userAccessibleProperties.find((prop) => prop.id === propertyId)
   return property ? property.nickname || property.address || 'Unknown Property' : 'Unknown Property'
+}
+
+// Reminders functions
+const loadReminders = () => {
+  try {
+    // Mock reminders data - in real app, this would come from your backend
+    reminders.value = [
+      {
+        id: '1',
+        title: 'Property Inspection Due',
+        description: 'Quarterly inspection for Downtown Apartment',
+        due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+        property_id: 'prop1',
+        property_name: 'Downtown Apartment',
+        status: 'pending',
+        renewals: [], // Track renewal history
+      },
+      {
+        id: '2',
+        title: 'Lease Renewal',
+        description: 'Lease renewal discussion with tenant',
+        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        property_id: 'prop2',
+        property_name: 'Suburban House',
+        status: 'pending',
+        renewals: [], // Track renewal history
+      },
+      {
+        id: '3',
+        title: 'Maintenance Check',
+        description: 'HVAC system maintenance scheduled',
+        due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day overdue
+        property_id: 'prop1',
+        property_name: 'Downtown Apartment',
+        status: 'overdue',
+        renewals: [
+          {
+            renewed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            previous_due_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+            new_due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        ], // Has been renewed once
+      },
+    ]
+  } catch (error) {
+    console.error('Error loading reminders:', error)
+    reminders.value = []
+  }
+}
+
+const isReminderOverdue = (reminder) => {
+  const dueDate = new Date(reminder.due_date)
+  const now = new Date()
+  return dueDate < now
+}
+
+const formatReminderDate = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffTime = date.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    return `${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} overdue`
+  } else if (diffDays === 0) {
+    return 'Today'
+  } else if (diffDays === 1) {
+    return 'Tomorrow'
+  } else {
+    return `In ${diffDays} days`
+  }
+}
+
+const markReminderComplete = (reminder) => {
+  try {
+    // Remove reminder from the list
+    const index = reminders.value.findIndex((r) => r.id === reminder.id)
+    if (index !== -1) {
+      reminders.value.splice(index, 1)
+    }
+
+    Notify.create({
+      type: 'positive',
+      message: 'Reminder marked as complete!',
+      position: 'top',
+      timeout: 2000,
+    })
+  } catch (error) {
+    console.error('Error marking reminder complete:', error)
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to mark reminder as complete',
+      position: 'top',
+      timeout: 3000,
+    })
+  }
+}
+
+const renewReminder = (reminder) => {
+  try {
+    // Find the reminder in the list
+    const index = reminders.value.findIndex((r) => r.id === reminder.id)
+    if (index === -1) return
+
+    // Store the current due date as previous due date
+    const previousDueDate = reminder.due_date
+
+    // Set new due date to TODAY (clock restarts)
+    const today = new Date()
+    const newDueDate = today.toISOString()
+
+    // Create renewal record
+    const renewalRecord = {
+      renewed_at: new Date().toISOString(),
+      previous_due_date: previousDueDate,
+      new_due_date: newDueDate,
+    }
+
+    // Initialize renewals array if it doesn't exist
+    if (!reminder.renewals) {
+      reminder.renewals = []
+    }
+
+    // Add renewal record to the renewals array
+    reminder.renewals.push(renewalRecord)
+
+    // Update the due date to today
+    reminder.due_date = newDueDate
+
+    // Update status if it was overdue
+    if (reminder.status === 'overdue') {
+      reminder.status = 'pending'
+    }
+
+    // Update the reminder in the array
+    reminders.value[index] = { ...reminder }
+
+    Notify.create({
+      type: 'positive',
+      message: `Reminder renewed! Clock restarted from today.`,
+      position: 'top',
+      caption: `New due date: ${formatReminderDate(newDueDate)}`,
+      timeout: 3000,
+    })
+
+    console.log('Reminder renewed:', {
+      id: reminder.id,
+      previousDueDate: previousDueDate,
+      newDueDate: newDueDate,
+      renewalCount: reminder.renewals.length,
+      createdDate: reminder.created_date, // Original creation date (if exists)
+    })
+  } catch (error) {
+    console.error('Error renewing reminder:', error)
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to renew reminder',
+      position: 'top',
+      timeout: 3000,
+    })
+  }
+}
+
+// Dialog event handlers
+const onPropertyCreated = () => {
+  showCreatePropertyDialog.value = false
+  refreshDashboard()
+  Notify.create({
+    type: 'positive',
+    message: 'Property created successfully!',
+    position: 'top',
+    timeout: 3000,
+  })
+}
+
+const onTaskCreated = () => {
+  showCreateTaskDialog.value = false
+  refreshDashboard()
+  Notify.create({
+    type: 'positive',
+    message: 'Task created successfully!',
+    position: 'top',
+    timeout: 3000,
+  })
+}
+
+const onTransactionCreated = () => {
+  showCreateTransactionDialog.value = false
+  refreshDashboard()
+  Notify.create({
+    type: 'positive',
+    message: 'Transaction created successfully!',
+    position: 'top',
+    timeout: 3000,
+  })
+}
+
+const onLeaseCreated = () => {
+  showCreateLeaseDialog.value = false
+  refreshDashboard()
+  Notify.create({
+    type: 'positive',
+    message: 'Lease created successfully!',
+    position: 'top',
+    timeout: 3000,
+  })
 }
 
 // Watchers
@@ -838,6 +1475,9 @@ onMounted(async () => {
   }
 
   await loadDashboardData(true)
+
+  // Load reminders
+  loadReminders()
 })
 </script>
 
@@ -1232,5 +1872,218 @@ onMounted(async () => {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* Dialog Styles */
+.dialog-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 24px;
+}
+
+.dialog-close-btn {
+  color: #666;
+}
+
+.dialog-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Reminders Styles */
+.reminders-section {
+  margin-bottom: 100px; /* Space for fixed quick actions */
+}
+
+.reminders-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.reminders-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.reminders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.reminder-card {
+  border-radius: 12px;
+  border-left: 4px solid #2196f3;
+  transition: all 0.3s ease;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.reminder-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.reminder-card.reminder-overdue {
+  border-left-color: #f44336;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+}
+
+.reminder-card-content {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.reminder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.reminder-title {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.reminder-actions-header {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.reminder-renew-btn,
+.reminder-complete-btn {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.reminder-renew-btn:hover,
+.reminder-complete-btn:hover {
+  opacity: 1;
+}
+
+.reminder-description {
+  color: #666;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reminder-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.reminder-date {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: 500;
+}
+
+.empty-reminders {
+  padding: 40px 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .reminders-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .reminder-card {
+    height: 140px;
+  }
+
+  .reminder-card-content {
+    padding: 12px;
+  }
+
+  .reminder-title {
+    font-size: 0.85rem;
+  }
+
+  .reminder-description {
+    font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .reminders-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .reminders-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Renewal History Dialog Styles */
+.renewal-reminder-info {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #1976d2;
+}
+
+.renewal-details {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.renewal-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.renewal-detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 0.9rem;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cursor-pointer:hover {
+  transform: scale(1.05);
 }
 </style>

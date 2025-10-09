@@ -2,12 +2,17 @@
   <div class="inventory-list">
     <q-card class="inventory-card">
       <q-card-section class="inventory-header">
-        <div class="text-h6 text-weight-bold text-primary">
-          <q-icon name="inventory" class="q-mr-sm" />
-          Property Inventory List
-        </div>
-        <div class="text-caption text-grey-6 q-mt-xs">
-          Track items provided to tenant during move-in and returned during move-out
+        <div class="row items-center justify-between">
+          <div>
+            <div class="text-h6 text-weight-bold text-primary">
+              <q-icon name="inventory" class="q-mr-sm" />
+              Property Inventory List
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Track items provided to tenant during move-in and returned during move-out
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" @click="emit('cancel')" class="dialog-close-btn" />
         </div>
       </q-card-section>
 
@@ -979,5 +984,17 @@ watch(
   .quantities-row q-input {
     width: 100% !important;
   }
+}
+
+/* Dialog Close Button Styling */
+.dialog-close-btn {
+  color: var(--neutral-600);
+  transition: all 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  color: var(--primary-color);
+  background: rgba(36, 87, 115, 0.1);
+  transform: scale(1.1);
 }
 </style>

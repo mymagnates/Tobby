@@ -298,18 +298,6 @@
                 <q-icon name="add" />
               </template>
             </q-btn>
-            <q-btn
-              @click="onCancel"
-              color="grey-7"
-              label="Cancel"
-              flat
-              class="col-12 col-md-6"
-              size="md"
-            >
-              <template v-slot:prepend>
-                <q-icon name="close" />
-              </template>
-            </q-btn>
           </div>
         </q-form>
       </q-card-section>
@@ -365,7 +353,7 @@ const specTypes = [
   'Land',
 ]
 
-const userRoles = ['Landlord', 'Property Manager']
+const userRoles = ['Property Owner', 'Property Manager']
 
 const onSubmit = async () => {
   try {
@@ -426,12 +414,6 @@ const onSubmit = async () => {
   } catch (error) {
     console.error('Error creating property:', error)
   }
-}
-
-const onCancel = () => {
-  emit('cancel')
-  // Navigate back to My Properties page
-  router.push('/my-properties')
 }
 </script>
 

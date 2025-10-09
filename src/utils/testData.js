@@ -268,8 +268,8 @@ export const generateTestMxRecords = () => {
       mx_id: 'mx_1708454400000',
       create_id: 'user2',
       reported_by: 'Sarah Johnson',
-      reported_role: 'Landlord',
-      description: 'MX record priority needs adjustment for load balancing',
+      reported_role: 'Property Owner',
+      description: 'Task priority needs adjustment for load balancing',
       create_timestamp: new Date('2024-02-20T14:30:00'),
       report_date: '2024-02-20',
       resolv_date: new Date('2024-02-21T09:15:00'),
@@ -278,10 +278,10 @@ export const generateTestMxRecords = () => {
       logs: [
         {
           log_timestamp: new Date('2024-02-20T14:30:00'),
-          comment: 'Report submitted for MX record optimization',
+          comment: 'Report submitted for task optimization',
           user_id: 'user2',
           user_name: 'Sarah Johnson',
-          user_role: 'Landlord',
+          user_role: 'Property Owner',
         },
         {
           log_timestamp: new Date('2024-02-21T09:15:00'),
@@ -319,7 +319,7 @@ export const generateTestUserRoles = () => {
     {
       property_id: 'property2',
       user_id: 'user2',
-      role: 'Landlord',
+      role: 'Property Owner',
       role_date: '2024-01-01',
       expire_date: '',
       role_grant_by: 'System',
@@ -339,7 +339,7 @@ export const generateTestUserRoles = () => {
     {
       property_id: 'property4',
       user_id: 'user4',
-      role: 'Landlord',
+      role: 'Property Owner',
       role_date: '2024-01-01',
       expire_date: '',
       role_grant_by: 'System',

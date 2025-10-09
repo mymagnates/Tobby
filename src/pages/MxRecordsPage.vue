@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">MX Records</div>
+      <div class="text-h4">Tasks</div>
       <div class="row q-gutter-sm">
         <q-btn
           icon="refresh"
@@ -10,24 +10,60 @@
           @click="refreshData"
           :loading="userDataStore.mxRecordsLoading"
         />
-        <q-btn to="/create-mxrecord" color="primary" icon="add" label="Create MX Record" />
+        <q-btn @click="openCreateMxRecordDialog" color="primary" icon="add" label="Create Task" />
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="q-mb-md">
-      <q-input
-        v-model="searchQuery"
-        outlined
-        dense
-        placeholder="Search MX records by description, property, or reported by..."
-        clearable
-        class="search-input"
-      >
-        <template v-slot:prepend>
-          <q-icon name="search" />
-        </template>
-      </q-input>
+    <!-- Filters Row -->
+    <div class="row q-gutter-sm q-mb-md">
+      <div class="col-12 col-md-4">
+        <q-input
+          v-model="searchQuery"
+          outlined
+          dense
+          placeholder="Search tasks..."
+          clearable
+          bg-color="grey-1"
+        >
+          <template v-slot:prepend>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-select
+          v-model="selectedProperty"
+          :options="propertyFilterOptions"
+          label="Filter by Property"
+          outlined
+          dense
+          clearable
+          bg-color="grey-1"
+          option-label="label"
+          option-value="value"
+          emit-value
+          map-options
+        >
+          <template v-slot:prepend>
+            <q-icon name="home" />
+          </template>
+        </q-select>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-select
+          v-model="dateFilter"
+          :options="dateFilterOptions"
+          label="Filter by Time"
+          outlined
+          dense
+          clearable
+          bg-color="grey-1"
+        >
+          <template v-slot:prepend>
+            <q-icon name="date_range" />
+          </template>
+        </q-select>
+      </div>
     </div>
 
     <!-- Summary Stats -->
@@ -39,7 +75,7 @@
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-primary">{{ filteredMxRecords.length }}</div>
-          <div class="text-caption">Total MX Records</div>
+          <div class="text-caption">Total Tasks</div>
         </q-card-section>
       </q-card>
       <q-card
@@ -54,8 +90,8 @@
       </q-card>
       <q-card
         class="summary-card cursor-pointer"
-        :class="{ 'filter-active': activeFilter === 'closed' }"
-        @click="setFilter('closed')"
+        :class="{ 'filter-active': activeFilter === 'Closed' }"
+        @click="setFilter('Closed')"
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-green">{{ closedRecords.length }}</div>
@@ -92,19 +128,19 @@
 
     <div v-if="userDataStore.mxRecordsLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
-      <div class="q-mt-sm">Loading MX records...</div>
+      <div class="q-mt-sm">Loading tasks...</div>
     </div>
 
     <div v-else-if="filteredMxRecords.length === 0" class="text-center q-pa-lg">
       <q-icon name="dns" size="100px" color="grey-4" />
       <div class="text-h6 q-mt-md text-grey-6">
-        {{ searchQuery ? 'No MX records found matching your search' : 'No MX records found' }}
+        {{ searchQuery ? 'No tasks found matching your search' : 'No tasks found' }}
       </div>
       <div class="text-body2 text-grey-6 q-mt-sm">
         {{
           searchQuery
             ? 'Try adjusting your search terms'
-            : "You don't have any MX records for your properties yet."
+            : "You don't have any tasks for your properties yet."
         }}
       </div>
     </div>
@@ -165,13 +201,21 @@
     </div>
   </q-page>
 
-  <!-- MX Record Details Dialog -->
+  <!-- Task Details Dialog -->
   <q-dialog v-model="showMxRecordDialog" maximized>
     <q-card class="mxrecord-dialog">
       <q-card-section class="dialog-header">
         <div class="row items-center justify-between">
-          <div class="text-h5 text-weight-bold">MX Record Details</div>
+          <div class="text-h5 text-weight-bold">Task Details</div>
           <div class="row q-gutter-sm">
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeMxRecordDialog"
+              class="dialog-close-btn"
+            />
             <q-btn
               color="primary"
               text-color="white"
@@ -342,9 +386,21 @@
   <q-dialog v-model="showCommentDialog" persistent>
     <q-card style="min-width: 500px">
       <q-card-section>
-        <div class="text-h6">Add Comment to MX Record</div>
-        <div class="text-caption text-grey-6 q-mt-xs">
-          {{ selectedMxRecord?.description || 'No Description' }}
+        <div class="row items-center justify-between">
+          <div>
+            <div class="text-h6">Add Comment to Task</div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              {{ selectedMxRecord?.description || 'No Description' }}
+            </div>
+          </div>
+          <q-btn
+            flat
+            round
+            dense
+            icon="close"
+            @click="closeCommentDialog"
+            class="dialog-close-btn"
+          />
         </div>
       </q-card-section>
 
@@ -357,7 +413,7 @@
             outlined
             rows="4"
             :rules="[(val) => !!val || 'Comment is required']"
-            placeholder="Enter your comment or update about this MX record..."
+            placeholder="Enter your comment or update about this task..."
           />
 
           <q-select
@@ -468,11 +524,11 @@
     </q-card>
   </q-dialog>
 
-  <!-- Add Photos to MX Record Dialog -->
+  <!-- Add Photos to Task Dialog -->
   <q-dialog v-model="showAddPhotosDialog" persistent>
     <q-card style="min-width: 500px">
       <q-card-section>
-        <div class="text-h6">Add Photos to MX Record</div>
+        <div class="text-h6">Add Photos to Task</div>
         <div class="text-caption text-grey-6 q-mt-xs">
           {{ selectedMxRecord?.description || 'No Description' }}
         </div>
@@ -493,7 +549,7 @@
             dense
             multiple
             label="Choose pictures"
-            hint="Upload additional photos for this MX record"
+            hint="Upload additional photos for this task"
             bg-color="grey-1"
             class="q-mb-sm"
             @update:model-value="onAdditionalFilesSelected"
@@ -719,19 +775,65 @@
       </q-card-section>
     </q-card>
   </q-dialog>
+
+  <!-- Create Task Dialog -->
+  <q-dialog v-model="showCreateMxRecordDialog" persistent>
+    <q-card style="min-width: 600px; max-width: 800px">
+      <q-card-section class="dialog-header">
+        <div class="row items-center justify-between">
+          <div class="text-h6">Create Task</div>
+          <q-btn
+            flat
+            round
+            dense
+            icon="close"
+            @click="closeCreateMxRecordDialog"
+            class="dialog-close-btn"
+          />
+        </div>
+      </q-card-section>
+      <q-card-section>
+        <CreateMxRecord
+          @mx-record-created="onMxRecordCreated"
+          @cancel="closeCreateMxRecordDialog"
+        />
+      </q-card-section>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
+import CreateMxRecord from '../components/CreateMxRecord.vue'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, uploadImages } = useFirebase()
 const searchQuery = ref('')
 const activeFilter = ref('all') // 'all', 'pending', 'resolved'
+const selectedProperty = ref(null)
+const dateFilter = ref(null)
+
+// Filter options
+const dateFilterOptions = [
+  'Last 7 Days',
+  'Last 30 Days',
+  'Last 3 Months',
+  'Last 6 Months',
+  'Last Year',
+  'All Time',
+]
+
+const propertyFilterOptions = computed(() => {
+  return userDataStore.userAccessibleProperties.map((p) => ({
+    label: p.nickname || p.address,
+    value: p.id,
+  }))
+})
 const showMxRecordDialog = ref(false)
 const selectedMxRecord = ref(null)
+const showCreateMxRecordDialog = ref(false)
 const showCommentDialog = ref(false)
 const submittingComment = ref(false)
 const newComment = ref({
@@ -769,7 +871,7 @@ const userAccessibleMxRecords = computed(() => {
   return userDataStore.userAccessibleMxRecords
 })
 
-// Filtered MX records based on search query and active filter
+// Filtered tasks based on search query, status filter, property filter, and date filter
 const filteredMxRecords = computed(() => {
   let records = userAccessibleMxRecords.value
 
@@ -782,7 +884,44 @@ const filteredMxRecords = computed(() => {
     records = records.filter((record) => record.status === 'cancel')
   }
 
-  // Then apply search filter
+  // Apply property filter
+  if (selectedProperty.value) {
+    records = records.filter((record) => record.property_id === selectedProperty.value)
+  }
+
+  // Apply date filter
+  if (dateFilter.value) {
+    const now = new Date()
+    let startDate = new Date()
+
+    switch (dateFilter.value) {
+      case 'Last 7 Days':
+        startDate.setDate(now.getDate() - 7)
+        break
+      case 'Last 30 Days':
+        startDate.setDate(now.getDate() - 30)
+        break
+      case 'Last 3 Months':
+        startDate.setMonth(now.getMonth() - 3)
+        break
+      case 'Last 6 Months':
+        startDate.setMonth(now.getMonth() - 6)
+        break
+      case 'Last Year':
+        startDate.setFullYear(now.getFullYear() - 1)
+        break
+      case 'All Time':
+        startDate = new Date(0) // Beginning of time
+        break
+    }
+
+    records = records.filter((record) => {
+      const reportDate = new Date(record.report_date)
+      return reportDate >= startDate
+    })
+  }
+
+  // Apply search filter
   if (!searchQuery.value.trim()) {
     return records
   }
@@ -819,12 +958,12 @@ const cancelRecords = computed(() =>
 // Filter functions
 const setFilter = (filter) => {
   activeFilter.value = filter
-  console.log('MX Records filter set to:', filter)
+  console.log('Tasks filter set to:', filter)
 }
 
 const clearFilter = () => {
   activeFilter.value = 'all'
-  console.log('MX Records filter cleared')
+  console.log('Tasks filter cleared')
 }
 
 const getFilterColor = (filter) => {
@@ -1066,7 +1205,7 @@ const submitAdditionalPhotos = async () => {
     const existingImageUrls = selectedMxRecord.value.image_urls || []
     const updatedImageUrls = [...existingImageUrls, ...newImageUrls]
 
-    // Update the MX record with new image URLs
+    // Update the task with new image URLs
     const propertyId = selectedMxRecord.value.property_id
     const mxRecordId = selectedMxRecord.value.id
 
@@ -1226,7 +1365,7 @@ const viewImageFullscreen = (imageUrl, index) => {
   currentImageUrl.value = imageUrl
   currentImageIndex.value = index
   currentImageList.value = selectedMxRecord.value.image_urls || []
-  currentImageContext.value = 'MX Record Images'
+  currentImageContext.value = 'Task Images'
   showImageViewer.value = true
 
   // Add keyboard event listener
@@ -1274,7 +1413,7 @@ const submitCommentAdditionalPhotos = async () => {
       return log
     })
 
-    // Update the MX record with updated logs
+    // Update the task with updated logs
     const propertyId = selectedMxRecord.value.property_id
     const mxRecordId = selectedMxRecord.value.id
 
@@ -1347,12 +1486,12 @@ const submitComment = async () => {
   }
 
   if (!selectedMxRecord.value || !selectedMxRecord.value.id) {
-    console.error('No selected MX record or missing ID:', selectedMxRecord.value)
+    console.error('No selected task or missing ID:', selectedMxRecord.value)
 
     import('quasar').then(({ Notify }) => {
       Notify.create({
         type: 'negative',
-        message: 'No MX record selected',
+        message: 'No task selected',
         position: 'top',
       })
     })
@@ -1400,7 +1539,7 @@ const submitComment = async () => {
       image_urls: commentImageUrls, // Add uploaded comment image URLs
     }
 
-    // Add the log entry to the MX record
+    // Add the log entry to the task
     const updatedLogs = [...(selectedMxRecord.value.logs || []), newLogEntry]
 
     // Validate IDs before constructing path
@@ -1436,7 +1575,7 @@ const submitComment = async () => {
       console.log('Resolution comment detected - automatically setting status to closed')
     }
 
-    console.log('Updating MX record with new comment...', {
+    console.log('Updating task with new comment...', {
       documentPath,
       newLogEntry,
       totalLogs: updatedLogs.length,
@@ -1446,7 +1585,7 @@ const submitComment = async () => {
 
     await updateDocument(`properties/${propertyIdStr}/mxrecords`, mxRecordIdStr, updateData)
 
-    console.log('MX record updated successfully with new comment')
+    console.log('Task updated successfully with new comment')
 
     // Update the local selected record
     selectedMxRecord.value.logs = updatedLogs
@@ -1454,7 +1593,7 @@ const submitComment = async () => {
     // Update local status if it was changed
     if (newComment.value.action_type === 'resolution') {
       selectedMxRecord.value.status = 'closed'
-      console.log('Local MX record status updated to closed')
+      console.log('Local task status updated to closed')
     }
 
     // Close dialog and reset form
@@ -1469,7 +1608,7 @@ const submitComment = async () => {
       Notify.create({
         type: 'positive',
         message: isResolution
-          ? 'Resolution comment added and MX record closed successfully!'
+          ? 'Resolution comment added and task closed successfully!'
           : 'Comment added successfully!',
         position: 'top',
       })
@@ -1488,6 +1627,20 @@ const submitComment = async () => {
   } finally {
     submittingComment.value = false
   }
+}
+
+// Create task dialog functions
+const openCreateMxRecordDialog = () => {
+  showCreateMxRecordDialog.value = true
+}
+
+const closeCreateMxRecordDialog = () => {
+  showCreateMxRecordDialog.value = false
+}
+
+const onMxRecordCreated = () => {
+  closeCreateMxRecordDialog()
+  refreshData()
 }
 
 const refreshData = async () => {
@@ -1940,7 +2093,7 @@ const refreshData = async () => {
   }
 }
 
-/* MX Record Details Dialog Styles */
+/* Task Details Dialog Styles */
 .mxrecord-dialog {
   background: white;
   border-radius: 0;
@@ -2087,5 +2240,17 @@ const refreshData = async () => {
     align-items: flex-start;
     gap: 4px;
   }
+}
+
+/* Dialog Close Button Styling */
+.dialog-close-btn {
+  color: var(--neutral-600);
+  transition: all 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  color: var(--primary-color);
+  background: rgba(36, 87, 115, 0.1);
+  transform: scale(1.1);
 }
 </style>

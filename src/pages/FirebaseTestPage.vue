@@ -59,7 +59,7 @@
             <strong>Properties:</strong> {{ properties.length }} (Loading: {{ propertiesLoading }})
           </div>
           <div class="col-12 col-md-3">
-            <strong>MX Records:</strong> {{ mxrecords.length }} (Loading: {{ mxrecordsLoading }})
+            <strong>Tasks:</strong> {{ mxrecords.length }} (Loading: {{ mxrecordsLoading }})
           </div>
           <div class="col-12 col-md-3">
             <strong>Transactions:</strong> {{ transactions.length }} (Loading:
@@ -237,19 +237,19 @@
                 <div class="q-mt-md">
                   <q-expansion-item
                     icon="dns"
-                    label="MX Records"
+                    label="Tasks"
                     header-class="text-secondary"
                     class="q-mb-sm"
                   >
                     <div v-if="property.mxrecordsLoading" class="text-center q-pa-sm">
                       <q-spinner color="secondary" size="1em" />
-                      <span class="q-ml-sm">Loading MX records...</span>
+                      <span class="q-ml-sm">Loading tasks...</span>
                     </div>
                     <div
                       v-else-if="!property.mxrecords || property.mxrecords.length === 0"
                       class="text-center q-pa-sm text-grey"
                     >
-                      No MX records found
+                      No tasks found
                     </div>
                     <div v-else class="q-gutter-sm">
                       <q-chip
@@ -295,17 +295,17 @@
       </q-card-section>
     </q-card>
 
-    <!-- MX Records Collection -->
+    <!-- Tasks Collection -->
     <q-card class="q-mb-md">
       <q-card-section class="bg-secondary text-white">
         <div class="row items-center justify-between">
-          <div class="text-h6">MX Records Collection</div>
+          <div class="text-h6">Tasks Collection</div>
           <q-btn
             icon="add"
             color="white"
             text-color="secondary"
             @click="showAddMxRecord = true"
-            label="Add MX Record"
+            label="Add Task"
           />
         </div>
       </q-card-section>
@@ -313,17 +313,17 @@
       <q-card-section>
         <q-expansion-item
           icon="dns"
-          label="MX Records Data"
+          label="Tasks Data"
           header-class="text-secondary"
           :default-opened="true"
         >
           <div v-if="mxrecordsLoading" class="text-center q-pa-md">
             <q-spinner color="secondary" size="2em" />
-            <div class="q-mt-sm">Loading MX records...</div>
+            <div class="q-mt-sm">Loading tasks...</div>
           </div>
 
           <div v-else-if="mxrecords.length === 0" class="text-center q-pa-md text-grey">
-            No MX records found
+            No tasks found
           </div>
 
           <div v-else class="q-gutter-md">
@@ -538,11 +538,11 @@
       </q-card>
     </q-dialog>
 
-    <!-- Add MX Record Dialog -->
+    <!-- Add Task Dialog -->
     <q-dialog v-model="showAddMxRecord">
       <q-card style="min-width: 400px">
         <q-card-section>
-          <div class="text-h6">Add MX Record</div>
+          <div class="text-h6">Add Task</div>
         </q-card-section>
 
         <q-card-section>
@@ -564,7 +564,7 @@
               required
             />
             <div class="row q-gutter-sm">
-              <q-btn type="submit" color="primary" label="Add MX Record" />
+              <q-btn type="submit" color="primary" label="Add Task" />
               <q-btn @click="showAddMxRecord = false" color="secondary" label="Cancel" />
             </div>
           </q-form>
@@ -773,13 +773,13 @@ onMounted(() => {
     },
   )
 
-  // MX Records collection listener
+  // Tasks collection listener
   const mxrecordsQuery = query(collection(db, 'mxrecords'), orderBy('name'))
   console.log('🔥 Setting up mxrecords listener...')
   mxrecordsUnsubscribe = onSnapshot(
     mxrecordsQuery,
     (snapshot) => {
-      console.log('🔥 MX Records snapshot received:', snapshot.docs.length, 'documents')
+      console.log('🔥 Tasks snapshot received:', snapshot.docs.length, 'documents')
       mxrecords.value = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -787,7 +787,7 @@ onMounted(() => {
       mxrecordsLoading.value = false
     },
     (error) => {
-      console.error('🔥 MX Records listener error:', error)
+      console.error('🔥 Tasks listener error:', error)
       mxrecordsLoading.value = false
     },
   )
@@ -831,7 +831,7 @@ const loadUserRoles = async (user) => {
 // Load subcollections for a property
 const loadPropertySubcollections = async (property) => {
   try {
-    // Load MX records subcollection
+    // Load tasks subcollection
     const mxrecordsQuery = query(collection(db, 'properties', property.id, 'mxrecords'))
     onSnapshot(mxrecordsQuery, (snapshot) => {
       property.mxrecords = snapshot.docs.map((doc) => ({
@@ -968,7 +968,7 @@ const createSampleData = async () => {
       createdProperties.push(propertyId)
     }
 
-    // Create sample MX records in property subcollections
+    // Create sample tasks in property subcollections
     if (createdProperties.length > 0) {
       const sampleMxRecords = [
         {
@@ -997,7 +997,7 @@ const createSampleData = async () => {
           mx_id: `mx_${Date.now()}_2`,
           create_id: 'test_user_2',
           reported_by: 'Jane Smith',
-          reported_role: 'Landlord',
+          reported_role: 'Property Owner',
           description: 'Plumbing leak in kitchen',
           report_date: new Date('2024-01-20'),
           resolution: 'Resolved',
@@ -1006,10 +1006,10 @@ const createSampleData = async () => {
           logs: [
             {
               log_timestamp: new Date('2024-01-20'),
-              comment: 'Issue reported by landlord',
+              comment: 'Issue reported by property owner',
               user_id: 'test_user_2',
               user_name: 'Jane Smith',
-              user_role: 'Landlord',
+              user_role: 'Property Owner',
             },
             {
               log_timestamp: new Date('2024-01-25'),
@@ -1039,7 +1039,7 @@ const createSampleData = async () => {
           lease_id: 'lease_001',
           role: 'Property Manager',
           transac_from: 'Tenant',
-          transac_to: 'Landlord',
+          transac_to: 'Property Owner',
           amount: 2500,
           transac_date: new Date('2024-01-01'),
           transac_type: 'Rent Payment',
@@ -1052,7 +1052,7 @@ const createSampleData = async () => {
           lease_id: 'lease_001',
           role: 'Property Manager',
           transac_from: 'Tenant',
-          transac_to: 'Landlord',
+          transac_to: 'Property Owner',
           amount: 1000,
           transac_date: new Date('2024-01-01'),
           transac_type: 'Security Deposit',
@@ -1063,9 +1063,9 @@ const createSampleData = async () => {
           transac_id: `txn_${Date.now()}_3`,
           property_id: createdProperties[1],
           lease_id: 'lease_002',
-          role: 'Landlord',
+          role: 'Property Owner',
           transac_from: 'Insurance Company',
-          transac_to: 'Landlord',
+          transac_to: 'Property Owner',
           amount: 5000,
           transac_date: new Date('2024-01-10'),
           transac_type: 'Insurance Payment',
@@ -1076,9 +1076,9 @@ const createSampleData = async () => {
           transac_id: `txn_${Date.now()}_4`,
           property_id: createdProperties[1],
           lease_id: 'lease_002',
-          role: 'Landlord',
+          role: 'Property Owner',
           transac_from: 'Tenant',
-          transac_to: 'Landlord',
+          transac_to: 'Property Owner',
           amount: 3500,
           transac_date: new Date('2024-01-01'),
           transac_type: 'Rent Payment',
@@ -1207,7 +1207,7 @@ const addMxRecord = async () => {
     newMxRecord.value = { name: '', value: '', type: 'MX', priority: 10 }
     showAddMxRecord.value = false
   } catch (error) {
-    console.error('Error adding MX record:', error)
+    console.error('Error adding task:', error)
   }
 }
 
@@ -1237,7 +1237,7 @@ const editProperty = (property) => {
 
 const editMxRecord = (mxrecord) => {
   // TODO: Implement edit functionality
-  console.log('Edit MX record:', mxrecord)
+  console.log('Edit task:', mxrecord)
 }
 
 const editTransaction = (transaction) => {
@@ -1275,7 +1275,7 @@ const deleteMxRecord = async (mxrecordId) => {
   try {
     await deleteDocument('mxrecords', mxrecordId)
   } catch (error) {
-    console.error('Error deleting MX record:', error)
+    console.error('Error deleting task:', error)
   }
 }
 

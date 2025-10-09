@@ -61,18 +61,40 @@ export const useUserDataStore = defineStore('userData', () => {
       return []
     }
 
-    const accessiblePropertyIds = userRoles.value.map((role) => role.property_id)
-    console.log('userDataStore - Accessible property IDs from roles:', accessiblePropertyIds)
+    const accessiblePropertyIds = userRoles.value.map((role) =>
+      normalizePropertyId(role.property_id),
+    )
+    console.log(
+      'userDataStore - Accessible property IDs from roles (normalized):',
+      accessiblePropertyIds,
+    )
     console.log(
       'userDataStore - All properties:',
       properties.value.map((p) => ({ id: p.id, nickname: p.nickname, address: p.address })),
     )
 
     const filteredProperties = properties.value.filter((property) => {
-      const hasAccess = accessiblePropertyIds.includes(property.id)
+      const normalizedPropertyId = normalizePropertyId(property.id)
+      const hasAccess = accessiblePropertyIds.includes(normalizedPropertyId)
       console.log(
-        `Property ${property.id} (${property.nickname || property.address}) - Has Access: ${hasAccess}`,
+        `Property ${property.id} (${property.nickname || property.address}) - Normalized: ${normalizedPropertyId} - Has Access: ${hasAccess}`,
       )
+
+      // Enhanced debugging for property ID matching
+      if (!hasAccess) {
+        console.log('Property ID matching details:')
+        console.log('  Property ID:', property.id, 'Type:', typeof property.id)
+        console.log('  Normalized Property ID:', normalizedPropertyId)
+        console.log('  Accessible IDs:', accessiblePropertyIds)
+        console.log(
+          '  Role property_ids:',
+          userRoles.value.map((r) => ({
+            original: r.property_id,
+            normalized: normalizePropertyId(r.property_id),
+          })),
+        )
+      }
+
       return hasAccess
     })
 
@@ -87,22 +109,22 @@ export const useUserDataStore = defineStore('userData', () => {
     console.log('userDataStore - userAccessibleProperties.value:', userAccessibleProperties.value)
 
     if (!mxRecords.value || mxRecords.value.length === 0) {
-      console.log('userDataStore - No MX records available')
+      console.log('userDataStore - No tasks available')
       return []
     }
 
     if (!userAccessibleProperties.value || userAccessibleProperties.value.length === 0) {
-      console.log('userDataStore - No accessible properties for MX records')
+      console.log('userDataStore - No accessible properties for tasks')
       return []
     }
 
-    // Filter MX records to only include those from properties the user has access to
+    // Filter tasks to only include those from properties the user has access to
     const accessiblePropertyIds = userAccessibleProperties.value.map((property) => property.id)
     const filteredMxRecords = mxRecords.value.filter((mxRecord) =>
       accessiblePropertyIds.includes(mxRecord.property_id),
     )
 
-    console.log('userDataStore - Filtered MX records:', filteredMxRecords)
+    console.log('userDataStore - Filtered tasks:', filteredMxRecords)
     return filteredMxRecords
   })
 
@@ -341,12 +363,9 @@ export const useUserDataStore = defineStore('userData', () => {
         properties.value.length,
       )
 
-      console.log('UserDataStore - Step 4: Loading MX records...')
-      await loadMxRecords() // Load MX records after properties
-      console.log(
-        'UserDataStore - Step 4 complete: MX records loaded. Count:',
-        mxRecords.value.length,
-      )
+      console.log('UserDataStore - Step 4: Loading tasks...')
+      await loadMxRecords() // Load tasks after properties
+      console.log('UserDataStore - Step 4 complete: tasks loaded. Count:', mxRecords.value.length)
 
       console.log('UserDataStore - Step 5: Loading transactions...')
       await loadTransactions() // Load transactions after properties
@@ -517,7 +536,7 @@ export const useUserDataStore = defineStore('userData', () => {
   const loadMxRecords = async () => {
     try {
       mxRecordsLoading.value = true
-      console.log('UserDataStore - Starting to load MX records from property subcollections...')
+      console.log('UserDataStore - Starting to load tasks from property subcollections...')
       console.log('UserDataStore - Current userRoles:', userRoles.value)
       console.log('UserDataStore - Current properties:', properties.value)
 
@@ -528,18 +547,18 @@ export const useUserDataStore = defineStore('userData', () => {
       }
 
       const accessiblePropertyIds = userAccessibleProperties.value.map((property) => property.id)
-      console.log('UserDataStore - Accessible property IDs for MX records:', accessiblePropertyIds)
+      console.log('UserDataStore - Accessible property IDs for tasks:', accessiblePropertyIds)
 
       if (accessiblePropertyIds.length === 0) {
-        console.log('UserDataStore - No accessible properties, setting empty MX records')
+        console.log('UserDataStore - No accessible properties, setting empty tasks')
         mxRecords.value = []
         mxRecordsLoading.value = false
         return
       }
 
-      mxRecords.value = [] // Clear existing MX records
+      mxRecords.value = [] // Clear existing tasks
       console.log(
-        'UserDataStore - Cleared existing MX records, setting up listeners for properties:',
+        'UserDataStore - Cleared existing tasks, setting up listeners for properties:',
         accessiblePropertyIds,
       )
 
@@ -558,7 +577,7 @@ export const useUserDataStore = defineStore('userData', () => {
             console.log(
               `UserDataStore - Property ${propertyId} mxrecords snapshot received with`,
               snapshot.docs.length,
-              'MX records',
+              'tasks',
             )
 
             const newMxRecords = snapshot.docs.map((doc) => {
@@ -566,7 +585,7 @@ export const useUserDataStore = defineStore('userData', () => {
                 id: doc.id,
                 ...doc.data(),
               }
-              console.log('UserDataStore - MX record loaded for property', propertyId, ':', data)
+              console.log('UserDataStore - Task loaded for property', propertyId, ':', data)
               return data
             })
 
@@ -583,7 +602,7 @@ export const useUserDataStore = defineStore('userData', () => {
             })
 
             console.log(
-              'UserDataStore - Total MX records after property',
+              'UserDataStore - Total tasks after property',
               propertyId,
               ':',
               mxRecords.value.length,
@@ -591,10 +610,7 @@ export const useUserDataStore = defineStore('userData', () => {
             mxRecordsLoading.value = false
           },
           (error) => {
-            console.error(
-              `UserDataStore - Error loading MX records for property ${propertyId}:`,
-              error,
-            )
+            console.error(`UserDataStore - Error loading tasks for property ${propertyId}:`, error)
             mxRecordsLoading.value = false
           },
         )
@@ -604,7 +620,7 @@ export const useUserDataStore = defineStore('userData', () => {
         unsubscribes.forEach((unsubscribe) => unsubscribe())
       }
     } catch (error) {
-      console.error('UserDataStore - Error setting up MX records listener:', error)
+      console.error('UserDataStore - Error setting up tasks listener:', error)
       mxRecordsLoading.value = false
     }
   }
@@ -901,7 +917,7 @@ export const useUserDataStore = defineStore('userData', () => {
   }
 
   const addMxRecord = (mxRecordData) => {
-    // Add MX record to the local array for testing purposes
+    // Add task to the local array for testing purposes
     const newMxRecord = {
       id: `test_${Date.now()}`,
       ...mxRecordData,
@@ -918,11 +934,8 @@ export const useUserDataStore = defineStore('userData', () => {
       return dateB - dateA
     })
 
-    console.log('UserDataStore - Test MX record added:', newMxRecord)
-    console.log(
-      'UserDataStore - Total MX records after adding test record:',
-      mxRecords.value.length,
-    )
+    console.log('UserDataStore - Test task added:', newMxRecord)
+    console.log('UserDataStore - Total tasks after adding test record:', mxRecords.value.length)
   }
 
   const checkLeasesCollection = async () => {

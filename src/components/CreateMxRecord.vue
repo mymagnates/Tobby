@@ -4,7 +4,7 @@
       <q-card-section class="q-pa-md">
         <div class="text-h6 text-weight-bold text-primary q-mb-sm">
           <q-icon name="dns" class="q-mr-sm" />
-          Create New MX Record
+          Create New Task
         </div>
         <div v-if="propertyId" class="text-caption text-grey-6 q-mb-xs">
           Property: {{ propertyName }}
@@ -153,22 +153,10 @@
 
           <div class="row q-mt-sm">
             <q-btn
-              @click="onCancel"
-              color="grey-7"
-              label="Cancel"
-              flat
-              class="col-12 col-md-6"
-              size="md"
-            >
-              <template v-slot:prepend>
-                <q-icon name="close" />
-              </template>
-            </q-btn>
-            <q-btn
               type="submit"
               color="primary"
               :loading="loading"
-              label="Create MX Record"
+              label="Create Task"
               class="col-12 col-md-6"
               size="md"
               unelevated
@@ -269,7 +257,7 @@ onMounted(() => {
 
 const onSubmit = async () => {
   try {
-    console.log('=== MX Record Creation Started ===')
+    console.log('=== Task Creation Started ===')
     const finalPropertyId = propertyId.value || selectedPropertyId.value
     console.log('CreateMxRecord onSubmit - propertyId.value:', propertyId.value)
     console.log('CreateMxRecord onSubmit - selectedPropertyId.value:', selectedPropertyId.value)
@@ -289,16 +277,16 @@ const onSubmit = async () => {
     const filesToUpload = imagePreviews.value.map((preview) => preview.file)
     if (filesToUpload.length > 0) {
       try {
-        console.log(`Uploading ${filesToUpload.length} images for MX record...`)
+        console.log(`Uploading ${filesToUpload.length} images for task...`)
         imageUrls = await uploadImages(filesToUpload, finalPropertyId, 'mxrecord')
         console.log('Images uploaded successfully to Firebase Storage:', imageUrls)
       } catch (error) {
         console.error('Error uploading images to Firebase Storage:', error)
-        // Continue with MX record creation even if image upload fails
+        // Continue with task creation even if image upload fails
         import('quasar').then(({ Notify }) => {
           Notify.create({
             type: 'warning',
-            message: 'Images could not be uploaded, but MX record will still be created',
+            message: 'Images could not be uploaded, but task will still be created',
             position: 'top',
           })
         })
@@ -341,7 +329,7 @@ const onSubmit = async () => {
       mxRecordDataToSave,
     )
     console.log('CreateMxRecord onSubmit - mxRecordId created:', mxRecordId)
-    console.log('=== MX Record Creation Completed Successfully ===')
+    console.log('=== Task Creation Completed Successfully ===')
 
     // Reset form
     mxRecordData.description = ''
@@ -354,11 +342,11 @@ const onSubmit = async () => {
 
     emit('mxrecord-created', { id: mxRecordId, ...mxRecordData })
 
-    // Navigate back to MX Records page
+    // Navigate back to tasks page
     router.push('/mx-records')
   } catch (error) {
-    console.error('=== MX Record Creation Failed ===')
-    console.error('Error creating MX record:', error)
+    console.error('=== Task Creation Failed ===')
+    console.error('Error creating task:', error)
     console.error('Error details:', {
       message: error.message,
       code: error.code,
@@ -366,12 +354,6 @@ const onSubmit = async () => {
     })
     // You might want to show a user-friendly error message here
   }
-}
-
-const onCancel = () => {
-  emit('cancel')
-  // Navigate back to MX Records page
-  router.push('/mx-records')
 }
 </script>
 

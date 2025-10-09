@@ -2,12 +2,17 @@
   <div class="lease-documents">
     <q-card class="documents-card">
       <q-card-section class="documents-header">
-        <div class="text-h6 text-weight-bold text-primary">
-          <q-icon name="folder" class="q-mr-sm" />
-          Lease Documents
-        </div>
-        <div class="text-caption text-grey-6 q-mt-xs">
-          Upload and manage documents and pictures related to this lease
+        <div class="row items-center justify-between">
+          <div>
+            <div class="text-h6 text-weight-bold text-primary">
+              <q-icon name="folder" class="q-mr-sm" />
+              Lease Documents
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Upload and manage documents and pictures related to this lease
+            </div>
+          </div>
+          <q-btn flat round dense icon="close" @click="emit('close')" class="dialog-close-btn" />
         </div>
       </q-card-section>
 
@@ -81,11 +86,35 @@
         <!-- Documents List -->
         <div class="documents-list-section">
           <div class="section-header">
-            <div class="text-subtitle1 text-weight-medium">Documents ({{ documents.length }})</div>
+            <div class="row items-center justify-between">
+              <div class="text-subtitle1 text-weight-medium">
+                Documents ({{ documents.length }})
+              </div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="refresh"
+                color="primary"
+                @click="loadDocuments"
+                :loading="loading"
+                size="sm"
+              >
+                <q-tooltip>Refresh documents</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="loading" class="loading-documents q-mt-md">
+            <div class="text-center q-pa-md">
+              <q-spinner-dots size="40px" color="primary" />
+              <div class="text-body2 text-grey-6 q-mt-sm">Loading documents...</div>
+            </div>
           </div>
 
           <!-- Documents Grid -->
-          <div v-if="documents.length > 0" class="documents-grid q-mt-md">
+          <div v-else-if="documents.length > 0" class="documents-grid q-mt-md">
             <div v-for="doc in documents" :key="doc.id" class="document-card">
               <!-- Document Header -->
               <div class="document-header">
@@ -177,7 +206,7 @@
 
       <!-- Actions -->
       <q-card-actions class="documents-actions">
-        <q-btn flat label="Close" @click="$emit('close')" />
+        <q-btn flat label="Close" @click="emit('close')" />
       </q-card-actions>
     </q-card>
 
@@ -245,19 +274,22 @@ const props = defineProps({
 })
 
 // Emits
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 // Composables
 const {
   createDocument,
   deleteDocument: deleteFirestoreDocument,
-  uploadImages,
+ // uploadImages,
+  uploadImagesWithDetails,
+  deleteFile,
   getAllDocuments,
 } = useFirebase()
 
 // Reactive data
 const uploading = ref(false)
 const deleting = ref(false)
+const loading = ref(false)
 const uploadFile = ref(null)
 const documents = ref([])
 const documentData = ref({
@@ -292,13 +324,19 @@ const uploadDocument = async () => {
     uploading.value = true
 
     // Upload file to Firebase Storage
-    const uploadedUrls = await uploadImages([uploadFile.value], props.propertyId, 'lease_docs')
+    const uploadResults = await uploadImagesWithDetails(
+      [uploadFile.value],
+      props.propertyId,
+      'lease_docs',
+    )
 
-    if (!uploadedUrls || uploadedUrls.length === 0) {
+    if (!uploadResults || uploadResults.length === 0) {
       throw new Error('Failed to upload file')
     }
 
-    const fileUrl = uploadedUrls[0]
+    const uploadResult = uploadResults[0]
+    const fileUrl = uploadResult.url
+    const storagePath = uploadResult.storagePath
     const fileExtension = uploadFile.value.name.split('.').pop()?.toLowerCase() || 'unknown'
 
     // Create document metadata
@@ -308,6 +346,7 @@ const uploadDocument = async () => {
       name: documentData.value.name,
       description: documentData.value.description,
       file_url: fileUrl,
+      storage_path: storagePath,
       file_type: fileExtension,
       file_size: uploadFile.value.size,
       original_filename: uploadFile.value.name,
@@ -351,12 +390,21 @@ const uploadDocument = async () => {
 // Load existing documents
 const loadDocuments = async () => {
   try {
-    const docs = await getAllDocuments(
-      `properties/${props.propertyId}/leases/${props.leaseId}/lease_docs`,
-    )
+    loading.value = true
+    console.log('Loading documents for lease:', props.leaseId, 'property:', props.propertyId)
+    const collectionPath = `properties/${props.propertyId}/leases/${props.leaseId}/lease_docs`
+    console.log('Collection path:', collectionPath)
+
+    const docs = await getAllDocuments(collectionPath)
+    console.log('Loaded documents:', docs)
+
     documents.value = docs || []
+    console.log('Documents array updated:', documents.value.length, 'documents')
   } catch (error) {
     console.error('Error loading documents:', error)
+    documents.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -372,6 +420,25 @@ const deleteDocument = async () => {
 
   try {
     deleting.value = true
+
+    console.log('Deleting document:', documentToDelete.value)
+
+    // Delete from Firebase Storage if storage path exists
+    if (documentToDelete.value.storage_path) {
+      try {
+        console.log('Deleting file from storage:', documentToDelete.value.storage_path)
+        await deleteFile(documentToDelete.value.storage_path)
+        console.log('File deleted from storage successfully')
+      } catch (storageError) {
+        console.warn(
+          'Failed to delete file from storage (continuing with Firestore deletion):',
+          storageError,
+        )
+        // Continue with Firestore deletion even if storage deletion fails
+      }
+    } else {
+      console.warn('No storage path found for document, skipping storage deletion')
+    }
 
     // Delete from Firestore
     await deleteFirestoreDocument(
@@ -692,5 +759,17 @@ onMounted(() => {
   .document-actions {
     align-self: flex-end;
   }
+}
+
+/* Dialog Close Button Styling */
+.dialog-close-btn {
+  color: var(--neutral-600);
+  transition: all 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  color: var(--primary-color);
+  background: rgba(36, 87, 115, 0.1);
+  transform: scale(1.1);
 }
 </style>

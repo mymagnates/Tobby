@@ -83,7 +83,7 @@
         </div>
         <div class="quick-stat">
           <q-icon name="dns" class="stat-icon" />
-          <span>{{ getMxRecordCount() }} MX Records</span>
+          <span>{{ getMxRecordCount() }} Tasks</span>
         </div>
       </div>
     </div>

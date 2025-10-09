@@ -11,7 +11,7 @@
           @click="refreshData"
           :loading="userDataStore.leasesLoading"
         />
-        <q-btn to="/create-lease" color="primary" icon="add" label="Create New Lease" />
+        <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
       </div>
     </div>
 
@@ -217,7 +217,7 @@
             <div class="row q-gutter-sm">
               <q-btn
                 v-if="!isEditMode"
-                color="secondary"
+                color="primary"
                 icon="inventory"
                 label="Inventory"
                 @click="openInventoryDialog"
@@ -225,7 +225,7 @@
               />
               <q-btn
                 v-if="!isEditMode"
-                color="info"
+                color="primary"
                 icon="folder"
                 label="Documents"
                 @click="openDocumentsDialog"
@@ -536,6 +536,28 @@
         @close="closeDocumentsDialog"
       />
     </q-dialog>
+
+    <!-- Create Lease Dialog -->
+    <q-dialog v-model="showCreateLeaseDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Lease</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateLeaseDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateLease @lease-created="onLeaseCreated" @cancel="closeCreateLeaseDialog" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -543,6 +565,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
+import CreateLease from '../components/CreateLease.vue'
 import InventoryList from '../components/InventoryList.vue'
 import LeaseDocuments from '../components/LeaseDocuments.vue'
 import { Notify } from 'quasar'
@@ -557,6 +580,7 @@ const showLeaseDialog = ref(false)
 const selectedLease = ref(null)
 const isEditMode = ref(false)
 const editLoading = ref(false)
+const showCreateLeaseDialog = ref(false)
 
 // Inventory dialog states
 const showInventoryDialog = ref(false)
@@ -733,6 +757,20 @@ const closeDocumentsDialog = () => {
   showDocumentsDialog.value = false
 }
 
+// Create lease dialog functions
+const openCreateLeaseDialog = () => {
+  showCreateLeaseDialog.value = true
+}
+
+const closeCreateLeaseDialog = () => {
+  showCreateLeaseDialog.value = false
+}
+
+const onLeaseCreated = () => {
+  closeCreateLeaseDialog()
+  refreshData()
+}
+
 // Refresh data
 const refreshData = async () => {
   try {
@@ -832,7 +870,7 @@ watch(
 }
 
 .dialog-header {
-  background: var(--q-primary);
+  background: var(--q-secondary);
   color: white;
   padding: 16px 24px;
 }
@@ -939,6 +977,18 @@ watch(
   background: rgba(36, 87, 115, 0.05);
   border-radius: 4px;
   border-left: 2px solid var(--primary-color);
+}
+
+/* Dialog Close Button Styling */
+.dialog-close-btn {
+  color: var(--neutral-600);
+  transition: all 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  color: var(--primary-color);
+  background: rgba(36, 87, 115, 0.1);
+  transform: scale(1.1);
 }
 
 @media (max-width: 768px) {

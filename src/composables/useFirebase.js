@@ -356,6 +356,77 @@ export function useFirebase() {
     }
   }
 
+  // Upload multiple images with detailed results (including storage paths)
+  const uploadImagesWithDetails = async (files, propertyId, context = 'mxrecord') => {
+    if (!files || files.length === 0) return []
+
+    try {
+      loading.value = true
+      error.value = null
+
+      // Get property name for file naming
+      const propertyName = userDataStore.getPropertyName(propertyId) || 'unknown-property'
+      const sanitizedPropertyName = propertyName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
+
+      // Create timestamp for file naming
+      const now = new Date()
+      const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
+
+      console.log(
+        `Uploading ${files.length} files with details for property: ${propertyName} (${propertyId})`,
+      )
+
+      const uploadPromises = files.map(async (file, index) => {
+        // Generate random number for uniqueness
+        const randomNum = Math.floor(Math.random() * 10000)
+          .toString()
+          .padStart(4, '0')
+
+        // Get file extension
+        const fileExtension = file.name.split('.').pop() || 'jpg'
+
+        // Create unique filename: propertyname_datetime_random_index.extension
+        const fileName = `${sanitizedPropertyName}_${timestamp}_${randomNum}_${index + 1}.${fileExtension}`
+
+        // Create storage path: images/context/propertyId/filename
+        const storagePath = `images/${context}/${propertyId}/${fileName}`
+
+        console.log(`Uploading file ${index + 1}/${files.length}:`, {
+          originalName: file.name,
+          newFileName: fileName,
+          storagePath: storagePath,
+          size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        })
+
+        // Upload file and get download URL
+        const fileRef = storageRef(storage, storagePath)
+        const snapshot = await uploadBytes(fileRef, file)
+        const downloadURL = await getDownloadURL(snapshot.ref)
+
+        console.log(`File uploaded successfully: ${fileName}`)
+
+        return {
+          url: downloadURL,
+          fileName: fileName,
+          originalName: file.name,
+          storagePath: storagePath,
+          size: file.size,
+        }
+      })
+
+      const uploadResults = await Promise.all(uploadPromises)
+      console.log(`All ${files.length} files uploaded successfully with details`)
+
+      return uploadResults // Return full details including storage paths
+    } catch (err) {
+      console.error('Error uploading files with details:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Get all documents from a collection (alias for getCollectionData for clarity)
   const getAllDocuments = async (collectionName) => {
     return await getCollectionData(collectionName)
@@ -396,6 +467,7 @@ export function useFirebase() {
     uploadFile,
     deleteFile,
     uploadImages,
+    uploadImagesWithDetails,
 
     // Store integration
     userDataStore,

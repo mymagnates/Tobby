@@ -10,24 +10,65 @@
           @click="refreshData"
           :loading="userDataStore.transactionsLoading"
         />
-        <q-btn to="/create-transaction" color="primary" icon="add" label="Create Transaction" />
+        <q-btn
+          @click="openCreateTransactionDialog"
+          color="primary"
+          icon="add"
+          label="Create Transaction"
+        />
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="q-mb-md">
-      <q-input
-        v-model="searchQuery"
-        outlined
-        dense
-        placeholder="Search transactions by description, property, or transaction type..."
-        clearable
-        class="search-input"
-      >
-        <template v-slot:prepend>
-          <q-icon name="search" />
-        </template>
-      </q-input>
+    <!-- Filters Row -->
+    <div class="row q-gutter-sm q-mb-md">
+      <div class="col-12 col-md-4">
+        <q-input
+          v-model="searchQuery"
+          outlined
+          dense
+          placeholder="Search transactions..."
+          clearable
+          bg-color="grey-1"
+        >
+          <template v-slot:prepend>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-select
+          v-model="selectedProperty"
+          :options="propertyFilterOptions"
+          label="Filter by Property"
+          outlined
+          dense
+          clearable
+          bg-color="grey-1"
+          option-label="label"
+          option-value="value"
+          emit-value
+          map-options
+        >
+          <template v-slot:prepend>
+            <q-icon name="home" />
+          </template>
+        </q-select>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-select
+          v-model="dateFilter"
+          :options="dateFilterOptions"
+          label="Filter by Time"
+          outlined
+          dense
+          clearable
+          bg-color="grey-1"
+        >
+          <template v-slot:prepend>
+            <q-icon name="date_range" />
+          </template>
+        </q-select>
+      </div>
     </div>
 
     <!-- Summary Stats -->
@@ -432,6 +473,31 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Create Transaction Dialog -->
+    <q-dialog v-model="showCreateTransactionDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Transaction</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateTransactionDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateTransaction
+            @transaction-created="onTransactionCreated"
+            @cancel="closeCreateTransactionDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -439,6 +505,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
+import CreateTransaction from '../components/CreateTransaction.vue'
 import { extractPropertyId } from '../utils/propertyIdUtils'
 import { Notify } from 'quasar'
 
@@ -448,6 +515,7 @@ const { updateDocument, uploadImages } = useFirebase()
 // Dialog states
 const showTransactionDialog = ref(false)
 const selectedTransaction = ref(null)
+const showCreateTransactionDialog = ref(false)
 
 // Image viewer states
 const showImageViewer = ref(false)
@@ -461,6 +529,25 @@ const uploadingPicture = ref(false)
 
 const searchQuery = ref('')
 const activeTypeFilter = ref('all')
+const selectedProperty = ref(null)
+const dateFilter = ref(null)
+
+// Filter options
+const dateFilterOptions = [
+  'Last 7 Days',
+  'Last 30 Days',
+  'Last 3 Months',
+  'Last 6 Months',
+  'Last Year',
+  'All Time',
+]
+
+const propertyFilterOptions = computed(() => {
+  return userDataStore.userAccessibleProperties.map((p) => ({
+    label: p.nickname || p.address,
+    value: p.id,
+  }))
+})
 
 // Get all unique transaction types from available transactions
 const transactionTypes = computed(() => {
@@ -476,18 +563,57 @@ const transactionTypes = computed(() => {
 // Get transactions the user has access to
 const userAccessibleTransactions = computed(() => userDataStore.userAccessibleTransactions)
 
-// Filter transactions based on search query and type filter
+// Filter transactions based on search query, type filter, property filter, and date filter
 const filteredTransactions = computed(() => {
   let transactions = userAccessibleTransactions.value
 
-  // Apply type filter first
+  // Apply type filter
   if (activeTypeFilter.value !== 'all') {
     transactions = transactions.filter(
       (transaction) => transaction.transac_type === activeTypeFilter.value,
     )
   }
 
-  // Then apply search filter
+  // Apply property filter
+  if (selectedProperty.value) {
+    transactions = transactions.filter(
+      (transaction) => transaction.property_id === selectedProperty.value,
+    )
+  }
+
+  // Apply date filter
+  if (dateFilter.value) {
+    const now = new Date()
+    let startDate = new Date()
+
+    switch (dateFilter.value) {
+      case 'Last 7 Days':
+        startDate.setDate(now.getDate() - 7)
+        break
+      case 'Last 30 Days':
+        startDate.setDate(now.getDate() - 30)
+        break
+      case 'Last 3 Months':
+        startDate.setMonth(now.getMonth() - 3)
+        break
+      case 'Last 6 Months':
+        startDate.setMonth(now.getMonth() - 6)
+        break
+      case 'Last Year':
+        startDate.setFullYear(now.getFullYear() - 1)
+        break
+      case 'All Time':
+        startDate = new Date(0) // Beginning of time
+        break
+    }
+
+    transactions = transactions.filter((transaction) => {
+      const transacDate = new Date(transaction.transac_date)
+      return transacDate >= startDate
+    })
+  }
+
+  // Apply search filter
   if (!searchQuery.value.trim()) {
     return transactions
   }
@@ -741,6 +867,20 @@ const getTransactionIcon = (type) => {
     Other: 'receipt',
   }
   return icons[type] || 'receipt'
+}
+
+// Create transaction dialog functions
+const openCreateTransactionDialog = () => {
+  showCreateTransactionDialog.value = true
+}
+
+const closeCreateTransactionDialog = () => {
+  showCreateTransactionDialog.value = false
+}
+
+const onTransactionCreated = () => {
+  closeCreateTransactionDialog()
+  refreshData()
 }
 
 // Refresh data

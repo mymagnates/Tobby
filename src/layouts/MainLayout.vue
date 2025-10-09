@@ -95,12 +95,26 @@ const linksList = [
     link: '/',
   },
   { title: 'My Properties', caption: 'View your properties', icon: 'home', link: '/my-properties' },
-  { title: 'MX Records', caption: 'View all MX records', icon: 'dns', link: '/mx-records' },
+
+  { title: 'Tasks', caption: 'View all tasks', icon: 'dns', link: '/mx-records' },
   {
     title: 'Transactions',
     caption: 'View all transactions',
     icon: 'receipt_long',
     link: '/transactions',
+  },
+
+  {
+    title: 'Reminders',
+    caption: 'Manage reminders',
+    icon: 'notifications',
+    link: '/reminders',
+  },
+  {
+    title: 'Reports',
+    caption: 'View reports & analytics',
+    icon: 'assessment',
+    link: '/reports',
   },
   {
     title: 'Leases',
@@ -109,10 +123,10 @@ const linksList = [
     link: '/leases',
   },
   {
-    title: 'Reminders',
-    caption: 'Manage reminders',
-    icon: 'notifications',
-    link: '/reminders',
+    title: 'Lease Application',
+    caption: 'Apply for a lease',
+    icon: 'assignment',
+    link: '/lease-application',
   },
 ]
 

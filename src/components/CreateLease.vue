@@ -1,9 +1,7 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center justify-between q-mb-lg">
-      <div class="text-h4">Create New Lease</div>
-      <q-btn flat icon="arrow_back" label="Back to Leases" to="/leases" color="primary" />
-    </div>
+    <div class="text-h4">Create New Lease</div>
+
 
     <q-card class="q-pa-lg">
       <q-form @submit="onSubmit" class="q-gutter-md">

@@ -11,7 +11,12 @@
           :loading="loading"
           flat
         />
-        <q-btn to="/create-property" color="primary" icon="add" label="Create Property" />
+        <q-btn
+          @click="openCreatePropertyDialog"
+          color="primary"
+          icon="add"
+          label="Create Property"
+        />
       </div>
     </div>
 
@@ -32,7 +37,7 @@
       </div>
       <div class="q-mt-md">
         <q-btn
-          to="/create-property"
+          @click="openCreatePropertyDialog"
           color="primary"
           label="Create Your First Property"
           class="q-mr-sm"
@@ -173,21 +178,21 @@
               text-color="white"
               label="Create Transaction"
               class="action-btn"
-              @click="createTransaction(property.id, property.nickname)"
+              @click="openCreateTransactionDialog(property.id, property.nickname)"
             />
             <q-btn
               color="primary"
               text-color="white"
-              label="Create MX Record"
+              label="Create Task"
               class="action-btn"
-              @click="createMxRecord(property.id, property.nickname)"
+              @click="openCreateMxRecordDialog(property.id, property.nickname)"
             />
             <q-btn
               color="primary"
               text-color="white"
               label="Create Lease"
               class="action-btn"
-              @click="createLease(property.id, property.nickname)"
+              @click="openCreateLeaseDialog(property.id, property.nickname)"
             />
           </div>
         </q-card-actions>
@@ -483,7 +488,7 @@
                   <q-select
                     v-if="isEditMode"
                     v-model="selectedProperty.userRole"
-                    :options="['Landlord', 'Tenant', 'Property Manager', 'Owner']"
+                    :options="['Property Owner', 'Tenant', 'Property Manager', 'Owner']"
                     outlined
                     dense
                     class="detail-input"
@@ -501,15 +506,126 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Create Property Dialog -->
+    <q-dialog v-model="showCreatePropertyDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Property</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreatePropertyDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateProperty
+            @property-created="onPropertyCreated"
+            @cancel="closeCreatePropertyDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Create Task Dialog -->
+    <q-dialog v-model="showCreateMxRecordDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Task</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateMxRecordDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateMxRecord
+            :property-id="selectedPropertyForDialog?.id"
+            :property-name="selectedPropertyForDialog?.nickname"
+            @mx-record-created="onMxRecordCreated"
+            @cancel="closeCreateMxRecordDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Create Transaction Dialog -->
+    <q-dialog v-model="showCreateTransactionDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Transaction</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateTransactionDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateTransaction
+            :property-id="selectedPropertyForDialog?.id"
+            :property-name="selectedPropertyForDialog?.nickname"
+            @transaction-created="onTransactionCreated"
+            @cancel="closeCreateTransactionDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Create Lease Dialog -->
+    <q-dialog v-model="showCreateLeaseDialog" persistent>
+      <q-card style="min-width: 600px; max-width: 800px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Create Lease</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateLeaseDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateLease
+            :property-id="selectedPropertyForDialog?.id"
+            :property-name="selectedPropertyForDialog?.nickname"
+            @lease-created="onLeaseCreated"
+            @cancel="closeCreateLeaseDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { onMounted, computed, watch, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, computed, watch, ref, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
+import CreateProperty from '../components/CreateProperty.vue'
+import CreateMxRecord from '../components/CreateMxRecord.vue'
+import CreateTransaction from '../components/CreateTransaction.vue'
+import CreateLease from '../components/CreateLease.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userDataStore = useUserDataStore()
 
 // Dialog state
@@ -517,6 +633,13 @@ const showPropertyDialog = ref(false)
 const selectedProperty = ref(null)
 const isEditMode = ref(false)
 const editLoading = ref(false)
+
+// Create form dialogs
+const showCreatePropertyDialog = ref(false)
+const showCreateMxRecordDialog = ref(false)
+const showCreateTransactionDialog = ref(false)
+const showCreateLeaseDialog = ref(false)
+const selectedPropertyForDialog = ref(null)
 
 const loading = computed(() => userDataStore.loading)
 const userProperties = computed(() => {
@@ -581,6 +704,28 @@ watch(
   { immediate: true },
 )
 
+// Add focus event listener to refresh data when page becomes visible
+const handlePageFocus = () => {
+  console.log('MyPropertiesPage - Page focused, checking if data needs refresh...')
+  // Only refresh if we have no properties but should have some based on roles
+  if (userDataStore.userRoles.length > 0 && userDataStore.properties.length === 0) {
+    console.log('MyPropertiesPage - Page focused and data appears missing, refreshing...')
+    refreshData()
+  }
+}
+
+// Handle visibility change to refresh data when tab becomes visible
+const handleVisibilityChange = () => {
+  if (!document.hidden) {
+    console.log('MyPropertiesPage - Tab became visible, checking if data needs refresh...')
+    // Check if we have roles but no properties, which might indicate missing data
+    if (userDataStore.userRoles.length > 0 && userDataStore.properties.length === 0) {
+      console.log('MyPropertiesPage - Tab visible and data appears missing, refreshing...')
+      refreshData()
+    }
+  }
+}
+
 onMounted(() => {
   console.log('MyPropertiesPage mounted')
   console.log('Initial store state:', {
@@ -609,8 +754,47 @@ onMounted(() => {
     }
   }
 
+  // Add event listeners
+  window.addEventListener('focus', handlePageFocus)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
   // Data is automatically loaded by the store when user is authenticated
 })
+
+onUnmounted(() => {
+  window.removeEventListener('focus', handlePageFocus)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
+
+// Watch for route changes to refresh data when returning from create property
+watch(
+  () => route.path,
+  (newPath, oldPath) => {
+    console.log('MyPropertiesPage - Route changed from', oldPath, 'to', newPath)
+    // If we're returning to this page from create-property, refresh data
+    if (newPath === '/my-properties' && oldPath === '/create-property') {
+      console.log('MyPropertiesPage - Returning from create property, refreshing data...')
+      refreshData()
+    }
+  },
+)
+
+// Watch for when the page becomes active (useful for browser back/forward)
+watch(
+  () => route.name,
+  (newName) => {
+    if (newName === 'MyProperties') {
+      console.log('MyPropertiesPage - Page activated, checking data...')
+      // Small delay to ensure any pending operations complete
+      setTimeout(() => {
+        if (userDataStore.userRoles.length > 0 && userDataStore.properties.length === 0) {
+          console.log('MyPropertiesPage - Page activated and data missing, refreshing...')
+          refreshData()
+        }
+      }, 100)
+    }
+  },
+)
 
 const getTypeColor = (type) => {
   const colors = {
@@ -635,7 +819,7 @@ const getStatusColor = (status) => {
 }
 
 const getRoleColor = (role) => {
-  return role === 'Landlord' ? 'deep-purple' : 'teal'
+  return role === 'Property Owner' ? 'deep-purple' : 'teal'
 }
 
 const formatPrice = (price) => {
@@ -699,27 +883,74 @@ const viewProperty = (propertyId) => {
   }
 }
 
-const createMxRecord = (propertyId, propertyName) => {
-  console.log('MyPropertiesPage - createMxRecord called with:', { propertyId, propertyName })
-  // Navigate to create MX record page with property ID and name
-  router.push(`/create-mxrecord/${propertyId}?propertyName=${encodeURIComponent(propertyName)}`)
+// Dialog functions
+const openCreatePropertyDialog = () => {
+  showCreatePropertyDialog.value = true
 }
 
-const createTransaction = (propertyId, propertyName) => {
-  console.log('MyPropertiesPage - createTransaction called with:', { propertyId, propertyName })
-  // Navigate to create transaction page with property ID and name
-  router.push(`/create-transaction/${propertyId}?propertyName=${encodeURIComponent(propertyName)}`)
+const closeCreatePropertyDialog = () => {
+  showCreatePropertyDialog.value = false
 }
 
-const createLease = (propertyId, propertyName) => {
-  console.log('MyPropertiesPage - createLease called with:', { propertyId, propertyName })
-  // Navigate to create lease page with property ID and name
-  router.push(`/create-lease/${propertyId}?propertyName=${encodeURIComponent(propertyName)}`)
+const openCreateMxRecordDialog = (propertyId, propertyName) => {
+  selectedPropertyForDialog.value = { id: propertyId, nickname: propertyName }
+  showCreateMxRecordDialog.value = true
 }
 
-const refreshData = () => {
+const closeCreateMxRecordDialog = () => {
+  showCreateMxRecordDialog.value = false
+  selectedPropertyForDialog.value = null
+}
+
+const openCreateTransactionDialog = (propertyId, propertyName) => {
+  selectedPropertyForDialog.value = { id: propertyId, nickname: propertyName }
+  showCreateTransactionDialog.value = true
+}
+
+const closeCreateTransactionDialog = () => {
+  showCreateTransactionDialog.value = false
+  selectedPropertyForDialog.value = null
+}
+
+const openCreateLeaseDialog = (propertyId, propertyName) => {
+  selectedPropertyForDialog.value = { id: propertyId, nickname: propertyName }
+  showCreateLeaseDialog.value = true
+}
+
+const closeCreateLeaseDialog = () => {
+  showCreateLeaseDialog.value = false
+  selectedPropertyForDialog.value = null
+}
+
+// Event handlers for form completion
+const onPropertyCreated = () => {
+  closeCreatePropertyDialog()
+  refreshData()
+}
+
+const onMxRecordCreated = () => {
+  closeCreateMxRecordDialog()
+  refreshData()
+}
+
+const onTransactionCreated = () => {
+  closeCreateTransactionDialog()
+  refreshData()
+}
+
+const onLeaseCreated = () => {
+  closeCreateLeaseDialog()
+  refreshData()
+}
+
+const refreshData = async () => {
   console.log('MyPropertiesPage - Refreshing data...')
-  userDataStore.loadAllUserData()
+  try {
+    await userDataStore.loadAllUserData()
+    console.log('MyPropertiesPage - Data refresh completed')
+  } catch (error) {
+    console.error('MyPropertiesPage - Error refreshing data:', error)
+  }
 }
 
 // Dialog functions

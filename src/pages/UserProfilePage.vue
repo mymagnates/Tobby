@@ -32,8 +32,10 @@
       <q-card class="user-details q-mb-sm">
         <q-card-section class="q-pa-sm">
           <div class="text-subtitle1 q-mb-sm">Personal Information</div>
-          <div class="row q-gutter-sm">
-            <div class="col-12 col-md-4">
+
+          <!-- Name Fields in Same Row -->
+          <div class="row q-mb-md" style="padding: 5px">
+            <div class="col-12 col-md-4" style="padding: 5px">
               <q-input
                 :model-value="userProfile?.first_name || ''"
                 label="First Name"
@@ -42,7 +44,7 @@
                 dense
               />
             </div>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3" style="padding: 5px">
               <q-input
                 :model-value="userProfile?.middle_name || ''"
                 label="Middle Name"
@@ -51,10 +53,53 @@
                 dense
               />
             </div>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-4" style="padding: 5px">
               <q-input
                 :model-value="userProfile?.last_name || ''"
                 label="Last Name"
+                outlined
+                readonly
+                dense
+              />
+            </div>
+          </div>
+
+          <!-- Additional Contact Information -->
+          <div class="row q-gutter-sm">
+            <div class="col-12 col-md-4">
+              <q-input
+                :model-value="userProfile?.mobile_phone || ''"
+                label="Mobile Phone Number"
+                outlined
+                readonly
+                dense
+              />
+            </div>
+            <div class="col-12 col-md-5">
+              <q-input
+                :model-value="userProfile?.email || ''"
+                label="Email"
+                outlined
+                readonly
+                dense
+              />
+            </div>
+          </div>
+
+          <div class="row q-gutter-sm q-mt-sm">
+            <div class="col-12 col-md-6">
+              <q-input
+                :model-value="userProfile?.company_name || ''"
+                label="Company Name"
+                outlined
+                readonly
+                dense
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <q-input
+                :model-value="userProfile?.mailing_address || ''"
+                label="Mailing Address"
                 outlined
                 readonly
                 dense
@@ -251,7 +296,7 @@ const newRole = ref({
   expire_date: '',
 })
 
-const roleOptions = ['Landlord', 'Property Manager', 'Tenant', 'Contractor', 'Other']
+const roleOptions = ['Property Owner', 'Property Manager', 'Tenant', 'Contractor', 'Other']
 
 // Available properties (properties that the user doesn't already have a role for)
 const availableProperties = computed(() => {
@@ -324,7 +369,7 @@ const getPropertyName = (propertyId) => {
 
 const getRoleColor = (role) => {
   const colors = {
-    Landlord: 'deep-purple',
+    'Property Owner': 'deep-purple',
     'Property Manager': 'blue',
     Tenant: 'green',
     Contractor: 'orange',

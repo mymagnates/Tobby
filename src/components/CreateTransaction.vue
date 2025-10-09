@@ -188,19 +188,6 @@
           <!-- Action Buttons Row -->
           <div class="row q-mt-md">
             <q-btn
-              @click="onCancel"
-              color="grey-7"
-              label="Cancel"
-              flat
-              class="col-12 col-md-6"
-              size="md"
-            >
-              <template v-slot:prepend>
-                <q-icon name="close" />
-              </template>
-            </q-btn>
-
-            <q-btn
               type="submit"
               color="primary"
               :loading="loading"
@@ -253,7 +240,14 @@ const selectedPropertyId = ref('')
 const propertiesLoading = computed(() => userDataStore.propertiesLoading)
 
 // Role options for from/to fields
-const roleOptions = ['Landlord', 'Property Manager', 'Tenant', 'Supplier', 'Government', 'HOA']
+const roleOptions = [
+  'Property Owner',
+  'Property Manager',
+  'Tenant',
+  'Service Provider',
+  'Government',
+  'HOA',
+]
 
 // Transaction data - declare early so it can be used in computed properties
 const transactionData = reactive({
@@ -462,6 +456,7 @@ const transactionTypeOptions = [
   'Maintenance',
   'HOA',
   'Fee',
+  'Refund',
   'Other',
 ]
 
@@ -727,12 +722,6 @@ const onSubmit = async () => {
       position: 'top',
     })
   }
-}
-
-const onCancel = () => {
-  emit('cancel')
-  // Navigate back to transactions page
-  router.push('/transactions')
 }
 </script>
 
