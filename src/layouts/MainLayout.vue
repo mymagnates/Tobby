@@ -59,6 +59,12 @@
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="modern-drawer">
+      <div class="drawer-header">
+        <div class="drawer-logo-container">
+          <img src="/logo.svg" alt="Tobby Logo" class="drawer-logo" />
+          <span class="drawer-title">Tobby</span>
+        </div>
+      </div>
       <q-list class="nav-list">
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
       </q-list>
@@ -360,10 +366,21 @@ function goToProfile() {
   color: white;
 }
 
-.drawer-title {
+.drawer-logo-container {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.drawer-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.drawer-title {
   font-weight: 600;
+  font-size: 1.2rem;
 }
 
 .nav-list {
