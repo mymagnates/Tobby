@@ -1,761 +1,879 @@
 <template>
   <q-page padding>
     <div class="page-container">
-      <!-- Header -->
-      <div class="page-header q-mb-lg">
-        <div class="row items-center justify-between">
-          <div>
-            <h4 class="text-h4 q-ma-none">Lease Application</h4>
-            <p class="text-subtitle1 text-grey-7 q-mt-sm">Complete your rental application</p>
-          </div>
-        </div>
+      <!-- Loading State -->
+      <div v-if="leaseLoading" class="text-center q-pa-xl">
+        <q-spinner-dots size="50px" color="primary" />
+        <div class="text-h6 q-mt-md">Loading lease information...</div>
       </div>
 
-      <!-- Application Form -->
-      <q-form @submit="submitApplication" class="application-form">
-        <!-- Property/Lease Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="home" class="q-mr-sm" />
-              Property & Lease Information
-            </div>
+      <!-- Error State -->
+      <div v-else-if="leaseError" class="text-center q-pa-xl">
+        <q-icon name="error_outline" size="100px" color="negative" />
+        <div class="text-h6 q-mt-md text-negative">{{ leaseError }}</div>
+        <q-btn flat label="Go Back" color="primary" class="q-mt-md" @click="$router.push('/')" />
+      </div>
 
+      <!-- Main Content -->
+      <div v-else>
+        <!-- Header -->
+        <div class="page-header q-mb-lg">
+          <div class="row items-center justify-between">
+            <div>
+              <h4 class="text-h4 q-ma-none">Lease Application</h4>
+              <p class="text-subtitle1 text-grey-7 q-mt-sm">Complete your rental application</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lease Information Display (if lease is pre-selected) -->
+        <q-card v-if="selectedLeaseData" class="q-mb-lg lease-info-card">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h6">
+              <q-icon name="description" class="q-mr-sm" />
+              Lease Information
+            </div>
+          </q-card-section>
+          <q-card-section>
             <div class="row q-col-gutter-md">
-              <div class="col-12 col-md-6">
-                <q-select
-                  v-model="applicationForm.property_id"
-                  :options="propertyOptions"
-                  option-value="id"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="Select Property *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Property is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="home_work" />
-                  </template>
-                </q-select>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.desired_move_in_date"
-                  type="date"
-                  label="Desired Move-in Date *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Move-in date is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="event" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model.number="applicationForm.lease_term_months"
-                  type="number"
-                  label="Desired Lease Term (months) *"
-                  outlined
-                  dense
-                  min="1"
-                  :rules="[(val) => !!val || 'Lease term is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="schedule" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model.number="applicationForm.number_of_occupants"
-                  type="number"
-                  label="Number of Occupants *"
-                  outlined
-                  dense
-                  min="1"
-                  :rules="[(val) => !!val || 'Number of occupants is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="people" />
-                  </template>
-                </q-input>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <!-- Main Applicant Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="person" class="q-mr-sm" />
-              Main Applicant Information
-            </div>
-
-            <div class="row q-col-gutter-md">
-              <!-- Personal Information -->
               <div class="col-12">
-                <div class="text-subtitle2 text-weight-medium q-mb-sm">Personal Details</div>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="applicationForm.applicant.first_name"
-                  label="First Name *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'First name is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="person" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="applicationForm.applicant.middle_name"
-                  label="Middle Name"
-                  outlined
-                  dense
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="person" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="applicationForm.applicant.last_name"
-                  label="Last Name *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Last name is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="person" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-select
-                  v-model="applicationForm.applicant.gender"
-                  :options="genderOptions"
-                  label="Gender *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Gender is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="wc" />
-                  </template>
-                </q-select>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="applicationForm.applicant.date_of_birth"
-                  type="date"
-                  label="Date of Birth *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Date of birth is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="cake" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="applicationForm.applicant.ssn"
-                  label="Social Security Number"
-                  outlined
-                  dense
-                  mask="###-##-####"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="badge" />
-                  </template>
-                </q-input>
-              </div>
-
-              <!-- Contact Information -->
-              <div class="col-12 q-mt-md">
-                <div class="text-subtitle2 text-weight-medium q-mb-sm">Contact Information</div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.email"
-                  type="email"
-                  label="Email *"
-                  outlined
-                  dense
-                  :rules="[
-                    (val) => !!val || 'Email is required',
-                    (val) => /.+@.+\..+/.test(val) || 'Email must be valid',
-                  ]"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="email" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.phone"
-                  label="Phone Number *"
-                  outlined
-                  dense
-                  mask="(###) ###-####"
-                  :rules="[(val) => !!val || 'Phone number is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="phone" />
-                  </template>
-                </q-input>
-              </div>
-
-              <!-- Current Address -->
-              <div class="col-12 q-mt-md">
-                <div class="text-subtitle2 text-weight-medium q-mb-sm">Current Address</div>
-              </div>
-
-              <div class="col-12">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.street"
-                  label="Street Address *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Street address is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="location_on" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.city"
-                  label="City *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'City is required']"
-                />
-              </div>
-
-              <div class="col-12 col-md-3">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.state"
-                  label="State *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'State is required']"
-                />
-              </div>
-
-              <div class="col-12 col-md-3">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.zip"
-                  label="ZIP Code *"
-                  outlined
-                  dense
-                  mask="#####"
-                  :rules="[(val) => !!val || 'ZIP code is required']"
-                />
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model.number="applicationForm.applicant.current_address.monthly_rent"
-                  type="number"
-                  label="Current Monthly Rent"
-                  outlined
-                  dense
-                  prefix="$"
-                />
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.landlord_name"
-                  label="Current Landlord Name"
-                  outlined
-                  dense
-                />
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.current_address.landlord_phone"
-                  label="Current Landlord Phone"
-                  outlined
-                  dense
-                  mask="(###) ###-####"
-                />
-              </div>
-
-              <!-- Employment Information -->
-              <div class="col-12 q-mt-md">
-                <div class="text-subtitle2 text-weight-medium q-mb-sm">Employment Information</div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.employment.employer_name"
-                  label="Employer Name *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Employer name is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="work" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.employment.job_title"
-                  label="Job Title *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Job title is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="badge" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.employment.supervisor_name"
-                  label="Supervisor Name"
-                  outlined
-                  dense
-                />
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.employment.work_phone"
-                  label="Work Phone *"
-                  outlined
-                  dense
-                  mask="(###) ###-####"
-                  :rules="[(val) => !!val || 'Work phone is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="phone" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12">
-                <q-input
-                  v-model="applicationForm.applicant.employment.work_address"
-                  label="Work Address *"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Work address is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="location_on" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model.number="applicationForm.applicant.employment.monthly_income"
-                  type="number"
-                  label="Monthly Income *"
-                  outlined
-                  dense
-                  prefix="$"
-                  :rules="[(val) => !!val || 'Monthly income is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="attach_money" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="applicationForm.applicant.employment.start_date"
-                  type="date"
-                  label="Employment Start Date"
-                  outlined
-                  dense
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="event" />
-                  </template>
-                </q-input>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <!-- Vehicles Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="directions_car" class="q-mr-sm" />
-                Vehicles
-              </div>
-              <q-btn
-                flat
-                dense
-                color="primary"
-                icon="add"
-                label="Add Vehicle"
-                @click="addVehicle"
-              />
-            </div>
-
-            <div
-              v-if="applicationForm.vehicles.length === 0"
-              class="text-center text-grey-6 q-pa-md"
-            >
-              No vehicles added. Click "Add Vehicle" to add vehicle information.
-            </div>
-
-            <div
-              v-for="(vehicle, index) in applicationForm.vehicles"
-              :key="index"
-              class="vehicle-item q-mb-md"
-            >
-              <div class="row q-col-gutter-md items-start">
-                <div class="col-12">
-                  <div class="row items-center justify-between">
-                    <div class="text-subtitle2 text-weight-medium">Vehicle #{{ index + 1 }}</div>
-                    <q-btn
-                      flat
-                      dense
-                      round
-                      color="negative"
-                      icon="delete"
-                      size="sm"
-                      @click="removeVehicle(index)"
-                    >
-                      <q-tooltip>Remove vehicle</q-tooltip>
-                    </q-btn>
-                  </div>
+                <div class="text-h6 text-primary">
+                  {{
+                    selectedLeaseData.property_id?.nickname ||
+                    selectedLeaseData.property_id?.displayName ||
+                    'Property'
+                  }}
                 </div>
-
-                <div class="col-12 col-md-3">
-                  <q-input v-model="vehicle.make" label="Make" outlined dense />
+                <div class="text-body1">{{ selectedLeaseData.property_id?.address || 'N/A' }}</div>
+                <div class="text-caption text-grey-6">
+                  {{ selectedLeaseData.property_id?.city }},
+                  {{ selectedLeaseData.property_id?.state }}
+                  {{ selectedLeaseData.property_id?.zip }}
                 </div>
+              </div>
 
-                <div class="col-12 col-md-3">
-                  <q-input v-model="vehicle.model" label="Model" outlined dense />
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Rent Amount</div>
+                <div class="detail-value text-primary text-h6">
+                  ${{ formatAmount(selectedLeaseData.rate_amount) }} /
+                  {{ selectedLeaseData.rate_type || 'month' }}
                 </div>
+              </div>
 
-                <div class="col-12 col-md-2">
-                  <q-input
-                    v-model.number="vehicle.year"
-                    type="number"
-                    label="Year"
-                    outlined
-                    dense
-                  />
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Security Deposit</div>
+                <div class="detail-value">${{ formatAmount(selectedLeaseData.deposit) }}</div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Application Fee</div>
+                <div class="detail-value">
+                  ${{ formatAmount(selectedLeaseData.application_fee_per_person) }} per person
                 </div>
+              </div>
 
-                <div class="col-12 col-md-2">
-                  <q-input v-model="vehicle.color" label="Color" outlined dense />
+              <div class="col-12 col-md-4" v-if="selectedLeaseData.pet_fee">
+                <div class="detail-label">Pet Fee</div>
+                <div class="detail-value">${{ formatAmount(selectedLeaseData.pet_fee) }}</div>
+              </div>
+
+              <div class="col-12 col-md-4" v-if="selectedLeaseData.lease_term">
+                <div class="detail-label">Lease Term</div>
+                <div class="detail-value">{{ selectedLeaseData.lease_term }} months</div>
+              </div>
+
+              <div class="col-12 col-md-4" v-if="selectedLeaseData.furnished">
+                <div class="detail-label">Furnished</div>
+                <div class="detail-value">{{ selectedLeaseData.furnished }}</div>
+              </div>
+
+              <div class="col-12" v-if="selectedLeaseData.utilities_included?.length > 0">
+                <div class="detail-label">Utilities Included</div>
+                <div class="detail-value">
+                  {{ selectedLeaseData.utilities_included.join(', ') }}
                 </div>
+              </div>
 
-                <div class="col-12 col-md-2">
-                  <q-input v-model="vehicle.license_plate" label="License Plate" outlined dense />
+              <div class="col-12" v-if="selectedLeaseData.special_terms">
+                <div class="detail-label">Special Terms</div>
+                <div class="detail-value">{{ selectedLeaseData.special_terms }}</div>
+              </div>
+
+              <div class="col-12" v-if="selectedLeaseData.property_id?.spec">
+                <div class="detail-label">Property Details</div>
+                <div class="detail-value">
+                  {{ selectedLeaseData.property_id.spec.type || 'N/A' }} •
+                  {{ selectedLeaseData.property_id.spec.bedroom || 'N/A' }} Bedrooms •
+                  {{ selectedLeaseData.property_id.spec.full_bathroom || 'N/A' }} Bathrooms
+                  <span v-if="selectedLeaseData.property_id.spec.sqft">
+                    • {{ selectedLeaseData.property_id.spec.sqft }} sqft
+                  </span>
                 </div>
               </div>
             </div>
           </q-card-section>
         </q-card>
 
-        <!-- Pets Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="pets" class="q-mr-sm" />
-                Pets
+        <!-- Application Form -->
+        <q-form @submit="submitApplication" class="application-form">
+          <!-- Property/Lease Information -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="home" class="q-mr-sm" />
+                Application Details
               </div>
-              <q-btn flat dense color="primary" icon="add" label="Add Pet" @click="addPet" />
-            </div>
 
-            <div v-if="applicationForm.pets.length === 0" class="text-center text-grey-6 q-pa-md">
-              No pets added. Click "Add Pet" to add pet information.
-            </div>
-
-            <div v-for="(pet, index) in applicationForm.pets" :key="index" class="pet-item q-mb-md">
-              <div class="row q-col-gutter-md items-start">
-                <div class="col-12">
-                  <div class="row items-center justify-between">
-                    <div class="text-subtitle2 text-weight-medium">Pet #{{ index + 1 }}</div>
-                    <q-btn
-                      flat
-                      dense
-                      round
-                      color="negative"
-                      icon="delete"
-                      size="sm"
-                      @click="removePet(index)"
-                    >
-                      <q-tooltip>Remove pet</q-tooltip>
-                    </q-btn>
-                  </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                  <q-select
-                    v-model="pet.type"
-                    :options="petTypeOptions"
-                    label="Type"
-                    outlined
-                    dense
-                  />
-                </div>
-
-                <div class="col-12 col-md-3">
-                  <q-input v-model="pet.breed" label="Breed" outlined dense />
-                </div>
-
-                <div class="col-12 col-md-2">
-                  <q-input v-model.number="pet.age" type="number" label="Age" outlined dense />
-                </div>
-
-                <div class="col-12 col-md-2">
-                  <q-input
-                    v-model.number="pet.weight"
-                    type="number"
-                    label="Weight (lbs)"
-                    outlined
-                    dense
-                  />
-                </div>
-
-                <div class="col-12 col-md-2">
-                  <q-input v-model="pet.name" label="Name" outlined dense />
-                </div>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <!-- Co-Applicants -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="group" class="q-mr-sm" />
-                Co-Applicants
-              </div>
-              <q-btn
-                flat
-                dense
-                color="primary"
-                icon="add"
-                label="Add Co-Applicant"
-                @click="addCoApplicant"
-              />
-            </div>
-
-            <div
-              v-if="applicationForm.co_applicants.length === 0"
-              class="text-center text-grey-6 q-pa-md"
-            >
-              No co-applicants added. Click "Add Co-Applicant" if there are additional applicants.
-            </div>
-
-            <div
-              v-for="(coApplicant, index) in applicationForm.co_applicants"
-              :key="index"
-              class="co-applicant-item q-mb-lg"
-            >
               <div class="row q-col-gutter-md">
+                <div class="col-12 col-md-6" v-if="!selectedLeaseData">
+                  <q-select
+                    v-model="applicationForm.property_id"
+                    :options="propertyOptions"
+                    option-value="id"
+                    option-label="label"
+                    emit-value
+                    map-options
+                    label="Select Property *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Property is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="home_work" />
+                    </template>
+                  </q-select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.desired_move_in_date"
+                    type="date"
+                    label="Desired Move-in Date *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Move-in date is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="event" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model.number="applicationForm.lease_term_months"
+                    type="number"
+                    label="Desired Lease Term (months) *"
+                    outlined
+                    dense
+                    min="1"
+                    :rules="[(val) => !!val || 'Lease term is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="schedule" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model.number="applicationForm.number_of_occupants"
+                    type="number"
+                    label="Number of Occupants *"
+                    outlined
+                    dense
+                    min="1"
+                    :rules="[(val) => !!val || 'Number of occupants is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="people" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Main Applicant Information -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="person" class="q-mr-sm" />
+                Main Applicant Information
+              </div>
+
+              <div class="row q-col-gutter-md">
+                <!-- Personal Information -->
                 <div class="col-12">
-                  <div class="row items-center justify-between q-mb-sm">
-                    <div class="text-subtitle1 text-weight-medium">
-                      Co-Applicant #{{ index + 1 }}
-                    </div>
-                    <q-btn
-                      flat
-                      dense
-                      round
-                      color="negative"
-                      icon="delete"
-                      size="sm"
-                      @click="removeCoApplicant(index)"
-                    >
-                      <q-tooltip>Remove co-applicant</q-tooltip>
-                    </q-btn>
-                  </div>
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">Personal Details</div>
                 </div>
 
                 <div class="col-12 col-md-4">
-                  <q-input v-model="coApplicant.first_name" label="First Name" outlined dense />
+                  <q-input
+                    v-model="applicationForm.applicant.first_name"
+                    label="First Name *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'First name is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" />
+                    </template>
+                  </q-input>
                 </div>
 
                 <div class="col-12 col-md-4">
-                  <q-input v-model="coApplicant.middle_name" label="Middle Name" outlined dense />
+                  <q-input
+                    v-model="applicationForm.applicant.middle_name"
+                    label="Middle Name"
+                    outlined
+                    dense
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" />
+                    </template>
+                  </q-input>
                 </div>
 
                 <div class="col-12 col-md-4">
-                  <q-input v-model="coApplicant.last_name" label="Last Name" outlined dense />
+                  <q-input
+                    v-model="applicationForm.applicant.last_name"
+                    label="Last Name *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Last name is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" />
+                    </template>
+                  </q-input>
                 </div>
 
                 <div class="col-12 col-md-4">
                   <q-select
-                    v-model="coApplicant.gender"
+                    v-model="applicationForm.applicant.gender"
                     :options="genderOptions"
-                    label="Gender"
+                    label="Gender *"
                     outlined
                     dense
-                  />
+                    :rules="[(val) => !!val || 'Gender is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="wc" />
+                    </template>
+                  </q-select>
                 </div>
 
                 <div class="col-12 col-md-4">
                   <q-input
-                    v-model="coApplicant.date_of_birth"
+                    v-model="applicationForm.applicant.date_of_birth"
                     type="date"
-                    label="Date of Birth"
+                    label="Date of Birth *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Date of birth is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="cake" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <q-input
+                    v-model="applicationForm.applicant.ssn"
+                    label="Social Security Number"
+                    outlined
+                    dense
+                    mask="###-##-####"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="badge" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="col-12 q-mt-md">
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">Contact Information</div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.email"
+                    type="email"
+                    label="Email *"
+                    outlined
+                    dense
+                    :rules="[
+                      (val) => !!val || 'Email is required',
+                      (val) => /.+@.+\..+/.test(val) || 'Email must be valid',
+                    ]"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="email" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.phone"
+                    label="Phone Number *"
+                    outlined
+                    dense
+                    mask="(###) ###-####"
+                    :rules="[(val) => !!val || 'Phone number is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="phone" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <!-- Current Address -->
+                <div class="col-12 q-mt-md">
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">Current Address</div>
+                </div>
+
+                <div class="col-12">
+                  <q-input
+                    v-model="applicationForm.applicant.current_address.street"
+                    label="Street Address *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Street address is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="location_on" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.current_address.city"
+                    label="City *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'City is required']"
+                  />
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <q-input
+                    v-model="applicationForm.applicant.current_address.state"
+                    label="State *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'State is required']"
+                  />
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <q-input
+                    v-model="applicationForm.applicant.current_address.zip"
+                    label="ZIP Code *"
+                    outlined
+                    dense
+                    mask="#####"
+                    :rules="[(val) => !!val || 'ZIP code is required']"
+                  />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model.number="applicationForm.applicant.current_address.monthly_rent"
+                    type="number"
+                    label="Current Monthly Rent"
+                    outlined
+                    dense
+                    prefix="$"
+                  />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.current_address.landlord_name"
+                    label="Current Landlord Name"
                     outlined
                     dense
                   />
                 </div>
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-6">
                   <q-input
-                    v-model="coApplicant.phone"
-                    label="Phone"
+                    v-model="applicationForm.applicant.current_address.landlord_phone"
+                    label="Current Landlord Phone"
                     outlined
                     dense
                     mask="(###) ###-####"
                   />
                 </div>
 
-                <div class="col-12 col-md-6">
-                  <q-input v-model="coApplicant.email" type="email" label="Email" outlined dense />
+                <!-- Employment Information -->
+                <div class="col-12 q-mt-md">
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                    Employment Information
+                  </div>
                 </div>
 
                 <div class="col-12 col-md-6">
                   <q-input
-                    v-model="coApplicant.relationship"
-                    label="Relationship to Main Applicant"
+                    v-model="applicationForm.applicant.employment.employer_name"
+                    label="Employer Name *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Employer name is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="work" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.employment.job_title"
+                    label="Job Title *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Job title is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="badge" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.employment.supervisor_name"
+                    label="Supervisor Name"
                     outlined
                     dense
                   />
                 </div>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
 
-        <!-- Supporting Documents -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="description" class="q-mr-sm" />
-                Supporting Documents
-              </div>
-              <q-btn
-                flat
-                dense
-                color="primary"
-                icon="add"
-                label="Add Document"
-                @click="showAddDocumentDialog = true"
-              />
-            </div>
-
-            <div
-              v-if="applicationForm.documents.length === 0"
-              class="text-center text-grey-6 q-pa-md"
-            >
-              No documents uploaded. Click "Add Document" to upload supporting documents.
-            </div>
-
-            <q-list separator v-if="applicationForm.documents.length > 0">
-              <q-item v-for="(doc, index) in applicationForm.documents" :key="index">
-                <q-item-section avatar>
-                  <q-icon name="insert_drive_file" color="primary" />
-                </q-item-section>
-
-                <q-item-section>
-                  <q-item-label>{{ doc.name }}</q-item-label>
-                  <q-item-label caption v-if="doc.description">{{ doc.description }}</q-item-label>
-                  <q-item-label caption v-if="doc.file">{{ doc.file.name }}</q-item-label>
-                </q-item-section>
-
-                <q-item-section side>
-                  <q-btn
-                    flat
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.employment.work_phone"
+                    label="Work Phone *"
+                    outlined
                     dense
-                    round
-                    color="negative"
-                    icon="delete"
-                    size="sm"
-                    @click="removeDocument(index)"
+                    mask="(###) ###-####"
+                    :rules="[(val) => !!val || 'Work phone is required']"
                   >
-                    <q-tooltip>Remove document</q-tooltip>
-                  </q-btn>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card-section>
-        </q-card>
+                    <template v-slot:prepend>
+                      <q-icon name="phone" />
+                    </template>
+                  </q-input>
+                </div>
 
-        <!-- Additional Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="notes" class="q-mr-sm" />
-              Additional Information
-            </div>
+                <div class="col-12">
+                  <q-input
+                    v-model="applicationForm.applicant.employment.work_address"
+                    label="Work Address *"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Work address is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="location_on" />
+                    </template>
+                  </q-input>
+                </div>
 
-            <q-input
-              v-model="applicationForm.additional_notes"
-              type="textarea"
-              label="Additional Notes or Comments"
-              outlined
-              rows="4"
-              hint="Any additional information you'd like to provide"
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model.number="applicationForm.applicant.employment.monthly_income"
+                    type="number"
+                    label="Monthly Income *"
+                    outlined
+                    dense
+                    prefix="$"
+                    :rules="[(val) => !!val || 'Monthly income is required']"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="attach_money" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="applicationForm.applicant.employment.start_date"
+                    type="date"
+                    label="Employment Start Date"
+                    outlined
+                    dense
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="event" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Vehicles Information -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-h6">
+                  <q-icon name="directions_car" class="q-mr-sm" />
+                  Vehicles
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  icon="add"
+                  label="Add Vehicle"
+                  @click="addVehicle"
+                />
+              </div>
+
+              <div
+                v-if="applicationForm.vehicles.length === 0"
+                class="text-center text-grey-6 q-pa-md"
+              >
+                No vehicles added. Click "Add Vehicle" to add vehicle information.
+              </div>
+
+              <div
+                v-for="(vehicle, index) in applicationForm.vehicles"
+                :key="index"
+                class="vehicle-item q-mb-md"
+              >
+                <div class="row q-col-gutter-md items-start">
+                  <div class="col-12">
+                    <div class="row items-center justify-between">
+                      <div class="text-subtitle2 text-weight-medium">Vehicle #{{ index + 1 }}</div>
+                      <q-btn
+                        flat
+                        dense
+                        round
+                        color="negative"
+                        icon="delete"
+                        size="sm"
+                        @click="removeVehicle(index)"
+                      >
+                        <q-tooltip>Remove vehicle</q-tooltip>
+                      </q-btn>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <q-input v-model="vehicle.make" label="Make" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <q-input v-model="vehicle.model" label="Model" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input
+                      v-model.number="vehicle.year"
+                      type="number"
+                      label="Year"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input v-model="vehicle.color" label="Color" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input v-model="vehicle.license_plate" label="License Plate" outlined dense />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Pets Information -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-h6">
+                  <q-icon name="pets" class="q-mr-sm" />
+                  Pets
+                </div>
+                <q-btn flat dense color="primary" icon="add" label="Add Pet" @click="addPet" />
+              </div>
+
+              <div v-if="applicationForm.pets.length === 0" class="text-center text-grey-6 q-pa-md">
+                No pets added. Click "Add Pet" to add pet information.
+              </div>
+
+              <div
+                v-for="(pet, index) in applicationForm.pets"
+                :key="index"
+                class="pet-item q-mb-md"
+              >
+                <div class="row q-col-gutter-md items-start">
+                  <div class="col-12">
+                    <div class="row items-center justify-between">
+                      <div class="text-subtitle2 text-weight-medium">Pet #{{ index + 1 }}</div>
+                      <q-btn
+                        flat
+                        dense
+                        round
+                        color="negative"
+                        icon="delete"
+                        size="sm"
+                        @click="removePet(index)"
+                      >
+                        <q-tooltip>Remove pet</q-tooltip>
+                      </q-btn>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <q-select
+                      v-model="pet.type"
+                      :options="petTypeOptions"
+                      label="Type"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <q-input v-model="pet.breed" label="Breed" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input v-model.number="pet.age" type="number" label="Age" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input
+                      v-model.number="pet.weight"
+                      type="number"
+                      label="Weight (lbs)"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-2">
+                    <q-input v-model="pet.name" label="Name" outlined dense />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Co-Applicants -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-h6">
+                  <q-icon name="group" class="q-mr-sm" />
+                  Co-Applicants
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  icon="add"
+                  label="Add Co-Applicant"
+                  @click="addCoApplicant"
+                />
+              </div>
+
+              <div
+                v-if="applicationForm.co_applicants.length === 0"
+                class="text-center text-grey-6 q-pa-md"
+              >
+                No co-applicants added. Click "Add Co-Applicant" if there are additional applicants.
+              </div>
+
+              <div
+                v-for="(coApplicant, index) in applicationForm.co_applicants"
+                :key="index"
+                class="co-applicant-item q-mb-lg"
+              >
+                <div class="row q-col-gutter-md">
+                  <div class="col-12">
+                    <div class="row items-center justify-between q-mb-sm">
+                      <div class="text-subtitle1 text-weight-medium">
+                        Co-Applicant #{{ index + 1 }}
+                      </div>
+                      <q-btn
+                        flat
+                        dense
+                        round
+                        color="negative"
+                        icon="delete"
+                        size="sm"
+                        @click="removeCoApplicant(index)"
+                      >
+                        <q-tooltip>Remove co-applicant</q-tooltip>
+                      </q-btn>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-input v-model="coApplicant.first_name" label="First Name" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-input v-model="coApplicant.middle_name" label="Middle Name" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-input v-model="coApplicant.last_name" label="Last Name" outlined dense />
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-select
+                      v-model="coApplicant.gender"
+                      :options="genderOptions"
+                      label="Gender"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="coApplicant.date_of_birth"
+                      type="date"
+                      label="Date of Birth"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="coApplicant.phone"
+                      label="Phone"
+                      outlined
+                      dense
+                      mask="(###) ###-####"
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <q-input
+                      v-model="coApplicant.email"
+                      type="email"
+                      label="Email"
+                      outlined
+                      dense
+                    />
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <q-input
+                      v-model="coApplicant.relationship"
+                      label="Relationship to Main Applicant"
+                      outlined
+                      dense
+                    />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Supporting Documents -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-h6">
+                  <q-icon name="description" class="q-mr-sm" />
+                  Supporting Documents
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  icon="add"
+                  label="Add Document"
+                  @click="showAddDocumentDialog = true"
+                />
+              </div>
+
+              <div
+                v-if="applicationForm.documents.length === 0"
+                class="text-center text-grey-6 q-pa-md"
+              >
+                No documents uploaded. Click "Add Document" to upload supporting documents.
+              </div>
+
+              <q-list separator v-if="applicationForm.documents.length > 0">
+                <q-item v-for="(doc, index) in applicationForm.documents" :key="index">
+                  <q-item-section avatar>
+                    <q-icon name="insert_drive_file" color="primary" />
+                  </q-item-section>
+
+                  <q-item-section>
+                    <q-item-label>{{ doc.name }}</q-item-label>
+                    <q-item-label caption v-if="doc.description">{{
+                      doc.description
+                    }}</q-item-label>
+                    <q-item-label caption v-if="doc.file">{{ doc.file.name }}</q-item-label>
+                  </q-item-section>
+
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      dense
+                      round
+                      color="negative"
+                      icon="delete"
+                      size="sm"
+                      @click="removeDocument(index)"
+                    >
+                      <q-tooltip>Remove document</q-tooltip>
+                    </q-btn>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card-section>
+          </q-card>
+
+          <!-- Additional Information -->
+          <q-card class="q-mb-lg">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="notes" class="q-mr-sm" />
+                Additional Information
+              </div>
+
+              <q-input
+                v-model="applicationForm.additional_notes"
+                type="textarea"
+                label="Additional Notes or Comments"
+                outlined
+                rows="4"
+                hint="Any additional information you'd like to provide"
+              />
+            </q-card-section>
+          </q-card>
+
+          <!-- Submit Button -->
+          <div class="row justify-end q-gutter-sm">
+            <q-btn flat label="Cancel" color="grey-7" @click="resetForm" :disable="submitting" />
+            <q-btn
+              type="submit"
+              label="Submit Application"
+              color="primary"
+              icon-right="send"
+              :loading="submitting"
+              class="btn-primary"
             />
-          </q-card-section>
-        </q-card>
-
-        <!-- Submit Button -->
-        <div class="row justify-end q-gutter-sm">
-          <q-btn flat label="Cancel" color="grey-7" @click="resetForm" :disable="submitting" />
-          <q-btn
-            type="submit"
-            label="Submit Application"
-            color="primary"
-            icon-right="send"
-            :loading="submitting"
-            class="btn-primary"
-          />
-        </div>
-      </q-form>
+          </div>
+        </q-form>
+      </div>
     </div>
 
     <!-- Add Document Dialog -->
@@ -817,12 +935,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 
+const route = useRoute()
+const router = useRouter()
 const userDataStore = useUserDataStore()
-const { createDocument, uploadImagesWithDetails } = useFirebase()
+const { createDocument, uploadImagesWithDetails, getDocument } = useFirebase()
+
+// Lease data from URL
+const selectedLeaseData = ref(null)
+const leaseLoading = ref(false)
+const leaseError = ref(null)
 
 // Form state
 const submitting = ref(false)
@@ -889,6 +1015,64 @@ const propertyOptions = computed(() => {
     label: `${property.address} - ${property.city}, ${property.state}`,
   }))
 })
+
+// Format amount helper
+const formatAmount = (amount) => {
+  if (amount === null || amount === undefined) return '0.00'
+  return parseFloat(amount).toFixed(2)
+}
+
+// Fetch lease data from URL parameter
+const fetchLeaseData = async (leaseId) => {
+  if (!leaseId) return
+
+  leaseLoading.value = true
+  leaseError.value = null
+
+  try {
+    console.log('Fetching lease data for ID:', leaseId)
+    const leaseDoc = await getDocument(`leases/${leaseId}`)
+
+    if (!leaseDoc) {
+      leaseError.value = 'Lease not found. Please check the link and try again.'
+      return
+    }
+
+    // Check if lease is available
+    if (leaseDoc.status !== 'Available' && leaseDoc.status !== 'Pending') {
+      leaseError.value = `This lease is currently ${leaseDoc.status.toLowerCase()} and not accepting applications.`
+      return
+    }
+
+    // Fetch property details if property_id is a reference
+    if (leaseDoc.property_id) {
+      const propertyId =
+        typeof leaseDoc.property_id === 'string' ? leaseDoc.property_id : leaseDoc.property_id.id
+      const propertyDoc = await getDocument(`properties/${propertyId}`)
+      leaseDoc.property_id = propertyDoc
+    }
+
+    selectedLeaseData.value = leaseDoc
+
+    // Pre-populate form with lease data
+    if (leaseDoc.property_id) {
+      applicationForm.value.property_id = leaseDoc.property_id.id
+    }
+    if (leaseDoc.lease_term) {
+      applicationForm.value.lease_term_months = leaseDoc.lease_term
+    }
+
+    // Add lease_id to form for reference
+    applicationForm.value.lease_id = leaseId
+
+    console.log('Lease data loaded:', selectedLeaseData.value)
+  } catch (error) {
+    console.error('Error fetching lease data:', error)
+    leaseError.value = 'Failed to load lease information. Please try again later.'
+  } finally {
+    leaseLoading.value = false
+  }
+}
 
 // Vehicle methods
 const addVehicle = () => {
@@ -1012,8 +1196,8 @@ const submitApplication = async () => {
       created_at: new Date().toISOString(),
     }
 
-    // Save to Firestore
-    await createDocument('lease_applications', applicationData)
+    // Save to Firestore and get the document ID
+    const applicationId = await createDocument('lease_applications', applicationData)
 
     Notify.create({
       type: 'positive',
@@ -1025,8 +1209,8 @@ const submitApplication = async () => {
     // Reset form
     resetForm()
 
-    // Optionally navigate away
-    // router.push('/')
+    // Navigate to application detail page
+    router.push(`/application-detail/${applicationId}`)
   } catch (error) {
     console.error('Error submitting application:', error)
     Notify.create({
@@ -1083,8 +1267,15 @@ const resetForm = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('Lease Application Page mounted')
+
+  // Check if lease ID is provided in the URL
+  const leaseId = route.params.leaseId
+  if (leaseId) {
+    console.log('Lease ID from URL:', leaseId)
+    await fetchLeaseData(leaseId)
+  }
 })
 </script>
 
@@ -1101,6 +1292,23 @@ onMounted(() => {
 
 .application-form {
   width: 100%;
+}
+
+.lease-info-card {
+  border: 2px solid var(--q-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.detail-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: #333;
 }
 
 .vehicle-item,

@@ -1,8 +1,5 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h4">Create New Lease</div>
-
-
     <q-card class="q-pa-lg">
       <q-form @submit="onSubmit" class="q-gutter-md">
         <!-- Property Selection -->
@@ -13,6 +10,8 @@
               :options="propertyOptions"
               option-value="id"
               option-label="displayName"
+              emit-value
+              map-options
               label="Select Property *"
               outlined
               clearable
@@ -33,325 +32,95 @@
         <div v-if="selectedPropertyId" class="q-mb-lg">
           <q-card flat bordered class="property-info-card">
             <q-card-section>
-              <!-- Property Header with Hero Section -->
-              <div class="property-hero-section">
-                <div class="row items-center q-mb-lg">
-                  <div class="col-12">
-                    <div class="property-title-section">
-                      <div class="row items-center q-mb-sm">
-                        <q-icon name="home" size="32px" color="primary" class="q-mr-md" />
-                        <div class="text-h4 text-weight-bold text-primary">
-                          {{
-                            selectedPropertyInfo?.nickname ||
-                            selectedPropertyInfo?.name ||
-                            'Unnamed Property'
-                          }}
-                        </div>
-                        <q-chip
-                          :color="getPropertyStatusColor(selectedProperty)"
-                          text-color="white"
-                          size="md"
-                          class="q-ml-auto"
-                        >
-                          {{ getPropertyStatus(selectedProperty) }}
-                        </q-chip>
+              <!-- Debug: Property Data Structure -->
+              <div class="property-debug-section q-mb-md">
+                <q-expansion-item
+                  icon="code"
+                  label="Debug: View Property Data Structure"
+                  header-class="bg-grey-2"
+                >
+                  <q-card flat bordered>
+                    <q-card-section>
+                      <div class="text-caption text-weight-bold q-mb-sm">Selected Property ID:</div>
+                      <pre class="debug-json">{{ selectedPropertyId }}</pre>
+
+                      <div class="text-caption text-weight-bold q-mb-sm q-mt-md">
+                        Selected Property Object:
                       </div>
-                      <div class="property-address-section">
-                        <div class="text-h6 text-grey-8 q-mb-xs">
-                          <q-icon name="location_on" size="20px" class="q-mr-sm" />
-                          {{ selectedPropertyInfo?.address || 'No Address' }}
-                        </div>
-                        <div class="text-body1 text-grey-6">
-                          {{ selectedPropertyInfo?.city || 'N/A' }},
-                          {{ selectedPropertyInfo?.state || 'N/A' }}
-                          {{ selectedPropertyInfo?.zip_code || 'N/A' }}
-                        </div>
+                      <pre class="debug-json">{{ JSON.stringify(selectedProperty, null, 2) }}</pre>
+
+                      <div class="text-caption text-weight-bold q-mb-sm q-mt-md">
+                        Lease Data Property (what will be saved):
                       </div>
-                    </div>
-                  </div>
-                </div>
+                      <pre class="debug-json">{{
+                        JSON.stringify(leaseData.property, null, 2)
+                      }}</pre>
+                    </q-card-section>
+                  </q-card>
+                </q-expansion-item>
               </div>
 
-              <!-- Property Specifications Grid -->
-              <div class="property-specs-grid">
-                <!-- Basic Specifications -->
-                <div class="spec-section">
-                  <div class="spec-section-header">
-                    <q-icon name="info" size="20px" color="primary" class="q-mr-sm" />
-                    <div class="text-h6 text-primary">Basic Specifications</div>
-                  </div>
-                  <div class="spec-items">
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="category" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Property Type</div>
-                        <div class="spec-value">
+              <!-- Property Specifications -->
+              <div class="property-specs-compact q-mt-md">
+                <div class="row q-col-gutter-md">
+                  <div class="col">
+                    <div class="spec-compact-item">
+                      <q-icon name="category" size="16px" color="primary" class="q-mr-xs" />
+                      <div>
+                        <div class="spec-compact-label">Type</div>
+                        <div class="spec-compact-value">
                           {{ selectedPropertyInfo?.property_type || 'N/A' }}
                         </div>
                       </div>
                     </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="bed" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Bedrooms</div>
-                        <div class="spec-value">{{ selectedPropertyInfo?.bedrooms || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="bathtub" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Bathrooms</div>
-                        <div class="spec-value">{{ selectedPropertyInfo?.bathrooms || 'N/A' }}</div>
+                  </div>
+                  <div class="col">
+                    <div class="spec-compact-item">
+                      <q-icon name="bed" size="16px" color="primary" class="q-mr-xs" />
+                      <div>
+                        <div class="spec-compact-label">Bedrooms</div>
+                        <div class="spec-compact-value">
+                          {{ selectedPropertyInfo?.bedrooms || 'N/A' }}
+                        </div>
                       </div>
                     </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="square_foot" size="18px" />
+                  </div>
+                  <div class="col">
+                    <div class="spec-compact-item">
+                      <q-icon name="bathtub" size="16px" color="primary" class="q-mr-xs" />
+                      <div>
+                        <div class="spec-compact-label">Bathrooms</div>
+                        <div class="spec-compact-value">
+                          {{ selectedPropertyInfo?.bathrooms || 'N/A' }}
+                        </div>
                       </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Square Feet</div>
-                        <div class="spec-value">
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="spec-compact-item">
+                      <q-icon name="local_parking" size="16px" color="primary" class="q-mr-xs" />
+                      <div>
+                        <div class="spec-compact-label">Garage</div>
+                        <div class="spec-compact-value">
+                          {{ selectedPropertyInfo?.garage || 'N/A' }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="spec-compact-item">
+                      <q-icon name="square_foot" size="16px" color="primary" class="q-mr-xs" />
+                      <div>
+                        <div class="spec-compact-label">Size</div>
+                        <div class="spec-compact-value">
                           {{
-                            selectedPropertyInfo?.square_feet
-                              ? selectedPropertyInfo.square_feet.toLocaleString()
+                            selectedPropertyInfo?.size
+                              ? selectedPropertyInfo.size.toLocaleString() + ' sq ft'
                               : 'N/A'
                           }}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <!-- Property Features -->
-                <div class="spec-section">
-                  <div class="spec-section-header">
-                    <q-icon name="star" size="20px" color="primary" class="q-mr-sm" />
-                    <div class="text-h6 text-primary">Property Features</div>
-                  </div>
-                  <div class="spec-items">
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="calendar_today" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Year Built</div>
-                        <div class="spec-value">{{ selectedProperty?.year_built || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="local_parking" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Parking</div>
-                        <div class="spec-value">{{ selectedProperty?.parking || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="pets" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Pet Policy</div>
-                        <div class="spec-value">{{ selectedProperty?.pet_policy || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="ac_unit" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Heating/Cooling</div>
-                        <div class="spec-value">
-                          {{ selectedProperty?.heating_cooling || 'N/A' }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Financial Information -->
-                <div class="spec-section">
-                  <div class="spec-section-header">
-                    <q-icon name="attach_money" size="20px" color="primary" class="q-mr-sm" />
-                    <div class="text-h6 text-primary">Financial Details</div>
-                  </div>
-                  <div class="spec-items">
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="trending_up" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Market Value</div>
-                        <div class="spec-value">
-                          {{
-                            selectedProperty?.market_value
-                              ? `$${selectedProperty.market_value.toLocaleString()}`
-                              : 'N/A'
-                          }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="account_balance" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Property Tax</div>
-                        <div class="spec-value">
-                          {{
-                            selectedProperty?.property_tax
-                              ? `$${selectedProperty.property_tax.toLocaleString()}`
-                              : 'N/A'
-                          }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="home_repair_service" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">HOA Fee</div>
-                        <div class="spec-value">
-                          {{ selectedProperty?.hoa_fee ? `$${selectedProperty.hoa_fee}` : 'N/A' }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="security" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Insurance</div>
-                        <div class="spec-value">
-                          {{
-                            selectedProperty?.insurance ? `$${selectedProperty.insurance}` : 'N/A'
-                          }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Property Management -->
-                <div class="spec-section">
-                  <div class="spec-section-header">
-                    <q-icon name="settings" size="20px" color="primary" class="q-mr-sm" />
-                    <div class="text-h6 text-primary">Management Info</div>
-                  </div>
-                  <div class="spec-items">
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="fingerprint" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Property ID</div>
-                        <div class="spec-value text-caption">{{ selectedPropertyId }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="person" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Owner</div>
-                        <div class="spec-value">{{ selectedProperty?.owner || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="phone" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Contact</div>
-                        <div class="spec-value">{{ selectedProperty?.contact_phone || 'N/A' }}</div>
-                      </div>
-                    </div>
-                    <div class="spec-item">
-                      <div class="spec-icon">
-                        <q-icon name="email" size="18px" />
-                      </div>
-                      <div class="spec-content">
-                        <div class="spec-label">Email</div>
-                        <div class="spec-value">{{ selectedProperty?.contact_email || 'N/A' }}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Property Description -->
-              <div v-if="selectedProperty?.description" class="property-description-section">
-                <div class="spec-section-header q-mb-md">
-                  <q-icon name="description" size="20px" color="primary" class="q-mr-sm" />
-                  <div class="text-h6 text-primary">Property Description</div>
-                </div>
-                <div class="property-description-content">
-                  {{ selectedProperty.description }}
-                </div>
-              </div>
-
-              <!-- Property Data Save Information -->
-              <div class="property-save-section">
-                <div class="spec-section-header q-mb-md">
-                  <q-icon name="save" size="20px" color="primary" class="q-mr-sm" />
-                  <div class="text-h6 text-primary">Data to be Saved in Lease</div>
-                </div>
-                <div class="property-save-info">
-                  <div class="row q-gutter-sm">
-                    <div class="col-12 col-md-6">
-                      <div class="save-info-item">
-                        <div class="save-info-label">Property ID:</div>
-                        <div class="save-info-value">{{ selectedPropertyId || 'N/A' }}</div>
-                      </div>
-                      <div class="save-info-item">
-                        <div class="save-info-label">Property Object:</div>
-                        <div class="save-info-value">
-                          {{ selectedProperty ? 'Complete property object' : 'N/A' }}
-                        </div>
-                      </div>
-                      <div class="save-info-item">
-                        <div class="save-info-label">Data Fields:</div>
-                        <div class="save-info-value">{{ propertyDataFieldsCount }} fields</div>
-                      </div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                      <div class="save-info-item">
-                        <div class="save-info-label">Last Updated:</div>
-                        <div class="save-info-value">{{ new Date().toLocaleString() }}</div>
-                      </div>
-                      <div class="save-info-item">
-                        <div class="save-info-label">Data Size:</div>
-                        <div class="save-info-value">{{ propertyDataSize }}</div>
-                      </div>
-                      <div class="save-info-item">
-                        <div class="save-info-label">Status:</div>
-                        <div class="save-info-value text-positive">
-                          <q-icon name="check_circle" size="16px" class="q-mr-xs" />
-                          Ready to Save
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Property Data Preview -->
-                  <div class="q-mt-sm">
-                    <q-expansion-item
-                      icon="visibility"
-                      label="Preview Property Data Structure"
-                      class="property-data-preview"
-                    >
-                      <div class="property-data-content">
-                        <pre class="property-data-json">{{ propertyDataPreview }}</pre>
-                      </div>
-                    </q-expansion-item>
                   </div>
                 </div>
               </div>
@@ -360,7 +129,7 @@
         </div>
 
         <!-- Lease & Financial Information -->
-        <div class="text-h6 text-primary q-mb-sm q-mt-md">Lease & Financial Information</div>
+        <div class="text-h6 text-primary q-mb-sm q-mt-md">Lease Terms and Specs</div>
         <div class="row q-gutter-sm">
           <!-- Lease Status & Term -->
           <div class="col-12 col-md-4">
@@ -507,13 +276,14 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import { Notify } from 'quasar'
 
-// Router and Store
-const router = useRouter()
+// Define emits
+const emit = defineEmits(['lease-created', 'cancel'])
+
+// Store
 const userDataStore = useUserDataStore()
 const { createDocument } = useFirebase()
 
@@ -581,10 +351,11 @@ const selectedPropertyInfo = computed(() => {
     city: property.city || '',
     state: property.state || '',
     zip_code: property.zip_code || property.zipCode || '',
-    property_type: property.property_type || property.type || '',
-    bedrooms: property.bedrooms || 0,
-    bathrooms: property.bathrooms || 0,
-    square_feet: property.square_feet || property.squareFeet || 0,
+    property_type: property.spec?.type || property.type || property.property_type || '',
+    bedrooms: property.spec?.bedroom || property.spec?.bedrooms || 0,
+    bathrooms: property.spec?.full_bathroom || property.spec?.bathrooms || 0,
+    garage: property.spec?.garage || property.garage || 'N/A',
+    size: property.spec?.size || property.spec?.square_feet || property.size || 0,
   }
 })
 
@@ -598,52 +369,6 @@ const isFormValid = computed(() => {
     leaseData.value.rate_amount
   )
 })
-
-// Property data information for display
-const propertyDataFieldsCount = computed(() => {
-  if (!selectedProperty.value) return 0
-  return Object.keys(selectedProperty.value).length
-})
-
-const propertyDataSize = computed(() => {
-  if (!selectedProperty.value) return '0 KB'
-  const jsonString = JSON.stringify(selectedProperty.value)
-  const bytes = new Blob([jsonString]).size
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-})
-
-const propertyDataPreview = computed(() => {
-  if (!selectedProperty.value) return 'No property selected'
-
-  // Create a clean preview of the property data that will be saved
-  const previewData = {
-    property_id: selectedPropertyId.value,
-    property: selectedProperty.value,
-  }
-
-  return JSON.stringify(previewData, null, 2)
-})
-
-// Property status functions
-const getPropertyStatus = (property) => {
-  if (!property) return 'Unknown'
-  return property.status || property.availability || 'Available'
-}
-
-const getPropertyStatusColor = (property) => {
-  if (!property) return 'grey'
-  const status = property.status || property.availability || 'Available'
-  const colors = {
-    Available: 'green',
-    Rented: 'blue',
-    Pending: 'orange',
-    Maintenance: 'red',
-    Unavailable: 'grey',
-  }
-  return colors[status] || 'grey'
-}
 
 // Methods
 const onPropertySelected = (propertyId) => {
@@ -697,11 +422,25 @@ const onSubmit = async () => {
     console.log('Full leaseData.value:', leaseData.value)
     console.log('========================')
 
+    // Generate LSID (Lease ID) using property nickname and timestamp
+    const now = new Date()
+    const propertyNickname =
+      leaseData.value.property?.nickname || leaseData.value.property?.name || 'Property'
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const seconds = String(now.getSeconds()).padStart(2, '0')
+    const LSID = `${propertyNickname}${year}${month}${hour}${minutes}${seconds}`
+
     // Prepare lease data for saving (with full property object)
     const leaseDataToSave = {
       // Property information (full object)
-      property_id: selectedPropertyId.value,
-      property: leaseData.value.property, // Full property object
+      property_id: leaseData.value.property, // Full property object (what LeasesPage expects)
+      property_string_id: selectedPropertyId.value, // String ID for reference
+
+      // Lease ID
+      LSID: LSID,
 
       // Lease information
       status: leaseData.value.status,
@@ -731,14 +470,15 @@ const onSubmit = async () => {
     }
 
     console.log('=== LEASE DATA TO SAVE ===')
+    console.log('Generated LSID:', LSID)
     console.log('Creating lease with data:', leaseDataToSave)
-    console.log('Property ID:', leaseDataToSave.property_id)
-    console.log('Property object:', leaseDataToSave.property)
+    console.log('Property String ID:', leaseDataToSave.property_string_id)
+    console.log('Property Object (property_id):', leaseDataToSave.property_id)
     console.log(
       'Property nickname:',
-      leaseDataToSave.property?.nickname || leaseDataToSave.property?.name,
+      leaseDataToSave.property_id?.nickname || leaseDataToSave.property_id?.name,
     )
-    console.log('Property address:', leaseDataToSave.property?.address)
+    console.log('Property address:', leaseDataToSave.property_id?.address)
     console.log('==========================')
 
     // Save to Firebase
@@ -752,8 +492,8 @@ const onSubmit = async () => {
     // Refresh leases data
     await userDataStore.refreshLeases()
 
-    // Redirect to leases page
-    router.push('/leases')
+    // Emit event to close dialog
+    emit('lease-created')
   } catch (error) {
     console.error('Error creating lease:', error)
     Notify.create({
@@ -1129,6 +869,60 @@ watch(
 .text-body1 {
   font-size: 1rem;
   line-height: 1.5;
+}
+
+/* Debug Section */
+.property-debug-section {
+  margin-bottom: 16px;
+}
+
+.debug-json {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #212529;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Compact Property Specifications */
+.property-specs-compact {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(36, 87, 115, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.spec-compact-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: rgba(36, 87, 115, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.spec-compact-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--neutral-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spec-compact-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--neutral-800);
+  margin-top: 2px;
 }
 
 @media (max-width: 768px) {

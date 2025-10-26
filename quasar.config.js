@@ -205,7 +205,7 @@ export default defineConfig((ctx) => {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'project_tobby',
+        appId: 'project_handout',
       },
     },
 
@@ -226,4 +226,3 @@ export default defineConfig((ctx) => {
     },
   }
 })
-

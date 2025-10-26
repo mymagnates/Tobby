@@ -1,8 +1,8 @@
 {
-  "name": "project_tobby",
+  "name": "project_handout",
   "version": "0.0.1",
   "description": "A Quasar Project",
-  "productName": "Tobby",
+  "productName": "Handout",
   "author": "Magnates Solution <mymagnates@gmail.com>",
   "type": "module",
   "private": true,

@@ -15,7 +15,7 @@
         <q-toolbar-title class="row items-center">
           <div class="logo-container">
             <img src="/logo.svg" alt="Property Manager Logo" class="logo" />
-            <span class="app-title">Property Manager</span>
+            <span class="app-title" style="font-family: 'Orbitron', 'cursive', 'Comic Sans MS', Impact, fantasy, system-ui; letter-spacing: 0.08em;">Handout</span>
           </div>
         </q-toolbar-title>
 
@@ -59,12 +59,6 @@
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="modern-drawer">
-      <div class="drawer-header">
-        <div class="drawer-logo-container">
-          <img src="/logo.svg" alt="Tobby Logo" class="drawer-logo" />
-          <span class="drawer-title">Tobby</span>
-        </div>
-      </div>
       <q-list class="nav-list">
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
       </q-list>
@@ -95,9 +89,9 @@ const { logout } = useFirebase()
 
 const linksList = [
   {
-    title: 'Home',
+    title: 'Dashboard',
     caption: 'Main page',
-    icon: 'home',
+    icon: 'dashboard',
     link: '/',
   },
   { title: 'My Properties', caption: 'View your properties', icon: 'home', link: '/my-properties' },
@@ -133,6 +127,12 @@ const linksList = [
     caption: 'Apply for a lease',
     icon: 'assignment',
     link: '/lease-application',
+  },
+  {
+    title: 'Tenant Home',
+    caption: 'Tenant home page',
+    icon: 'radio',
+    link: '/tenant-home',
   },
 ]
 

@@ -151,7 +151,22 @@
 
               <!-- Document Content -->
               <div class="document-content">
-                <div class="document-name">{{ doc.name }}</div>
+                <div class="document-name-row">
+                  <div class="document-name">{{ doc.name }}</div>
+                  <q-chip
+                    v-if="doc.source === 'application'"
+                    size="sm"
+                    color="blue-2"
+                    text-color="blue-9"
+                    icon="description"
+                    dense
+                  >
+                    From Application
+                    <q-tooltip>
+                      Copied from application on {{ formatDate(doc.copied_at) }}
+                    </q-tooltip>
+                  </q-chip>
+                </div>
                 <div class="document-description">
                   {{ doc.description || 'No description' }}
                 </div>
@@ -280,7 +295,7 @@ const emit = defineEmits(['close'])
 const {
   createDocument,
   deleteDocument: deleteFirestoreDocument,
- // uploadImages,
+  // uploadImages,
   uploadImagesWithDetails,
   deleteFile,
   getAllDocuments,
@@ -635,12 +650,20 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.document-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
 .document-name {
   font-size: 1rem;
   font-weight: 600;
   color: var(--neutral-800);
-  margin-bottom: 4px;
   line-height: 1.3;
+  flex: 1;
 }
 
 .document-description {

@@ -29,7 +29,15 @@ const routes = [
       { path: 'leases', component: () => import('pages/LeasesPage.vue') },
       { path: 'reminders', component: () => import('pages/RemindersPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
-      { path: 'lease-application', component: () => import('pages/LeaseApplicationPage.vue') },
+      {
+        path: 'lease-application/:leaseId?',
+        component: () => import('pages/LeaseApplicationPage.vue'),
+      },
+      {
+        path: 'application-detail/:applicationId',
+        component: () => import('pages/ApplicationDetailPage.vue'),
+      },
+      { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
       { path: 'user-profile', component: () => import('pages/UserProfilePage.vue') },
     ],
   },
