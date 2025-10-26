@@ -50,6 +50,10 @@ const routes = [
     component: () => import('pages/LoadingPage.vue'),
   },
   {
+    path: '/tenant-signup/:propertyId',
+    component: () => import('pages/TenantSignUpPage.vue'),
+  },
+  {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
   },
