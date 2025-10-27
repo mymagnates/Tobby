@@ -15,7 +15,14 @@
         <q-toolbar-title class="row items-center">
           <div class="logo-container">
             <img src="/logo.svg" alt="Property Manager Logo" class="logo" />
-            <span class="app-title" style="font-family: 'Orbitron', 'cursive', 'Comic Sans MS', Impact, fantasy, system-ui; letter-spacing: 0.08em;">Handout</span>
+            <span
+              class="app-title"
+              style="
+                font-family: 'Orbitron', 'cursive', 'Comic Sans MS', Impact, fantasy, system-ui;
+                letter-spacing: 0.08em;
+              "
+              >Handout</span
+            >
           </div>
         </q-toolbar-title>
 
@@ -77,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
@@ -87,54 +94,93 @@ const router = useRouter()
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
 
-const linksList = [
+const allLinksList = [
   {
     title: 'Dashboard',
     caption: 'Main page',
     icon: 'dashboard',
     link: '/',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
-  { title: 'My Properties', caption: 'View your properties', icon: 'home', link: '/my-properties' },
-
-  { title: 'Tasks', caption: 'View all tasks', icon: 'dns', link: '/mx-records' },
+  {
+    title: 'My Properties',
+    caption: 'View your properties',
+    icon: 'home',
+    link: '/my-properties',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: 'Tasks',
+    caption: 'View all tasks',
+    icon: 'dns',
+    link: '/mx-records',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
   {
     title: 'Transactions',
     caption: 'View all transactions',
     icon: 'receipt_long',
     link: '/transactions',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
-
   {
     title: 'Reminders',
     caption: 'Manage reminders',
     icon: 'notifications',
     link: '/reminders',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Reports',
     caption: 'View reports & analytics',
     icon: 'assessment',
     link: '/reports',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Leases',
     caption: 'View all leases',
     icon: 'description',
     link: '/leases',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Lease Application',
     caption: 'Apply for a lease',
     icon: 'assignment',
     link: '/lease-application',
+    allowedFor: ['tenant'], // Only for tenants
   },
   {
     title: 'Tenant Home',
     caption: 'Tenant home page',
-    icon: 'radio',
+    icon: 'home_work',
     link: '/tenant-home',
+    allowedFor: ['tenant'], // Only for tenants
   },
 ]
+
+// Computed property to filter links based on user category
+const linksList = computed(() => {
+  const userCategory = userDataStore.userCategory
+  console.log('MainLayout - Filtering menu for user category:', userCategory)
+
+  // If no user category yet (still loading), show nothing
+  if (!userCategory) {
+    return []
+  }
+
+  // Filter links based on user category
+  const filtered = allLinksList.filter((link) => {
+    return link.allowedFor.includes(userCategory)
+  })
+
+  console.log(
+    'MainLayout - Filtered links:',
+    filtered.map((l) => l.title),
+  )
+  return filtered
+})
 
 const leftDrawerOpen = ref(false)
 const dataLoading = ref(false)

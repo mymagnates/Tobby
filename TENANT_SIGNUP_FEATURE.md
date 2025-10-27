@@ -1,6 +1,7 @@
 # Tenant Sign Up Feature
 
 ## Overview
+
 The Tenant Sign Up feature allows property owners to easily onboard new tenants by sharing a unique registration link. When tenants sign up through this link, they are automatically associated with the property as a tenant.
 
 ## How It Works
@@ -9,11 +10,13 @@ The Tenant Sign Up feature allows property owners to easily onboard new tenants 
 
 1. **Generate Sign Up Link**
    - For any property, the sign up link format is:
+
    ```
    https://your-domain.com/tenant-signup/{propertyId}
    ```
-   
+
    Example:
+
    ```
    https://your-domain.com/tenant-signup/prop_12345
    ```
@@ -52,6 +55,7 @@ The Tenant Sign Up feature allows property owners to easily onboard new tenants 
 ## Technical Details
 
 ### Page Route
+
 - **URL Pattern**: `/tenant-signup/:propertyId`
 - **Component**: `src/pages/TenantSignUpPage.vue`
 - **Access**: Public (no authentication required)
@@ -104,8 +108,8 @@ The application includes a ready-to-use component for generating and sharing ten
 <template>
   <div>
     <!-- Include the component in your property view/edit page -->
-    <TenantSignUpLink 
-      :property-id="property.id" 
+    <TenantSignUpLink
+      :property-id="property.id"
       :property-name="property.nickname || property.address"
     />
   </div>
@@ -124,6 +128,7 @@ const property = ref({
 #### Component Features
 
 The `TenantSignUpLink` component provides:
+
 - **Automatic Link Generation**: Creates the proper URL based on property ID
 - **Copy to Clipboard**: One-click copy functionality
 - **Email Integration**: Opens default email client with pre-filled message
@@ -144,6 +149,7 @@ navigator.clipboard.writeText(signupLink)
 ### Future Enhancements
 
 Potential improvements:
+
 - Email invitation system with automatic link generation
 - QR code generation for easy mobile sign up
 - Custom welcome message per property
@@ -172,4 +178,3 @@ Potential improvements:
    - Check browser console for errors
    - Ensure Firebase configuration is correct
    - Verify internet connection
-

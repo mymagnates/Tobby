@@ -22,7 +22,9 @@
       <div v-if="propertyLoading || isCreatingProfile" class="loading-section">
         <q-spinner-dots size="60px" color="primary" />
         <p class="loading-text">
-          {{ isCreatingProfile ? 'Setting up your tenant profile...' : 'Loading property details...' }}
+          {{
+            isCreatingProfile ? 'Setting up your tenant profile...' : 'Loading property details...'
+          }}
         </p>
       </div>
 
@@ -97,12 +99,7 @@
                 </template>
               </q-input>
 
-              <q-input
-                v-model="signupForm.phone"
-                label="Phone Number"
-                outlined
-                type="tel"
-              >
+              <q-input v-model="signupForm.phone" label="Phone Number" outlined type="tel">
                 <template v-slot:prepend>
                   <q-icon name="phone" />
                 </template>
@@ -259,7 +256,7 @@ const loadProperty = async () => {
 const createTenantProfile = async (userId, userData) => {
   try {
     console.log('Creating tenant profile for user:', userId)
-    
+
     // Create user profile in users collection
     const userProfileData = {
       user_id: userId,
@@ -267,6 +264,7 @@ const createTenantProfile = async (userId, userData) => {
       full_name: userData.fullName,
       phone: userData.phone || '',
       user_type: 'tenant',
+      user_category: 'tenant', // Important: Used for role-based access control
       created_at: new Date(),
       updated_at: new Date(),
     }
@@ -304,7 +302,7 @@ const handleSignUp = async () => {
     const result = await signUp(
       signupForm.value.email,
       signupForm.value.password,
-      signupForm.value.fullName
+      signupForm.value.fullName,
     )
 
     console.log('Firebase auth account created:', result.user.uid)
@@ -374,7 +372,7 @@ watch(isAuthenticated, (newValue) => {
 // Mount
 onMounted(async () => {
   console.log('TenantSignUpPage mounted with propertyId:', propertyId.value)
-  
+
   // Load property details
   await loadProperty()
 
@@ -533,4 +531,3 @@ onMounted(async () => {
   }
 }
 </style>
-

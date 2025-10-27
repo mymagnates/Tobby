@@ -16,13 +16,7 @@
       <q-card-section>
         <!-- Display the link -->
         <div class="link-display">
-          <q-input
-            :model-value="signupLink"
-            label="Sign Up Link"
-            outlined
-            readonly
-            dense
-          >
+          <q-input :model-value="signupLink" label="Sign Up Link" outlined readonly dense>
             <template v-slot:append>
               <q-btn
                 flat
@@ -57,13 +51,7 @@
             outline
             class="q-mr-sm"
           />
-          <q-btn
-            color="accent"
-            icon="qr_code"
-            label="Show QR Code"
-            @click="showQRCode"
-            outline
-          />
+          <q-btn color="accent" icon="qr_code" label="Show QR Code" @click="showQRCode" outline />
         </div>
 
         <!-- QR Code Display -->
@@ -72,12 +60,8 @@
           <div class="qr-code-placeholder">
             <div class="qr-message">
               <q-icon name="qr_code_scanner" size="64px" color="grey-5" />
-              <p class="text-caption text-grey-7">
-                QR Code functionality requires qrcode library
-              </p>
-              <p class="text-caption text-grey-6">
-                Tenants can visit: {{ signupLink }}
-              </p>
+              <p class="text-caption text-grey-7">QR Code functionality requires qrcode library</p>
+              <p class="text-caption text-grey-6">Tenants can visit: {{ signupLink }}</p>
             </div>
           </div>
         </div>
@@ -118,7 +102,7 @@ const copyLink = async () => {
   try {
     copying.value = true
     await navigator.clipboard.writeText(signupLink.value)
-    
+
     $q.notify({
       type: 'positive',
       message: 'Link copied to clipboard!',
@@ -143,15 +127,15 @@ const copyLink = async () => {
 const emailLink = () => {
   const subject = encodeURIComponent(`Tenant Sign Up - ${props.propertyName}`)
   const body = encodeURIComponent(
-    `Hello,\n\nPlease use the following link to create your tenant account for ${props.propertyName}:\n\n${signupLink.value}\n\nBest regards`
+    `Hello,\n\nPlease use the following link to create your tenant account for ${props.propertyName}:\n\n${signupLink.value}\n\nBest regards`,
   )
-  
+
   window.location.href = `mailto:?subject=${subject}&body=${body}`
 }
 
 const showQRCode = () => {
   showingQR.value = !showingQR.value
-  
+
   if (showingQR.value) {
     $q.notify({
       type: 'info',
@@ -227,4 +211,3 @@ const showQRCode = () => {
   }
 }
 </style>
-

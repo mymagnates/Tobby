@@ -80,7 +80,15 @@ watch(
       !userDataStore.userRolesLoading
     ) {
       setTimeout(() => {
-        router.push('/')
+        // Check user category and redirect accordingly
+        const userCategory = userDataStore.userCategory
+        if (userCategory === 'tenant') {
+          router.push('/tenant-home')
+        } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+          router.push('/') // Property management users go to dashboard
+        } else {
+          router.push('/') // Default to dashboard
+        }
       }, 1000)
     }
   },
@@ -102,7 +110,15 @@ onMounted(async () => {
     !userDataStore.propertiesLoading &&
     !userDataStore.userRolesLoading
   ) {
-    router.push('/')
+    // Check user category and redirect accordingly
+    const userCategory = userDataStore.userCategory
+    if (userCategory === 'tenant') {
+      router.push('/tenant-home')
+    } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+      router.push('/') // Property management users go to dashboard
+    } else {
+      router.push('/') // Default to dashboard
+    }
     return
   }
 
@@ -117,7 +133,15 @@ onMounted(async () => {
   // Timeout handling
   setTimeout(() => {
     if (userDataStore.userAccessibleProperties.length > 0) {
-      router.push('/')
+      // Check user category and redirect accordingly
+      const userCategory = userDataStore.userCategory
+      if (userCategory === 'tenant') {
+        router.push('/tenant-home')
+      } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+        router.push('/') // Property management users go to dashboard
+      } else {
+        router.push('/') // Default to dashboard
+      }
     } else {
       hasError.value = true
     }

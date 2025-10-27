@@ -49,6 +49,7 @@ export const useUserDataStore = defineStore('userData', () => {
   // Computed properties
   const userId = computed(() => user.value?.uid)
   const isAuthenticated = computed(() => !!user.value)
+  const userCategory = computed(() => userProfile.value?.user_category || null)
 
   const userAccessibleProperties = computed(() => {
     console.log('=== userDataStore - Computing userAccessibleProperties ===')
@@ -989,6 +990,7 @@ export const useUserDataStore = defineStore('userData', () => {
     // Computed
     userId,
     isAuthenticated,
+    userCategory,
     userAccessibleProperties,
     userAccessibleMxRecords,
     userAccessibleTransactions,
