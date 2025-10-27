@@ -179,17 +179,18 @@ if (userCategory === 'tenant') {
 
 The system supports the following user categories:
 
-| Category            | Access Level | Visible Pages                                   |
-| ------------------- | ------------ | ----------------------------------------------- |
-| `tenant`            | Limited      | Tenant Home, Lease Application                  |
-| `PM`                | Full         | All property management pages (not tenant pages)|
-| `PO`                | Full         | All property management pages (not tenant pages)|
-| `owner`             | Full         | All property management pages (not tenant pages)|
-| `manager`           | Full         | All property management pages (not tenant pages)|
-| `admin`             | Full         | All property management pages (not tenant pages)|
-| `null` or undefined | No menu      | None (until category is loaded)                 |
+| Category            | Access Level | Visible Pages                                    |
+| ------------------- | ------------ | ------------------------------------------------ |
+| `tenant`            | Limited      | Tenant Home, Lease Application                   |
+| `PM`                | Full         | All property management pages (not tenant pages) |
+| `PO`                | Full         | All property management pages (not tenant pages) |
+| `PM/PO`             | Full         | All property management pages (not tenant pages) |
+| `owner`             | Full         | All property management pages (not tenant pages) |
+| `manager`           | Full         | All property management pages (not tenant pages) |
+| `admin`             | Full         | All property management pages (not tenant pages) |
+| `null` or undefined | No menu      | None (until category is loaded)                  |
 
-**Note**: PM (Property Manager) and PO (Property Owner) roles have access to all property management features but cannot access tenant-specific pages like Tenant Home and Lease Application.
+**Note**: PM (Property Manager), PO (Property Owner), and PM/PO roles have access to all property management features but cannot access tenant-specific pages like Tenant Home and Lease Application. The system supports both individual values (`PM`, `PO`) and the combined value (`PM/PO`) as a single string.
 
 ## Security Flow
 
@@ -246,6 +247,7 @@ The system supports the following user categories:
 ## Testing Checklist
 
 ### Tenant Users
+
 - [x] Tenant sign up creates user with `user_category: "tenant"`
 - [x] Tenant login redirects to `/tenant-home`
 - [x] Tenant menu only shows Tenant Home and Lease Application
@@ -256,6 +258,7 @@ The system supports the following user categories:
 - [x] Tenant can access `/user-profile`
 
 ### PM/PO Users
+
 - [x] PM/PO login redirects to `/` (dashboard)
 - [x] PM/PO menu shows all property management pages
 - [x] PM/PO menu does NOT show Tenant Home
@@ -267,6 +270,7 @@ The system supports the following user categories:
 - [x] PM/PO can access `/leases`
 
 ### General
+
 - [x] Router guard logs access attempts
 - [x] Console logs show user category filtering
 

@@ -84,7 +84,7 @@ watch(
         const userCategory = userDataStore.userCategory
         if (userCategory === 'tenant') {
           router.push('/tenant-home')
-        } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+        } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
           router.push('/') // Property management users go to dashboard
         } else {
           router.push('/') // Default to dashboard
@@ -114,7 +114,7 @@ onMounted(async () => {
     const userCategory = userDataStore.userCategory
     if (userCategory === 'tenant') {
       router.push('/tenant-home')
-    } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+    } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
       router.push('/') // Property management users go to dashboard
     } else {
       router.push('/') // Default to dashboard
@@ -137,7 +137,7 @@ onMounted(async () => {
       const userCategory = userDataStore.userCategory
       if (userCategory === 'tenant') {
         router.push('/tenant-home')
-      } else if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+      } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
         router.push('/') // Property management users go to dashboard
       } else {
         router.push('/') // Default to dashboard

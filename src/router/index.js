@@ -69,7 +69,11 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
     // PM/PO and other roles have full access (no restrictions)
     // They can access all routes including property management pages
-    if (['PM', 'PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+    // Handle both "PM/PO" as single string and individual "PM", "PO" values
+    const isPropertyManager =
+      ['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)
+    
+    if (isPropertyManager) {
       // Block PM/PO from accessing tenant-only pages
       if (to.path === '/tenant-home') {
         console.log('Router Guard - PM/PO attempting to access tenant-only page:', to.path)

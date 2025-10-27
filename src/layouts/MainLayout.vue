@@ -172,6 +172,13 @@ const linksList = computed(() => {
 
   // Filter links based on user category
   const filtered = allLinksList.filter((link) => {
+    // Handle "PM/PO" as a single category
+    if (userCategory === 'PM/PO') {
+      // PM/PO users should see all property management pages
+      return link.allowedFor.includes('PM') || link.allowedFor.includes('PO')
+    }
+    
+    // For other categories, check direct match
     return link.allowedFor.includes(userCategory)
   })
 
