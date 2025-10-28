@@ -266,6 +266,7 @@
                 <div class="col-12 col-md-4">
                   <q-input
                     v-model="applicationForm.applicant.ssn"
+                    :type="showSSN ? 'text' : 'password'"
                     label="Social Security Number"
                     outlined
                     dense
@@ -273,6 +274,13 @@
                   >
                     <template v-slot:prepend>
                       <q-icon name="badge" />
+                    </template>
+                    <template v-slot:append>
+                      <q-icon
+                        :name="showSSN ? 'visibility_off' : 'visibility'"
+                        class="cursor-pointer"
+                        @click="showSSN = !showSSN"
+                      />
                     </template>
                   </q-input>
                 </div>
@@ -937,6 +945,7 @@ const leaseError = ref(null)
 // Form state
 const submitting = ref(false)
 const showAddDocumentDialog = ref(false)
+const showSSN = ref(false)
 
 // Application form
 const applicationForm = ref({
@@ -1248,6 +1257,21 @@ const resetForm = () => {
 
 onMounted(async () => {
   console.log('Lease Application Page mounted')
+
+  // Check authentication - redirect to login if not authenticated
+  if (!userDataStore.isAuthenticated) {
+    console.log('User not authenticated, redirecting to login')
+    Notify.create({
+      type: 'warning',
+      message: 'Please sign in or create an account to apply for a lease',
+      position: 'top',
+      timeout: 3000,
+    })
+    // Store the current URL to redirect back after login
+    const returnUrl = route.fullPath
+    router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+    return
+  }
 
   // Check if lease ID is provided in the URL
   const leaseId = route.params.leaseId
