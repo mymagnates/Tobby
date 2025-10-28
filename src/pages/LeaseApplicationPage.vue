@@ -161,22 +161,6 @@
 
                 <div class="col-12 col-md-6">
                   <q-input
-                    v-model.number="applicationForm.lease_term_months"
-                    type="number"
-                    label="Desired Lease Term (months) *"
-                    outlined
-                    dense
-                    min="1"
-                    :rules="[(val) => !!val || 'Lease term is required']"
-                  >
-                    <template v-slot:prepend>
-                      <q-icon name="schedule" />
-                    </template>
-                  </q-input>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <q-input
                     v-model.number="applicationForm.number_of_occupants"
                     type="number"
                     label="Number of Occupants *"
@@ -958,7 +942,6 @@ const showAddDocumentDialog = ref(false)
 const applicationForm = ref({
   property_id: null,
   desired_move_in_date: '',
-  lease_term_months: 12,
   number_of_occupants: 1,
   applicant: {
     first_name: '',
@@ -1057,9 +1040,6 @@ const fetchLeaseData = async (leaseId) => {
     // Pre-populate form with lease data
     if (leaseDoc.property_id) {
       applicationForm.value.property_id = leaseDoc.property_id.id
-    }
-    if (leaseDoc.lease_term) {
-      applicationForm.value.lease_term_months = leaseDoc.lease_term
     }
 
     // Add lease_id to form for reference
@@ -1227,7 +1207,6 @@ const resetForm = () => {
   applicationForm.value = {
     property_id: null,
     desired_move_in_date: '',
-    lease_term_months: 12,
     number_of_occupants: 1,
     applicant: {
       first_name: '',
