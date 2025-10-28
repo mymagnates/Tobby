@@ -30,10 +30,6 @@ const routes = [
       { path: 'reminders', component: () => import('pages/RemindersPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
       {
-        path: 'lease-application/:leaseId?',
-        component: () => import('pages/LeaseApplicationPage.vue'),
-      },
-      {
         path: 'application-detail/:applicationId',
         component: () => import('pages/ApplicationDetailPage.vue'),
       },
@@ -52,6 +48,10 @@ const routes = [
   {
     path: '/tenant-signup/:propertyId',
     component: () => import('pages/TenantSignUpPage.vue'),
+  },
+  {
+    path: '/lease-application/:leaseId?',
+    component: () => import('pages/LeaseApplicationPage.vue'),
   },
   {
     path: '/:catchAll(.*)*',

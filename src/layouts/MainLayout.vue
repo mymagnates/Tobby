@@ -145,13 +145,6 @@ const allLinksList = [
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Lease Application',
-    caption: 'Apply for a lease',
-    icon: 'assignment',
-    link: '/lease-application',
-    allowedFor: ['tenant'], // Only for tenants
-  },
-  {
     title: 'Tenant Home',
     caption: 'Tenant home page',
     icon: 'home_work',
@@ -177,7 +170,7 @@ const linksList = computed(() => {
       // PM/PO users should see all property management pages
       return link.allowedFor.includes('PM') || link.allowedFor.includes('PO')
     }
-    
+
     // For other categories, check direct match
     return link.allowedFor.includes(userCategory)
   })
