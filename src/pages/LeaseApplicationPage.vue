@@ -1258,21 +1258,6 @@ const resetForm = () => {
 onMounted(async () => {
   console.log('Lease Application Page mounted')
 
-  // Check authentication - redirect to login if not authenticated
-  if (!userDataStore.isAuthenticated) {
-    console.log('User not authenticated, redirecting to login')
-    Notify.create({
-      type: 'warning',
-      message: 'Please sign in or create an account to apply for a lease',
-      position: 'top',
-      timeout: 3000,
-    })
-    // Store the current URL to redirect back after login
-    const returnUrl = route.fullPath
-    router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
-    return
-  }
-
   // Check if lease ID is provided in the URL
   const leaseId = route.params.leaseId
   if (leaseId) {
