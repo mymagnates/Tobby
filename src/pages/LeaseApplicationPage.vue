@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <div class="lease-application-page">
     <div class="page-container">
       <!-- Loading State -->
       <div v-if="leaseLoading" class="text-center q-pa-xl">
@@ -914,7 +914,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </q-page>
+  </div>
 </template>
 
 <script setup>
@@ -1259,6 +1259,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.lease-application-page {
+  min-height: 100vh;
+  padding: 24px;
+  background-color: #f5f5f5;
+}
+
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
