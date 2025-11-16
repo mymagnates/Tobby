@@ -923,90 +923,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Sign Up Dialog -->
-    <q-dialog v-model="showSignUpDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section class="bg-primary text-white">
-          <div class="text-h6">Create Account to Submit</div>
-          <div class="text-caption">Sign up to submit your lease application</div>
-        </q-card-section>
-
-        <q-card-section>
-          <q-form @submit="handleSignUp" class="q-gutter-md">
-            <q-input
-              v-model="signupData.email"
-              type="email"
-              label="Email *"
-              outlined
-              readonly
-              hint="Email from your application"
-            >
-              <template v-slot:prepend>
-                <q-icon name="email" />
-              </template>
-            </q-input>
-
-            <q-input
-              v-model="signupData.fullName"
-              label="Full Name *"
-              outlined
-              :rules="[(val) => !!val || 'Full name is required']"
-            >
-              <template v-slot:prepend>
-                <q-icon name="person" />
-              </template>
-            </q-input>
-
-            <q-input
-              v-model="signupData.password"
-              :type="showSignupPassword ? 'text' : 'password'"
-              label="Password *"
-              outlined
-              :rules="[
-                (val) => !!val || 'Password is required',
-                (val) => val.length >= 6 || 'Password must be at least 6 characters',
-              ]"
-            >
-              <template v-slot:prepend>
-                <q-icon name="lock" />
-              </template>
-              <template v-slot:append>
-                <q-icon
-                  :name="showSignupPassword ? 'visibility_off' : 'visibility'"
-                  class="cursor-pointer"
-                  @click="showSignupPassword = !showSignupPassword"
-                />
-              </template>
-            </q-input>
-
-            <q-input
-              v-model="signupData.confirmPassword"
-              :type="showSignupPassword ? 'text' : 'password'"
-              label="Confirm Password *"
-              outlined
-              :rules="[
-                (val) => !!val || 'Please confirm your password',
-                (val) => val === signupData.password || 'Passwords do not match',
-              ]"
-            >
-              <template v-slot:prepend>
-                <q-icon name="lock" />
-              </template>
-            </q-input>
-          </q-form>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="showSignUpDialog = false" />
-          <q-btn
-            label="Create Account & Submit"
-            color="primary"
-            @click="handleSignUp"
-            :loading="signingUp"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </div>
 </template>
 
@@ -1020,7 +936,7 @@ import { Notify } from 'quasar'
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
-const { createDocument, uploadImagesWithDetails, getDocument, signUp } = useFirebase()
+const { createDocument, uploadImagesWithDetails, getDocument } = useFirebase()
 
 // Lease data from URL
 const selectedLeaseData = ref(null)
@@ -1031,17 +947,6 @@ const leaseError = ref(null)
 const submitting = ref(false)
 const showAddDocumentDialog = ref(false)
 const showSSN = ref(false)
-const showSignUpDialog = ref(false)
-const showSignupPassword = ref(false)
-const signingUp = ref(false)
-
-// Signup data
-const signupData = ref({
-  email: '',
-  fullName: '',
-  password: '',
-  confirmPassword: '',
-})
 
 // Application form
 const applicationForm = ref({
@@ -1248,96 +1153,8 @@ const onFileRejected = () => {
   })
 }
 
-// Handle sign up
-const handleSignUp = async () => {
-  // Validate passwords match
-  if (signupData.value.password !== signupData.value.confirmPassword) {
-    Notify.create({
-      type: 'negative',
-      message: 'Passwords do not match',
-      position: 'top',
-    })
-    return
-  }
-
-  // Validate password length
-  if (signupData.value.password.length < 6) {
-    Notify.create({
-      type: 'negative',
-      message: 'Password must be at least 6 characters',
-      position: 'top',
-    })
-    return
-  }
-
-  try {
-    signingUp.value = true
-
-    console.log('Creating user account...')
-    // Create Firebase auth account
-    const result = await signUp(
-      signupData.value.email,
-      signupData.value.password,
-      signupData.value.fullName,
-    )
-
-    console.log('User account created:', result.user.uid)
-
-    // Create user profile in Firestore
-    await createDocument(
-      'users',
-      {
-        user_id: result.user.uid,
-        email: signupData.value.email,
-        full_name: signupData.value.fullName,
-        user_category: 'tenant',
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-      result.user.uid,
-    )
-
-    console.log('User profile created')
-
-    // Close dialog
-    showSignUpDialog.value = false
-
-    Notify.create({
-      type: 'positive',
-      message: 'Account created successfully!',
-      caption: 'Submitting your application...',
-      position: 'top',
-    })
-
-    // Wait a moment for user data to load
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Now submit the application
-    await submitApplication()
-  } catch (error) {
-    console.error('Error creating account:', error)
-    Notify.create({
-      type: 'negative',
-      message: error.message || 'Failed to create account',
-      position: 'top',
-    })
-  } finally {
-    signingUp.value = false
-  }
-}
-
 // Submit application
 const submitApplication = async () => {
-  // Check if user is authenticated
-  if (!userDataStore.isAuthenticated) {
-    // Pre-fill signup data with application email and name
-    signupData.value.email = applicationForm.value.applicant.email
-    signupData.value.fullName =
-      `${applicationForm.value.applicant.first_name} ${applicationForm.value.applicant.last_name}`.trim()
-    showSignUpDialog.value = true
-    return
-  }
-
   try {
     submitting.value = true
 
@@ -1359,12 +1176,12 @@ const submitApplication = async () => {
       }))
     }
 
-    // Prepare application data
+    // Prepare application data (no authentication required)
     const applicationData = {
       ...applicationForm.value,
       documents: uploadedDocuments,
       submitted_at: new Date().toISOString(),
-      submitted_by: userDataStore.userId,
+      submitted_by: userDataStore.userId || null, // Optional - may be null for anonymous applications
       status: 'pending',
       created_at: new Date().toISOString(),
     }

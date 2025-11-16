@@ -29,12 +29,13 @@ const routes = [
       { path: 'leases', component: () => import('pages/LeasesPage.vue') },
       { path: 'reminders', component: () => import('pages/RemindersPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
+      { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
+      { path: 'user-profile', component: () => import('pages/UserProfilePage.vue') },
       {
         path: 'application-detail/:applicationId',
         component: () => import('pages/ApplicationDetailPage.vue'),
+        meta: { withLayout: true },
       },
-      { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
-      { path: 'user-profile', component: () => import('pages/UserProfilePage.vue') },
     ],
   },
   {
@@ -52,6 +53,11 @@ const routes = [
   {
     path: '/lease-application/:leaseId?',
     component: () => import('pages/LeaseApplicationPage.vue'),
+  },
+  {
+    path: '/application-detail/:applicationId',
+    component: () => import('pages/ApplicationDetailPage.vue'),
+    meta: { withLayout: false },
   },
   {
     path: '/:catchAll(.*)*',

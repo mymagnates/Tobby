@@ -42,20 +42,34 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     console.log('Router Guard - Navigation to:', to.path)
     console.log('Router Guard - User category:', userCategory)
 
-    // Define tenant-allowed routes (only for tenants)
-    const tenantAllowedRoutes = [
-      '/tenant-home',
+    // Define public routes accessible without authentication
+    const publicRoutes = [
       '/lease-application',
       '/login',
       '/loading',
+    ]
+
+    // Check if route is public or starts with public prefix
+    const isPublicRoute =
+      publicRoutes.includes(to.path) ||
+      to.path.startsWith('/lease-application/') ||
+      to.path.startsWith('/application-detail/') ||
+      to.path.startsWith('/tenant-signup/')
+
+    // Allow access to public routes without authentication checks
+    if (isPublicRoute) {
+      next()
+      return
+    }
+
+    // Define tenant-allowed routes (only for tenants)
+    const tenantAllowedRoutes = [
+      '/tenant-home',
       '/user-profile',
     ]
 
-    // Check if route is tenant-allowed or starts with allowed prefix
-    const isTenantAllowed =
-      tenantAllowedRoutes.includes(to.path) ||
-      to.path.startsWith('/lease-application/') ||
-      to.path.startsWith('/tenant-signup/')
+    // Check if route is tenant-allowed
+    const isTenantAllowed = tenantAllowedRoutes.includes(to.path)
 
     // If user is a tenant and trying to access a non-allowed route
     if (userCategory === 'tenant' && !isTenantAllowed) {

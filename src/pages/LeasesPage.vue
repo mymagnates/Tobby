@@ -1433,7 +1433,7 @@ const viewApplicationDetail = async (applicationId) => {
   await nextTick()
   await new Promise((resolve) => setTimeout(resolve, 50))
 
-  router.push(`/application-detail/${applicationId}`)
+  router.push(`application-detail/${applicationId}`)  // Navigate to layout version (no leading slash)
 }
 
 // Dialog functions

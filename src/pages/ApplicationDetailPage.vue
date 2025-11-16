@@ -1,5 +1,28 @@
 <template>
-  <q-page padding>
+  <!-- Standalone Version (no layout) -->
+  <div v-if="!isWithinLayout" class="application-detail-standalone">
+    <!-- Top Navigation Bar -->
+    <div class="top-nav-bar">
+      <div class="nav-content">
+        <div class="nav-left">
+          <q-icon name="description" size="24px" color="white" class="q-mr-sm" />
+          <span class="nav-title">Application Details</span>
+        </div>
+        <div class="nav-right">
+          <q-btn
+            v-if="application && application.lease_id"
+            flat
+            dense
+            label="View Lease"
+            color="white"
+            icon="home"
+            @click="navigateToLease"
+            class="q-mr-sm"
+          />
+        </div>
+      </div>
+    </div>
+
     <div class="page-container">
       <!-- Loading State -->
       <div v-if="loading" class="text-center q-pa-xl">
@@ -386,7 +409,6 @@
             icon="print"
             @click="printApplication"
           />
-          <q-btn label="Back to Home" color="primary" icon="home" @click="$router.push('/')" />
         </div>
       </div>
     </div>
@@ -491,19 +513,536 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+  </div>
+
+  <!-- Layout Version (with MainLayout) -->
+  <q-page v-else padding>
+    <div class="page-container">
+      <!-- Page Header for Layout Version -->
+      <div class="page-header q-mb-lg">
+        <div class="row items-center justify-between">
+          <div>
+            <h4 class="text-h4 q-ma-none">Application Review</h4>
+            <p class="text-subtitle1 text-grey-7 q-mt-sm">Detailed application information</p>
+          </div>
+          <div>
+            <q-btn
+              v-if="application && application.lease_id"
+              flat
+              label="View Lease"
+              color="primary"
+              icon="description"
+              @click="navigateToLease"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center q-pa-xl">
+        <q-spinner-dots size="50px" color="primary" />
+        <div class="text-h6 q-mt-md">Loading application details...</div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="text-center q-pa-xl">
+        <q-icon name="error_outline" size="100px" color="negative" />
+        <div class="text-h6 q-mt-md text-negative">{{ error }}</div>
+        <q-btn flat label="Go Back" color="primary" class="q-mt-md" @click="$router.push('/leases')" />
+      </div>
+
+      <!-- Application Content - same contentstructure as standalone without success header -->
+      <div v-else-if="application">
+        <!-- Application Status -->
+        <q-card class="q-mb-lg status-card">
+          <q-card-section class="bg-info text-white">
+            <div class="text-h6">
+              <q-icon name="info" class="q-mr-sm" />
+              Application Status
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="row items-center justify-center q-gutter-md">
+              <q-chip :color="getStatusColor(application.status)" text-color="white" size="lg">
+                <q-icon name="verified" class="q-mr-sm" />
+                {{ application.status || 'Pending' }}
+              </q-chip>
+            </div>
+            <div class="text-center q-mt-md text-body2 text-grey-7">
+              We will review your application and contact you within 2-3 business days.
+            </div>
+
+            <!-- Action Buttons (for property managers/owners) -->
+            <div
+              v-if="application.status === 'pending' || application.status === 'under review'"
+              class="row justify-center q-gutter-md q-mt-lg"
+            >
+              <q-btn
+                color="positive"
+                icon="check_circle"
+                label="Approve Application"
+                @click="openStartDateDialog"
+                :loading="approving"
+                class="action-btn"
+              />
+              <q-btn
+                color="negative"
+                icon="cancel"
+                label="Reject Application"
+                @click="confirmRejectApplication"
+                :loading="rejecting"
+                class="action-btn"
+              />
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Application Info - Submitted Date and ID -->
+        <q-card class="q-mb-lg">
+          <q-card-section>
+            <div class="text-body2 text-grey-6">
+              Application ID: <strong>{{ application.id }}</strong>
+            </div>
+            <div class="text-body2 text-grey-6">
+              Submitted: {{ formatDateTime(application.submitted_at) }}
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Property & Lease Information -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h6">
+              <q-icon name="home" class="q-mr-sm" />
+              Property & Lease Information
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-md">
+              <div class="col-12" v-if="propertyData">
+                <div class="text-h6 text-primary">
+                  {{ propertyData.displayName || propertyData.address }}
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Desired Move-in Date</div>
+                <div class="detail-value">{{ formatDate(application.desired_move_in_date) }}</div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Lease Term</div>
+                <div class="detail-value">{{ application.lease_term_months }} months</div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Number of Occupants</div>
+                <div class="detail-value">{{ application.number_of_occupants }}</div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Applicant Information -->
+        <q-card class="q-mb-lg" v-if="application.applicant">
+          <q-card-section class="bg-secondary text-white">
+            <div class="text-h6">
+              <q-icon name="person" class="q-mr-sm" />
+              Main Applicant Information
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <!-- Personal Information -->
+            <div class="section-subtitle">Personal Details</div>
+            <div class="row q-col-gutter-md q-mb-md">
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Full Name</div>
+                <div class="detail-value">
+                  {{ application.applicant.first_name }} {{ application.applicant.middle_name }}
+                  {{ application.applicant.last_name }}
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Gender</div>
+                <div class="detail-value">{{ application.applicant.gender || 'N/A' }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Date of Birth</div>
+                <div class="detail-value">
+                  {{ formatDate(application.applicant.date_of_birth) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="section-subtitle">Contact Information</div>
+            <div class="row q-col-gutter-md q-mb-md">
+              <div class="col-12 col-md-6">
+                <div class="detail-label">Email</div>
+                <div class="detail-value">
+                  <a :href="`mailto:${application.applicant.email}`">{{
+                    application.applicant.email
+                  }}</a>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="detail-label">Phone</div>
+                <div class="detail-value">
+                  <a :href="`tel:${application.applicant.phone}`">{{
+                    application.applicant.phone
+                  }}</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Address -->
+            <div class="section-subtitle">Current Address</div>
+            <div class="row q-col-gutter-md q-mb-md" v-if="application.applicant.current_address">
+              <div class="col-12 col-md-6">
+                <div class="detail-label">Address</div>
+                <div class="detail-value">
+                  {{ application.applicant.current_address.street }},
+                  {{ application.applicant.current_address.city }},
+                  {{ application.applicant.current_address.state }}
+                  {{ application.applicant.current_address.zip }}
+                </div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="detail-label">Current Rent</div>
+                <div class="detail-value">
+                  ${{ formatAmount(application.applicant.current_address.monthly_rent) }}
+                </div>
+              </div>
+              <div class="col-12 col-md-3">
+                <div class="detail-label">Landlord</div>
+                <div class="detail-value">
+                  {{ application.applicant.current_address.landlord_name || 'N/A' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Employment Information -->
+            <div class="section-subtitle">Employment Information</div>
+            <div class="row q-col-gutter-md" v-if="application.applicant.employment">
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Employer</div>
+                <div class="detail-value">{{ application.applicant.employment.employer_name }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Job Title</div>
+                <div class="detail-value">{{ application.applicant.employment.job_title }}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="detail-label">Monthly Income</div>
+                <div class="detail-value">
+                  ${{ formatAmount(application.applicant.employment.monthly_income) }}
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Vehicles -->
+        <q-card class="q-mb-lg" v-if="application.vehicles && application.vehicles.length > 0">
+          <q-card-section class="bg-indigo text-white">
+            <div class="text-h6">
+              <q-icon name="directions_car" class="q-mr-sm" />
+              Vehicles ({{ application.vehicles.length }})
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-md">
+              <div
+                v-for="(vehicle, index) in application.vehicles"
+                :key="index"
+                class="col-12 col-md-6"
+              >
+                <div class="vehicle-item">
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                    Vehicle {{ index + 1 }}
+                  </div>
+                  <div class="text-body2">
+                    {{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}
+                  </div>
+                  <div class="text-caption text-grey-6">
+                    Color: {{ vehicle.color }} • Plate: {{ vehicle.license_plate }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Pets -->
+        <q-card class="q-mb-lg" v-if="application.pets && application.pets.length > 0">
+          <q-card-section class="bg-teal text-white">
+            <div class="text-h6">
+              <q-icon name="pets" class="q-mr-sm" />
+              Pets ({{ application.pets.length }})
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-md">
+              <div v-for="(pet, index) in application.pets" :key="index" class="col-12 col-md-6">
+                <div class="pet-item">
+                  <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                    {{ pet.name || `Pet ${index + 1}` }}
+                  </div>
+                  <div class="text-body2">{{ pet.type }} - {{ pet.breed }}</div>
+                  <div class="text-caption text-grey-6">
+                    Age: {{ pet.age }} years • Weight: {{ pet.weight }} lbs
+                  </div>
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Co-Applicants -->
+        <q-card
+          class="q-mb-lg"
+          v-if="application.co_applicants && application.co_applicants.length > 0"
+        >
+          <q-card-section class="bg-purple text-white">
+            <div class="text-h6">
+              <q-icon name="group" class="q-mr-sm" />
+              Co-Applicants ({{ application.co_applicants.length }})
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div
+              v-for="(coApplicant, index) in application.co_applicants"
+              :key="index"
+              class="co-applicant-item q-mb-md"
+            >
+              <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                Co-Applicant {{ index + 1 }}
+              </div>
+              <div class="row q-col-gutter-md">
+                <div class="col-12 col-md-4">
+                  <div class="detail-label">Name</div>
+                  <div class="detail-value">
+                    {{ coApplicant.first_name }} {{ coApplicant.middle_name }}
+                    {{ coApplicant.last_name }}
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="detail-label">Email</div>
+                  <div class="detail-value">{{ coApplicant.email }}</div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="detail-label">Relationship</div>
+                  <div class="detail-value">{{ coApplicant.relationship || 'N/A' }}</div>
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Documents -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-deep-orange text-white">
+            <div class="row items-center justify-between">
+              <div class="text-h6">
+                <q-icon name="description" class="q-mr-sm" />
+                Supporting Documents ({{ application.documents?.length || 0 }})
+              </div>
+              <q-btn
+                flat
+                dense
+                color="white"
+                icon="add"
+                label="Add Document"
+                @click="showAddDocumentDialog = true"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div
+              v-if="!application.documents || application.documents.length === 0"
+              class="text-center q-pa-md text-grey-6"
+            >
+              <q-icon name="description" size="64px" color="grey-4" />
+              <div class="text-body2 q-mt-sm">No documents uploaded yet</div>
+              <div class="text-caption">Click "Add Document" to upload supporting documents</div>
+            </div>
+            <q-list v-else separator>
+              <q-item v-for="(doc, index) in application.documents" :key="index">
+                <q-item-section avatar>
+                  <q-icon name="insert_drive_file" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ doc.name }}</q-item-label>
+                  <q-item-label caption v-if="doc.description">{{ doc.description }}</q-item-label>
+                  <q-item-label caption>{{ doc.file_name }}</q-item-label>
+                  <q-item-label caption v-if="doc.uploaded_at">
+                    Uploaded: {{ formatDate(doc.uploaded_at) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    color="primary"
+                    icon="download"
+                    @click="downloadDocument(doc.url)"
+                  >
+                    <q-tooltip>Download</q-tooltip>
+                  </q-btn>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+
+        <!-- Additional Notes -->
+        <q-card class="q-mb-lg" v-if="application.additional_notes">
+          <q-card-section class="bg-grey-3">
+            <div class="text-h6">
+              <q-icon name="notes" class="q-mr-sm" />
+              Additional Notes
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-body1">{{ application.additional_notes }}</div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Action Buttons -->
+        <div class="row justify-center q-gutter-md q-mt-xl">
+          <q-btn
+            flat
+            label="Print Application"
+            color="primary"
+            icon="print"
+            @click="printApplication"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared Dialogs -->
+    <!-- Add Document Dialog -->
+    <q-dialog v-model="showAddDocumentDialog" persistent>
+      <q-card style="min-width: 500px">
+        <q-card-section>
+          <div class="text-h6">Add Document</div>
+        </q-card-section>
+
+        <q-card-section>
+          <div class="q-gutter-md">
+            <q-input
+              v-model="newDocument.name"
+              label="Document Name *"
+              outlined
+              dense
+              hint="e.g., Pay Stub, ID, Bank Statement"
+              :rules="[(val) => !!val || 'Document name is required']"
+            />
+
+            <q-input
+              v-model="newDocument.description"
+              label="Description (Optional)"
+              outlined
+              dense
+              type="textarea"
+              rows="2"
+            />
+
+            <q-file
+              v-model="newDocument.file"
+              label="Upload File *"
+              outlined
+              dense
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              max-file-size="10485760"
+              @rejected="onFileRejected"
+              :rules="[(val) => !!val || 'File is required']"
+            >
+              <template v-slot:prepend>
+                <q-icon name="attach_file" />
+              </template>
+              <template v-slot:hint> Max file size: 10MB </template>
+            </q-file>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey-7" @click="closeAddDocumentDialog" />
+          <q-btn
+            label="Upload"
+            color="primary"
+            @click="uploadDocument"
+            :disable="!newDocument.name || !newDocument.file"
+            :loading="uploadingDocument"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Start Date Dialog -->
+    <q-dialog v-model="showStartDateDialog" persistent>
+      <q-card style="min-width: 400px">
+        <q-card-section class="bg-positive text-white">
+          <div class="text-h6">
+            <q-icon name="event" class="q-mr-sm" />
+            Set Lease Start Date
+          </div>
+        </q-card-section>
+
+        <q-card-section>
+          <div class="text-body1 q-mb-md">
+            Please select the actual lease start date for this application.
+          </div>
+          <q-input
+            v-model="leaseStartDate"
+            label="Lease Start Date *"
+            outlined
+            dense
+            type="date"
+            hint="Select the date when the tenant will move in"
+            :rules="[(val) => !!val || 'Start date is required']"
+          >
+            <template v-slot:prepend>
+              <q-icon name="calendar_today" />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey-7" @click="closeStartDateDialog" />
+          <q-btn
+            label="Confirm & Approve"
+            color="positive"
+            icon="check_circle"
+            @click="confirmApproval"
+            :disable="!leaseStartDate"
+            :loading="approving"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import { collection, doc, setDoc } from 'firebase/firestore'
 import { db } from '../boot/firebase'
 
 const route = useRoute()
+const router = useRouter()
 const { getDocument, updateDocument, uploadImagesWithDetails } = useFirebase()
+
+// Determine if page is within MainLayout based on route path
+const isWithinLayout = computed(() => {
+  // Check if route path starts with '/' (standalone) or not (within layout)
+  return route.path.startsWith('/application-detail')  ? false : true
+})
 
 // State
 const application = ref(null)
@@ -608,6 +1147,14 @@ const downloadDocument = (url) => {
 // Print application
 const printApplication = () => {
   window.print()
+}
+
+// Navigate to lease
+const navigateToLease = () => {
+  if (application.value && application.value.lease_id) {
+    // Navigate to leases page (works from both standalone and layout versions)
+    router.push('/leases')
+  }
 }
 
 // File rejected handler
@@ -946,9 +1493,51 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.application-detail-standalone {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.top-nav-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 16px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.nav-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+}
+
+.nav-title {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+}
+
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 24px 24px 24px;
+}
+
+.page-header h4 {
+  color: #1a1a1a;
+  font-weight: 600;
 }
 
 .success-header {
@@ -1080,6 +1669,22 @@ onMounted(async () => {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .top-nav-bar {
+    padding: 12px 16px;
+  }
+
+  .nav-title {
+    font-size: 1rem;
+  }
+
+  .nav-right .q-btn {
+    font-size: 0.85rem;
+  }
+
+  .page-container {
+    padding: 0 16px 16px 16px;
+  }
+
   .success-header {
     padding: 30px 15px;
   }
@@ -1091,6 +1696,13 @@ onMounted(async () => {
   .action-btn {
     min-width: 140px;
     font-size: 0.9rem;
+  }
+}
+
+/* Print - hide navigation bar */
+@media print {
+  .top-nav-bar {
+    display: none !important;
   }
 }
 </style>
