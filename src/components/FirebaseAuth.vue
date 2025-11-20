@@ -88,9 +88,10 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useFirebase } from '../composables/useFirebase'
 
+const route = useRoute()
 const router = useRouter()
 const { loading, error, isAuthenticated, userEmail, userDisplayName, signIn, signUp, logout } =
   useFirebase()

@@ -30,9 +30,10 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 
+const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
 
