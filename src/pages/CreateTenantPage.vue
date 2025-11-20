@@ -317,105 +317,6 @@
           </q-card-section>
         </q-card>
 
-        <!-- Lease Information -->
-        <q-card class="q-mb-lg">
-          <q-card-section class="bg-positive text-white">
-            <div class="text-h6">
-              <q-icon name="description" class="q-mr-sm" />
-              Lease Information
-            </div>
-          </q-card-section>
-          <q-card-section>
-            <div class="row q-col-gutter-md">
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="formData.leaseStartDate"
-                  label="Lease Start Date *"
-                  outlined
-                  :rules="[(val) => !!val || 'Lease start date is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="event" />
-                  </template>
-                  <template v-slot:append>
-                    <q-icon name="event" class="cursor-pointer">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-date v-model="formData.leaseStartDate" mask="YYYY-MM-DD">
-                          <div class="row items-center justify-end">
-                            <q-btn v-close-popup label="Close" color="primary" flat />
-                          </div>
-                        </q-date>
-                      </q-popup-proxy>
-                    </q-icon>
-                  </template>
-                </q-input>
-              </div>
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model="formData.leaseEndDate"
-                  label="Lease End Date *"
-                  outlined
-                  :rules="[(val) => !!val || 'Lease end date is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="event" />
-                  </template>
-                  <template v-slot:append>
-                    <q-icon name="event" class="cursor-pointer">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-date v-model="formData.leaseEndDate" mask="YYYY-MM-DD">
-                          <div class="row items-center justify-end">
-                            <q-btn v-close-popup label="Close" color="primary" flat />
-                          </div>
-                        </q-date>
-                      </q-popup-proxy>
-                    </q-icon>
-                  </template>
-                </q-input>
-              </div>
-              <div class="col-12 col-md-4">
-                <q-input
-                  v-model.number="formData.monthlyRent"
-                  type="number"
-                  label="Monthly Rent *"
-                  outlined
-                  prefix="$"
-                  :rules="[(val) => !!val || 'Monthly rent is required']"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="attach_money" />
-                  </template>
-                </q-input>
-              </div>
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model.number="formData.securityDeposit"
-                  type="number"
-                  label="Security Deposit"
-                  outlined
-                  prefix="$"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="shield" />
-                  </template>
-                </q-input>
-              </div>
-              <div class="col-12 col-md-6">
-                <q-select
-                  v-model="formData.paymentMethod"
-                  :options="['Bank Transfer', 'Check', 'Cash', 'Online Payment', 'Other']"
-                  label="Payment Method"
-                  outlined
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="payment" />
-                  </template>
-                </q-select>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
         <!-- Emergency Contact -->
         <q-card class="q-mb-lg">
           <q-card-section class="bg-warning text-white">
@@ -918,11 +819,6 @@ const formData = ref({
     yearsEmployed: null,
     employerPhone: '',
   },
-  leaseStartDate: '',
-  leaseEndDate: '',
-  monthlyRent: null,
-  securityDeposit: null,
-  paymentMethod: '',
   emergencyContact: {
     name: '',
     relationship: '',
@@ -1224,13 +1120,6 @@ const handleSubmit = async () => {
         years_employed: formData.value.employment.yearsEmployed,
         employer_phone: formData.value.employment.employerPhone,
       },
-      lease_info: {
-        start_date: formData.value.leaseStartDate,
-        end_date: formData.value.leaseEndDate,
-        monthly_rent: formData.value.monthlyRent,
-        security_deposit: formData.value.securityDeposit,
-        payment_method: formData.value.paymentMethod,
-      },
       emergency_contact: formData.value.emergencyContact,
       co_applicants: coApplicants.value,
       vehicles: vehicles.value,
@@ -1277,22 +1166,15 @@ onMounted(() => {
     })
   }
 
-  // Pre-populate form if coming from lease page
+  // Pre-populate property and lease IDs if coming from lease page
   if (route.query.propertyId) {
     formData.value.propertyId = route.query.propertyId
     formData.value.leaseId = route.query.leaseId || null
-    formData.value.leaseStartDate = route.query.leaseStartDate || ''
-    formData.value.leaseEndDate = route.query.leaseEndDate || ''
-    
-    // Parse monthlyRent as number if present
-    if (route.query.monthlyRent) {
-      formData.value.monthlyRent = parseFloat(route.query.monthlyRent)
-    }
 
     // Show notification about pre-populated data
     $q.notify({
       type: 'positive',
-      message: 'Property and lease information auto-filled from selected lease',
+      message: 'Creating tenant for selected lease',
       position: 'top',
       icon: 'check_circle',
     })

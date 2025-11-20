@@ -1643,14 +1643,10 @@ const viewApplicationDetail = async (applicationId) => {
 
 // Navigate to Create Tenant page with lease context
 const navigateToCreateTenant = (lease) => {
-  // Prepare query params with lease and property info
+  // Navigate to create tenant page with property and lease IDs
   const query = {
     propertyId: lease.property_id?.id || lease.property_id,
     leaseId: lease.id,
-    leaseStartDate: lease.start_date,
-    leaseEndDate: lease.end_date,
-    monthlyRent: lease.rate_amount,
-    leaseStatus: lease.status,
   }
 
   router.push({
