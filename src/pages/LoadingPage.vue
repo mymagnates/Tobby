@@ -85,6 +85,7 @@ watch(
   ],
   () => {
     if (!userDataStore.isAuthenticated) {
+      console.log('LoadingPage - User not authenticated, redirecting to login')
       router.push('/public/login')
       return
     }
@@ -97,9 +98,8 @@ watch(
       !userDataStore.propertiesLoading &&
       !userDataStore.userRolesLoading
     ) {
-      setTimeout(() => {
-        performRedirect()
-      }, 1000)
+      console.log('LoadingPage - Data load complete via watch, redirecting')
+      performRedirect()
     }
   },
   { deep: true },
@@ -120,27 +120,30 @@ onMounted(async () => {
     !userDataStore.propertiesLoading &&
     !userDataStore.userRolesLoading
   ) {
-    // Data already loaded, perform redirect
+    // Data already loaded, perform immediate redirect
+    console.log('LoadingPage - Data already loaded, redirecting immediately')
     performRedirect()
     return
   }
 
+  console.log('LoadingPage - Loading user data...')
   // Load data
   try {
     await userDataStore.loadAllUserData()
+    
+    // Check if data loaded successfully
+    if (userDataStore.userAccessibleProperties.length > 0) {
+      console.log('LoadingPage - Data loaded successfully, redirecting')
+      performRedirect()
+      return
+    } else {
+      console.log('LoadingPage - No properties found after loading')
+      hasError.value = true
+    }
   } catch (error) {
     console.error('LoadingPage - Error loading data:', error)
     hasError.value = true
   }
-
-  // Timeout handling
-  setTimeout(() => {
-    if (userDataStore.userAccessibleProperties.length > 0) {
-      performRedirect()
-    } else {
-      hasError.value = true
-    }
-  }, 30000)
 })
 </script>
 

@@ -226,23 +226,20 @@ watch(
     console.log('MainLayout - Authentication changed:', { isAuthenticated, wasAuthenticated })
 
     if (isAuthenticated) {
-      console.log('MainLayout - User authenticated, checking data loading needs...')
+      console.log('MainLayout - User authenticated')
 
-      // Check if we're not already on the loading page and data isn't loaded
+      // Only load data if not on loading page and data not already loaded
       if (
         router.currentRoute.value.path !== '/loading' &&
         userDataStore.userAccessibleProperties.length === 0 &&
         !userDataStore.profileLoading
       ) {
-        console.log('MainLayout - No data loaded, redirecting to loading page')
-        router.push('/loading')
-      }
-      // Only load data if we're not on the loading page (loading page handles its own data loading)
-      else if (router.currentRoute.value.path !== '/loading') {
-        console.log('MainLayout - Starting data loading from MainLayout')
+        console.log('MainLayout - Loading user data in background')
         loadAllUserData()
-      } else {
+      } else if (router.currentRoute.value.path === '/loading') {
         console.log('MainLayout - On loading page, letting LoadingPage handle data loading')
+      } else {
+        console.log('MainLayout - Data already loaded or loading')
       }
     } else if (wasAuthenticated !== undefined) {
       // Only clear data if this is not the initial watch trigger
