@@ -348,7 +348,7 @@
               />
               <q-btn
                 v-if="!isEditMode"
-                color="secondary"
+                color="primary"
                 label="Create Tenant"
                 icon="person_add"
                 @click="navigateToCreateTenant(selectedLease)"
