@@ -34,20 +34,6 @@
           class="menu-btn lt-lg"
         />
 
-        <!-- Search Bar -->
-        <q-input
-          dense
-          outlined
-          v-model="searchQuery"
-          placeholder="Search"
-          class="search-input"
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" color="grey-6" />
-          </template>
-        </q-input>
-
         <q-space />
 
         <!-- Header Actions -->
@@ -232,7 +218,6 @@ const linksList = computed(() => {
 
 const leftDrawerOpen = ref(false)
 const dataLoading = ref(false)
-const searchQuery = ref('')
 
 // Universal data loading function
 const loadAllUserData = async () => {
@@ -475,22 +460,6 @@ function getUserDisplayName() {
   color: #1976d2;
 }
 
-/* Search Bar */
-.search-input {
-  max-width: 400px;
-  flex: 1;
-}
-
-.search-input :deep(.q-field__control) {
-  border-radius: 10px;
-  border: none;
-  height: 40px;
-}
-
-.search-input :deep(.q-field__native) {
-  font-size: 0.9rem;
-}
-
 /* Header Actions */
 .header-actions {
   display: flex;
@@ -593,12 +562,6 @@ function getUserDisplayName() {
 /* ========================================
    RESPONSIVE DESIGN
    ======================================== */
-
-@media (max-width: 1023px) {
-  .search-input {
-    display: none;
-  }
-}
 
 @media (max-width: 768px) {
   .dashboard-header {
