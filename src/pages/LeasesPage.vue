@@ -1171,9 +1171,6 @@
 
                   <!-- Current Tenants (Manually Created) -->
                   <q-expansion-item
-              <div v-else class="tenants-list">
-                <q-list separator bordered>
-                  <q-expansion-item
                     v-for="tenant in leaseTenants"
                     :key="tenant.id"
                     expand-separator
