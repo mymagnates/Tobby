@@ -1565,15 +1565,6 @@ const formatDate = (date) => {
   }
 }
 
-// Get tenant documents from lease documents
-const getTenantDocuments = (applicationId) => {
-  if (!selectedLease.value || !applicationId) return []
-  const leaseDocuments = selectedLease.value.documents || []
-  return leaseDocuments.filter(
-    (doc) => doc.application_id === applicationId && doc.source === 'application',
-  )
-}
-
 // Get document icon based on file type
 const getDocumentIcon = (fileType) => {
   if (!fileType || typeof fileType !== 'string') return 'description'
@@ -1586,20 +1577,6 @@ const getDocumentIcon = (fileType) => {
   if (lowerType.includes('video')) return 'videocam'
 
   return 'description'
-}
-
-// Get document icon color based on file type
-const getDocumentIconColor = (fileType) => {
-  if (!fileType || typeof fileType !== 'string') return 'grey-7'
-
-  const lowerType = fileType.toLowerCase()
-  if (lowerType.includes('image')) return 'blue-6'
-  if (lowerType.includes('pdf')) return 'red-6'
-  if (lowerType.includes('word') || lowerType.includes('document')) return 'blue-7'
-  if (lowerType.includes('excel') || lowerType.includes('spreadsheet')) return 'green-6'
-  if (lowerType.includes('video')) return 'purple-6'
-
-  return 'grey-7'
 }
 
 // Download document
