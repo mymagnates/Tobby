@@ -41,21 +41,49 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const isAuthenticated = !!userDataStore.user
 
     console.log('Router Guard - Navigation to:', to.path)
+    console.log('Router Guard - From:', from.path)
     console.log('Router Guard - User category:', userCategory)
     console.log('Router Guard - Authenticated:', isAuthenticated)
 
     // ============================================
+    // 0. STANDALONE ROUTES (Always Allow)
+    // ============================================
+    const standaloneRoutes = ['/loading', '/logout-success']
+    if (standaloneRoutes.includes(to.path)) {
+      console.log('Router Guard - Standalone route, allowing access')
+      next()
+      return
+    }
+
+    // ============================================
     // 1. PUBLIC ROUTES (GuestLayout)
     // ============================================
-    const isPublicRoute = to.path.startsWith('/public') || to.path === '/loading'
+    const isPublicRoute = to.path.startsWith('/public')
 
     // Allow access to public routes
     if (isPublicRoute) {
-      // If already logged in and trying to access login, redirect to dashboard
-      if (to.path === '/public/login' && isAuthenticated) {
-        console.log('Router Guard - Already authenticated, redirecting to dashboard')
-        next('/')
-        return
+      // Allow login page access if:
+      // 1. User is not authenticated
+      // 2. Coming from logout-success
+      // 3. Has redirect query parameter (means they were redirected here)
+      if (to.path === '/public/login') {
+        if (!isAuthenticated || from.path === '/logout-success' || to.query.redirect || to.query.expired) {
+          console.log('Router Guard - Allowing access to login page')
+          next()
+          return
+        }
+        // Already authenticated and no special conditions, check if data is loaded
+        if (isAuthenticated && userDataStore.userAccessibleProperties.length > 0) {
+          console.log('Router Guard - Already authenticated with data, redirecting to dashboard')
+          next('/')
+          return
+        }
+        // Authenticated but no data yet, go to loading
+        if (isAuthenticated) {
+          console.log('Router Guard - Already authenticated, redirecting to loading page')
+          next('/loading')
+          return
+        }
       }
       next()
       return
