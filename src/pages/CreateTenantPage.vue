@@ -666,7 +666,7 @@ const handleSubmit = async () => {
     }
 
     // Save to Firestore
-    const tenantId = await createDocument('tenants', tenantData)
+    await createDocument('tenants', tenantData)
 
     $q.notify({
       type: 'positive',
