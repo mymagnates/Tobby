@@ -6,7 +6,7 @@
         <div class="row items-center justify-between">
           <div>
             <h4 class="text-h4 q-ma-none">Tenants</h4>
-            <p class="text-subtitle1 text-grey-7 q-mt-sm">Manage all your tenants</p>
+            <p class="text-subtitle1 text-grey-7 q-mt-sm">Manage all current tenants across your properties</p>
           </div>
           <div>
             <q-btn
@@ -19,16 +19,16 @@
         </div>
       </div>
 
-      <!-- Filters and Search -->
+      <!-- Filter and Search -->
       <q-card flat bordered class="q-mb-lg">
         <q-card-section>
-          <div class="row q-col-gutter-md items-center">
-            <div class="col-12 col-md-4">
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
               <q-input
                 v-model="searchQuery"
                 outlined
                 dense
-                placeholder="Search tenants..."
+                placeholder="Search tenants by name, email, or phone..."
                 clearable
               >
                 <template v-slot:prepend>
@@ -38,30 +38,33 @@
             </div>
             <div class="col-12 col-md-3">
               <q-select
-                v-model="statusFilter"
-                :options="['All', 'Active', 'Inactive']"
-                outlined
-                dense
-                label="Status"
-              />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="propertyFilter"
+                v-model="filterProperty"
                 :options="propertyFilterOptions"
                 outlined
                 dense
-                label="Property"
-                option-label="label"
-                option-value="value"
+                label="Filter by Property"
+                clearable
                 emit-value
                 map-options
-              />
+              >
+                <template v-slot:prepend>
+                  <q-icon name="home" />
+                </template>
+              </q-select>
             </div>
-            <div class="col-12 col-md-2">
-              <div class="text-subtitle2 text-grey-7">
-                Total: {{ filteredTenants.length }} tenant(s)
-              </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="filterStatus"
+                :options="statusOptions"
+                outlined
+                dense
+                label="Filter by Status"
+                clearable
+              >
+                <template v-slot:prepend>
+                  <q-icon name="filter_list" />
+                </template>
+              </q-select>
             </div>
           </div>
         </q-card-section>
@@ -69,36 +72,30 @@
 
       <!-- Loading State -->
       <div v-if="loading" class="text-center q-pa-xl">
-        <q-spinner-dots size="60px" color="primary" />
-        <div class="text-h6 text-grey-6 q-mt-md">Loading tenants...</div>
+        <q-spinner-dots size="50px" color="primary" />
+        <div class="text-body1 text-grey-6 q-mt-md">Loading tenants...</div>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center q-pa-xl">
-        <q-icon name="error_outline" size="80px" color="negative" />
+        <q-icon name="error_outline" size="64px" color="negative" />
         <div class="text-h6 text-negative q-mt-md">{{ error }}</div>
-        <q-btn
-          color="primary"
-          label="Retry"
-          @click="loadTenants"
-          class="q-mt-md"
-        />
       </div>
 
       <!-- Empty State -->
       <div v-else-if="filteredTenants.length === 0" class="text-center q-pa-xl">
-        <q-icon name="people_outline" size="80px" color="grey-4" />
+        <q-icon name="people_outline" size="100px" color="grey-4" />
         <div class="text-h6 text-grey-6 q-mt-md">
-          {{ searchQuery ? 'No tenants found' : 'No tenants yet' }}
+          {{ searchQuery || filterProperty || filterStatus ? 'No tenants match your filters' : 'No tenants yet' }}
         </div>
         <div class="text-body2 text-grey-5 q-mt-sm">
-          {{ searchQuery ? 'Try adjusting your search filters' : 'Click "Create Tenant" to add your first tenant' }}
+          {{ searchQuery || filterProperty || filterStatus ? 'Try adjusting your search or filters' : 'Create your first tenant to get started' }}
         </div>
         <q-btn
-          v-if="!searchQuery"
+          v-if="!searchQuery && !filterProperty && !filterStatus"
           color="primary"
-          label="Create Tenant"
           icon="person_add"
+          label="Create Tenant"
           @click="navigateToCreateTenant"
           class="q-mt-lg"
         />
@@ -114,16 +111,16 @@
           flat
         >
           <!-- Card Header -->
-          <q-card-section class="tenant-header bg-primary text-white">
-            <div class="row items-center justify-between">
-              <div class="row items-center">
-                <q-avatar size="56px" color="white" text-color="primary">
-                  <q-icon name="person" size="32px" />
-                </q-avatar>
-                <div class="q-ml-md">
-                  <div class="text-h6 q-mb-xs">
-                    {{ tenant.personal_info?.first_name }} {{ tenant.personal_info?.last_name }}
-                  </div>
+          <q-card-section class="tenant-card-header">
+            <div class="row items-center">
+              <q-avatar size="64px" color="primary" text-color="white">
+                <q-icon name="person" size="36px" />
+              </q-avatar>
+              <div class="q-ml-md flex-1">
+                <div class="tenant-name">
+                  {{ tenant.personal_info?.first_name }} {{ tenant.personal_info?.last_name }}
+                </div>
+                <div class="tenant-subtitle">
                   <q-chip
                     :color="tenant.status === 'active' ? 'positive' : 'grey'"
                     text-color="white"
@@ -134,133 +131,124 @@
                   </q-chip>
                 </div>
               </div>
-              <div>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="more_vert"
-                  text-color="white"
-                >
-                  <q-menu>
-                    <q-list style="min-width: 150px">
-                      <q-item clickable v-close-popup @click="viewTenant(tenant)">
-                        <q-item-section avatar>
-                          <q-icon name="visibility" color="primary" />
-                        </q-item-section>
-                        <q-item-section>View Details</q-item-section>
-                      </q-item>
-                      <q-item clickable v-close-popup @click="editTenant(tenant)">
-                        <q-item-section avatar>
-                          <q-icon name="edit" color="blue" />
-                        </q-item-section>
-                        <q-item-section>Edit</q-item-section>
-                      </q-item>
-                      <q-separator />
-                      <q-item clickable v-close-popup @click="confirmDelete(tenant)">
-                        <q-item-section avatar>
-                          <q-icon name="delete" color="negative" />
-                        </q-item-section>
-                        <q-item-section>Delete</q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-menu>
-                </q-btn>
-              </div>
+              <q-btn
+                flat
+                round
+                icon="more_vert"
+                color="grey-7"
+              >
+                <q-menu>
+                  <q-list style="min-width: 150px">
+                    <q-item clickable v-close-popup @click="viewTenantDetails(tenant)">
+                      <q-item-section avatar>
+                        <q-icon name="visibility" color="primary" />
+                      </q-item-section>
+                      <q-item-section>View Details</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click="editTenant(tenant)">
+                      <q-item-section avatar>
+                        <q-icon name="edit" color="secondary" />
+                      </q-item-section>
+                      <q-item-section>Edit</q-item-section>
+                    </q-item>
+                    <q-separator />
+                    <q-item clickable v-close-popup @click="confirmDeleteTenant(tenant)">
+                      <q-item-section avatar>
+                        <q-icon name="delete" color="negative" />
+                      </q-item-section>
+                      <q-item-section>Delete</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-btn>
             </div>
           </q-card-section>
+
+          <q-separator />
 
           <!-- Card Body -->
           <q-card-section>
             <!-- Contact Information -->
-            <div class="info-section q-mb-md">
-              <div class="info-label">Contact</div>
-              <div class="info-item">
-                <q-icon name="email" size="xs" color="primary" class="q-mr-xs" />
-                <a :href="`mailto:${tenant.personal_info?.email}`" class="info-link">
-                  {{ tenant.personal_info?.email || 'N/A' }}
-                </a>
+            <div class="info-section">
+              <div class="info-row">
+                <q-icon name="email" size="18px" color="primary" class="q-mr-sm" />
+                <span class="info-label">Email:</span>
+                <span class="info-value">{{ tenant.personal_info?.email || 'N/A' }}</span>
               </div>
-              <div class="info-item">
-                <q-icon name="phone" size="xs" color="primary" class="q-mr-xs" />
-                <a :href="`tel:${tenant.personal_info?.phone}`" class="info-link">
-                  {{ tenant.personal_info?.phone || 'N/A' }}
-                </a>
+              <div class="info-row">
+                <q-icon name="phone" size="18px" color="primary" class="q-mr-sm" />
+                <span class="info-label">Phone:</span>
+                <span class="info-value">{{ tenant.personal_info?.phone || 'N/A' }}</span>
               </div>
             </div>
 
             <!-- Property Information -->
-            <div class="info-section q-mb-md">
-              <div class="info-label">Property</div>
-              <div class="info-item">
-                <q-icon name="home" size="xs" color="secondary" class="q-mr-xs" />
-                <span class="text-weight-medium">
-                  {{ getPropertyName(tenant.property_id) }}
+            <div class="info-section q-mt-md">
+              <div class="info-row">
+                <q-icon name="home" size="18px" color="secondary" class="q-mr-sm" />
+                <span class="info-label">Property:</span>
+                <span class="info-value">{{ getPropertyName(tenant.property_id) }}</span>
+              </div>
+              <div class="info-row" v-if="tenant.lease_info">
+                <q-icon name="attach_money" size="18px" color="positive" class="q-mr-sm" />
+                <span class="info-label">Rent:</span>
+                <span class="info-value text-weight-bold text-positive">
+                  ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
                 </span>
               </div>
             </div>
 
-            <!-- Lease Information -->
-            <div v-if="tenant.lease_info" class="info-section q-mb-md">
-              <div class="info-label">Lease Info</div>
-              <div class="row q-gutter-md">
-                <div>
-                  <div class="text-caption text-grey-7">Monthly Rent</div>
-                  <div class="text-h6 text-positive">${{ tenant.lease_info.monthly_rent || 'N/A' }}</div>
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">Lease Term</div>
-                  <div class="text-body2">
-                    {{ formatDate(tenant.lease_info.start_date) }} - {{ formatDate(tenant.lease_info.end_date) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Additional Details -->
-            <div class="info-section">
-              <div class="row q-gutter-sm">
+            <!-- Additional Info -->
+            <div class="info-section q-mt-md">
+              <div class="info-chips">
                 <q-chip
                   v-if="tenant.vehicles && tenant.vehicles.length > 0"
                   size="sm"
-                  color="indigo"
-                  text-color="white"
                   icon="directions_car"
+                  color="indigo-1"
+                  text-color="indigo-9"
                 >
-                  {{ tenant.vehicles.length }} Vehicle(s)
+                  {{ tenant.vehicles.length }} Vehicle{{ tenant.vehicles.length > 1 ? 's' : '' }}
                 </q-chip>
                 <q-chip
                   v-if="tenant.pets && tenant.pets.length > 0"
                   size="sm"
-                  color="orange"
-                  text-color="white"
                   icon="pets"
+                  color="orange-1"
+                  text-color="orange-9"
                 >
-                  {{ tenant.pets.length }} Pet(s)
+                  {{ tenant.pets.length }} Pet{{ tenant.pets.length > 1 ? 's' : '' }}
                 </q-chip>
                 <q-chip
                   v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
                   size="sm"
-                  color="deep-purple"
-                  text-color="white"
                   icon="group"
+                  color="purple-1"
+                  text-color="purple-9"
                 >
-                  {{ tenant.co_applicants.length }} Occupant(s)
+                  +{{ tenant.co_applicants.length }} Occupant{{ tenant.co_applicants.length > 1 ? 's' : '' }}
                 </q-chip>
               </div>
             </div>
           </q-card-section>
 
-          <!-- Card Footer -->
           <q-separator />
-          <q-card-actions align="right">
+
+          <!-- Card Footer -->
+          <q-card-section class="tenant-card-footer">
+            <div class="text-caption text-grey-6">
+              <q-icon name="event" size="xs" class="q-mr-xs" />
+              Created {{ formatDate(tenant.created_at) }}
+            </div>
             <q-btn
               flat
+              dense
               color="primary"
               label="View Details"
-              @click="viewTenant(tenant)"
+              icon-right="arrow_forward"
+              @click="viewTenantDetails(tenant)"
             />
-          </q-card-actions>
+          </q-card-section>
         </q-card>
       </div>
     </div>
@@ -279,21 +267,25 @@ const router = useRouter()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
 
-// State
+// Data
 const tenants = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const error = ref(null)
+
+// Filters
 const searchQuery = ref('')
-const statusFilter = ref('All')
-const propertyFilter = ref('All')
+const filterProperty = ref(null)
+const filterStatus = ref(null)
+
+const statusOptions = ['Active', 'Inactive', 'Past']
 
 // Computed
 const propertyFilterOptions = computed(() => {
-  const options = [{ label: 'All Properties', value: 'All' }]
-  userDataStore.userAccessibleProperties.forEach(property => {
+  const options = [{ label: 'All Properties', value: null }]
+  userDataStore.userAccessibleProperties.forEach(prop => {
     options.push({
-      label: property.address || property.name || 'Unnamed Property',
-      value: property.id
+      label: prop.name || prop.address || 'Unnamed Property',
+      value: prop.id
     })
   })
   return options
@@ -306,38 +298,39 @@ const filteredTenants = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(tenant => {
-      const fullName = `${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}`.toLowerCase()
+      const firstName = tenant.personal_info?.first_name?.toLowerCase() || ''
+      const lastName = tenant.personal_info?.last_name?.toLowerCase() || ''
       const email = tenant.personal_info?.email?.toLowerCase() || ''
       const phone = tenant.personal_info?.phone?.toLowerCase() || ''
-      return fullName.includes(query) || email.includes(query) || phone.includes(query)
-    })
-  }
-
-  // Filter by status
-  if (statusFilter.value !== 'All') {
-    filtered = filtered.filter(tenant => {
-      const status = tenant.status || 'active'
-      return status.toLowerCase() === statusFilter.value.toLowerCase()
+      return firstName.includes(query) || 
+             lastName.includes(query) || 
+             email.includes(query) || 
+             phone.includes(query)
     })
   }
 
   // Filter by property
-  if (propertyFilter.value !== 'All') {
-    filtered = filtered.filter(tenant => tenant.property_id === propertyFilter.value)
+  if (filterProperty.value) {
+    filtered = filtered.filter(tenant => tenant.property_id === filterProperty.value)
+  }
+
+  // Filter by status
+  if (filterStatus.value) {
+    filtered = filtered.filter(tenant => 
+      (tenant.status || 'Active').toLowerCase() === filterStatus.value.toLowerCase()
+    )
   }
 
   return filtered
 })
 
 // Methods
-const loadTenants = async () => {
-  loading.value = true
-  error.value = null
-
+const fetchTenants = async () => {
   try {
-    const tenantsArray = []
-    
-    // Get all properties the user has access to
+    loading.value = true
+    error.value = null
+
+    // Get all accessible property IDs
     const propertyIds = userDataStore.userAccessibleProperties.map(p => p.id)
 
     if (propertyIds.length === 0) {
@@ -346,68 +339,69 @@ const loadTenants = async () => {
       return
     }
 
-    // Fetch tenants for each property
-    for (const propertyId of propertyIds) {
-      const tenantsQuery = query(
-        collection(db, 'tenants'),
-        where('property_id', '==', propertyId)
-      )
-      
-      const querySnapshot = await getDocs(tenantsQuery)
-      querySnapshot.forEach(doc => {
-        tenantsArray.push({
-          id: doc.id,
-          ...doc.data()
-        })
-      })
-    }
+    // Fetch tenants for all accessible properties
+    const tenantsRef = collection(db, 'tenants')
+    const q = query(tenantsRef, where('property_id', 'in', propertyIds))
+    const querySnapshot = await getDocs(q)
 
-    tenants.value = tenantsArray
+    tenants.value = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    loading.value = false
   } catch (err) {
-    console.error('Error loading tenants:', err)
-    error.value = 'Failed to load tenants. Please try again.'
-  } finally {
+    console.error('Error fetching tenants:', err)
+    error.value = 'Failed to load tenants'
     loading.value = false
   }
 }
 
 const getPropertyName = (propertyId) => {
   const property = userDataStore.userAccessibleProperties.find(p => p.id === propertyId)
-  return property?.address || property?.name || 'Unknown Property'
+  return property?.name || property?.address || 'Unknown Property'
 }
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  } catch (e) {
+    return 'N/A'
+  }
 }
 
 const navigateToCreateTenant = () => {
   router.push('/create-tenant')
 }
 
-const viewTenant = (tenant) => {
-  // TODO: Navigate to tenant detail page or open dialog
+const viewTenantDetails = (tenant) => {
+  // TODO: Implement tenant detail view
   $q.notify({
     type: 'info',
-    message: `View details for ${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}`,
+    message: 'Tenant detail view coming soon',
     position: 'top'
   })
 }
 
 const editTenant = (tenant) => {
-  // TODO: Navigate to edit tenant page or open dialog
+  // TODO: Implement tenant edit
   $q.notify({
     type: 'info',
-    message: `Edit ${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}`,
+    message: 'Tenant edit coming soon',
     position: 'top'
   })
 }
 
-const confirmDelete = (tenant) => {
+const confirmDeleteTenant = (tenant) => {
   $q.dialog({
-    title: 'Confirm Delete',
-    message: `Are you sure you want to delete tenant ${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}?`,
+    title: 'Delete Tenant',
+    message: `Are you sure you want to delete ${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}?`,
     cancel: true,
     persistent: true
   }).onOk(() => {
@@ -416,17 +410,17 @@ const confirmDelete = (tenant) => {
 }
 
 const deleteTenant = async (tenant) => {
-  // TODO: Implement delete functionality
+  // TODO: Implement tenant deletion
   $q.notify({
-    type: 'warning',
-    message: 'Delete functionality coming soon',
+    type: 'info',
+    message: 'Tenant deletion coming soon',
     position: 'top'
   })
 }
 
 // Lifecycle
 onMounted(() => {
-  loadTenants()
+  fetchTenants()
 })
 </script>
 
@@ -437,65 +431,80 @@ onMounted(() => {
 }
 
 .page-header {
-  padding-bottom: 16px;
-  border-bottom: 2px solid #e0e0e0;
+  padding: 16px 0;
 }
 
 .tenants-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 24px;
 }
 
 .tenant-card {
   transition: all 0.3s ease;
-  overflow: hidden;
+  height: fit-content;
 }
 
 .tenant-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.tenant-header {
-  padding: 20px;
+.tenant-card-header {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.tenant-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.tenant-subtitle {
+  margin-top: 4px;
 }
 
 .info-section {
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .info-label {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #757575;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  color: #666;
+  font-size: 13px;
+  min-width: 60px;
 }
 
-.info-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
+.info-value {
+  color: #333;
   font-size: 14px;
-  color: #424242;
 }
 
-.info-link {
-  color: #1976d2;
-  text-decoration: none;
+.info-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.info-link:hover {
-  text-decoration: underline;
+.tenant-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fafafa;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .tenants-grid {
     grid-template-columns: 1fr;
   }
 }
 </style>
-
