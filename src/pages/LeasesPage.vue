@@ -659,8 +659,8 @@
                 <div class="text-body1 text-grey-6 q-mt-sm">No tenants or applications yet</div>
                 <div class="text-caption text-grey-5">
                   Click "Create Tenant" button above or share the lease application link to get started
-                </div>
-              </div>
+                    </div>
+                  </div>
 
               <!-- Combined Tenants and Applications List -->
               <div v-else class="tenants-applications-list">
@@ -697,8 +697,8 @@
                           <span>
                             <q-icon name="phone" size="xs" />
                             {{ application.applicant?.phone || 'N/A' }}
-                          </span>
-                        </div>
+                        </span>
+                      </div>
                       </q-item-label>
                       <q-item-label caption class="q-mt-xs">
                           <span class="text-grey-7">Application submitted:</span> {{ formatDate(application.submitted_at) }}
@@ -722,7 +722,7 @@
                             label="View Full App"
                           @click.stop="viewApplicationDetail(application.id)"
                           />
-                        </div>
+                      </div>
                       </q-item-section>
                     </template>
 
@@ -740,28 +740,28 @@
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Application Status</div>
                             <div class="text-body2 text-weight-medium">
-                              <q-chip
+                        <q-chip
                                 :color="getApplicationStatusColor(application.status)"
-                                text-color="white"
-                                size="sm"
-                              >
+                          text-color="white"
+                          size="sm"
+                        >
                                 {{ application.status || 'Pending' }}
-                              </q-chip>
-                            </div>
-                          </div>
+                        </q-chip>
+                      </div>
+                    </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Submitted Date</div>
                             <div class="text-body2">{{ formatDate(application.submitted_at) || 'N/A' }}</div>
-                          </div>
+                  </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Desired Move-in</div>
                             <div class="text-body2">{{ formatDate(application.desired_move_in_date) || 'N/A' }}</div>
-                          </div>
+                      </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Lease Term</div>
                             <div class="text-body2">{{ application.lease_term_months || 'N/A' }} months</div>
-                          </div>
-                        </div>
+                      </div>
+                      </div>
                       </q-card-section>
 
                       <!-- Personal Information from Application -->
@@ -770,7 +770,7 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="person" class="q-mr-sm" />
                           Applicant Personal Information
-                        </div>
+                      </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
@@ -780,24 +780,24 @@
                               {{ application.applicant?.first_name }} 
                               {{ application.applicant?.middle_name }}
                               {{ application.applicant?.last_name }}
-                            </div>
-                          </div>
+                      </div>
+                      </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Email</div>
                             <div class="text-body2">{{ application.applicant?.email || 'N/A' }}</div>
-                          </div>
+                    </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Phone</div>
                             <div class="text-body2">{{ application.applicant?.phone || 'N/A' }}</div>
-                          </div>
+                  </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Date of Birth</div>
                             <div class="text-body2">{{ formatDate(application.applicant?.date_of_birth) || 'N/A' }}</div>
-                          </div>
+                    </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Gender</div>
                             <div class="text-body2">{{ application.applicant?.gender || 'N/A' }}</div>
-                          </div>
+                            </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">SSN</div>
                             <div class="text-body2">{{ application.applicant?.ssn || 'N/A' }}</div>
@@ -805,8 +805,8 @@
                           <div class="col-12 col-md-6">
                             <div class="text-caption text-grey-7">Marital Status</div>
                             <div class="text-body2">{{ application.applicant?.marital_status || 'N/A' }}</div>
-                          </div>
                         </div>
+                          </div>
                       </q-card-section>
 
                       <!-- Employment from Application -->
@@ -815,7 +815,7 @@
                         <div class="text-subtitle1 text-weight-bold text-positive q-mb-md">
                           <q-icon name="work" class="q-mr-sm" />
                           Employment Information
-                        </div>
+                          </div>
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employer</div>
@@ -829,22 +829,22 @@
                             <div class="text-caption text-grey-7">Income</div>
                             <div class="text-body2 text-weight-bold text-positive">
                               ${{ application.applicant.employment.monthly_income || 'N/A' }}/mo
-                            </div>
-                          </div>
+                        </div>
+                      </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employment Length</div>
                             <div class="text-body2">{{ application.applicant.employment.years_employed || 'N/A' }} years</div>
-                          </div>
-                        </div>
+                    </div>
+                  </div>
                       </q-card-section>
 
-                      <!-- Vehicles -->
+                  <!-- Vehicles -->
                       <q-separator v-if="application.vehicles && application.vehicles.length > 0" />
                       <q-card-section v-if="application.vehicles && application.vehicles.length > 0">
                         <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
                           <q-icon name="directions_car" class="q-mr-sm" />
                           Vehicles ({{ application.vehicles.length }})
-                        </div>
+                    </div>
                         <q-list bordered separator>
                           <q-item v-for="(vehicle, index) in application.vehicles" :key="index">
                             <q-item-section avatar>
@@ -916,7 +916,7 @@
                         <q-list bordered separator>
                           <q-item
                             v-for="(doc, index) in application.documents"
-                            :key="index"
+                        :key="index"
                             clickable
                             @click="window.open(doc.url, '_blank')"
                           >
@@ -943,11 +943,11 @@
                           <div class="col-6">
                             <q-icon name="event" size="xs" class="q-mr-xs" />
                             Submitted: {{ formatDate(application.submitted_at) || 'N/A' }}
-                      </div>
+                          </div>
                           <div class="col-6">
                             <q-icon name="badge" size="xs" class="q-mr-xs" />
                             Status: <q-chip :color="getApplicationStatusColor(application.status)" text-color="white" size="xs">{{ application.status || 'Pending' }}</q-chip>
-                          </div>
+                        </div>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -998,11 +998,11 @@
                             size="sm"
                           >
                             {{ tenant.status || 'Active' }}
-                          </q-chip>
+                            </q-chip>
                           <div class="text-caption text-grey-7">
                             ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
                           </div>
-                        </div>
+                          </div>
                       </q-item-section>
                     </template>
 
@@ -1023,20 +1023,20 @@
                               {{ tenant.personal_info?.first_name }} 
                               {{ tenant.personal_info?.middle_name }}
                               {{ tenant.personal_info?.last_name }}
-                            </div>
-                          </div>
+                      </div>
+                    </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Email</div>
                             <div class="text-body2">{{ tenant.personal_info?.email || 'N/A' }}</div>
-                          </div>
+                  </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Phone</div>
                             <div class="text-body2">{{ tenant.personal_info?.phone || 'N/A' }}</div>
-                          </div>
+                    </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Date of Birth</div>
                             <div class="text-body2">{{ formatDate(tenant.personal_info?.date_of_birth) || 'N/A' }}</div>
-                          </div>
+                        </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Gender</div>
                             <div class="text-body2">{{ tenant.personal_info?.gender || 'N/A' }}</div>
@@ -1045,7 +1045,11 @@
                             <div class="text-caption text-grey-7">SSN</div>
                             <div class="text-body2">{{ tenant.personal_info?.ssn || 'N/A' }}</div>
                           </div>
-                        </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Marital Status</div>
+                            <div class="text-body2">{{ tenant.personal_info?.marital_status || 'N/A' }}</div>
+                          </div>
+                          </div>
                       </q-card-section>
 
                       <!-- Current Address -->
@@ -1061,20 +1065,55 @@
                           <div class="col-12 col-md-6">
                             <div class="text-caption text-grey-7">Street Address</div>
                             <div class="text-body2">{{ tenant.current_address?.street || 'N/A' }}</div>
-                          </div>
+                      </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">City</div>
                             <div class="text-body2">{{ tenant.current_address?.city || 'N/A' }}</div>
-                          </div>
+                    </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">State</div>
                             <div class="text-body2">{{ tenant.current_address?.state || 'N/A' }}</div>
-                          </div>
+                  </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">ZIP Code</div>
                             <div class="text-body2">{{ tenant.current_address?.zipCode || 'N/A' }}</div>
+                    </div>
+                  </div>
+                      </q-card-section>
+
+                      <!-- Employment Information -->
+                      <q-separator v-if="tenant.employment" />
+                      <q-card-section v-if="tenant.employment" class="bg-accent text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="work" class="q-mr-sm" />
+                          Employment Information
+                    </div>
+                      </q-card-section>
+                      <q-card-section v-if="tenant.employment">
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Employer</div>
+                            <div class="text-body2">{{ tenant.employment.employer_name || 'N/A' }}</div>
+                        </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Position</div>
+                            <div class="text-body2">{{ tenant.employment.position || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Monthly Income</div>
+                            <div class="text-body2 text-weight-bold text-positive">
+                              ${{ tenant.employment.monthly_income || 'N/A' }}
                           </div>
                         </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Years Employed</div>
+                            <div class="text-body2">{{ tenant.employment.years_employed || 'N/A' }} years</div>
+                        </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Employer Phone</div>
+                            <div class="text-body2">{{ tenant.employment.employer_phone || 'N/A' }}</div>
+                      </div>
+                    </div>
                       </q-card-section>
 
                       <!-- Lease Information -->
@@ -1083,32 +1122,32 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="description" class="q-mr-sm" />
                           Lease Information
-                        </div>
+                  </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Start Date</div>
                             <div class="text-body2">{{ formatDate(tenant.lease_info?.start_date) || 'N/A' }}</div>
-                          </div>
+                </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">End Date</div>
                             <div class="text-body2">{{ formatDate(tenant.lease_info?.end_date) || 'N/A' }}</div>
-                          </div>
+              </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Monthly Rent</div>
                             <div class="text-body2 text-weight-bold text-positive">
                               ${{ tenant.lease_info?.monthly_rent || 'N/A' }}
-                            </div>
-                          </div>
+            </div>
+              </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Security Deposit</div>
                             <div class="text-body2">${{ tenant.lease_info?.security_deposit || 'N/A' }}</div>
-                          </div>
+            </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Payment Method</div>
                             <div class="text-body2">{{ tenant.lease_info?.payment_method || 'N/A' }}</div>
-                          </div>
+              </div>
                         </div>
                       </q-card-section>
 
@@ -1118,7 +1157,7 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="emergency" class="q-mr-sm" />
                           Emergency Contact
-                        </div>
+              </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
@@ -1143,7 +1182,7 @@
                         <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
                           <q-icon name="directions_car" class="q-mr-sm" />
                           Vehicles ({{ tenant.vehicles.length }})
-                        </div>
+              </div>
                         <q-list bordered separator>
                           <q-item v-for="(vehicle, index) in tenant.vehicles" :key="index">
                             <q-item-section avatar>
@@ -1163,7 +1202,7 @@
                         <div class="text-subtitle1 text-weight-bold text-orange q-mb-md">
                           <q-icon name="pets" class="q-mr-sm" />
                           Pets ({{ tenant.pets.length }})
-                        </div>
+                </div>
                         <q-list bordered separator>
                           <q-item v-for="(pet, index) in tenant.pets" :key="index">
                             <q-item-section avatar>
@@ -1186,21 +1225,21 @@
                         </div>
                         <q-list bordered separator>
                           <q-item v-for="(occupant, index) in tenant.co_applicants" :key="index">
-                            <q-item-section avatar>
+                    <q-item-section avatar>
                               <q-avatar color="purple" text-color="white">
-                                <q-icon name="person" />
-                              </q-avatar>
-                            </q-item-section>
-                            <q-item-section>
+                        <q-icon name="person" />
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section>
                               <q-item-label>{{ occupant.first_name }} {{ occupant.last_name }}</q-item-label>
-                              <q-item-label caption>
+                      <q-item-label caption>
                                 <div class="row q-gutter-sm">
                                   <span><q-icon name="email" size="xs" /> {{ occupant.email || 'N/A' }}</span>
                                   <span><q-icon name="phone" size="xs" /> {{ occupant.phone || 'N/A' }}</span>
-                                </div>
-                              </q-item-label>
+                        </div>
+                      </q-item-label>
                               <q-item-label caption>Relationship: {{ occupant.relationship || 'N/A' }}</q-item-label>
-                            </q-item-section>
+                    </q-item-section>
                           </q-item>
                         </q-list>
                       </q-card-section>
@@ -1229,7 +1268,7 @@
                             <q-item-section side>
                               <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
                                 <q-tooltip>Download</q-tooltip>
-                              </q-btn>
+                        </q-btn>
                     </q-item-section>
                   </q-item>
                 </q-list>

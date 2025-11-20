@@ -161,7 +161,7 @@
                 </q-select>
               </div>
 
-              <div class="col-12">
+              <div class="col-12 col-md-6">
                 <q-input
                   v-model="formData.ssn"
                   label="Social Security Number"
@@ -172,6 +172,19 @@
                     <q-icon name="credit_card" />
                   </template>
                 </q-input>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="formData.maritalStatus"
+                  :options="['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Domestic Partnership']"
+                  label="Marital Status"
+                  outlined
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="favorite" />
+                  </template>
+                </q-select>
               </div>
             </div>
           </q-card-section>
@@ -219,6 +232,86 @@
                   outlined
                   mask="#####"
                 />
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Employment Information -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-accent text-white">
+            <div class="text-h6">
+              <q-icon name="work" class="q-mr-sm" />
+              Employment Information
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-subtitle2 q-mb-md">Tenant's employment details</div>
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="formData.employment.employerName"
+                  label="Employer Name"
+                  outlined
+                  placeholder="Company Name"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="business" />
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="formData.employment.position"
+                  label="Position/Title"
+                  outlined
+                  placeholder="Job Title"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="badge" />
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="formData.employment.monthlyIncome"
+                  type="number"
+                  label="Monthly Income"
+                  outlined
+                  prefix="$"
+                  placeholder="5000"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="attach_money" />
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="formData.employment.yearsEmployed"
+                  type="number"
+                  label="Years Employed"
+                  outlined
+                  suffix="years"
+                  placeholder="2"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="schedule" />
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model="formData.employment.employerPhone"
+                  label="Employer Phone"
+                  outlined
+                  mask="(###) ###-####"
+                  placeholder="(555) 123-4567"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="phone" />
+                  </template>
+                </q-input>
               </div>
             </div>
           </q-card-section>
@@ -366,6 +459,113 @@
                     <q-icon name="phone" />
                   </template>
                 </q-input>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Additional Occupants / Co-Applicants -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-deep-purple text-white">
+            <div class="text-h6">
+              <q-icon name="group" class="q-mr-sm" />
+              Additional Occupants
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-subtitle2 q-mb-md">Add other people who will live in the property</div>
+            
+            <!-- Co-Applicants List -->
+            <div v-if="coApplicants.length > 0" class="q-mb-md">
+              <q-list bordered separator>
+                <q-item v-for="(coApp, index) in coApplicants" :key="index">
+                  <q-item-section avatar>
+                    <q-icon name="person" color="deep-purple" size="md" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ coApp.first_name }} {{ coApp.last_name }}</q-item-label>
+                    <q-item-label caption>{{ coApp.email }} • {{ coApp.phone }} • {{ coApp.relationship }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      dense
+                      round
+                      icon="delete"
+                      color="negative"
+                      @click="removeCoApplicant(index)"
+                    />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+
+            <!-- Add Co-Applicant Form -->
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newCoApplicant.first_name"
+                  label="First Name"
+                  outlined
+                  dense
+                  placeholder="John"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newCoApplicant.last_name"
+                  label="Last Name"
+                  outlined
+                  dense
+                  placeholder="Doe"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newCoApplicant.email"
+                  type="email"
+                  label="Email"
+                  outlined
+                  dense
+                  placeholder="john@example.com"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newCoApplicant.phone"
+                  label="Phone"
+                  outlined
+                  dense
+                  mask="(###) ###-####"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newCoApplicant.date_of_birth"
+                  type="date"
+                  label="Date of Birth"
+                  outlined
+                  dense
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-select
+                  v-model="newCoApplicant.relationship"
+                  :options="['Spouse', 'Partner', 'Child', 'Parent', 'Sibling', 'Roommate', 'Other']"
+                  label="Relationship"
+                  outlined
+                  dense
+                />
+              </div>
+              <div class="col-12">
+                <q-btn
+                  color="deep-purple"
+                  icon="add"
+                  label="Add Occupant"
+                  @click="addCoApplicant"
+                  :disable="!newCoApplicant.first_name || !newCoApplicant.last_name"
+                />
               </div>
             </div>
           </q-card-section>
@@ -704,11 +904,19 @@ const formData = ref({
   dateOfBirth: '',
   gender: '',
   ssn: '',
+  maritalStatus: '',
   currentAddress: {
     street: '',
     city: '',
     state: '',
     zipCode: '',
+  },
+  employment: {
+    employerName: '',
+    position: '',
+    monthlyIncome: null,
+    yearsEmployed: null,
+    employerPhone: '',
   },
   leaseStartDate: '',
   leaseEndDate: '',
@@ -760,6 +968,17 @@ const newPet = ref({
   breed: '',
   weight: null,
   age: null,
+})
+
+// Co-Applicants / Additional Occupants
+const coApplicants = ref([])
+const newCoApplicant = ref({
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  date_of_birth: '',
+  relationship: '',
 })
 
 // Property Options
@@ -892,6 +1111,47 @@ const removePet = (index) => {
   })
 }
 
+// Add Co-Applicant
+const addCoApplicant = () => {
+  if (!newCoApplicant.value.first_name || !newCoApplicant.value.last_name) {
+    $q.notify({
+      type: 'negative',
+      message: 'Please enter at least first and last name',
+      position: 'top',
+    })
+    return
+  }
+
+  coApplicants.value.push({ ...newCoApplicant.value })
+  
+  // Reset form
+  newCoApplicant.value = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    date_of_birth: '',
+    relationship: '',
+  }
+
+  $q.notify({
+    type: 'positive',
+    message: 'Additional occupant added',
+    position: 'top',
+    icon: 'group',
+  })
+}
+
+// Remove Co-Applicant
+const removeCoApplicant = (index) => {
+  coApplicants.value.splice(index, 1)
+  $q.notify({
+    type: 'info',
+    message: 'Occupant removed',
+    position: 'top',
+  })
+}
+
 // Handle Submit
 const handleSubmit = async () => {
   try {
@@ -954,8 +1214,16 @@ const handleSubmit = async () => {
         date_of_birth: formData.value.dateOfBirth,
         gender: formData.value.gender,
         ssn: formData.value.ssn,
+        marital_status: formData.value.maritalStatus,
       },
       current_address: formData.value.currentAddress,
+      employment: {
+        employer_name: formData.value.employment.employerName,
+        position: formData.value.employment.position,
+        monthly_income: formData.value.employment.monthlyIncome,
+        years_employed: formData.value.employment.yearsEmployed,
+        employer_phone: formData.value.employment.employerPhone,
+      },
       lease_info: {
         start_date: formData.value.leaseStartDate,
         end_date: formData.value.leaseEndDate,
@@ -964,6 +1232,7 @@ const handleSubmit = async () => {
         payment_method: formData.value.paymentMethod,
       },
       emergency_contact: formData.value.emergencyContact,
+      co_applicants: coApplicants.value,
       vehicles: vehicles.value,
       pets: pets.value,
       documents: uploadedDocuments,
