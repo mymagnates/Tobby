@@ -1,12 +1,17 @@
 <template>
   <q-layout view="lHh Lpr lFr" class="dashboard-layout">
     <!-- Dark Left Sidebar -->
-    <q-drawer v-model="leftDrawerOpen" show-if-above side="left" :width="240" class="dark-drawer" :breakpoint="1024">
+    <q-drawer
+      v-model="leftDrawerOpen"
+      show-if-above
+      side="left"
+      :width="240"
+      class="dark-drawer"
+      :breakpoint="1024"
+    >
       <!-- Logo Section -->
       <div class="drawer-logo-section">
-        <div class="logo-icon">
-          <q-icon name="o_bolt" size="28px" color="white" />
-        </div>
+        <span class="app-title">HANDOUT</span>
       </div>
 
       <!-- Navigation Links -->
@@ -23,28 +28,11 @@
           flat
           dense
           round
-          icon="o_menu"
+          icon="menu"
           aria-label="Menu"
           @click="toggleLeftDrawer"
           class="menu-btn lt-lg"
         />
-
-        <!-- Company/Property Selector -->
-        <q-btn-dropdown flat no-caps class="company-selector">
-          <template v-slot:label>
-            <div class="row items-center no-wrap">
-              <span class="company-name">{{ userDataStore.userCategory || 'Property Manager' }}</span>
-              <q-icon name="expand_more" size="20px" class="q-ml-xs" />
-            </div>
-          </template>
-          <q-list>
-            <q-item clickable v-close-popup>
-              <q-item-section>
-                <q-item-label>Switch Property</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-btn-dropdown>
 
         <!-- Search Bar -->
         <q-input
@@ -52,11 +40,11 @@
           outlined
           v-model="searchQuery"
           placeholder="Search"
-          class="search-input q-ml-md"
+          class="search-input"
           bg-color="grey-1"
         >
           <template v-slot:prepend>
-            <q-icon name="o_search" color="grey-6" />
+            <q-icon name="search" color="grey-6" />
           </template>
         </q-input>
 
@@ -65,12 +53,12 @@
         <!-- Header Actions -->
         <div class="header-actions">
           <!-- History/Clock Icon -->
-          <q-btn flat round dense icon="o_schedule" color="grey-7" class="action-btn">
+          <q-btn flat round dense icon="schedule" color="grey-7" class="action-btn">
             <q-tooltip>History</q-tooltip>
           </q-btn>
 
           <!-- Notifications -->
-          <q-btn flat round dense icon="o_notifications" color="grey-7" class="action-btn">
+          <q-btn flat round dense icon="notifications" color="grey-7" class="action-btn">
             <q-badge color="primary" floating rounded />
             <q-tooltip>Notifications</q-tooltip>
           </q-btn>
@@ -80,7 +68,11 @@
             <template v-slot:label>
               <div class="row items-center no-wrap">
                 <q-avatar size="36px" color="primary" text-color="white">
-                  <img v-if="userDataStore.user?.photoURL" :src="userDataStore.user.photoURL" alt="User Avatar" />
+                  <img
+                    v-if="userDataStore.user?.photoURL"
+                    :src="userDataStore.user.photoURL"
+                    alt="User Avatar"
+                  />
                   <span v-else>{{ getUserInitials() }}</span>
                 </q-avatar>
                 <div class="user-info q-ml-sm gt-sm">
@@ -93,7 +85,7 @@
             <q-list class="user-menu-list">
               <q-item clickable v-close-popup @click="goToProfile" class="menu-item">
                 <q-item-section avatar>
-                  <q-icon name="o_person" color="primary" />
+                  <q-icon name="person" color="primary" />
                 </q-item-section>
                 <q-item-section>Profile & Settings</q-item-section>
               </q-item>
@@ -102,7 +94,7 @@
 
               <q-item clickable v-close-popup @click="handleSignOut" class="menu-item">
                 <q-item-section avatar>
-                  <q-icon name="o_logout" color="grey-7" />
+                  <q-icon name="logout" color="grey-7" />
                 </q-item-section>
                 <q-item-section>Sign Out</q-item-section>
               </q-item>
@@ -139,63 +131,63 @@ const allLinksList = [
   {
     title: 'Dashboard',
     caption: 'Main page',
-    icon: 'o_dashboard',
+    icon: 'dashboard',
     link: '/',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
   {
     title: 'My Properties',
     caption: 'View your properties',
-    icon: 'o_home',
+    icon: 'home',
     link: '/my-properties',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Tasks',
     caption: 'View all tasks',
-    icon: 'o_dns',
+    icon: 'dns',
     link: '/mx-records',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Transactions',
     caption: 'View all transactions',
-    icon: 'o_receipt_long',
+    icon: 'receipt_long',
     link: '/transactions',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Reminders',
     caption: 'Manage reminders',
-    icon: 'o_notifications',
+    icon: 'notifications',
     link: '/reminders',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Reports',
     caption: 'View reports & analytics',
-    icon: 'o_assessment',
+    icon: 'assessment',
     link: '/reports',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Leases',
     caption: 'View all leases',
-    icon: 'o_description',
+    icon: 'description',
     link: '/leases',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Tenants',
     caption: 'Manage all tenants',
-    icon: 'o_people',
+    icon: 'people',
     link: '/tenants',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Create Tenant',
     caption: 'Manually add a new tenant',
-    icon: 'o_person_add',
+    icon: 'person_add',
     link: '/create-tenant',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
@@ -203,7 +195,7 @@ const allLinksList = [
   {
     title: 'Tenant Home',
     caption: 'Tenant home page',
-    icon: 'o_home_work',
+    icon: 'home_work',
     link: '/tenant-home',
     allowedFor: ['tenant'], // Only for tenants
   },
@@ -397,7 +389,7 @@ function goToProfile() {
 function getUserInitials() {
   if (userDataStore.user?.displayName) {
     const names = userDataStore.user.displayName.split(' ')
-    return names.length > 1 
+    return names.length > 1
       ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
       : names[0][0].toUpperCase()
   }
@@ -431,9 +423,9 @@ function getUserDisplayName() {
    ======================================== */
 
 .dark-drawer {
-  background: #1F2128;
-  border-right: none;
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .drawer-logo-section {
@@ -441,18 +433,20 @@ function getUserDisplayName() {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: #1976d2;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+.app-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: #1976d2;
+  letter-spacing: 0.02em;
+  transition: all 0.3s ease;
+}
+
+.app-title:hover {
+  transform: scale(1.05);
 }
 
 .nav-list {
@@ -479,23 +473,6 @@ function getUserDisplayName() {
 .menu-btn:hover {
   background: #f3f4f6;
   color: #1976d2;
-}
-
-/* Company Selector */
-.company-selector {
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.company-selector:hover {
-  background: #f3f4f6;
-}
-
-.company-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
 }
 
 /* Search Bar */
@@ -621,14 +598,6 @@ function getUserDisplayName() {
   .search-input {
     display: none;
   }
-
-  .company-selector {
-    padding: 6px 12px;
-  }
-
-  .company-name {
-    font-size: 0.9rem;
-  }
 }
 
 @media (max-width: 768px) {
@@ -673,8 +642,7 @@ function getUserDisplayName() {
    ======================================== */
 
 .user-profile-btn:focus,
-.action-btn:focus,
-.company-selector:focus {
+.action-btn:focus {
   outline: 2px solid #1976d2;
   outline-offset: 2px;
 }

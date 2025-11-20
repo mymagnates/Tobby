@@ -19,7 +19,7 @@
     </q-item-section>
 
     <q-item-section side class="link-arrow">
-      <q-icon name="o_chevron_right" color="grey-5" size="16px" />
+      <q-icon name="chevron_right" color="grey-5" size="16px" />
     </q-item-section>
   </q-item>
 </template>
@@ -61,14 +61,15 @@ const handleInternalClick = () => {
 }
 
 const getIconColor = () => {
-  return 'white'
+  return 'grey-8'
 }
 </script>
 
 <style scoped>
-/* Dark Sidebar Navigation Link Styles */
+/* Light Sidebar Navigation Link Styles */
 /* Primary Blue: #1976d2 */
-/* Dark BG: #1F2128 */
+/* White BG: #FFFFFF */
+/* Text: Black/Gray */
 
 .essential-link {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -81,7 +82,7 @@ const getIconColor = () => {
 }
 
 .essential-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #f3f4f6;
 }
 
 .link-icon {
@@ -95,14 +96,14 @@ const getIconColor = () => {
 
 .link-title {
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  color: #1f2937;
   font-size: 0.9rem;
   line-height: 1.4;
   transition: all 0.3s ease;
 }
 
 .link-caption {
-  color: rgba(255, 255, 255, 0.4);
+  color: #6b7280;
   font-size: 0.7rem;
   line-height: 1.3;
   margin-top: 2px;
@@ -120,11 +121,11 @@ const getIconColor = () => {
 }
 
 .essential-link:hover .link-title {
-  color: white;
+  color: #1976d2;
 }
 
 .essential-link:hover .link-icon .q-icon {
-  color: white !important;
+  color: #1976d2 !important;
 }
 
 /* Focus states for accessibility */
@@ -176,7 +177,7 @@ const getIconColor = () => {
 /* Animation for icon */
 .link-icon .q-icon {
   transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.7);
+  color: #4b5563;
 }
 
 .essential-link:hover .link-icon .q-icon {
