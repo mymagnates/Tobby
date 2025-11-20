@@ -254,8 +254,14 @@
     </div>
 
     <!-- Tenant Detail Dialog -->
-    <q-dialog v-model="showDetailDialog" maximized>
-      <q-card v-if="selectedTenant" class="tenant-detail-dialog">
+    <q-dialog 
+      v-model="showDetailDialog" 
+      maximized 
+      transition-show="slide-up" 
+      transition-hide="slide-down"
+      @hide="onDialogHide"
+    >
+      <q-card v-if="selectedTenant" class="tenant-detail-dialog" style="width: 100%; height: 100%;">
         <!-- Dialog Header -->
         <q-toolbar class="bg-primary text-white">
           <q-avatar size="48px">
@@ -273,7 +279,7 @@
           >
             {{ selectedTenant.status || 'Active' }}
           </q-chip>
-          <q-btn flat round dense icon="close" @click="showDetailDialog = false" />
+          <q-btn flat round dense icon="close" @click="closeDetailDialog" />
         </q-toolbar>
 
         <!-- Dialog Content -->
@@ -767,8 +773,23 @@ const openDocument = (url) => {
 }
 
 const viewTenantDetails = (tenant) => {
-  selectedTenant.value = tenant
-  showDetailDialog.value = true
+  if (!tenant) return
+  selectedTenant.value = { ...tenant }
+  // Use nextTick to ensure DOM is ready
+  setTimeout(() => {
+    showDetailDialog.value = true
+  }, 0)
+}
+
+const closeDetailDialog = () => {
+  showDetailDialog.value = false
+}
+
+const onDialogHide = () => {
+  // Clean up when dialog is hidden (by any means)
+  setTimeout(() => {
+    selectedTenant.value = null
+  }, 100)
 }
 
 // eslint-disable-next-line no-unused-vars
