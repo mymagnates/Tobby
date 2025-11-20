@@ -487,12 +487,13 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
 const { createDocument, uploadImagesWithDetails } = useFirebase()
@@ -500,6 +501,7 @@ const { createDocument, uploadImagesWithDetails } = useFirebase()
 // Form Data
 const formData = ref({
   propertyId: null,
+  leaseId: null,
   firstName: '',
   middleName: '',
   lastName: '',
@@ -648,6 +650,7 @@ const handleSubmit = async () => {
     // Create tenant document
     const tenantData = {
       property_id: formData.value.propertyId,
+      lease_id: formData.value.leaseId || null,
       personal_info: {
         first_name: formData.value.firstName,
         middle_name: formData.value.middleName,
@@ -706,6 +709,27 @@ onMounted(() => {
       type: 'warning',
       message: 'Please create a property first before adding tenants',
       position: 'top',
+    })
+  }
+
+  // Pre-populate form if coming from lease page
+  if (route.query.propertyId) {
+    formData.value.propertyId = route.query.propertyId
+    formData.value.leaseId = route.query.leaseId || null
+    formData.value.leaseStartDate = route.query.leaseStartDate || ''
+    formData.value.leaseEndDate = route.query.leaseEndDate || ''
+    
+    // Parse monthlyRent as number if present
+    if (route.query.monthlyRent) {
+      formData.value.monthlyRent = parseFloat(route.query.monthlyRent)
+    }
+
+    // Show notification about pre-populated data
+    $q.notify({
+      type: 'positive',
+      message: 'Property and lease information auto-filled from selected lease',
+      position: 'top',
+      icon: 'check_circle',
     })
   }
 })

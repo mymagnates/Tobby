@@ -245,7 +245,7 @@
               icon="person_add"
               label="Create Tenant"
               size="sm"
-              @click.stop="navigateToCreateTenant"
+              @click.stop="navigateToCreateTenant(lease)"
               class="full-width"
             />
           </q-card-actions>
@@ -1450,9 +1450,22 @@ const viewApplicationDetail = async (applicationId) => {
   router.push(`application-detail/${applicationId}`)  // Navigate to layout version (no leading slash)
 }
 
-// Navigate to Create Tenant page
-const navigateToCreateTenant = () => {
-  router.push('/create-tenant')
+// Navigate to Create Tenant page with lease context
+const navigateToCreateTenant = (lease) => {
+  // Prepare query params with lease and property info
+  const query = {
+    propertyId: lease.property_id?.id || lease.property_id,
+    leaseId: lease.id,
+    leaseStartDate: lease.start_date,
+    leaseEndDate: lease.end_date,
+    monthlyRent: lease.rate_amount,
+    leaseStatus: lease.status,
+  }
+
+  router.push({
+    path: '/create-tenant',
+    query: query,
+  })
 }
 
 // Dialog functions
