@@ -12,12 +12,6 @@
           :loading="userDataStore.leasesLoading"
         />
         <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
-        <q-btn
-          @click="navigateToCreateTenant"
-          color="secondary"
-          icon="person_add"
-          label="Create Tenant"
-        />
       </div>
     </div>
 
@@ -241,6 +235,20 @@
               />
             </div>
           </q-card-section>
+
+          <!-- Create Tenant Button -->
+          <q-card-actions>
+            <q-btn
+              flat
+              dense
+              color="secondary"
+              icon="person_add"
+              label="Create Tenant"
+              size="sm"
+              @click.stop="navigateToCreateTenant"
+              class="full-width"
+            />
+          </q-card-actions>
         </q-card>
       </div>
     </div>
