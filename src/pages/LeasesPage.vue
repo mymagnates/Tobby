@@ -944,144 +944,233 @@
               </div>
             </div>
 
-            <!-- Applications Section -->
-            <div class="details-section" v-if="!isEditMode && leaseTenants.length === 0">
-              <div class="section-title">
-                Applications
-                <q-badge color="primary" :label="leaseApplications.length" class="q-ml-sm" />
-              </div>
-
-              <!-- Loading State -->
-              <div v-if="applicationsLoading" class="text-center q-pa-md">
-                <q-spinner-dots size="40px" color="primary" />
-                <div class="text-body2 text-grey-6 q-mt-sm">Loading applications...</div>
-              </div>
-
-              <!-- Error State -->
-              <div v-else-if="applicationsError" class="text-center q-pa-md">
-                <q-icon name="error_outline" size="48px" color="negative" />
-                <div class="text-body2 text-negative q-mt-sm">{{ applicationsError }}</div>
-              </div>
-
-              <!-- Empty State -->
-              <div
-                v-else-if="leaseApplications.length === 0"
-                class="text-center q-pa-lg bg-grey-1"
-                style="border-radius: 8px"
-              >
-                <q-icon name="description" size="64px" color="grey-4" />
-                <div class="text-body1 text-grey-6 q-mt-sm">No applications yet</div>
-                <div class="text-caption text-grey-5">
-                  Applications for this lease will appear here
-                </div>
-              </div>
-
-              <!-- Applications List -->
-              <div v-else class="applications-list">
-                <q-list separator bordered>
-                  <q-item
-                    v-for="application in leaseApplications"
-                    :key="application.id"
-                    clickable
-                    v-ripple
-                    @click="viewApplicationDetail(application.id)"
-                    class="application-item"
-                  >
-                    <q-item-section avatar>
-                      <q-avatar color="primary" text-color="white">
-                        <q-icon name="person" />
-                      </q-avatar>
-                    </q-item-section>
-
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        {{
-                          application.applicant
-                            ? `${application.applicant.first_name} ${application.applicant.last_name}`
-                            : 'Unknown Applicant'
-                        }}
-                      </q-item-label>
-                      <q-item-label caption>
-                        <div class="row q-gutter-sm items-center">
-                          <span>
-                            <q-icon name="email" size="xs" />
-                            {{ application.applicant?.email || 'N/A' }}
-                          </span>
-                          <span>
-                            <q-icon name="phone" size="xs" />
-                            {{ application.applicant?.phone || 'N/A' }}
-                          </span>
-                        </div>
-                      </q-item-label>
-                      <q-item-label caption class="q-mt-xs">
-                        Submitted: {{ formatDate(application.submitted_at) }}
-                      </q-item-label>
-                    </q-item-section>
-
-                    <q-item-section side>
-                      <div class="column items-end q-gutter-xs">
-                        <q-chip
-                          :color="getApplicationStatusColor(application.status)"
-                          text-color="white"
-                          size="sm"
-                        >
-                          {{ application.status || 'Pending' }}
-                        </q-chip>
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          color="primary"
-                          icon="arrow_forward"
-                          size="sm"
-                          @click.stop="viewApplicationDetail(application.id)"
-                        >
-                          <q-tooltip>View Details</q-tooltip>
-                        </q-btn>
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </div>
-            </div>
-
-            <!-- Current Tenants Section -->
+            <!-- Tenants Section (Combined Applications and Current Tenants) -->
             <div class="details-section" v-if="!isEditMode">
               <div class="section-title">
                 <q-icon name="people" class="q-mr-sm" />
-                Current Tenants
-                <q-badge color="secondary" :label="leaseTenants.length" class="q-ml-sm" />
+                Tenants
+                <q-badge color="secondary" :label="leaseTenants.length + leaseApplications.length" class="q-ml-sm" />
               </div>
               <div class="text-caption text-grey-7 q-mb-md">
-                All tenants currently associated with this lease. Click on any tenant to expand and view full details.
+                All tenants and applicants associated with this lease. Click on any entry to expand and view full details including application information.
               </div>
 
               <!-- Loading State -->
-              <div v-if="tenantsLoading" class="text-center q-pa-md">
+              <div v-if="tenantsLoading || applicationsLoading" class="text-center q-pa-md">
                 <q-spinner-dots size="40px" color="secondary" />
-                <div class="text-body2 text-grey-6 q-mt-sm">Loading current tenants...</div>
+                <div class="text-body2 text-grey-6 q-mt-sm">Loading tenants and applications...</div>
               </div>
 
               <!-- Error State -->
-              <div v-else-if="tenantsError" class="text-center q-pa-md">
+              <div v-else-if="tenantsError || applicationsError" class="text-center q-pa-md">
                 <q-icon name="error_outline" size="48px" color="negative" />
-                <div class="text-body2 text-negative q-mt-sm">{{ tenantsError }}</div>
+                <div class="text-body2 text-negative q-mt-sm">{{ tenantsError || applicationsError }}</div>
               </div>
 
               <!-- Empty State -->
               <div
-                v-else-if="leaseTenants.length === 0"
+                v-else-if="leaseTenants.length === 0 && leaseApplications.length === 0"
                 class="text-center q-pa-lg bg-grey-1"
                 style="border-radius: 8px"
               >
                 <q-icon name="people_outline" size="64px" color="grey-4" />
-                <div class="text-body1 text-grey-6 q-mt-sm">No current tenants</div>
+                <div class="text-body1 text-grey-6 q-mt-sm">No tenants or applications yet</div>
                 <div class="text-caption text-grey-5">
-                  Click "Create Tenant" button above to add tenants to this lease
+                  Click "Create Tenant" button above or share the lease application link to get started
                 </div>
               </div>
 
-              <!-- Tenants List with Expandable Details -->
+              <!-- Combined Tenants and Applications List -->
+              <div v-else class="tenants-applications-list">
+                <q-list separator bordered>
+                  <!-- Applications from Lease Applications -->
+                  <q-expansion-item
+                    v-for="application in leaseApplications"
+                    :key="'app-' + application.id"
+                    expand-separator
+                    class="tenant-expansion-item"
+                  >
+                    <!-- Collapsed Header -->
+                    <template v-slot:header>
+                      <q-item-section avatar>
+                        <q-avatar color="primary" text-color="white">
+                          <q-icon name="description" />
+                        </q-avatar>
+                      </q-item-section>
+
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">
+                          {{
+                            application.applicant
+                              ? `${application.applicant.first_name} ${application.applicant.last_name}`
+                              : 'Unknown Applicant'
+                          }}
+                        </q-item-label>
+                        <q-item-label caption>
+                          <div class="row q-gutter-sm items-center">
+                            <span>
+                              <q-icon name="email" size="xs" />
+                              {{ application.applicant?.email || 'N/A' }}
+                            </span>
+                            <span>
+                              <q-icon name="phone" size="xs" />
+                              {{ application.applicant?.phone || 'N/A' }}
+                            </span>
+                          </div>
+                        </q-item-label>
+                        <q-item-label caption class="q-mt-xs">
+                          <span class="text-grey-7">Application submitted:</span> {{ formatDate(application.submitted_at) }}
+                        </q-item-label>
+                      </q-item-section>
+
+                      <q-item-section side>
+                        <div class="column items-end q-gutter-xs">
+                          <q-chip
+                            :color="getApplicationStatusColor(application.status)"
+                            text-color="white"
+                            size="sm"
+                          >
+                            {{ application.status || 'Pending' }}
+                          </q-chip>
+                          <q-btn
+                            flat
+                            dense
+                            size="xs"
+                            color="primary"
+                            label="View Full App"
+                            @click.stop="viewApplicationDetail(application.id)"
+                          />
+                        </div>
+                      </q-item-section>
+                    </template>
+
+                    <!-- Expanded Application Details -->
+                    <q-card flat bordered class="tenant-details-card q-ma-md">
+                      <!-- Application Info -->
+                      <q-card-section class="bg-primary text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="description" class="q-mr-sm" />
+                          Application Information
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Application Status</div>
+                            <div class="text-body2 text-weight-medium">
+                              <q-chip
+                                :color="getApplicationStatusColor(application.status)"
+                                text-color="white"
+                                size="sm"
+                              >
+                                {{ application.status || 'Pending' }}
+                              </q-chip>
+                            </div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Submitted Date</div>
+                            <div class="text-body2">{{ formatDate(application.submitted_at) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Desired Move-in</div>
+                            <div class="text-body2">{{ formatDate(application.desired_move_in_date) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Lease Term</div>
+                            <div class="text-body2">{{ application.lease_term_months || 'N/A' }} months</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Personal Information from Application -->
+                      <q-separator />
+                      <q-card-section class="bg-secondary text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="person" class="q-mr-sm" />
+                          Applicant Personal Information
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Full Name</div>
+                            <div class="text-body2 text-weight-medium">
+                              {{ application.applicant?.first_name }} 
+                              {{ application.applicant?.middle_name }}
+                              {{ application.applicant?.last_name }}
+                            </div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Email</div>
+                            <div class="text-body2">{{ application.applicant?.email || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Phone</div>
+                            <div class="text-body2">{{ application.applicant?.phone || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Date of Birth</div>
+                            <div class="text-body2">{{ formatDate(application.applicant?.date_of_birth) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Gender</div>
+                            <div class="text-body2">{{ application.applicant?.gender || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">SSN</div>
+                            <div class="text-body2">{{ application.applicant?.ssn || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="text-caption text-grey-7">Marital Status</div>
+                            <div class="text-body2">{{ application.applicant?.marital_status || 'N/A' }}</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Employment from Application -->
+                      <q-separator />
+                      <q-card-section v-if="application.applicant?.employment">
+                        <div class="text-subtitle1 text-weight-bold text-positive q-mb-md">
+                          <q-icon name="work" class="q-mr-sm" />
+                          Employment Information
+                        </div>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Employer</div>
+                            <div class="text-body2">{{ application.applicant.employment.employer_name || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Position</div>
+                            <div class="text-body2">{{ application.applicant.employment.position || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Income</div>
+                            <div class="text-body2 text-weight-bold text-positive">
+                              ${{ application.applicant.employment.monthly_income || 'N/A' }}/mo
+                            </div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Employment Length</div>
+                            <div class="text-body2">{{ application.applicant.employment.years_employed || 'N/A' }} years</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- View Full Application Button -->
+                      <q-separator />
+                      <q-card-section class="text-center">
+                        <q-btn
+                          color="primary"
+                          icon="open_in_new"
+                          label="View Complete Application Details"
+                          @click="viewApplicationDetail(application.id)"
+                        />
+                      </q-card-section>
+                    </q-card>
+                  </q-expansion-item>
+
+                  <!-- Current Tenants (Manually Created) -->
+                  <q-expansion-item
               <div v-else class="tenants-list">
                 <q-list separator bordered>
                   <q-expansion-item
