@@ -80,6 +80,10 @@ const routes = [
     path: '/loading',
     component: () => import('pages/LoadingPage.vue'),
   },
+  {
+    path: '/logout-success',
+    component: () => import('pages/LogoutSuccessPage.vue'),
+  },
 
   // ============================================
   // REDIRECTS (Backward Compatibility)

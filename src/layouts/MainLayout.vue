@@ -246,14 +246,9 @@ watch(
       }
     } else if (wasAuthenticated !== undefined) {
       // Only clear data if this is not the initial watch trigger
-      console.log('MainLayout - User logged out, clearing data and redirecting')
+      console.log('MainLayout - User logged out, clearing data')
       dataLoading.value = false
-
-      // Redirect to login if not already there
-      if (router.currentRoute.value.path !== '/login') {
-        console.log('MainLayout - Redirecting to login page after logout')
-        router.push('/login')
-      }
+      // Note: Redirect to logout success page is handled by handleSignOut function
     }
   },
   { immediate: true },
@@ -285,21 +280,21 @@ async function handleSignOut() {
     await logout()
     console.log('MainLayout - User signed out successfully')
 
-    // Force redirect to login page
-    console.log('MainLayout - Redirecting to login page...')
-    await router.push('/login')
-    console.log('MainLayout - Redirected to login page successfully')
+    // Redirect to logout success page
+    console.log('MainLayout - Redirecting to logout success page...')
+    await router.push('/logout-success')
+    console.log('MainLayout - Redirected to logout success page successfully')
   } catch (error) {
     console.error('MainLayout - Error during sign out:', error)
 
-    // Even if logout fails, clear loading state and try to redirect to login
+    // Even if logout fails, clear loading state and try to redirect to logout success
     dataLoading.value = false
     try {
-      console.log('MainLayout - Attempting fallback redirect to login...')
-      await router.push('/login')
+      console.log('MainLayout - Attempting fallback redirect to logout success...')
+      await router.push('/logout-success')
       console.log('MainLayout - Fallback redirect successful')
     } catch (redirectError) {
-      console.error('MainLayout - Error with fallback redirect to login:', redirectError)
+      console.error('MainLayout - Error with fallback redirect:', redirectError)
     }
   }
 }

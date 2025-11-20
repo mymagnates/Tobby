@@ -17,7 +17,7 @@ import {
   getDocs,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { auth, db, storage } from '../boot/firebase'
+import { auth, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
 
 export function useFirebase() {
@@ -26,9 +26,35 @@ export function useFirebase() {
   const error = ref(null)
   const userDataStore = useUserDataStore()
 
-  // Auth state observer
-  onAuthStateChanged(auth, (currentUser) => {
+  // Auth state observer with session timeout check
+  onAuthStateChanged(auth, async (currentUser) => {
     console.log('Auth state changed:', currentUser ? `User: ${currentUser.email}` : 'No user')
+    
+    if (currentUser) {
+      // Check if session has expired (24 hours)
+      if (sessionManager.isSessionExpired()) {
+        console.log('Session expired after 24 hours, logging out...')
+        try {
+          await signOut(auth)
+          sessionManager.clearLoginTime()
+          userDataStore.clearAllData()
+          console.log('User logged out due to session expiration')
+          
+          // Redirect to login page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/public/login?expired=true'
+          }
+        } catch (err) {
+          console.error('Error during auto-logout:', err)
+        }
+        return
+      }
+      
+      // Session is still valid
+      const remainingTime = sessionManager.getRemainingTimeFormatted()
+      console.log('Session remaining time:', remainingTime)
+    }
+    
     user.value = currentUser
     // Update the store with user data
     userDataStore.setUser(currentUser)
@@ -40,6 +66,11 @@ export function useFirebase() {
       loading.value = true
       error.value = null
       const result = await signInWithEmailAndPassword(auth, email, password)
+      
+      // Set login time for 24-hour session timeout
+      sessionManager.setLoginTime()
+      console.log('User signed in successfully, session will expire in 24 hours')
+      
       return result
     } catch (err) {
       error.value = err.message
@@ -77,6 +108,9 @@ export function useFirebase() {
       // Clear store data before signing out to prevent race conditions
       console.log('useFirebase - Clearing user data...')
       userDataStore.clearAllData()
+
+      // Clear session login time
+      sessionManager.clearLoginTime()
 
       // Sign out from Firebase
       console.log('useFirebase - Signing out from Firebase...')

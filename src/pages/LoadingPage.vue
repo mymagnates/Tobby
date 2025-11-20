@@ -52,15 +52,9 @@ const performRedirect = () => {
     return
   }
 
-  // Otherwise, redirect based on user category
-  const userCategory = userDataStore.userCategory
-  if (userCategory === 'tenant') {
-    router.push('/tenant-home')
-  } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
-    router.push('/') // Property management users go to dashboard
-  } else {
-    router.push('/') // Default to dashboard
-  }
+  // For all users after login, redirect to IndexPage (dashboard)
+  console.log('LoadingPage - Redirecting to IndexPage (dashboard)')
+  router.push('/')
 }
 
 // Methods
