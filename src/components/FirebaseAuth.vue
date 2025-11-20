@@ -31,17 +31,6 @@
               <q-btn type="submit" color="primary" :loading="loading" label="Sign In" class="col" />
               <q-btn @click="showSignUp = true" color="secondary" label="Sign Up" class="col" />
             </div>
-
-            <div class="q-mt-md text-center">
-              <q-btn
-                flat
-                color="grey-7"
-                label="Continue to Home"
-                icon="home"
-                @click="goToIndex"
-                class="full-width"
-              />
-            </div>
           </q-form>
         </div>
 
@@ -49,7 +38,23 @@
         <div v-else class="user-info">
           <p><strong>Email:</strong> {{ userEmail }}</p>
           <p v-if="userDisplayName"><strong>Name:</strong> {{ userDisplayName }}</p>
-          <q-btn @click="handleLogout" color="negative" :loading="loading" label="Sign Out" />
+          
+          <div class="q-gutter-sm q-mt-md">
+            <q-btn
+              color="primary"
+              label="Continue to Home"
+              icon="home"
+              @click="goToIndex"
+              class="full-width"
+            />
+            <q-btn
+              @click="handleLogout"
+              color="negative"
+              :loading="loading"
+              label="Sign Out"
+              class="full-width"
+            />
+          </div>
         </div>
 
         <!-- Sign Up Form -->
