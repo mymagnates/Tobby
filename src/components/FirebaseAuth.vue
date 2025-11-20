@@ -31,6 +31,17 @@
               <q-btn type="submit" color="primary" :loading="loading" label="Sign In" class="col" />
               <q-btn @click="showSignUp = true" color="secondary" label="Sign Up" class="col" />
             </div>
+
+            <div class="q-mt-md text-center">
+              <q-btn
+                flat
+                color="grey-7"
+                label="Continue to Home"
+                icon="home"
+                @click="goToIndex"
+                class="full-width"
+              />
+            </div>
           </q-form>
         </div>
 
@@ -151,6 +162,11 @@ const handleLogout = async () => {
   } catch (err) {
     console.error('Logout error:', err)
   }
+}
+
+// Navigate to index/home page
+const goToIndex = () => {
+  router.push('/')
 }
 </script>
 
