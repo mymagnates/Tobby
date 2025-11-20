@@ -19,7 +19,7 @@
     </q-item-section>
 
     <q-item-section side class="link-arrow">
-      <q-icon name="chevron_right" color="grey-5" size="16px" />
+      <q-icon name="o_chevron_right" color="grey-5" size="16px" />
     </q-item-section>
   </q-item>
 </template>
@@ -61,76 +61,57 @@ const handleInternalClick = () => {
 }
 
 const getIconColor = () => {
-  const colors = ['primary', 'accent', 'success', 'finance']
-  const index = props.title.length % colors.length
-  return colors[index]
+  return 'grey-6'
 }
 </script>
 
 <style scoped>
+/* Sleek Design: Blue (#1976D2), White (#FFFFFF), Gray (#757575) */
+
 .essential-link {
-  transition: var(--transition);
-  border-radius: var(--border-radius-sm);
-  margin: 4px 8px;
-  padding: 12px 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  margin: 6px 12px;
+  padding: 14px 16px;
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
 }
 
-.essential-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-  opacity: 0;
-  transition: var(--transition);
-  z-index: 0;
-}
-
-.essential-link:hover::before {
-  opacity: 0.05;
-}
-
 .essential-link:hover {
-  background: var(--primary-glow);
+  background: #e3f2fd;
   transform: translateX(4px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--primary-color);
+  border-color: #e3f2fd;
 }
 
 .link-icon {
-  z-index: 1;
   position: relative;
+  min-width: 40px;
 }
 
 .link-content {
-  z-index: 1;
   position: relative;
 }
 
 .link-title {
   font-weight: 600;
-  color: var(--neutral-800);
-  font-size: 0.875rem;
+  color: #757575;
+  font-size: 0.95rem;
   line-height: 1.4;
+  transition: all 0.3s ease;
 }
 
 .link-caption {
-  color: var(--neutral-600);
+  color: #9e9e9e;
   font-size: 0.75rem;
   line-height: 1.3;
   margin-top: 2px;
 }
 
 .link-arrow {
-  z-index: 1;
   position: relative;
   opacity: 0;
-  transition: var(--transition);
+  transition: all 0.3s ease;
 }
 
 .essential-link:hover .link-arrow {
@@ -138,18 +119,27 @@ const getIconColor = () => {
   transform: translateX(4px);
 }
 
+.essential-link:hover .link-title {
+  color: #1976D2;
+}
+
+.essential-link:hover .link-icon .q-icon {
+  color: #1976D2 !important;
+  transform: scale(1.1);
+}
+
 /* Focus states for accessibility */
 .essential-link:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid #1976D2;
   outline-offset: 2px;
 }
 
 /* Active state */
 .essential-link.router-link-active {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: #1976D2;
   color: white;
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-md);
+  border-color: #1976D2;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
 
 .essential-link.router-link-active .link-title {
@@ -157,74 +147,39 @@ const getIconColor = () => {
 }
 
 .essential-link.router-link-active .link-caption {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .essential-link.router-link-active .link-icon .q-icon {
-  color: white;
+  color: white !important;
+}
+
+.essential-link.router-link-active .link-arrow {
+  opacity: 1;
 }
 
 .essential-link.router-link-active .link-arrow .q-icon {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .essential-link {
-    padding: 10px 12px;
-    margin: 2px 4px;
+    padding: 12px 14px;
+    margin: 4px 10px;
   }
 
   .link-title {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   .link-caption {
-    font-size: 0.6875rem;
+    font-size: 0.7rem;
   }
 }
 
 /* Animation for icon */
 .link-icon .q-icon {
-  transition: var(--transition);
-}
-
-.essential-link:hover .link-icon .q-icon {
-  transform: scale(1.1);
-}
-
-/* Loading state */
-.essential-link.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.essential-link.loading .link-icon .q-icon {
-  animation: pulse 2s infinite;
-}
-
-/* Hover effects for different link types */
-.essential-link:nth-child(1):hover {
-  border-color: var(--primary-color);
-}
-
-.essential-link:nth-child(2):hover {
-  border-color: var(--accent-color);
-}
-
-.essential-link:nth-child(3):hover {
-  border-color: var(--success-color);
-}
-
-.essential-link:nth-child(4):hover {
-  border-color: var(--finance-dark);
-}
-
-.essential-link:nth-child(5):hover {
-  border-color: var(--primary-color);
-}
-
-.essential-link:nth-child(6):hover {
-  border-color: var(--accent-color);
+  transition: all 0.3s ease;
 }
 </style>

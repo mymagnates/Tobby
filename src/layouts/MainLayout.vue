@@ -1,52 +1,44 @@
 <template>
-  <q-layout view="hhh Lpr lFr" class="modern-layout">
-    <q-header elevated class="modern-header bg-primary">
+  <q-layout view="lHh Lpr lFr" class="sleek-layout">
+    <q-header bordered class="sleek-header">
       <q-toolbar class="q-px-md">
         <q-btn
           flat
           dense
           round
-          icon="menu"
+          icon="o_menu"
           aria-label="Menu"
           @click="toggleLeftDrawer"
-          class="menu-btn"
+          class="menu-btn lt-md"
         />
 
         <q-toolbar-title class="row items-center">
           <div class="logo-container">
-            <img src="/logo.svg" alt="Property Manager Logo" class="logo" />
-            <span
-              class="app-title"
-              style="
-                font-family: 'Orbitron', 'cursive', 'Comic Sans MS', Impact, fantasy, system-ui;
-                letter-spacing: 0.08em;
-              "
-              >Handout</span
-            >
+            <span class="app-title">HANDOUT</span>
           </div>
         </q-toolbar-title>
 
         <div class="header-actions">
-          <q-btn-dropdown flat round icon="person" color="white" class="q-ml-sm user-menu q-px-md">
+          <q-btn-dropdown flat round icon="o_person" class="user-menu">
             <template v-slot:label>
               <div v-if="userDataStore.user?.photoURL" class="row items-center">
-                <q-avatar size="24px" class="q-mr-sm">
+                <q-avatar size="28px" class="q-mr-sm">
                   <img :src="userDataStore.user.photoURL" alt="User Avatar" />
                 </q-avatar>
               </div>
-              <span v-if="userDataStore.user?.displayName" class="text-weight-medium">
+              <span v-if="userDataStore.user?.displayName" class="text-weight-medium user-name">
                 {{ userDataStore.user.displayName }}
               </span>
-              <span v-else-if="userDataStore.user?.email" class="text-weight-medium">
+              <span v-else-if="userDataStore.user?.email" class="text-weight-medium user-name">
                 {{ userDataStore.user.email.split('@')[0] }}
               </span>
-              <span v-else class="text-weight-medium"> User </span>
+              <span v-else class="text-weight-medium user-name"> User </span>
             </template>
 
             <q-list class="user-menu-list">
               <q-item clickable v-close-popup @click="goToProfile" class="menu-item">
                 <q-item-section avatar>
-                  <q-icon name="person" color="primary" />
+                  <q-icon name="o_person" color="primary" />
                 </q-item-section>
                 <q-item-section>Profile & Settings</q-item-section>
               </q-item>
@@ -55,9 +47,9 @@
 
               <q-item clickable v-close-popup @click="handleSignOut" class="menu-item">
                 <q-item-section avatar>
-                  <q-icon name="logout" color="error" />
+                  <q-icon name="o_logout" />
                 </q-item-section>
-                <q-item-section class="text-error">Sign Out</q-item-section>
+                <q-item-section>Sign Out</q-item-section>
               </q-item>
             </q-list>
           </q-btn-dropdown>
@@ -65,7 +57,10 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="modern-drawer">
+    <q-drawer v-model="leftDrawerOpen" show-if-above side="left" :width="280" class="sleek-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">Menu</div>
+      </div>
       <q-list class="nav-list">
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
       </q-list>
@@ -98,64 +93,71 @@ const allLinksList = [
   {
     title: 'Dashboard',
     caption: 'Main page',
-    icon: 'dashboard',
+    icon: 'o_dashboard',
     link: '/',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
   {
     title: 'My Properties',
     caption: 'View your properties',
-    icon: 'home',
+    icon: 'o_home',
     link: '/my-properties',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Tasks',
     caption: 'View all tasks',
-    icon: 'dns',
+    icon: 'o_dns',
     link: '/mx-records',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Transactions',
     caption: 'View all transactions',
-    icon: 'receipt_long',
+    icon: 'o_receipt_long',
     link: '/transactions',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Reminders',
     caption: 'Manage reminders',
-    icon: 'notifications',
+    icon: 'o_notifications',
     link: '/reminders',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Reports',
     caption: 'View reports & analytics',
-    icon: 'assessment',
+    icon: 'o_assessment',
     link: '/reports',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Leases',
     caption: 'View all leases',
-    icon: 'description',
+    icon: 'o_description',
     link: '/leases',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
     title: 'Tenants',
     caption: 'Manage all tenants',
-    icon: 'people',
+    icon: 'o_people',
     link: '/tenants',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: 'Create Tenant',
+    caption: 'Manually add a new tenant',
+    icon: 'o_person_add',
+    link: '/create-tenant',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
 
   {
     title: 'Tenant Home',
     caption: 'Tenant home page',
-    icon: 'home_work',
+    icon: 'o_home_work',
     link: '/tenant-home',
     allowedFor: ['tenant'], // Only for tenants
   },
@@ -347,16 +349,18 @@ function goToProfile() {
 </script>
 
 <style scoped>
-.modern-layout {
-  background: var(--neutral-50);
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
+/* Main Colors: Blue (#1976D2), White (#FFFFFF), Gray (#757575) */
+
+.sleek-layout {
+  background: #ffffff;
 }
 
-.modern-header {
-  backdrop-filter: blur(10px);
-  background: linear-gradient(135deg, var(--finance-dark) 0%, var(--primary-color) 100%);
-  border-bottom: 1px solid var(--primary-color);
-  box-shadow: var(--shadow-sm);
-  color: white;
+.sleek-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: none;
 }
 
 .logo-container {
@@ -365,133 +369,107 @@ function goToProfile() {
   gap: 12px;
 }
 
-.logo {
-  height: 32px;
-  width: auto;
-  filter: drop-shadow(0 2px 4px rgba(15, 118, 110, 0.3));
-  transition: var(--transition);
+.app-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: #1976D2;
+  letter-spacing: 0.02em;
+  transition: all 0.3s ease;
 }
 
-.logo:hover {
+.app-title:hover {
   transform: scale(1.05);
 }
 
-.app-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: white;
-  letter-spacing: -0.025em;
+.menu-btn {
+  color: #757575;
+  margin-right: 12px;
+  transition: all 0.3s ease;
+}
+
+.menu-btn:hover {
+  background: #f5f5f5;
+  color: #1976D2;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.version-info {
-  display: flex;
-  align-items: center;
-}
-
-.version-chip {
-  font-size: 0.75rem;
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
-}
-
-.menu-btn {
-  transition: var(--transition);
-  color: white;
-}
-
-.menu-btn:hover {
-  transform: scale(1.05);
-  background: rgba(255, 255, 255, 0.1);
+  gap: 16px;
 }
 
 .user-menu {
-  transition: var(--transition);
-  background: rgba(255, 255, 255, 0.1);
-  min-width: 120px;
+  transition: all 0.3s ease;
+  color: #757575;
   padding: 8px 16px;
+  border-radius: 8px;
 }
 
 .user-menu:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  background: #f5f5f5;
+  color: #1976D2;
+}
+
+.user-name {
+  color: #757575;
+  font-size: 0.95rem;
 }
 
 .user-menu-list {
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .menu-item {
-  transition: var(--transition);
-  border-radius: var(--border-radius-sm);
+  transition: all 0.3s ease;
+  border-radius: 8px;
   margin: 4px 8px;
 }
 
 .menu-item:hover {
-  background: var(--primary-glow);
-  transform: translateX(2px);
+  background: #f5f5f5;
 }
 
-.modern-drawer {
-  background: white;
-  border-right: 1px solid var(--neutral-200);
+/* Sleek Drawer Design */
+.sleek-drawer {
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .drawer-header {
-  padding: 24px 16px 16px;
-  border-bottom: 1px solid var(--neutral-200);
-  background: linear-gradient(135deg, var(--finance-dark) 0%, var(--primary-color) 100%);
-  color: white;
-}
-
-.drawer-logo-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.drawer-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #ffffff;
 }
 
 .drawer-title {
-  font-weight: 600;
-  font-size: 1.2rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #757575;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .nav-list {
   padding: 16px 0;
 }
 
-.nav-section-header {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--neutral-600);
-  padding: 16px 16px 8px;
-  display: flex;
-  align-items: center;
-}
-
 .nav-link {
-  margin: 4px 8px;
-  border-radius: var(--border-radius-sm);
-  transition: var(--transition);
+  margin: 6px 12px;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #757575;
 }
 
 .nav-link:hover {
-  background: var(--primary-glow);
-  transform: translateX(2px);
+  background: #e3f2fd;
+  transform: translateX(4px);
+  color: #1976D2;
 }
 
 .page-container {
-  background: var(--neutral-50);
+  background: #f5f5f5;
   min-height: 100vh;
   position: relative;
 }
@@ -502,37 +480,33 @@ function goToProfile() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 
 .loading-text {
   margin-top: 16px;
   font-size: 1rem;
   font-weight: 500;
-  color: var(--primary-color);
+  color: #1976D2;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .app-title {
-    font-size: 1.125rem;
-  }
-
-  .logo {
-    height: 28px;
+    font-size: 1.5rem;
   }
 
   .header-actions {
     gap: 8px;
   }
 
-  .version-chip {
+  .user-name {
     display: none;
   }
 }
@@ -542,22 +516,27 @@ function goToProfile() {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Enhanced focus states */
-.menu-btn:focus,
-.user-menu:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Loading states */
-.q-loading {
-  backdrop-filter: blur(4px);
+/* Enhanced focus states */
+.user-menu:focus {
+  outline: 2px solid #1976D2;
+  outline-offset: 2px;
 }
 
 /* Print styles */
 @media print {
-  .modern-header,
-  .modern-drawer {
+  .sleek-header,
+  .sleek-drawer {
     display: none;
   }
 
