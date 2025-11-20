@@ -559,7 +559,7 @@
                     v-for="(doc, index) in selectedTenant.documents"
                     :key="index"
                     clickable
-                    @click="window.open(doc.url, '_blank')"
+                    @click="openDocument(doc.url)"
                   >
                     <q-item-section avatar>
                       <q-icon name="description" color="primary" size="md" />
@@ -569,7 +569,7 @@
                       <q-item-label caption>{{ doc.documentType || 'Document' }}</q-item-label>
                     </q-item-section>
                     <q-item-section side>
-                      <q-btn flat dense round icon="download" color="primary">
+                      <q-btn flat dense round icon="download" color="primary" @click.stop="openDocument(doc.url)">
                         <q-tooltip>Download</q-tooltip>
                       </q-btn>
                     </q-item-section>
@@ -740,8 +740,30 @@ const formatDate = (dateString) => {
   }
 }
 
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'N/A'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return 'N/A'
+  }
+}
+
 const navigateToCreateTenant = () => {
   router.push('/create-tenant')
+}
+
+const openDocument = (url) => {
+  if (url) {
+    window.open(url, '_blank')
+  }
 }
 
 const viewTenantDetails = (tenant) => {
