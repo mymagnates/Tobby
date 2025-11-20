@@ -371,6 +371,200 @@
           </q-card-section>
         </q-card>
 
+        <!-- Vehicles -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-indigo text-white">
+            <div class="text-h6">
+              <q-icon name="directions_car" class="q-mr-sm" />
+              Vehicles
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-subtitle2 q-mb-md">Add tenant's vehicles</div>
+            
+            <!-- Vehicle List -->
+            <div v-if="vehicles.length > 0" class="q-mb-md">
+              <q-list bordered separator>
+                <q-item v-for="(vehicle, index) in vehicles" :key="index">
+                  <q-item-section avatar>
+                    <q-icon name="directions_car" color="indigo" size="md" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</q-item-label>
+                    <q-item-label caption>{{ vehicle.color }} • License: {{ vehicle.license_plate }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      dense
+                      round
+                      icon="delete"
+                      color="negative"
+                      @click="removeVehicle(index)"
+                    />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+
+            <!-- Add Vehicle Form -->
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newVehicle.make"
+                  label="Make"
+                  outlined
+                  dense
+                  placeholder="e.g., Toyota"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newVehicle.model"
+                  label="Model"
+                  outlined
+                  dense
+                  placeholder="e.g., Camry"
+                />
+              </div>
+              <div class="col-12 col-md-2">
+                <q-input
+                  v-model="newVehicle.year"
+                  label="Year"
+                  outlined
+                  dense
+                  placeholder="2020"
+                />
+              </div>
+              <div class="col-12 col-md-2">
+                <q-input
+                  v-model="newVehicle.color"
+                  label="Color"
+                  outlined
+                  dense
+                  placeholder="Silver"
+                />
+              </div>
+              <div class="col-12 col-md-2">
+                <q-input
+                  v-model="newVehicle.license_plate"
+                  label="License Plate"
+                  outlined
+                  dense
+                  placeholder="ABC1234"
+                />
+              </div>
+              <div class="col-12">
+                <q-btn
+                  color="indigo"
+                  icon="add"
+                  label="Add Vehicle"
+                  @click="addVehicle"
+                  :disable="!newVehicle.make || !newVehicle.model"
+                />
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Pets -->
+        <q-card class="q-mb-lg">
+          <q-card-section class="bg-orange text-white">
+            <div class="text-h6">
+              <q-icon name="pets" class="q-mr-sm" />
+              Pets
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-subtitle2 q-mb-md">Add tenant's pets</div>
+            
+            <!-- Pet List -->
+            <div v-if="pets.length > 0" class="q-mb-md">
+              <q-list bordered separator>
+                <q-item v-for="(pet, index) in pets" :key="index">
+                  <q-item-section avatar>
+                    <q-icon name="pets" color="orange" size="md" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ pet.name }} ({{ pet.type }})</q-item-label>
+                    <q-item-label caption>{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years old</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat
+                      dense
+                      round
+                      icon="delete"
+                      color="negative"
+                      @click="removePet(index)"
+                    />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+
+            <!-- Add Pet Form -->
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newPet.name"
+                  label="Pet Name"
+                  outlined
+                  dense
+                  placeholder="e.g., Max"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-select
+                  v-model="newPet.type"
+                  :options="['Dog', 'Cat', 'Bird', 'Fish', 'Other']"
+                  label="Type"
+                  outlined
+                  dense
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input
+                  v-model="newPet.breed"
+                  label="Breed"
+                  outlined
+                  dense
+                  placeholder="e.g., Golden Retriever"
+                />
+              </div>
+              <div class="col-12 col-md-1-5">
+                <q-input
+                  v-model.number="newPet.weight"
+                  type="number"
+                  label="Weight (lbs)"
+                  outlined
+                  dense
+                  placeholder="65"
+                />
+              </div>
+              <div class="col-12 col-md-1-5">
+                <q-input
+                  v-model.number="newPet.age"
+                  type="number"
+                  label="Age (years)"
+                  outlined
+                  dense
+                  placeholder="4"
+                />
+              </div>
+              <div class="col-12">
+                <q-btn
+                  color="orange"
+                  icon="add"
+                  label="Add Pet"
+                  @click="addPet"
+                  :disable="!newPet.name || !newPet.type"
+                />
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
         <!-- Document Upload -->
         <q-card class="q-mb-lg">
           <q-card-section class="bg-deep-purple text-white">
@@ -548,6 +742,26 @@ const documentTypeOptions = [
   'Other',
 ]
 
+// Vehicles
+const vehicles = ref([])
+const newVehicle = ref({
+  make: '',
+  model: '',
+  year: '',
+  color: '',
+  license_plate: '',
+})
+
+// Pets
+const pets = ref([])
+const newPet = ref({
+  name: '',
+  type: '',
+  breed: '',
+  weight: null,
+  age: null,
+})
+
 // Property Options
 const propertyOptions = computed(() => {
   return userDataStore.userAccessibleProperties.map((property) => ({
@@ -596,6 +810,86 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// Add Vehicle
+const addVehicle = () => {
+  if (!newVehicle.value.make || !newVehicle.value.model) {
+    $q.notify({
+      type: 'negative',
+      message: 'Please enter at least make and model',
+      position: 'top',
+    })
+    return
+  }
+
+  vehicles.value.push({ ...newVehicle.value })
+  
+  // Reset form
+  newVehicle.value = {
+    make: '',
+    model: '',
+    year: '',
+    color: '',
+    license_plate: '',
+  }
+
+  $q.notify({
+    type: 'positive',
+    message: 'Vehicle added',
+    position: 'top',
+    icon: 'directions_car',
+  })
+}
+
+// Remove Vehicle
+const removeVehicle = (index) => {
+  vehicles.value.splice(index, 1)
+  $q.notify({
+    type: 'info',
+    message: 'Vehicle removed',
+    position: 'top',
+  })
+}
+
+// Add Pet
+const addPet = () => {
+  if (!newPet.value.name || !newPet.value.type) {
+    $q.notify({
+      type: 'negative',
+      message: 'Please enter at least pet name and type',
+      position: 'top',
+    })
+    return
+  }
+
+  pets.value.push({ ...newPet.value })
+  
+  // Reset form
+  newPet.value = {
+    name: '',
+    type: '',
+    breed: '',
+    weight: null,
+    age: null,
+  }
+
+  $q.notify({
+    type: 'positive',
+    message: 'Pet added',
+    position: 'top',
+    icon: 'pets',
+  })
+}
+
+// Remove Pet
+const removePet = (index) => {
+  pets.value.splice(index, 1)
+  $q.notify({
+    type: 'info',
+    message: 'Pet removed',
+    position: 'top',
+  })
 }
 
 // Handle Submit
@@ -670,6 +964,8 @@ const handleSubmit = async () => {
         payment_method: formData.value.paymentMethod,
       },
       emergency_contact: formData.value.emergencyContact,
+      vehicles: vehicles.value,
+      pets: pets.value,
       documents: uploadedDocuments,
       notes: formData.value.notes,
       status: 'active',
