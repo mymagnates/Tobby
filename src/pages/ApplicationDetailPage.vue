@@ -8,18 +8,7 @@
           <q-icon name="description" size="24px" color="white" class="q-mr-sm" />
           <span class="nav-title">Application Details</span>
         </div>
-        <div class="nav-right">
-          <q-btn
-            v-if="application && application.lease_id"
-            flat
-            dense
-            label="View Lease"
-            color="white"
-            icon="home"
-            @click="navigateToLease"
-            class="q-mr-sm"
-          />
-        </div>
+        <!-- View Lease button hidden for public users -->
       </div>
     </div>
 
@@ -56,49 +45,7 @@
           </div>
         </div>
 
-        <!-- Application Status -->
-        <q-card class="q-mb-lg status-card">
-          <q-card-section class="bg-info text-white">
-            <div class="text-h6">
-              <q-icon name="info" class="q-mr-sm" />
-              Application Status
-            </div>
-          </q-card-section>
-          <q-card-section>
-            <div class="row items-center justify-center q-gutter-md">
-              <q-chip :color="getStatusColor(application.status)" text-color="white" size="lg">
-                <q-icon name="verified" class="q-mr-sm" />
-                {{ application.status || 'Pending' }}
-              </q-chip>
-            </div>
-            <div class="text-center q-mt-md text-body2 text-grey-7">
-              We will review your application and contact you within 2-3 business days.
-            </div>
-
-            <!-- Action Buttons (for property managers/owners) -->
-            <div
-              v-if="application.status === 'pending' || application.status === 'under review'"
-              class="row justify-center q-gutter-md q-mt-lg"
-            >
-              <q-btn
-                color="positive"
-                icon="check_circle"
-                label="Approve Application"
-                @click="openStartDateDialog"
-                :loading="approving"
-                class="action-btn"
-              />
-              <q-btn
-                color="negative"
-                icon="cancel"
-                label="Reject Application"
-                @click="confirmRejectApplication"
-                :loading="rejecting"
-                class="action-btn"
-              />
-            </div>
-          </q-card-section>
-        </q-card>
+        <!-- Application Status - Hidden for public users -->
 
         <!-- Property & Lease Information -->
         <q-card class="q-mb-lg">
