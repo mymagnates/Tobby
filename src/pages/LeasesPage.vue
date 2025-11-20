@@ -1077,60 +1077,250 @@
                 </div>
               </div>
 
-              <!-- Tenants List -->
+              <!-- Tenants List with Expandable Details -->
               <div v-else class="tenants-list">
                 <q-list separator bordered>
-                  <q-item
+                  <q-expansion-item
                     v-for="tenant in leaseTenants"
                     :key="tenant.id"
-                    class="tenant-item"
+                    expand-separator
+                    class="tenant-expansion-item"
                   >
-                    <q-item-section avatar>
-                      <q-avatar color="secondary" text-color="white">
-                        <q-icon name="person" />
-                      </q-avatar>
-                    </q-item-section>
+                    <!-- Collapsed Header -->
+                    <template v-slot:header>
+                      <q-item-section avatar>
+                        <q-avatar color="secondary" text-color="white">
+                          <q-icon name="person" />
+                        </q-avatar>
+                      </q-item-section>
 
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        {{
-                          tenant.personal_info
-                            ? `${tenant.personal_info.first_name} ${tenant.personal_info.last_name}`
-                            : 'Unknown Tenant'
-                        }}
-                      </q-item-label>
-                      <q-item-label caption>
-                        <div class="row q-gutter-sm items-center">
-                          <span>
-                            <q-icon name="email" size="xs" />
-                            {{ tenant.personal_info?.email || 'N/A' }}
-                          </span>
-                          <span>
-                            <q-icon name="phone" size="xs" />
-                            {{ tenant.personal_info?.phone || 'N/A' }}
-                          </span>
-                        </div>
-                      </q-item-label>
-                      <q-item-label caption class="q-mt-xs">
-                        Lease: {{ formatDate(tenant.lease_info?.start_date) }} - {{ formatDate(tenant.lease_info?.end_date) }}
-                      </q-item-label>
-                    </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">
+                          {{
+                            tenant.personal_info
+                              ? `${tenant.personal_info.first_name} ${tenant.personal_info.last_name}`
+                              : 'Unknown Tenant'
+                          }}
+                        </q-item-label>
+                        <q-item-label caption>
+                          <div class="row q-gutter-sm items-center">
+                            <span>
+                              <q-icon name="email" size="xs" />
+                              {{ tenant.personal_info?.email || 'N/A' }}
+                            </span>
+                            <span>
+                              <q-icon name="phone" size="xs" />
+                              {{ tenant.personal_info?.phone || 'N/A' }}
+                            </span>
+                          </div>
+                        </q-item-label>
+                      </q-item-section>
 
-                    <q-item-section side>
-                      <div class="column items-end q-gutter-xs">
-                        <q-chip
-                          :color="tenant.status === 'active' ? 'positive' : 'grey'"
-                          text-color="white"
-                          size="sm"
-                        >
-                          {{ tenant.status || 'Active' }}
-                        </q-chip>
-                        <div class="text-caption text-grey-7">
-                          Rent: ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                      <q-item-section side>
+                        <div class="column items-end q-gutter-xs">
+                          <q-chip
+                            :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                            text-color="white"
+                            size="sm"
+                          >
+                            {{ tenant.status || 'Active' }}
+                          </q-chip>
+                          <div class="text-caption text-grey-7">
+                            ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                          </div>
                         </div>
-                      </div>
-                    </q-item-section>
-                  </q-item>
+                      </q-item-section>
+                    </template>
+
+                    <!-- Expanded Details -->
+                    <q-card flat bordered class="tenant-details-card q-ma-md">
+                      <!-- Personal Information -->
+                      <q-card-section class="bg-secondary text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="person" class="q-mr-sm" />
+                          Personal Information
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Full Name</div>
+                            <div class="text-body2 text-weight-medium">
+                              {{ tenant.personal_info?.first_name }} 
+                              {{ tenant.personal_info?.middle_name }}
+                              {{ tenant.personal_info?.last_name }}
+                            </div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Email</div>
+                            <div class="text-body2">{{ tenant.personal_info?.email || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Phone</div>
+                            <div class="text-body2">{{ tenant.personal_info?.phone || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Date of Birth</div>
+                            <div class="text-body2">{{ formatDate(tenant.personal_info?.date_of_birth) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Gender</div>
+                            <div class="text-body2">{{ tenant.personal_info?.gender || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">SSN</div>
+                            <div class="text-body2">{{ tenant.personal_info?.ssn || 'N/A' }}</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Current Address -->
+                      <q-separator />
+                      <q-card-section class="bg-info text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="location_on" class="q-mr-sm" />
+                          Current Address
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-6">
+                            <div class="text-caption text-grey-7">Street Address</div>
+                            <div class="text-body2">{{ tenant.current_address?.street || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <div class="text-caption text-grey-7">City</div>
+                            <div class="text-body2">{{ tenant.current_address?.city || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <div class="text-caption text-grey-7">State</div>
+                            <div class="text-body2">{{ tenant.current_address?.state || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-2">
+                            <div class="text-caption text-grey-7">ZIP Code</div>
+                            <div class="text-body2">{{ tenant.current_address?.zipCode || 'N/A' }}</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Lease Information -->
+                      <q-separator />
+                      <q-card-section class="bg-positive text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="description" class="q-mr-sm" />
+                          Lease Information
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Start Date</div>
+                            <div class="text-body2">{{ formatDate(tenant.lease_info?.start_date) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">End Date</div>
+                            <div class="text-body2">{{ formatDate(tenant.lease_info?.end_date) || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Monthly Rent</div>
+                            <div class="text-body2 text-weight-bold text-positive">
+                              ${{ tenant.lease_info?.monthly_rent || 'N/A' }}
+                            </div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Security Deposit</div>
+                            <div class="text-body2">${{ tenant.lease_info?.security_deposit || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-3">
+                            <div class="text-caption text-grey-7">Payment Method</div>
+                            <div class="text-body2">{{ tenant.lease_info?.payment_method || 'N/A' }}</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Emergency Contact -->
+                      <q-separator />
+                      <q-card-section class="bg-warning text-white">
+                        <div class="text-subtitle1 text-weight-bold">
+                          <q-icon name="emergency" class="q-mr-sm" />
+                          Emergency Contact
+                        </div>
+                      </q-card-section>
+                      <q-card-section>
+                        <div class="row q-col-gutter-md">
+                          <div class="col-12 col-md-4">
+                            <div class="text-caption text-grey-7">Contact Name</div>
+                            <div class="text-body2">{{ tenant.emergency_contact?.name || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-4">
+                            <div class="text-caption text-grey-7">Relationship</div>
+                            <div class="text-body2">{{ tenant.emergency_contact?.relationship || 'N/A' }}</div>
+                          </div>
+                          <div class="col-12 col-md-4">
+                            <div class="text-caption text-grey-7">Phone Number</div>
+                            <div class="text-body2">{{ tenant.emergency_contact?.phone || 'N/A' }}</div>
+                          </div>
+                        </div>
+                      </q-card-section>
+
+                      <!-- Documents -->
+                      <q-separator />
+                      <q-card-section v-if="tenant.documents && tenant.documents.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-deep-purple q-mb-md">
+                          <q-icon name="upload_file" class="q-mr-sm" />
+                          Documents ({{ tenant.documents.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item
+                            v-for="(doc, index) in tenant.documents"
+                            :key="index"
+                            clickable
+                            @click="window.open(doc.url, '_blank')"
+                          >
+                            <q-item-section avatar>
+                              <q-icon :name="getDocumentIcon(doc.fileName)" color="primary" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ doc.fileName || doc.originalName }}</q-item-label>
+                              <q-item-label caption>{{ doc.documentType || 'Document' }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                              <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
+                                <q-tooltip>Download</q-tooltip>
+                              </q-btn>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Notes -->
+                      <q-separator v-if="tenant.notes" />
+                      <q-card-section v-if="tenant.notes">
+                        <div class="text-subtitle1 text-weight-bold q-mb-md">
+                          <q-icon name="notes" class="q-mr-sm" />
+                          Additional Notes
+                        </div>
+                        <div class="text-body2 bg-grey-1 q-pa-md" style="border-radius: 8px">
+                          {{ tenant.notes }}
+                        </div>
+                      </q-card-section>
+
+                      <!-- Timestamps -->
+                      <q-separator />
+                      <q-card-section class="bg-grey-2">
+                        <div class="row q-col-gutter-md text-caption text-grey-7">
+                          <div class="col-6">
+                            <q-icon name="event" size="xs" class="q-mr-xs" />
+                            Created: {{ formatDate(tenant.created_at) || 'N/A' }}
+                          </div>
+                          <div class="col-6">
+                            <q-icon name="badge" size="xs" class="q-mr-xs" />
+                            Status: <span :class="tenant.status === 'active' ? 'text-positive' : 'text-grey'">{{ tenant.status || 'Active' }}</span>
+                          </div>
+                        </div>
+                      </q-card-section>
+                    </q-card>
+                  </q-expansion-item>
                 </q-list>
               </div>
             </div>
@@ -2567,5 +2757,42 @@ watch(
 
 .doc-actions-section {
   flex-shrink: 0;
+}
+
+/* Tenant Expansion Item Styles */
+.tenant-expansion-item {
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.tenant-expansion-item:hover {
+  background-color: rgba(0, 150, 136, 0.05);
+}
+
+.tenant-details-card {
+  background-color: #fafafa;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tenant-details-card .q-card__section {
+  padding: 16px;
+}
+
+.tenant-details-card .text-caption {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.tenant-details-card .text-body2 {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.tenants-list {
+  margin-top: 16px;
 }
 </style>
