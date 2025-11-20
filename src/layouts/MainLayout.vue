@@ -238,23 +238,31 @@ watch(
 
     if (isAuthenticated) {
       console.log('MainLayout - User authenticated')
+      
+      const currentPath = router.currentRoute.value.path
+      const isOnLoadingPage = currentPath === '/loading'
+      const isOnIndexPage = currentPath === '/'
+      const hasData = userDataStore.userAccessibleProperties.length > 0
 
-      // Only load data if not on loading page and data not already loaded
-      if (
-        router.currentRoute.value.path !== '/loading' &&
-        userDataStore.userAccessibleProperties.length === 0 &&
-        !userDataStore.profileLoading
-      ) {
-        console.log('MainLayout - Loading user data after page refresh')
+      // On page refresh with authenticated user, redirect to loading page if not already there or on index
+      if (wasAuthenticated === undefined && !isOnLoadingPage && !isOnIndexPage && !hasData) {
+        console.log('MainLayout - Page refresh detected, redirecting to loading page')
+        router.push('/loading')
+        return
+      }
+
+      // Only load data in background if not on loading page and data not already loaded
+      if (!isOnLoadingPage && !hasData && !userDataStore.profileLoading) {
+        console.log('MainLayout - Loading user data in background')
         needsRedirectAfterLoad.value = true
         loadAllUserData()
-      } else if (router.currentRoute.value.path === '/loading') {
+      } else if (isOnLoadingPage) {
         console.log('MainLayout - On loading page, letting LoadingPage handle data loading')
       } else {
         console.log('MainLayout - Data already loaded or loading')
       }
-    } else if (wasAuthenticated !== undefined) {
-      // Only clear data if this is not the initial watch trigger
+    } else if (wasAuthenticated !== undefined && wasAuthenticated === true) {
+      // User was authenticated and now is not - this is an actual logout
       console.log('MainLayout - User logged out, clearing data')
       dataLoading.value = false
       needsRedirectAfterLoad.value = false

@@ -48,7 +48,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // ============================================
     // 0. STANDALONE ROUTES (Always Allow)
     // ============================================
-    const standaloneRoutes = ['/loading', '/logout-success']
+    const standaloneRoutes = ['/loading', '/logout-success', '/public/logout-success']
     if (standaloneRoutes.includes(to.path)) {
       console.log('Router Guard - Standalone route, allowing access')
       next()
