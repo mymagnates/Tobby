@@ -12,6 +12,12 @@
           :loading="userDataStore.leasesLoading"
         />
         <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
+        <q-btn
+          @click="navigateToCreateTenant"
+          color="secondary"
+          icon="person_add"
+          label="Create Tenant"
+        />
       </div>
     </div>
 
@@ -1434,6 +1440,11 @@ const viewApplicationDetail = async (applicationId) => {
   await new Promise((resolve) => setTimeout(resolve, 50))
 
   router.push(`application-detail/${applicationId}`)  // Navigate to layout version (no leading slash)
+}
+
+// Navigate to Create Tenant page
+const navigateToCreateTenant = () => {
+  router.push('/create-tenant')
 }
 
 // Dialog functions
