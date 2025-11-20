@@ -687,8 +687,8 @@ const handleSubmit = async () => {
       icon: 'check_circle',
     })
 
-    // Navigate back or to tenant list
-    router.push('/')
+    // Navigate back to leases page
+    router.push('/leases')
   } catch (error) {
     console.error('Error creating tenant:', error)
     $q.notify({

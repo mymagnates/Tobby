@@ -235,20 +235,6 @@
               />
             </div>
           </q-card-section>
-
-          <!-- Create Tenant Button -->
-          <q-card-actions>
-            <q-btn
-              flat
-              dense
-              color="secondary"
-              icon="person_add"
-              label="Create Tenant"
-              size="sm"
-              @click.stop="navigateToCreateTenant(lease)"
-              class="full-width"
-            />
-          </q-card-actions>
         </q-card>
       </div>
     </div>
@@ -359,6 +345,14 @@
                 label="Delete"
                 @click="confirmDeleteLease"
                 class="delete-btn"
+              />
+              <q-btn
+                v-if="!isEditMode"
+                color="secondary"
+                label="Create Tenant"
+                icon="person_add"
+                @click="navigateToCreateTenant(selectedLease)"
+                class="create-tenant-btn"
               />
               <q-btn
                 v-if="isEditMode"
@@ -1050,6 +1044,96 @@
                 </q-list>
               </div>
             </div>
+
+            <!-- Tenants Section -->
+            <div class="details-section" v-if="!isEditMode">
+              <div class="section-title">
+                Tenants
+                <q-badge color="secondary" :label="leaseTenants.length" class="q-ml-sm" />
+              </div>
+
+              <!-- Loading State -->
+              <div v-if="tenantsLoading" class="text-center q-pa-md">
+                <q-spinner-dots size="40px" color="secondary" />
+                <div class="text-body2 text-grey-6 q-mt-sm">Loading tenants...</div>
+              </div>
+
+              <!-- Error State -->
+              <div v-else-if="tenantsError" class="text-center q-pa-md">
+                <q-icon name="error_outline" size="48px" color="negative" />
+                <div class="text-body2 text-negative q-mt-sm">{{ tenantsError }}</div>
+              </div>
+
+              <!-- Empty State -->
+              <div
+                v-else-if="leaseTenants.length === 0"
+                class="text-center q-pa-lg bg-grey-1"
+                style="border-radius: 8px"
+              >
+                <q-icon name="people" size="64px" color="grey-4" />
+                <div class="text-body1 text-grey-6 q-mt-sm">No tenants yet</div>
+                <div class="text-caption text-grey-5">
+                  Tenants for this lease will appear here
+                </div>
+              </div>
+
+              <!-- Tenants List -->
+              <div v-else class="tenants-list">
+                <q-list separator bordered>
+                  <q-item
+                    v-for="tenant in leaseTenants"
+                    :key="tenant.id"
+                    class="tenant-item"
+                  >
+                    <q-item-section avatar>
+                      <q-avatar color="secondary" text-color="white">
+                        <q-icon name="person" />
+                      </q-avatar>
+                    </q-item-section>
+
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        {{
+                          tenant.personal_info
+                            ? `${tenant.personal_info.first_name} ${tenant.personal_info.last_name}`
+                            : 'Unknown Tenant'
+                        }}
+                      </q-item-label>
+                      <q-item-label caption>
+                        <div class="row q-gutter-sm items-center">
+                          <span>
+                            <q-icon name="email" size="xs" />
+                            {{ tenant.personal_info?.email || 'N/A' }}
+                          </span>
+                          <span>
+                            <q-icon name="phone" size="xs" />
+                            {{ tenant.personal_info?.phone || 'N/A' }}
+                          </span>
+                        </div>
+                      </q-item-label>
+                      <q-item-label caption class="q-mt-xs">
+                        Lease: {{ formatDate(tenant.lease_info?.start_date) }} - {{ formatDate(tenant.lease_info?.end_date) }}
+                      </q-item-label>
+                    </q-item-section>
+
+                    <q-item-section side>
+                      <div class="column items-end q-gutter-xs">
+                        <q-chip
+                          :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ tenant.status || 'Active' }}
+                        </q-chip>
+                        <div class="text-caption text-grey-7">
+                          Rent: ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                        </div>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+            </div>
           </div>
         </q-card-section>
       </q-card>
@@ -1255,9 +1339,10 @@ const fetchLeaseTenants = async (leaseId) => {
   try {
     console.log('Fetching tenants for lease:', leaseId)
 
-    // Query tenants subcollection
-    const tenantsRef = collection(db, 'leases', leaseId, 'tenants')
-    const querySnapshot = await getDocs(tenantsRef)
+    // Query tenants collection with matching lease_id
+    const tenantsRef = collection(db, 'tenants')
+    const q = query(tenantsRef, where('lease_id', '==', leaseId))
+    const querySnapshot = await getDocs(q)
 
     const tenants = []
     querySnapshot.forEach((doc) => {
