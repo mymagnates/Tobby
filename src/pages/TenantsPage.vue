@@ -107,38 +107,44 @@
           v-for="tenant in filteredTenants"
           :key="tenant.id"
           class="tenant-card"
-          bordered
           flat
         >
-          <!-- Card Header -->
-          <q-card-section class="tenant-card-header">
-            <div class="row items-center">
-              <q-avatar size="64px" color="primary" text-color="white">
-                <q-icon name="person" size="36px" />
-              </q-avatar>
-              <div class="q-ml-md flex-1">
+          <!-- Card Header with Gradient -->
+          <div class="tenant-card-header">
+            <div class="header-content">
+              <div class="tenant-avatar-section">
+                <q-avatar size="72px" class="tenant-avatar">
+                  <div class="avatar-initials">
+                    {{ (tenant.personal_info?.first_name?.[0] || '') + (tenant.personal_info?.last_name?.[0] || '') }}
+                  </div>
+                </q-avatar>
+                <q-badge
+                  :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                  floating
+                  class="status-badge"
+                >
+                  <q-icon name="check_circle" size="12px" />
+                </q-badge>
+              </div>
+              <div class="tenant-info-section">
                 <div class="tenant-name">
                   {{ tenant.personal_info?.first_name }} {{ tenant.personal_info?.last_name }}
                 </div>
-                <div class="tenant-subtitle">
-                  <q-chip
-                    :color="tenant.status === 'active' ? 'positive' : 'grey'"
-                    text-color="white"
-                    size="sm"
-                    dense
-                  >
-                    {{ tenant.status || 'Active' }}
-                  </q-chip>
+                <div class="tenant-property">
+                  <q-icon name="home" size="14px" class="q-mr-xs" />
+                  {{ getPropertyName(tenant.property_id) }}
                 </div>
               </div>
               <q-btn
                 flat
                 round
+                dense
                 icon="more_vert"
-                color="grey-7"
+                color="white"
+                class="action-menu-btn"
               >
                 <q-menu>
-                  <q-list style="min-width: 150px">
+                  <q-list style="min-width: 180px">
                     <q-item clickable v-close-popup @click="viewTenantDetails(tenant)">
                       <q-item-section avatar>
                         <q-icon name="visibility" color="primary" />
@@ -149,105 +155,111 @@
                       <q-item-section avatar>
                         <q-icon name="edit" color="secondary" />
                       </q-item-section>
-                      <q-item-section>Edit</q-item-section>
+                      <q-item-section>Edit Tenant</q-item-section>
                     </q-item>
                     <q-separator />
                     <q-item clickable v-close-popup @click="confirmDeleteTenant(tenant)">
                       <q-item-section avatar>
                         <q-icon name="delete" color="negative" />
                       </q-item-section>
-                      <q-item-section>Delete</q-item-section>
+                      <q-item-section class="text-negative">Delete</q-item-section>
                     </q-item>
                   </q-list>
                 </q-menu>
               </q-btn>
             </div>
-          </q-card-section>
-
-          <q-separator />
+          </div>
 
           <!-- Card Body -->
-          <q-card-section>
-            <!-- Contact Information -->
-            <div class="info-section">
-              <div class="info-row">
-                <q-icon name="email" size="18px" color="primary" class="q-mr-sm" />
-                <span class="info-label">Email:</span>
-                <span class="info-value">{{ tenant.personal_info?.email || 'N/A' }}</span>
+          <q-card-section class="tenant-card-body">
+            <!-- Contact Information Grid -->
+            <div class="contact-grid">
+              <div class="contact-item">
+                <div class="contact-icon-wrapper">
+                  <q-icon name="email" size="20px" color="primary" />
+                </div>
+                <div class="contact-details">
+                  <div class="contact-label">Email</div>
+                  <div class="contact-value">{{ tenant.personal_info?.email || 'N/A' }}</div>
+                </div>
               </div>
-              <div class="info-row">
-                <q-icon name="phone" size="18px" color="primary" class="q-mr-sm" />
-                <span class="info-label">Phone:</span>
-                <span class="info-value">{{ tenant.personal_info?.phone || 'N/A' }}</span>
-              </div>
-            </div>
-
-            <!-- Property Information -->
-            <div class="info-section q-mt-md">
-              <div class="info-row">
-                <q-icon name="home" size="18px" color="secondary" class="q-mr-sm" />
-                <span class="info-label">Property:</span>
-                <span class="info-value">{{ getPropertyName(tenant.property_id) }}</span>
-              </div>
-              <div class="info-row" v-if="tenant.lease_info">
-                <q-icon name="attach_money" size="18px" color="positive" class="q-mr-sm" />
-                <span class="info-label">Rent:</span>
-                <span class="info-value text-weight-bold text-positive">
-                  ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
-                </span>
+              <div class="contact-item">
+                <div class="contact-icon-wrapper">
+                  <q-icon name="phone" size="20px" color="primary" />
+                </div>
+                <div class="contact-details">
+                  <div class="contact-label">Phone</div>
+                  <div class="contact-value">{{ tenant.personal_info?.phone || 'N/A' }}</div>
+                </div>
               </div>
             </div>
 
-            <!-- Additional Info -->
-            <div class="info-section q-mt-md">
-              <div class="info-chips">
-                <q-chip
-                  v-if="tenant.vehicles && tenant.vehicles.length > 0"
-                  size="sm"
-                  icon="directions_car"
-                  color="indigo-1"
-                  text-color="indigo-9"
-                >
-                  {{ tenant.vehicles.length }} Vehicle{{ tenant.vehicles.length > 1 ? 's' : '' }}
-                </q-chip>
-                <q-chip
-                  v-if="tenant.pets && tenant.pets.length > 0"
-                  size="sm"
-                  icon="pets"
-                  color="orange-1"
-                  text-color="orange-9"
-                >
-                  {{ tenant.pets.length }} Pet{{ tenant.pets.length > 1 ? 's' : '' }}
-                </q-chip>
-                <q-chip
-                  v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
-                  size="sm"
-                  icon="group"
-                  color="purple-1"
-                  text-color="purple-9"
-                >
-                  +{{ tenant.co_applicants.length }} Occupant{{ tenant.co_applicants.length > 1 ? 's' : '' }}
-                </q-chip>
+            <!-- Rent Information -->
+            <div class="rent-info" v-if="tenant.lease_info">
+              <div class="rent-amount">
+                ${{ tenant.lease_info?.monthly_rent || 'N/A' }}
+                <span class="rent-period">/month</span>
               </div>
+              <div class="rent-label">Monthly Rent</div>
+            </div>
+
+            <!-- Quick Info Tags -->
+            <div class="quick-info-tags" v-if="tenant.vehicles?.length || tenant.pets?.length || tenant.co_applicants?.length">
+              <q-chip
+                v-if="tenant.vehicles && tenant.vehicles.length > 0"
+                size="sm"
+                dense
+                class="info-chip"
+              >
+                <q-icon name="directions_car" size="14px" class="q-mr-xs" />
+                {{ tenant.vehicles.length }}
+              </q-chip>
+              <q-chip
+                v-if="tenant.pets && tenant.pets.length > 0"
+                size="sm"
+                dense
+                class="info-chip"
+              >
+                <q-icon name="pets" size="14px" class="q-mr-xs" />
+                {{ tenant.pets.length }}
+              </q-chip>
+              <q-chip
+                v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
+                size="sm"
+                dense
+                class="info-chip"
+              >
+                <q-icon name="group" size="14px" class="q-mr-xs" />
+                +{{ tenant.co_applicants.length }}
+              </q-chip>
+              <q-chip
+                v-if="tenant.employment"
+                size="sm"
+                dense
+                class="info-chip"
+              >
+                <q-icon name="work" size="14px" class="q-mr-xs" />
+                Employed
+              </q-chip>
             </div>
           </q-card-section>
-
-          <q-separator />
 
           <!-- Card Footer -->
           <q-card-section class="tenant-card-footer">
-            <div class="text-caption text-grey-6">
-              <q-icon name="event" size="xs" class="q-mr-xs" />
-              Created {{ formatDate(tenant.created_at) }}
+            <div class="footer-left">
+              <q-icon name="schedule" size="16px" class="q-mr-xs" />
+              <span class="footer-text">{{ formatDate(tenant.created_at) }}</span>
             </div>
             <q-btn
-              flat
-              dense
+              unelevated
               color="primary"
               label="View Details"
-              icon-right="arrow_forward"
+              size="sm"
+              class="view-details-btn"
               @click="viewTenantDetails(tenant)"
-            />
+            >
+              <q-icon name="arrow_forward" size="16px" class="q-ml-xs" />
+            </q-btn>
           </q-card-section>
         </q-card>
       </div>
@@ -846,70 +858,255 @@ onMounted(() => {
 }
 
 .tenant-card {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   height: fit-content;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  background: white;
 }
 
 .tenant-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border-color: #1976d2;
 }
 
+/* Card Header with Gradient */
 .tenant-card-header {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  position: relative;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tenant-avatar-section {
+  position: relative;
+}
+
+.tenant-avatar {
+  background: rgba(255, 255, 255, 0.95);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-initials {
+  font-size: 24px;
+  font-weight: 700;
+  color: #667eea;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tenant-info-section {
+  flex: 1;
 }
 
 .tenant-name {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.3px;
+}
+
+.tenant-property {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.action-menu-btn {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.action-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Card Body */
+.tenant-card-body {
+  padding: 20px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.contact-item:hover {
+  background: #e3f2fd;
+  transform: translateX(4px);
+}
+
+.contact-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.contact-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-label {
+  font-size: 11px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
 
-.tenant-subtitle {
-  margin-top: 4px;
-}
-
-.info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.info-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.info-label {
-  font-weight: 500;
-  color: #666;
-  font-size: 13px;
-  min-width: 60px;
-}
-
-.info-value {
-  color: #333;
+.contact-value {
   font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.info-chips {
+/* Rent Information */
+.rent-info {
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.rent-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2e7d32;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.rent-period {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4caf50;
+}
+
+.rent-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #558b2f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Quick Info Tags */
+.quick-info-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
 }
 
+.info-chip {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  color: #666;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.info-chip:hover {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+  transform: scale(1.05);
+}
+
+/* Card Footer */
 .tenant-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #fafafa;
+  padding: 16px 20px;
+  background: linear-gradient(to right, #f8f9fa 0%, #e9ecef 100%);
+  border-top: 1px solid #e0e0e0;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.footer-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.view-details-btn {
+  border-radius: 20px;
+  font-weight: 600;
+  padding: 6px 16px;
+  transition: all 0.3s;
+}
+
+.view-details-btn:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
 
 @media (max-width: 768px) {
   .tenants-grid {
     grid-template-columns: 1fr;
+  }
+
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-card-header {
+    padding: 16px;
+  }
+
+  .tenant-avatar {
+    size: 60px;
+  }
+
+  .tenant-name {
+    font-size: 18px;
+  }
+
+  .rent-amount {
+    font-size: 24px;
   }
 }
 </style>
