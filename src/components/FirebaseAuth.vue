@@ -110,9 +110,19 @@ const handleSignIn = async () => {
     email.value = ''
     password.value = ''
 
+    // Check if there's a redirect URL in query params
+    const redirectUrl = route.query.redirect
+    
     // Redirect to loading page after successful login (data will load there)
     console.log('Login successful, redirecting to loading page')
-    router.push('/loading')
+    console.log('Redirect URL:', redirectUrl)
+    
+    // Pass redirect URL to loading page if it exists
+    if (redirectUrl) {
+      router.push({ path: '/loading', query: { redirect: redirectUrl } })
+    } else {
+      router.push('/loading')
+    }
   } catch (err) {
     console.error('Sign in error:', err)
   }

@@ -39,12 +39,35 @@ const userDataStore = useUserDataStore()
 // Loading state
 const hasError = ref(false)
 
+// Get redirect URL from query params
+const redirectUrl = route.query.redirect
+
+// Helper function to perform redirect
+const performRedirect = () => {
+  // If there's a specific redirect URL, use it
+  if (redirectUrl) {
+    console.log('LoadingPage - Redirecting to specified URL:', redirectUrl)
+    router.push(redirectUrl)
+    return
+  }
+
+  // Otherwise, redirect based on user category
+  const userCategory = userDataStore.userCategory
+  if (userCategory === 'tenant') {
+    router.push('/tenant-home')
+  } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
+    router.push('/') // Property management users go to dashboard
+  } else {
+    router.push('/') // Default to dashboard
+  }
+}
+
 // Methods
 const retryLoading = async () => {
   hasError.value = false
 
   if (!userDataStore.isAuthenticated) {
-    router.push('/login')
+    router.push('/public/login')
     return
   }
 
@@ -67,7 +90,7 @@ watch(
   ],
   () => {
     if (!userDataStore.isAuthenticated) {
-      router.push('/login')
+      router.push('/public/login')
       return
     }
 
@@ -80,15 +103,7 @@ watch(
       !userDataStore.userRolesLoading
     ) {
       setTimeout(() => {
-        // Check user category and redirect accordingly
-        const userCategory = userDataStore.userCategory
-        if (userCategory === 'tenant') {
-          router.push('/tenant-home')
-        } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
-          router.push('/') // Property management users go to dashboard
-        } else {
-          router.push('/') // Default to dashboard
-        }
+        performRedirect()
       }, 1000)
     }
   },
@@ -99,7 +114,7 @@ watch(
 onMounted(async () => {
   // Check authentication
   if (!userDataStore.isAuthenticated) {
-    router.push('/login')
+    router.push('/public/login')
     return
   }
 
@@ -110,15 +125,8 @@ onMounted(async () => {
     !userDataStore.propertiesLoading &&
     !userDataStore.userRolesLoading
   ) {
-    // Check user category and redirect accordingly
-    const userCategory = userDataStore.userCategory
-    if (userCategory === 'tenant') {
-      router.push('/tenant-home')
-    } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
-      router.push('/') // Property management users go to dashboard
-    } else {
-      router.push('/') // Default to dashboard
-    }
+    // Data already loaded, perform redirect
+    performRedirect()
     return
   }
 
@@ -133,15 +141,7 @@ onMounted(async () => {
   // Timeout handling
   setTimeout(() => {
     if (userDataStore.userAccessibleProperties.length > 0) {
-      // Check user category and redirect accordingly
-      const userCategory = userDataStore.userCategory
-      if (userCategory === 'tenant') {
-        router.push('/tenant-home')
-      } else if (['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)) {
-        router.push('/') // Property management users go to dashboard
-      } else {
-        router.push('/') // Default to dashboard
-      }
+      performRedirect()
     } else {
       hasError.value = true
     }

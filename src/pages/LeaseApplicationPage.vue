@@ -1199,8 +1199,8 @@ const submitApplication = async () => {
     // Reset form
     resetForm()
 
-    // Navigate to application detail page
-    router.push(`/application-detail/${applicationId}`)
+    // Navigate to public application detail page (GuestLayout)
+    router.push(`/public/application-detail/${applicationId}`)
   } catch (error) {
     console.error('Error submitting application:', error)
     Notify.create({

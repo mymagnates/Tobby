@@ -34,63 +34,78 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   })
 
-  // Navigation guard for role-based access control
+  // Navigation guard for authentication and role-based access control
   Router.beforeEach((to, from, next) => {
     const userDataStore = useUserDataStore()
     const userCategory = userDataStore.userCategory
+    const isAuthenticated = !!userDataStore.user
 
     console.log('Router Guard - Navigation to:', to.path)
     console.log('Router Guard - User category:', userCategory)
+    console.log('Router Guard - Authenticated:', isAuthenticated)
 
-    // Define public routes accessible without authentication
-    const publicRoutes = [
-      '/lease-application',
-      '/login',
-      '/loading',
-    ]
+    // ============================================
+    // 1. PUBLIC ROUTES (GuestLayout)
+    // ============================================
+    const isPublicRoute = to.path.startsWith('/public') || to.path === '/loading'
 
-    // Check if route is public or starts with public prefix
-    const isPublicRoute =
-      publicRoutes.includes(to.path) ||
-      to.path.startsWith('/lease-application/') ||
-      to.path.startsWith('/application-detail/') ||
-      to.path.startsWith('/tenant-signup/')
-
-    // Allow access to public routes without authentication checks
+    // Allow access to public routes
     if (isPublicRoute) {
+      // If already logged in and trying to access login, redirect to dashboard
+      if (to.path === '/public/login' && isAuthenticated) {
+        console.log('Router Guard - Already authenticated, redirecting to dashboard')
+        next('/')
+        return
+      }
       next()
       return
     }
 
+    // ============================================
+    // 2. AUTHENTICATED ROUTES (MainLayout)
+    // ============================================
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+
+    if (requiresAuth && !isAuthenticated) {
+      console.log('Router Guard - Authentication required, redirecting to login')
+      // Save the intended destination to redirect after login
+      next({
+        path: '/public/login',
+        query: { redirect: to.fullPath },
+      })
+      return
+    }
+
+    // ============================================
+    // 3. ROLE-BASED ACCESS CONTROL
+    // ============================================
+    
     // Define tenant-allowed routes (only for tenants)
     const tenantAllowedRoutes = [
       '/tenant-home',
       '/user-profile',
+      '/application-detail',
     ]
 
-    // Check if route is tenant-allowed
-    const isTenantAllowed = tenantAllowedRoutes.includes(to.path)
+    // Check if route path matches tenant-allowed routes
+    const isTenantAllowed = tenantAllowedRoutes.some(route => to.path.startsWith(route))
 
     // If user is a tenant and trying to access a non-allowed route
     if (userCategory === 'tenant' && !isTenantAllowed) {
       console.log('Router Guard - Tenant attempting to access restricted route:', to.path)
       console.log('Router Guard - Redirecting to /tenant-home')
-
-      // Redirect to tenant home
       next('/tenant-home')
       return
     }
 
     // PM/PO and other roles have full access (no restrictions)
-    // They can access all routes including property management pages
-    // Handle both "PM/PO" as single string and individual "PM", "PO" values
     const isPropertyManager =
       ['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)
     
     if (isPropertyManager) {
       // Block PM/PO from accessing tenant-only pages
       if (to.path === '/tenant-home') {
-        console.log('Router Guard - PM/PO attempting to access tenant-only page:', to.path)
+        console.log('Router Guard - PM/PO attempting to access tenant-only page')
         console.log('Router Guard - Redirecting to /')
         next('/')
         return

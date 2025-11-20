@@ -1,7 +1,41 @@
 const routes = [
+  // ============================================
+  // PUBLIC ROUTES (GuestLayout - No Sidebar)
+  // ============================================
+  {
+    path: '/public',
+    component: () => import('layouts/GuestLayout.vue'),
+    children: [
+      {
+        path: 'login',
+        component: () => import('components/FirebaseAuth.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'lease-application/:leaseId?',
+        component: () => import('pages/LeaseApplicationPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'application-detail/:applicationId',
+        component: () => import('pages/ApplicationDetailPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'tenant-signup/:propertyId',
+        component: () => import('pages/TenantSignUpPage.vue'),
+        meta: { isPublic: true },
+      },
+    ],
+  },
+
+  // ============================================
+  // AUTHENTICATED ROUTES (MainLayout - With Sidebar)
+  // ============================================
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('pages/IndexPage.vue') },
       { path: 'firebase-test', component: () => import('pages/FirebaseTestPage.vue') },
@@ -34,31 +68,42 @@ const routes = [
       {
         path: 'application-detail/:applicationId',
         component: () => import('pages/ApplicationDetailPage.vue'),
-        meta: { withLayout: true },
+        meta: { isPrivate: true },
       },
     ],
   },
-  {
-    path: '/login',
-    component: () => import('components/FirebaseAuth.vue'),
-  },
+
+  // ============================================
+  // STANDALONE ROUTES (No Layout)
+  // ============================================
   {
     path: '/loading',
     component: () => import('pages/LoadingPage.vue'),
   },
+
+  // ============================================
+  // REDIRECTS (Backward Compatibility)
+  // ============================================
   {
-    path: '/tenant-signup/:propertyId',
-    component: () => import('pages/TenantSignUpPage.vue'),
+    path: '/login',
+    redirect: '/public/login',
   },
   {
     path: '/lease-application/:leaseId?',
-    component: () => import('pages/LeaseApplicationPage.vue'),
+    redirect: (to) => `/public/lease-application/${to.params.leaseId || ''}`,
+  },
+  {
+    path: '/tenant-signup/:propertyId',
+    redirect: (to) => `/public/tenant-signup/${to.params.propertyId}`,
   },
   {
     path: '/application-detail/:applicationId',
-    component: () => import('pages/ApplicationDetailPage.vue'),
-    meta: { withLayout: false },
+    redirect: (to) => `/public/application-detail/${to.params.applicationId}`,
   },
+
+  // ============================================
+  // ERROR PAGES
+  // ============================================
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),

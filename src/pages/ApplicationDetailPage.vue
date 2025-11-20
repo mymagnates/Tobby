@@ -1038,10 +1038,12 @@ const route = useRoute()
 const router = useRouter()
 const { getDocument, updateDocument, uploadImagesWithDetails } = useFirebase()
 
-// Determine if page is within MainLayout based on route path
+// Determine if page is within MainLayout based on route meta
 const isWithinLayout = computed(() => {
-  // Check if route path starts with '/' (standalone) or not (within layout)
-  return route.path.startsWith('/application-detail')  ? false : true
+  // Check if route is in private (MainLayout) or public (GuestLayout)
+  // isPrivate = MainLayout with sidebar (logged in users)
+  // isPublic = GuestLayout without sidebar (applicants)
+  return route.meta.isPrivate === true
 })
 
 // State
