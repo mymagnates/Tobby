@@ -238,7 +238,7 @@ watch(
 
     if (isAuthenticated) {
       console.log('MainLayout - User authenticated')
-      
+
       const currentPath = router.currentRoute.value.path
       const isOnLoadingPage = currentPath === '/loading'
       const isOnIndexPage = currentPath === '/'

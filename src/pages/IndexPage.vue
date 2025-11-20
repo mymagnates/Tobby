@@ -60,15 +60,59 @@
             </p>
           </div>
           <div class="header-actions">
-            <q-btn
-              round
-              icon="refresh"
-              color="primary"
-              text-color="white"
-              @click="refreshDashboard"
-              :loading="dashboardLoading"
-              class="refresh-btn"
-            />
+            <div class="row q-gutter-sm items-center">
+              <div class="col-auto">
+                <q-btn
+                  label="Create Property"
+                  color="primary"
+                  text-color="white"
+                  @click="showCreatePropertyDialog = true"
+                  icon="home_work"
+                  unelevated
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  label="Create Lease"
+                  color="primary"
+                  text-color="white"
+                  @click="showCreateLeaseDialog = true"
+                  icon="assignment"
+                  unelevated
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  label="Add Transaction"
+                  color="primary"
+                  text-color="white"
+                  @click="showCreateTransactionDialog = true"
+                  icon="receipt"
+                  unelevated
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  label="Add Task"
+                  color="primary"
+                  text-color="white"
+                  @click="showCreateTaskDialog = true"
+                  icon="dns"
+                  unelevated
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  round
+                  icon="refresh"
+                  color="primary"
+                  text-color="white"
+                  @click="refreshDashboard"
+                  :loading="dashboardLoading"
+                  class="refresh-btn"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -375,52 +419,6 @@
         </div>
       </div>
 
-      <!-- Quick Actions Buttons at the Bottom of the Page -->
-      <div
-        class="quick-actions-bottom row justify-center q-gutter-sm q-pa-md"
-        style="position: fixed; bottom: 0; right: 0; left: 0; z-index: 100"
-      >
-        <div class="col-auto">
-          <q-btn
-            label="Create Property"
-            color="primary"
-            text-color="white"
-            class="btn-primary"
-            @click="showCreatePropertyDialog = true"
-            icon="home_work"
-          />
-        </div>
-        <div class="col-auto">
-          <q-btn
-            label="Create Lease"
-            color="primary"
-            text-color="white"
-            class="btn-primary"
-            @click="showCreateLeaseDialog = true"
-            icon="assignment"
-          />
-        </div>
-        <div class="col-auto">
-          <q-btn
-            label="Add Transaction"
-            color="primary"
-            text-color="white"
-            class="btn-primary"
-            @click="showCreateTransactionDialog = true"
-            icon="receipt"
-          />
-        </div>
-        <div class="col-auto">
-          <q-btn
-            label="Create Task"
-            color="primary"
-            text-color="white"
-            class="btn-primary"
-            @click="showCreateTaskDialog = true"
-            icon="dns"
-          />
-        </div>
-      </div>
 
       <!-- Quick Actions Dialog -->
       <q-dialog v-model="showQuickActions" position="bottom">
