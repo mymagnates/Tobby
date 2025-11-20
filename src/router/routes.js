@@ -64,6 +64,7 @@ const routes = [
       { path: 'reminders', component: () => import('pages/RemindersPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
       { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
+      { path: 'create-tenant', component: () => import('pages/CreateTenantPage.vue') },
       { path: 'user-profile', component: () => import('pages/UserProfilePage.vue') },
       {
         path: 'application-detail/:applicationId',
