@@ -1579,48 +1579,6 @@ const getDocumentIcon = (fileType) => {
   return 'description'
 }
 
-// Download document
-const downloadDocument = (doc) => {
-  if (!doc || !doc.file_url) {
-    Notify.create({
-      type: 'warning',
-      message: 'Document URL not available',
-      position: 'top',
-    })
-    return
-  }
-
-  try {
-    // Create a temporary link and trigger download
-    const link = document.createElement('a')
-    link.href = doc.file_url
-    link.target = '_blank'
-    link.download = doc.name || 'document'
-    document.body.appendChild(link)
-    link.click()
-
-    // Use setTimeout to ensure click event is processed before removing
-    setTimeout(() => {
-      if (link.parentNode) {
-        document.body.removeChild(link)
-      }
-    }, 100)
-
-    Notify.create({
-      type: 'positive',
-      message: 'Document download started',
-      position: 'top',
-    })
-  } catch (error) {
-    console.error('Error downloading document:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to download document',
-      position: 'top',
-    })
-  }
-}
-
 // Get status color for applications
 const getApplicationStatusColor = (status) => {
   const colors = {
