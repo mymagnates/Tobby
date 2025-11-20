@@ -992,53 +992,53 @@
                   >
                     <!-- Collapsed Header -->
                     <template v-slot:header>
-                      <q-item-section avatar>
-                        <q-avatar color="primary" text-color="white">
+                    <q-item-section avatar>
+                      <q-avatar color="primary" text-color="white">
                           <q-icon name="description" />
-                        </q-avatar>
-                      </q-item-section>
+                      </q-avatar>
+                    </q-item-section>
 
-                      <q-item-section>
-                        <q-item-label class="text-weight-medium">
-                          {{
-                            application.applicant
-                              ? `${application.applicant.first_name} ${application.applicant.last_name}`
-                              : 'Unknown Applicant'
-                          }}
-                        </q-item-label>
-                        <q-item-label caption>
-                          <div class="row q-gutter-sm items-center">
-                            <span>
-                              <q-icon name="email" size="xs" />
-                              {{ application.applicant?.email || 'N/A' }}
-                            </span>
-                            <span>
-                              <q-icon name="phone" size="xs" />
-                              {{ application.applicant?.phone || 'N/A' }}
-                            </span>
-                          </div>
-                        </q-item-label>
-                        <q-item-label caption class="q-mt-xs">
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        {{
+                          application.applicant
+                            ? `${application.applicant.first_name} ${application.applicant.last_name}`
+                            : 'Unknown Applicant'
+                        }}
+                      </q-item-label>
+                      <q-item-label caption>
+                        <div class="row q-gutter-sm items-center">
+                          <span>
+                            <q-icon name="email" size="xs" />
+                            {{ application.applicant?.email || 'N/A' }}
+                          </span>
+                          <span>
+                            <q-icon name="phone" size="xs" />
+                            {{ application.applicant?.phone || 'N/A' }}
+                          </span>
+                        </div>
+                      </q-item-label>
+                      <q-item-label caption class="q-mt-xs">
                           <span class="text-grey-7">Application submitted:</span> {{ formatDate(application.submitted_at) }}
-                        </q-item-label>
-                      </q-item-section>
+                      </q-item-label>
+                    </q-item-section>
 
-                      <q-item-section side>
-                        <div class="column items-end q-gutter-xs">
-                          <q-chip
-                            :color="getApplicationStatusColor(application.status)"
-                            text-color="white"
-                            size="sm"
-                          >
-                            {{ application.status || 'Pending' }}
-                          </q-chip>
-                          <q-btn
-                            flat
-                            dense
+                    <q-item-section side>
+                      <div class="column items-end q-gutter-xs">
+                        <q-chip
+                          :color="getApplicationStatusColor(application.status)"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ application.status || 'Pending' }}
+                        </q-chip>
+                        <q-btn
+                          flat
+                          dense
                             size="xs"
-                            color="primary"
+                          color="primary"
                             label="View Full App"
-                            @click.stop="viewApplicationDetail(application.id)"
+                          @click.stop="viewApplicationDetail(application.id)"
                           />
                         </div>
                       </q-item-section>
@@ -1156,20 +1156,122 @@
                         </div>
                       </q-card-section>
 
-                      <!-- View Full Application Button -->
+                      <!-- Vehicles -->
+                      <q-separator v-if="application.vehicles && application.vehicles.length > 0" />
+                      <q-card-section v-if="application.vehicles && application.vehicles.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
+                          <q-icon name="directions_car" class="q-mr-sm" />
+                          Vehicles ({{ application.vehicles.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(vehicle, index) in application.vehicles" :key="index">
+                            <q-item-section avatar>
+                              <q-icon name="directions_car" color="indigo" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.year }})</q-item-label>
+                              <q-item-label caption>{{ vehicle.color }} • License: {{ vehicle.license_plate }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Pets -->
+                      <q-separator v-if="application.pets && application.pets.length > 0" />
+                      <q-card-section v-if="application.pets && application.pets.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-orange q-mb-md">
+                          <q-icon name="pets" class="q-mr-sm" />
+                          Pets ({{ application.pets.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(pet, index) in application.pets" :key="index">
+                            <q-item-section avatar>
+                              <q-icon name="pets" color="orange" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ pet.name }} ({{ pet.type }})</q-item-label>
+                              <q-item-label caption>{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years old</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Co-Applicants -->
+                      <q-separator v-if="application.co_applicants && application.co_applicants.length > 0" />
+                      <q-card-section v-if="application.co_applicants && application.co_applicants.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-purple q-mb-md">
+                          <q-icon name="group" class="q-mr-sm" />
+                          Co-Applicants ({{ application.co_applicants.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(coApplicant, index) in application.co_applicants" :key="index">
+                            <q-item-section avatar>
+                              <q-avatar color="purple" text-color="white">
+                                <q-icon name="person" />
+                              </q-avatar>
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ coApplicant.first_name }} {{ coApplicant.last_name }}</q-item-label>
+                              <q-item-label caption>
+                                <div class="row q-gutter-sm">
+                                  <span><q-icon name="email" size="xs" /> {{ coApplicant.email }}</span>
+                                  <span><q-icon name="phone" size="xs" /> {{ coApplicant.phone }}</span>
+                                </div>
+                              </q-item-label>
+                              <q-item-label caption>Relationship: {{ coApplicant.relationship || 'N/A' }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Documents -->
+                      <q-separator v-if="application.documents && application.documents.length > 0" />
+                      <q-card-section v-if="application.documents && application.documents.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-deep-purple q-mb-md">
+                          <q-icon name="upload_file" class="q-mr-sm" />
+                          Documents ({{ application.documents.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item
+                            v-for="(doc, index) in application.documents"
+                            :key="index"
+                            clickable
+                            @click="window.open(doc.url, '_blank')"
+                          >
+                            <q-item-section avatar>
+                              <q-icon :name="getDocumentIcon(doc.name || doc.fileName)" color="primary" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ doc.name || doc.fileName || 'Document' }}</q-item-label>
+                              <q-item-label caption>{{ doc.description || 'Application Document' }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                              <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
+                                <q-tooltip>Download</q-tooltip>
+                        </q-btn>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Timestamps -->
                       <q-separator />
-                      <q-card-section class="text-center">
-                        <q-btn
-                          color="primary"
-                          icon="open_in_new"
-                          label="View Complete Application Details"
-                          @click="viewApplicationDetail(application.id)"
-                        />
+                      <q-card-section class="bg-grey-2">
+                        <div class="row q-col-gutter-md text-caption text-grey-7">
+                          <div class="col-6">
+                            <q-icon name="event" size="xs" class="q-mr-xs" />
+                            Submitted: {{ formatDate(application.submitted_at) || 'N/A' }}
+                      </div>
+                          <div class="col-6">
+                            <q-icon name="badge" size="xs" class="q-mr-xs" />
+                            Status: <q-chip :color="getApplicationStatusColor(application.status)" text-color="white" size="xs">{{ application.status || 'Pending' }}</q-chip>
+                          </div>
+                        </div>
                       </q-card-section>
                     </q-card>
                   </q-expansion-item>
 
-                  <!-- Current Tenants (Manually Created) -->
+                  <!-- Manually Created Tenants -->
                   <q-expansion-item
                     v-for="tenant in leaseTenants"
                     :key="tenant.id"
@@ -1353,8 +1455,76 @@
                         </div>
                       </q-card-section>
 
+                      <!-- Vehicles -->
+                      <q-separator v-if="tenant.vehicles && tenant.vehicles.length > 0" />
+                      <q-card-section v-if="tenant.vehicles && tenant.vehicles.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
+                          <q-icon name="directions_car" class="q-mr-sm" />
+                          Vehicles ({{ tenant.vehicles.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(vehicle, index) in tenant.vehicles" :key="index">
+                            <q-item-section avatar>
+                              <q-icon name="directions_car" color="indigo" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.year }})</q-item-label>
+                              <q-item-label caption>{{ vehicle.color }} • License: {{ vehicle.license_plate }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Pets -->
+                      <q-separator v-if="tenant.pets && tenant.pets.length > 0" />
+                      <q-card-section v-if="tenant.pets && tenant.pets.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-orange q-mb-md">
+                          <q-icon name="pets" class="q-mr-sm" />
+                          Pets ({{ tenant.pets.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(pet, index) in tenant.pets" :key="index">
+                            <q-item-section avatar>
+                              <q-icon name="pets" color="orange" size="md" />
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ pet.name }} ({{ pet.type }})</q-item-label>
+                              <q-item-label caption>{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years old</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
+                      <!-- Co-Applicants / Additional Occupants -->
+                      <q-separator v-if="tenant.co_applicants && tenant.co_applicants.length > 0" />
+                      <q-card-section v-if="tenant.co_applicants && tenant.co_applicants.length > 0">
+                        <div class="text-subtitle1 text-weight-bold text-purple q-mb-md">
+                          <q-icon name="group" class="q-mr-sm" />
+                          Additional Occupants ({{ tenant.co_applicants.length }})
+                        </div>
+                        <q-list bordered separator>
+                          <q-item v-for="(occupant, index) in tenant.co_applicants" :key="index">
+                            <q-item-section avatar>
+                              <q-avatar color="purple" text-color="white">
+                                <q-icon name="person" />
+                              </q-avatar>
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label>{{ occupant.first_name }} {{ occupant.last_name }}</q-item-label>
+                              <q-item-label caption>
+                                <div class="row q-gutter-sm">
+                                  <span><q-icon name="email" size="xs" /> {{ occupant.email || 'N/A' }}</span>
+                                  <span><q-icon name="phone" size="xs" /> {{ occupant.phone || 'N/A' }}</span>
+                                </div>
+                              </q-item-label>
+                              <q-item-label caption>Relationship: {{ occupant.relationship || 'N/A' }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-card-section>
+
                       <!-- Documents -->
-                      <q-separator />
+                      <q-separator v-if="tenant.documents && tenant.documents.length > 0" />
                       <q-card-section v-if="tenant.documents && tenant.documents.length > 0">
                         <div class="text-subtitle1 text-weight-bold text-deep-purple q-mb-md">
                           <q-icon name="upload_file" class="q-mr-sm" />
@@ -1378,9 +1548,9 @@
                               <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
                                 <q-tooltip>Download</q-tooltip>
                               </q-btn>
-                            </q-item-section>
-                          </q-item>
-                        </q-list>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
                       </q-card-section>
 
                       <!-- Notes -->
@@ -1389,7 +1559,7 @@
                         <div class="text-subtitle1 text-weight-bold q-mb-md">
                           <q-icon name="notes" class="q-mr-sm" />
                           Additional Notes
-                        </div>
+              </div>
                         <div class="text-body2 bg-grey-1 q-pa-md" style="border-radius: 8px">
                           {{ tenant.notes }}
                         </div>
