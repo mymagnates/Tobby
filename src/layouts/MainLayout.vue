@@ -1,7 +1,24 @@
 <template>
-  <q-layout view="lHh Lpr lFr" class="sleek-layout">
-    <q-header bordered class="sleek-header">
-      <q-toolbar class="q-px-md">
+  <q-layout view="lHh Lpr lFr" class="dashboard-layout">
+    <!-- Dark Left Sidebar -->
+    <q-drawer v-model="leftDrawerOpen" show-if-above side="left" :width="240" class="dark-drawer" :breakpoint="1024">
+      <!-- Logo Section -->
+      <div class="drawer-logo-section">
+        <div class="logo-icon">
+          <q-icon name="o_bolt" size="28px" color="white" />
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <q-list class="nav-list">
+        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
+      </q-list>
+    </q-drawer>
+
+    <!-- Top Header -->
+    <q-header elevated class="dashboard-header">
+      <q-toolbar class="q-px-lg">
+        <!-- Mobile Menu Button -->
         <q-btn
           flat
           dense
@@ -9,30 +26,68 @@
           icon="o_menu"
           aria-label="Menu"
           @click="toggleLeftDrawer"
-          class="menu-btn lt-md"
+          class="menu-btn lt-lg"
         />
 
-        <q-toolbar-title class="row items-center">
-          <div class="logo-container">
-            <span class="app-title">HANDOUT</span>
-          </div>
-        </q-toolbar-title>
+        <!-- Company/Property Selector -->
+        <q-btn-dropdown flat no-caps class="company-selector">
+          <template v-slot:label>
+            <div class="row items-center no-wrap">
+              <span class="company-name">{{ userDataStore.userCategory || 'Property Manager' }}</span>
+              <q-icon name="expand_more" size="20px" class="q-ml-xs" />
+            </div>
+          </template>
+          <q-list>
+            <q-item clickable v-close-popup>
+              <q-item-section>
+                <q-item-label>Switch Property</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
 
+        <!-- Search Bar -->
+        <q-input
+          dense
+          outlined
+          v-model="searchQuery"
+          placeholder="Search"
+          class="search-input q-ml-md"
+          bg-color="grey-1"
+        >
+          <template v-slot:prepend>
+            <q-icon name="o_search" color="grey-6" />
+          </template>
+        </q-input>
+
+        <q-space />
+
+        <!-- Header Actions -->
         <div class="header-actions">
-          <q-btn-dropdown flat round icon="o_person" class="user-menu">
+          <!-- History/Clock Icon -->
+          <q-btn flat round dense icon="o_schedule" color="grey-7" class="action-btn">
+            <q-tooltip>History</q-tooltip>
+          </q-btn>
+
+          <!-- Notifications -->
+          <q-btn flat round dense icon="o_notifications" color="grey-7" class="action-btn">
+            <q-badge color="primary" floating rounded />
+            <q-tooltip>Notifications</q-tooltip>
+          </q-btn>
+
+          <!-- User Profile -->
+          <q-btn-dropdown flat no-caps class="user-profile-btn">
             <template v-slot:label>
-              <div v-if="userDataStore.user?.photoURL" class="row items-center">
-                <q-avatar size="28px" class="q-mr-sm">
-                  <img :src="userDataStore.user.photoURL" alt="User Avatar" />
+              <div class="row items-center no-wrap">
+                <q-avatar size="36px" color="primary" text-color="white">
+                  <img v-if="userDataStore.user?.photoURL" :src="userDataStore.user.photoURL" alt="User Avatar" />
+                  <span v-else>{{ getUserInitials() }}</span>
                 </q-avatar>
+                <div class="user-info q-ml-sm gt-sm">
+                  <div class="user-name-text">{{ getUserDisplayName() }}</div>
+                  <div class="user-role-text">{{ userDataStore.userCategory || 'User' }}</div>
+                </div>
               </div>
-              <span v-if="userDataStore.user?.displayName" class="text-weight-medium user-name">
-                {{ userDataStore.user.displayName }}
-              </span>
-              <span v-else-if="userDataStore.user?.email" class="text-weight-medium user-name">
-                {{ userDataStore.user.email.split('@')[0] }}
-              </span>
-              <span v-else class="text-weight-medium user-name"> User </span>
             </template>
 
             <q-list class="user-menu-list">
@@ -47,7 +102,7 @@
 
               <q-item clickable v-close-popup @click="handleSignOut" class="menu-item">
                 <q-item-section avatar>
-                  <q-icon name="o_logout" />
+                  <q-icon name="o_logout" color="grey-7" />
                 </q-item-section>
                 <q-item-section>Sign Out</q-item-section>
               </q-item>
@@ -56,15 +111,6 @@
         </div>
       </q-toolbar>
     </q-header>
-
-    <q-drawer v-model="leftDrawerOpen" show-if-above side="left" :width="280" class="sleek-drawer">
-      <div class="drawer-header">
-        <div class="drawer-title">Menu</div>
-      </div>
-      <q-list class="nav-list">
-        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
-      </q-list>
-    </q-drawer>
 
     <q-page-container class="page-container">
       <!-- Loading indicator for data loading -->
@@ -194,6 +240,7 @@ const linksList = computed(() => {
 
 const leftDrawerOpen = ref(false)
 const dataLoading = ref(false)
+const searchQuery = ref('')
 
 // Universal data loading function
 const loadAllUserData = async () => {
@@ -346,180 +393,274 @@ async function handleSignOut() {
 function goToProfile() {
   router.push('/user-profile')
 }
+
+function getUserInitials() {
+  if (userDataStore.user?.displayName) {
+    const names = userDataStore.user.displayName.split(' ')
+    return names.length > 1 
+      ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+      : names[0][0].toUpperCase()
+  }
+  if (userDataStore.user?.email) {
+    return userDataStore.user.email[0].toUpperCase()
+  }
+  return 'U'
+}
+
+function getUserDisplayName() {
+  return userDataStore.user?.displayName || userDataStore.user?.email?.split('@')[0] || 'User'
+}
 </script>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
 
-/* Main Colors: Blue (#1976D2), White (#FFFFFF), Gray (#757575) */
+/* Dashboard Color Palette */
+/* Primary Blue: #1976d2 */
+/* Dark Sidebar: #1F2128 */
+/* White: #FFFFFF */
+/* Light Gray: #F5F7FA */
+/* Text Gray: #6B7280 */
 
-.sleek-layout {
-  background: #ffffff;
+.dashboard-layout {
+  background: #f5f7fa;
 }
 
-.sleek-header {
-  background: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: none;
+/* ========================================
+   DARK SIDEBAR STYLING
+   ======================================== */
+
+.dark-drawer {
+  background: #1F2128;
+  border-right: none;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
 }
 
-.logo-container {
+.drawer-logo-section {
+  padding: 24px 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: #1976D2;
-  letter-spacing: 0.02em;
-  transition: all 0.3s ease;
+.logo-icon {
+  width: 48px;
+  height: 48px;
+  background: #1976d2;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
 
-.app-title:hover {
-  transform: scale(1.05);
+.nav-list {
+  padding: 20px 16px;
+}
+
+/* ========================================
+   HEADER STYLING
+   ======================================== */
+
+.dashboard-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  height: 72px;
 }
 
 .menu-btn {
-  color: #757575;
+  color: #6b7280;
   margin-right: 12px;
   transition: all 0.3s ease;
 }
 
 .menu-btn:hover {
-  background: #f5f5f5;
-  color: #1976D2;
+  background: #f3f4f6;
+  color: #1976d2;
 }
 
+/* Company Selector */
+.company-selector {
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.company-selector:hover {
+  background: #f3f4f6;
+}
+
+.company-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Search Bar */
+.search-input {
+  max-width: 400px;
+  flex: 1;
+}
+
+.search-input :deep(.q-field__control) {
+  border-radius: 10px;
+  border: none;
+  height: 40px;
+}
+
+.search-input :deep(.q-field__native) {
+  font-size: 0.9rem;
+}
+
+/* Header Actions */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 
-.user-menu {
+.action-btn {
   transition: all 0.3s ease;
-  color: #757575;
-  padding: 8px 16px;
-  border-radius: 8px;
 }
 
-.user-menu:hover {
-  background: #f5f5f5;
-  color: #1976D2;
+.action-btn:hover {
+  background: #f3f4f6;
 }
 
-.user-name {
-  color: #757575;
-  font-size: 0.95rem;
+/* User Profile Button */
+.user-profile-btn {
+  padding: 4px 12px 4px 4px;
+  border-radius: 24px;
+  transition: all 0.3s ease;
 }
 
+.user-profile-btn:hover {
+  background: #f3f4f6;
+}
+
+.user-info {
+  text-align: left;
+}
+
+.user-name-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.user-role-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.2;
+}
+
+/* User Menu Dropdown */
 .user-menu-list {
-  min-width: 220px;
+  min-width: 240px;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
 }
 
 .menu-item {
   transition: all 0.3s ease;
   border-radius: 8px;
-  margin: 4px 8px;
+  margin: 2px 0;
+  padding: 12px 16px;
 }
 
 .menu-item:hover {
-  background: #f5f5f5;
+  background: #f3f4f6;
 }
 
-/* Sleek Drawer Design */
-.sleek-drawer {
-  background: #ffffff;
-  border-right: 1px solid #e0e0e0;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
-}
-
-.drawer-header {
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #ffffff;
-}
-
-.drawer-title {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #757575;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.nav-list {
-  padding: 16px 0;
-}
-
+/* Navigation Links (Dark Theme) */
 .nav-link {
-  margin: 6px 12px;
-  border-radius: 12px;
+  margin: 4px 0;
+  border-radius: 10px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: #757575;
 }
 
-.nav-link:hover {
-  background: #e3f2fd;
-  transform: translateX(4px);
-  color: #1976D2;
-}
-
+/* Page Container */
 .page-container {
-  background: #f5f5f5;
+  background: #f5f7fa;
   min-height: 100vh;
   position: relative;
 }
 
+/* Loading Overlay */
 .data-loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
 }
 
 .loading-text {
   margin-top: 16px;
   font-size: 1rem;
-  font-weight: 500;
-  color: #1976D2;
+  font-weight: 600;
+  color: #1976d2;
 }
 
-/* Responsive Design */
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1023px) {
+  .search-input {
+    display: none;
+  }
+
+  .company-selector {
+    padding: 6px 12px;
+  }
+
+  .company-name {
+    font-size: 0.9rem;
+  }
+}
+
 @media (max-width: 768px) {
-  .app-title {
-    font-size: 1.5rem;
+  .dashboard-header {
+    height: 60px;
   }
 
   .header-actions {
-    gap: 8px;
+    gap: 4px;
   }
 
-  .user-name {
-    display: none;
+  .action-btn {
+    size: sm;
+  }
+
+  .user-profile-btn {
+    padding: 4px;
   }
 }
 
-/* Animation for page transitions */
+/* ========================================
+   ANIMATIONS & TRANSITIONS
+   ======================================== */
+
 .page-container > * {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s ease-out;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -527,16 +668,24 @@ function goToProfile() {
   }
 }
 
-/* Enhanced focus states */
-.user-menu:focus {
-  outline: 2px solid #1976D2;
+/* ========================================
+   ACCESSIBILITY & FOCUS STATES
+   ======================================== */
+
+.user-profile-btn:focus,
+.action-btn:focus,
+.company-selector:focus {
+  outline: 2px solid #1976d2;
   outline-offset: 2px;
 }
 
-/* Print styles */
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
 @media print {
-  .sleek-header,
-  .sleek-drawer {
+  .dashboard-header,
+  .dark-drawer {
     display: none;
   }
 
