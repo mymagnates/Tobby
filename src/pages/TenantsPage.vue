@@ -371,7 +371,7 @@ const formatDate = (dateString) => {
       month: 'short', 
       day: 'numeric' 
     })
-  } catch (e) {
+  } catch {
     return 'N/A'
   }
 }
@@ -380,6 +380,7 @@ const navigateToCreateTenant = () => {
   router.push('/create-tenant')
 }
 
+// eslint-disable-next-line no-unused-vars
 const viewTenantDetails = (tenant) => {
   // TODO: Implement tenant detail view
   $q.notify({
@@ -389,6 +390,7 @@ const viewTenantDetails = (tenant) => {
   })
 }
 
+// eslint-disable-next-line no-unused-vars
 const editTenant = (tenant) => {
   // TODO: Implement tenant edit
   $q.notify({
@@ -409,6 +411,7 @@ const confirmDeleteTenant = (tenant) => {
   })
 }
 
+// eslint-disable-next-line no-unused-vars
 const deleteTenant = async (tenant) => {
   // TODO: Implement tenant deletion
   $q.notify({
