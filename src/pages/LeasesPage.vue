@@ -1045,17 +1045,21 @@
               </div>
             </div>
 
-            <!-- Tenants Section -->
+            <!-- Current Tenants Section -->
             <div class="details-section" v-if="!isEditMode">
               <div class="section-title">
-                Tenants
+                <q-icon name="people" class="q-mr-sm" />
+                Current Tenants
                 <q-badge color="secondary" :label="leaseTenants.length" class="q-ml-sm" />
+              </div>
+              <div class="text-caption text-grey-7 q-mb-md">
+                All tenants currently associated with this lease. Click on any tenant to expand and view full details.
               </div>
 
               <!-- Loading State -->
               <div v-if="tenantsLoading" class="text-center q-pa-md">
                 <q-spinner-dots size="40px" color="secondary" />
-                <div class="text-body2 text-grey-6 q-mt-sm">Loading tenants...</div>
+                <div class="text-body2 text-grey-6 q-mt-sm">Loading current tenants...</div>
               </div>
 
               <!-- Error State -->
@@ -1070,10 +1074,10 @@
                 class="text-center q-pa-lg bg-grey-1"
                 style="border-radius: 8px"
               >
-                <q-icon name="people" size="64px" color="grey-4" />
-                <div class="text-body1 text-grey-6 q-mt-sm">No tenants yet</div>
+                <q-icon name="people_outline" size="64px" color="grey-4" />
+                <div class="text-body1 text-grey-6 q-mt-sm">No current tenants</div>
                 <div class="text-caption text-grey-5">
-                  Tenants for this lease will appear here
+                  Click "Create Tenant" button above to add tenants to this lease
                 </div>
               </div>
 
