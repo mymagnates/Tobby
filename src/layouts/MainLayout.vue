@@ -145,12 +145,13 @@ const allLinksList = [
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Create Tenant',
-    caption: 'Add new tenant',
-    icon: 'person_add',
-    link: '/create-tenant',
+    title: 'Tenants',
+    caption: 'Manage all tenants',
+    icon: 'people',
+    link: '/tenants',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
+
   {
     title: 'Tenant Home',
     caption: 'Tenant home page',
