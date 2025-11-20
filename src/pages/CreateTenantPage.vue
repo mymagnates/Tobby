@@ -490,11 +490,12 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
-import { createDocument, uploadImagesWithDetails } from '../composables/useFirebase'
+import { useFirebase } from '../composables/useFirebase'
 
 const router = useRouter()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
+const { createDocument, uploadImagesWithDetails } = useFirebase()
 
 // Form Data
 const formData = ref({
@@ -626,14 +627,22 @@ const handleSubmit = async () => {
         position: 'top',
       })
 
-      const filesWithDetails = documents.value.map((doc) => ({
-        file: doc.file,
-        fileName: doc.file.name,
-        category: doc.documentType,
-      }))
+      // Extract just the file objects for upload
+      const files = documents.value.map((doc) => doc.file)
 
-      const storagePath = `tenants/${formData.value.propertyId}/${Date.now()}`
-      uploadedDocuments = await uploadImagesWithDetails(filesWithDetails, storagePath)
+      // Upload files with property ID and 'tenants' context
+      const uploadResults = await uploadImagesWithDetails(files, formData.value.propertyId, 'tenants')
+
+      // Map upload results with document types
+      uploadedDocuments = documents.value.map((doc, index) => ({
+        url: uploadResults[index].url,
+        fileName: uploadResults[index].fileName,
+        originalName: uploadResults[index].originalName,
+        storagePath: uploadResults[index].storagePath,
+        documentType: doc.documentType,
+        size: uploadResults[index].size,
+        uploadedAt: new Date().toISOString(),
+      }))
     }
 
     // Create tenant document
