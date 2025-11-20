@@ -219,6 +219,9 @@ const loadAllUserData = async () => {
   }
 }
 
+// Track if we need to redirect after data load (for page refresh)
+const needsRedirectAfterLoad = ref(false)
+
 // Watch for authentication changes
 watch(
   () => userDataStore.isAuthenticated,
@@ -234,7 +237,8 @@ watch(
         userDataStore.userAccessibleProperties.length === 0 &&
         !userDataStore.profileLoading
       ) {
-        console.log('MainLayout - Loading user data in background')
+        console.log('MainLayout - Loading user data after page refresh')
+        needsRedirectAfterLoad.value = true
         loadAllUserData()
       } else if (router.currentRoute.value.path === '/loading') {
         console.log('MainLayout - On loading page, letting LoadingPage handle data loading')
@@ -245,10 +249,35 @@ watch(
       // Only clear data if this is not the initial watch trigger
       console.log('MainLayout - User logged out, clearing data')
       dataLoading.value = false
+      needsRedirectAfterLoad.value = false
       // Note: Redirect to logout success page is handled by handleSignOut function
     }
   },
   { immediate: true },
+)
+
+// Watch for data loading completion to redirect after page refresh
+watch(
+  () => [
+    userDataStore.userAccessibleProperties.length,
+    userDataStore.profileLoading,
+    userDataStore.propertiesLoading,
+  ],
+  () => {
+    // If data just finished loading and we need to redirect
+    if (
+      needsRedirectAfterLoad.value &&
+      userDataStore.userAccessibleProperties.length > 0 &&
+      !userDataStore.profileLoading &&
+      !userDataStore.propertiesLoading &&
+      router.currentRoute.value.path !== '/'
+    ) {
+      console.log('MainLayout - Data loaded after refresh, redirecting to index')
+      needsRedirectAfterLoad.value = false
+      router.push('/')
+    }
+  },
+  { deep: true },
 )
 
 // Watch for user ID changes (in case user changes)
