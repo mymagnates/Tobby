@@ -34,6 +34,11 @@
           class="menu-btn lt-lg"
         />
 
+        <!-- Logo -->
+        <div class="header-logo">
+          <span class="header-app-title">HANDOUT</span>
+        </div>
+
         <q-space />
 
         <!-- Header Actions -->
@@ -460,6 +465,27 @@ function getUserDisplayName() {
   color: #1976d2;
 }
 
+/* Header Logo */
+.header-logo {
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+}
+
+.header-app-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #1976d2;
+  letter-spacing: 0.02em;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.header-app-title:hover {
+  transform: scale(1.05);
+}
+
 /* Header Actions */
 .header-actions {
   display: flex;
@@ -566,6 +592,14 @@ function getUserDisplayName() {
 @media (max-width: 768px) {
   .dashboard-header {
     height: 60px;
+  }
+
+  .header-logo {
+    padding-left: 8px;
+  }
+
+  .header-app-title {
+    font-size: 1.3rem;
   }
 
   .header-actions {
