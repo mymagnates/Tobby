@@ -9,9 +9,9 @@
       class="dark-drawer"
       :breakpoint="1024"
     >
-      <!-- Logo Section -->
-      <div class="drawer-logo-section">
-        <span class="app-title">HANDOUT</span>
+      <!-- Logo Icon -->
+      <div class="drawer-logo-icon">
+        <img src="/logo.svg" alt="Logo" class="sidebar-logo" />
       </div>
 
       <!-- Navigation Links -->
@@ -36,6 +36,7 @@
 
         <!-- Logo -->
         <div class="header-logo">
+          <img src="/logo.svg" alt="Logo" class="logo-image" />
           <span class="header-app-title">HANDOUT</span>
         </div>
 
@@ -418,25 +419,23 @@ function getUserDisplayName() {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
-.drawer-logo-section {
-  padding: 24px 20px;
+.drawer-logo-icon {
+  padding: 32px 20px 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: #1976d2;
-  letter-spacing: 0.02em;
+.sidebar-logo {
+  height: 48px;
+  width: auto;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
-.app-title:hover {
-  transform: scale(1.05);
+.sidebar-logo:hover {
+  transform: scale(1.1);
 }
 
 .nav-list {
@@ -469,7 +468,19 @@ function getUserDisplayName() {
 .header-logo {
   display: flex;
   align-items: center;
+  gap: 12px;
   padding-left: 16px;
+  cursor: pointer;
+}
+
+.logo-image {
+  height: 36px;
+  width: auto;
+  transition: all 0.3s ease;
+}
+
+.header-logo:hover .logo-image {
+  transform: scale(1.05);
 }
 
 .header-app-title {
@@ -479,10 +490,9 @@ function getUserDisplayName() {
   color: #1976d2;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
-  cursor: pointer;
 }
 
-.header-app-title:hover {
+.header-logo:hover .header-app-title {
   transform: scale(1.05);
 }
 
@@ -596,6 +606,11 @@ function getUserDisplayName() {
 
   .header-logo {
     padding-left: 8px;
+    gap: 8px;
+  }
+
+  .logo-image {
+    height: 28px;
   }
 
   .header-app-title {
