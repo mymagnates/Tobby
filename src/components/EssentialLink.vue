@@ -67,7 +67,7 @@ const getIconColor = () => {
 
 <style scoped>
 /* Light Sidebar Navigation Link Styles */
-/* Primary Yellow/Gold: #FDB913 */
+/* Primary Blue: #1976d2 */
 /* White BG: #FFFFFF */
 /* Text: Black/Gray */
 
@@ -121,25 +121,25 @@ const getIconColor = () => {
 }
 
 .essential-link:hover .link-title {
-  color: #FDB913;
+  color: #1976d2;
 }
 
 .essential-link:hover .link-icon .q-icon {
-  color: #FDB913 !important;
+  color: #1976d2 !important;
 }
 
 /* Focus states for accessibility */
 .essential-link:focus {
-  outline: 2px solid #FDB913;
+  outline: 2px solid #1976d2;
   outline-offset: 2px;
 }
 
 /* Active state */
 .essential-link.router-link-active {
-  background: #FDB913;
+  background: #1976d2;
   color: white;
-  border-color: #FDB913;
-  box-shadow: 0 4px 16px rgba(253, 185, 19, 0.4);
+  border-color: #1976d2;
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.4);
 }
 
 .essential-link.router-link-active .link-title {

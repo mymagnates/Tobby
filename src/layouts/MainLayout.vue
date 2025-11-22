@@ -398,7 +398,7 @@ function getUserDisplayName() {
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
 
 /* Dashboard Color Palette */
-/* Primary Yellow/Gold: #FDB913 */
+/* Primary Blue: #1976d2 */
 /* Dark Sidebar: #1F2128 */
 /* White: #FFFFFF */
 /* Light Gray: #F5F7FA */
@@ -460,7 +460,7 @@ function getUserDisplayName() {
 
 .menu-btn:hover {
   background: #f3f4f6;
-  color: #FDB913;
+  color: #1976d2;
 }
 
 /* Header Logo */
@@ -486,7 +486,7 @@ function getUserDisplayName() {
   font-family: 'Pacifico', cursive;
   font-size: 1.5rem;
   font-weight: 400;
-  color: #FDB913;
+  color: #1976d2;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
 }
@@ -591,7 +591,7 @@ function getUserDisplayName() {
   margin-top: 16px;
   font-size: 1rem;
   font-weight: 600;
-  color: #FDB913;
+  color: #1976d2;
 }
 
 /* ========================================
@@ -654,7 +654,7 @@ function getUserDisplayName() {
 
 .user-profile-btn:focus,
 .action-btn:focus {
-  outline: 2px solid #FDB913;
+  outline: 2px solid #1976d2;
   outline-offset: 2px;
 }
 
