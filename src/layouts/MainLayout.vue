@@ -36,8 +36,7 @@
 
         <!-- Logo -->
         <div class="header-logo">
-          <img src="/logo.svg" alt="Logo" class="logo-image" />
-          <span class="header-app-title">HANDOUT</span>
+          <span class="header-app-title">Handout</span>
         </div>
 
         <q-space />
@@ -399,7 +398,7 @@ function getUserDisplayName() {
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
 
 /* Dashboard Color Palette */
-/* Primary Blue: #1976d2 */
+/* Primary Yellow/Gold: #FDB913 */
 /* Dark Sidebar: #1F2128 */
 /* White: #FFFFFF */
 /* Light Gray: #F5F7FA */
@@ -461,7 +460,7 @@ function getUserDisplayName() {
 
 .menu-btn:hover {
   background: #f3f4f6;
-  color: #1976d2;
+  color: #FDB913;
 }
 
 /* Header Logo */
@@ -487,7 +486,7 @@ function getUserDisplayName() {
   font-family: 'Pacifico', cursive;
   font-size: 1.5rem;
   font-weight: 400;
-  color: #1976d2;
+  color: #FDB913;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
 }
@@ -592,7 +591,7 @@ function getUserDisplayName() {
   margin-top: 16px;
   font-size: 1rem;
   font-weight: 600;
-  color: #1976d2;
+  color: #FDB913;
 }
 
 /* ========================================
@@ -655,7 +654,7 @@ function getUserDisplayName() {
 
 .user-profile-btn:focus,
 .action-btn:focus {
-  outline: 2px solid #1976d2;
+  outline: 2px solid #FDB913;
   outline-offset: 2px;
 }
 
