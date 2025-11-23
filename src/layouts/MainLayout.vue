@@ -291,11 +291,25 @@ watch(
 
       // On page refresh with authenticated user
       if (isPageRefresh) {
+        console.log('MainLayout - Page refresh detected')
+        
+        // 1. User is authenticated (already checked above)
+        // 2. Redirect to index page if not already there
+        if (currentPath !== '/' && !isOnLoadingPage) {
+          console.log('MainLayout - Redirecting to index page')
+          router.push('/')
+        }
+        
+        // 3. Check if data is already loaded
+        const hasData = userDataStore.userAccessibleProperties.length > 0
+        
+        // 4. If not loaded -> Load data immediately
         if (!hasData && !userDataStore.profileLoading) {
-          console.log('MainLayout - Page refresh detected, loading data')
+          console.log('MainLayout - Loading data')
           loadAllUserData()
         } else {
-          console.log('MainLayout - Page refresh but data already loaded or loading')
+          // 5. If loaded -> Do nothing
+          console.log('MainLayout - Data already loaded')
         }
         return
       }
