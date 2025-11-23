@@ -56,7 +56,7 @@
           <div class="header-title">
             <h1 class="text-h4 text-weight-bold">Dashboard</h1>
             <p class="text-subtitle1 text-grey-6">
-              Welcome back! Here's your property management overview.
+              Welcome back!
             </p>
           </div>
           <div class="header-actions">
@@ -99,17 +99,6 @@
                   @click="showCreateTaskDialog = true"
                   icon="dns"
                   unelevated
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  round
-                  icon="refresh"
-                  color="primary"
-                  text-color="white"
-                  @click="refreshDashboard"
-                  :loading="dashboardLoading"
-                  class="refresh-btn"
                 />
               </div>
             </div>
@@ -889,9 +878,7 @@ const selectedTransaction = ref(null)
 
 // Reminders data
 const reminders = ref([])
-const dashboardLoading = ref(false)
 const dataLoaded = ref(false)
-const loadingStep = ref(0)
 
 // Dialog states for create forms
 const showCreatePropertyDialog = ref(false)
@@ -947,66 +934,6 @@ const activeLeases = computed(() => {
   ).length
 })
 
-// Data loading function
-const loadDashboardData = async (isRefresh = false) => {
-  try {
-    console.log('Loading dashboard data...', {
-      isRefresh,
-      isAuthenticated: userDataStore.isAuthenticated,
-    })
-
-    if (!import.meta.env.VITE_FIREBASE_API_KEY) {
-      throw new Error('Firebase API key is not configured. Please check your .env file.')
-    }
-
-    if (!userDataStore.isAuthenticated) {
-      console.log('User not authenticated, skipping data load')
-      dataLoaded.value = true
-      return
-    }
-
-    dataLoaded.value = false
-    loadingStep.value = 0
-
-    // Load data sequentially with progress tracking
-    try {
-      loadingStep.value = 1
-      await userDataStore.loadUserRoles()
-
-      loadingStep.value = 2
-      await userDataStore.loadProperties()
-
-      loadingStep.value = 3
-      await userDataStore.loadTransactions()
-
-      loadingStep.value = 4
-      await userDataStore.loadMxRecords()
-
-      loadingStep.value = 5
-      await userDataStore.loadLeases()
-    } catch (apiError) {
-      console.error('API Error during data loading:', apiError)
-      throw new Error(`Failed to load data: ${apiError.message}`)
-    }
-
-    // Process the loaded data
-    processDashboardData()
-  } catch (error) {
-    console.error('Dashboard data loading failed:', error)
-    const errorMessage = error.message.includes('Firebase API key')
-      ? 'Firebase configuration error. Please check your environment variables.'
-      : 'Network or API error. Please check your connection and try again.'
-
-    Notify.create({
-      type: 'negative',
-      message: errorMessage,
-      position: 'top',
-      timeout: 5000,
-    })
-
-    dataLoaded.value = true
-  }
-}
 
 // Process dashboard data
 const processDashboardData = () => {
@@ -1126,17 +1053,6 @@ const getTransactionAmountColor = (transacType) => {
   }
 }
 
-const refreshDashboard = async () => {
-  dashboardLoading.value = true
-  await loadDashboardData(true)
-  dashboardLoading.value = false
-  Notify.create({
-    type: 'positive',
-    message: 'Dashboard refreshed successfully',
-    position: 'top',
-    timeout: 2000,
-  })
-}
 
 // Quick actions dialog handlers
 const openCreatePropertyDialog = () => {
@@ -1347,7 +1263,6 @@ const renewReminder = (reminder) => {
 // Dialog event handlers
 const onPropertyCreated = () => {
   showCreatePropertyDialog.value = false
-  refreshDashboard()
   Notify.create({
     type: 'positive',
     message: 'Property created successfully!',
@@ -1358,7 +1273,6 @@ const onPropertyCreated = () => {
 
 const onTaskCreated = () => {
   showCreateTaskDialog.value = false
-  refreshDashboard()
   Notify.create({
     type: 'positive',
     message: 'Task created successfully!',
@@ -1369,7 +1283,6 @@ const onTaskCreated = () => {
 
 const onTransactionCreated = () => {
   showCreateTransactionDialog.value = false
-  refreshDashboard()
   Notify.create({
     type: 'positive',
     message: 'Transaction created successfully!',
@@ -1380,7 +1293,6 @@ const onTransactionCreated = () => {
 
 const onLeaseCreated = () => {
   showCreateLeaseDialog.value = false
-  refreshDashboard()
   Notify.create({
     type: 'positive',
     message: 'Lease created successfully!',
@@ -1394,13 +1306,12 @@ watch(
   () => userDataStore.isAuthenticated,
   async (newValue) => {
     if (newValue) {
-      await loadDashboardData(true)
+      processDashboardData()
     } else {
       // Clear data on logout
       recentMxRecords.value = []
       recentTransactions.value = []
       dataLoaded.value = false
-      loadingStep.value = 0
     }
   },
 )
@@ -1474,9 +1385,10 @@ onMounted(async () => {
       router.push('/loading')
       return
     }
+    
+    // Process existing data from store
+    processDashboardData()
   }
-
-  await loadDashboardData(true)
 
   // Load reminders
   loadReminders()

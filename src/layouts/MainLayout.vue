@@ -36,13 +36,28 @@
 
         <!-- Logo -->
         <div class="header-logo">
-          <span class="header-app-title">Handout</span>
+          <span class="header-app-title"
+                  >Handout</span>
         </div>
 
         <q-space />
 
         <!-- Header Actions -->
         <div class="header-actions">
+          <!-- Refresh Button -->
+          <q-btn 
+            flat 
+            round 
+            dense 
+            icon="refresh" 
+            color="grey-7" 
+            class="action-btn"
+            @click="refreshAllData"
+            :loading="dataLoading"
+          >
+            <q-tooltip>Refresh Data</q-tooltip>
+          </q-btn>
+
           <!-- History/Clock Icon -->
           <q-btn flat round dense icon="schedule" color="grey-7" class="action-btn">
             <q-tooltip>History</q-tooltip>
@@ -391,6 +406,26 @@ function getUserInitials() {
 
 function getUserDisplayName() {
   return userDataStore.user?.displayName || userDataStore.user?.email?.split('@')[0] || 'User'
+}
+
+// Refresh all data
+async function refreshAllData() {
+  if (!userDataStore.isAuthenticated) {
+    return
+  }
+  
+  console.log('MainLayout - Refreshing all data...')
+  await loadAllUserData()
+  
+  // Show success notification
+  import('quasar').then(({ Notify }) => {
+    Notify.create({
+      type: 'positive',
+      message: 'Data refreshed successfully',
+      position: 'top',
+      timeout: 2000,
+    })
+  })
 }
 </script>
 
