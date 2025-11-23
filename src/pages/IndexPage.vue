@@ -419,7 +419,6 @@
         </div>
       </div>
 
-
       <!-- Quick Actions Dialog -->
       <q-dialog v-model="showQuickActions" position="bottom">
         <q-card class="quick-actions-dialog">
@@ -473,7 +472,7 @@
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Task Details</div>
             <q-space />
-            <q-btn icon="close" flat round dense v-close-popup />
+            <q-btn icon="close" flat round dense color="primary" v-close-popup />
           </q-card-section>
 
           <q-card-section v-if="selectedMxRecord" class="q-pt-none">
@@ -543,7 +542,7 @@
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Transaction Details</div>
             <q-space />
-            <q-btn icon="close" flat round dense v-close-popup />
+            <q-btn icon="close" flat round dense color="primary" v-close-popup />
           </q-card-section>
 
           <q-card-section v-if="selectedTransaction" class="q-pt-none">
@@ -623,6 +622,7 @@
                 round
                 dense
                 icon="close"
+                color="primary"
                 @click="showCreatePropertyDialog = false"
                 class="dialog-close-btn"
               />
@@ -648,6 +648,7 @@
                 round
                 dense
                 icon="close"
+                color="primary"
                 @click="showCreateTaskDialog = false"
                 class="dialog-close-btn"
               />
@@ -673,6 +674,7 @@
                 round
                 dense
                 icon="close"
+                color="primary"
                 @click="showCreateTransactionDialog = false"
                 class="dialog-close-btn"
               />
@@ -698,6 +700,7 @@
                 round
                 dense
                 icon="close"
+                color="primary"
                 @click="showCreateLeaseDialog = false"
                 class="dialog-close-btn"
               />
@@ -723,6 +726,7 @@
                 round
                 dense
                 icon="close"
+                color="primary"
                 @click="closeRenewalHistoryDialog"
                 class="dialog-close-btn"
               />

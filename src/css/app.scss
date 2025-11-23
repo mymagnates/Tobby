@@ -7,7 +7,7 @@
   ╚══════════════════════════════════════════════════════════════════════════════╝
 
   Professional Clean Palette:
-  • #245773 - Deep Teal Blue (Primary Actions/CTAs)
+  • #1976d2 - Blue (Primary Actions/CTAs)
   • #BBBDBC - Light Gray (Secondary/Links)
   • #733E24 - Dark Brown (Accent/Highlights)
   • #F2F0EF - Warm White (Backgrounds/Surfaces)
@@ -27,11 +27,11 @@
 
 // Professional & Clean Color Strategy
 :root {
-  // Primary Colors - Deep Teal Blue
-  --primary-color: #245773; // Deep teal blue (primary actions)
-  --primary-light: #3a6b85; // Lighter teal
-  --primary-dark: #1e4559; // Darker teal
-  --primary-glow: rgba(36, 87, 115, 0.15);
+  // Primary Colors - Blue
+  --primary-color: #1976d2; // Blue (primary actions)
+  --primary-light: #42a5f5; // Lighter blue
+  --primary-dark: #1565c0; // Darker blue
+  --primary-glow: rgba(25, 118, 210, 0.15);
 
   --accent-color: #733e24; // Dark brown (accent/highlights)
   --accent-light: #8a4f2a; // Lighter brown
