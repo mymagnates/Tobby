@@ -22,7 +22,7 @@
       <!-- User Profile Section at Bottom -->
       <div class="drawer-profile-section">
         <q-separator class="q-mb-md" />
-        
+
         <!-- Profile Item -->
         <q-item clickable @click="goToProfile" class="profile-item">
           <q-item-section avatar>
@@ -37,7 +37,9 @@
           </q-item-section>
           <q-item-section>
             <q-item-label class="profile-name">{{ getUserDisplayName() }}</q-item-label>
-            <q-item-label caption class="profile-role">{{ userDataStore.userCategory || 'User' }}</q-item-label>
+            <q-item-label caption class="profile-role">{{
+              userDataStore.userCategory || 'User'
+            }}</q-item-label>
           </q-item-section>
           <q-item-section side>
             <q-icon name="settings" color="grey-6" size="20px" />
@@ -457,6 +459,16 @@ async function refreshAllData() {
   background: #f5f7fa;
 }
 
+/* Hide scrollbars globally while maintaining scroll functionality */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* ========================================
    DARK SIDEBAR STYLING
    ======================================== */
@@ -467,6 +479,13 @@ async function refreshAllData() {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* Allow scrolling */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.dark-drawer::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .drawer-logo-icon {
@@ -607,7 +626,6 @@ async function refreshAllData() {
   background: #f3f4f6;
 }
 
-
 /* Navigation Links (Dark Theme) */
 .nav-link {
   margin: 4px 0;
@@ -620,6 +638,13 @@ async function refreshAllData() {
   background: #f5f7fa;
   min-height: 100vh;
   position: relative;
+  overflow-y: auto; /* Allow scrolling */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.page-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* Loading Overlay */
