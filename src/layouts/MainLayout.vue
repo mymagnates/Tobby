@@ -18,6 +18,42 @@
       <q-list class="nav-list">
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
       </q-list>
+
+      <!-- User Profile Section at Bottom -->
+      <div class="drawer-profile-section">
+        <q-separator class="q-mb-md" />
+        
+        <!-- Profile Item -->
+        <q-item clickable @click="goToProfile" class="profile-item">
+          <q-item-section avatar>
+            <q-avatar size="40px" color="primary" text-color="white">
+              <img
+                v-if="userDataStore.user?.photoURL"
+                :src="userDataStore.user.photoURL"
+                alt="User Avatar"
+              />
+              <span v-else>{{ getUserInitials() }}</span>
+            </q-avatar>
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="profile-name">{{ getUserDisplayName() }}</q-item-label>
+            <q-item-label caption class="profile-role">{{ userDataStore.userCategory || 'User' }}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-icon name="settings" color="grey-6" size="20px" />
+          </q-item-section>
+        </q-item>
+
+        <!-- Sign Out Item -->
+        <q-item clickable @click="handleSignOut" class="signout-item">
+          <q-item-section avatar>
+            <q-icon name="logout" color="grey-7" size="20px" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Sign Out</q-item-label>
+          </q-item-section>
+        </q-item>
+      </div>
     </q-drawer>
 
     <!-- Top Header -->
@@ -67,44 +103,6 @@
             <q-badge color="primary" floating rounded />
             <q-tooltip>Notifications</q-tooltip>
           </q-btn>
-
-          <!-- User Profile -->
-          <q-btn-dropdown flat no-caps class="user-profile-btn">
-            <template v-slot:label>
-              <div class="row items-center no-wrap">
-                <q-avatar size="36px" color="primary" text-color="white">
-                  <img
-                    v-if="userDataStore.user?.photoURL"
-                    :src="userDataStore.user.photoURL"
-                    alt="User Avatar"
-                  />
-                  <span v-else>{{ getUserInitials() }}</span>
-                </q-avatar>
-                <div class="user-info q-ml-sm gt-sm">
-                  <div class="user-name-text">{{ getUserDisplayName() }}</div>
-                  <div class="user-role-text">{{ userDataStore.userCategory || 'User' }}</div>
-                </div>
-              </div>
-            </template>
-
-            <q-list class="user-menu-list">
-              <q-item clickable v-close-popup @click="goToProfile" class="menu-item">
-                <q-item-section avatar>
-                  <q-icon name="person" color="primary" />
-                </q-item-section>
-                <q-item-section>Profile & Settings</q-item-section>
-              </q-item>
-
-              <q-separator />
-
-              <q-item clickable v-close-popup @click="handleSignOut" class="menu-item">
-                <q-item-section avatar>
-                  <q-icon name="logout" color="grey-7" />
-                </q-item-section>
-                <q-item-section>Sign Out</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
         </div>
       </q-toolbar>
     </q-header>
@@ -292,17 +290,17 @@ watch(
       // On page refresh with authenticated user
       if (isPageRefresh) {
         console.log('MainLayout - Page refresh detected')
-        
+
         // 1. User is authenticated (already checked above)
         // 2. Redirect to index page if not already there
         if (currentPath !== '/' && !isOnLoadingPage) {
           console.log('MainLayout - Redirecting to index page')
           router.push('/')
         }
-        
+
         // 3. Check if data is already loaded
         const hasData = userDataStore.userAccessibleProperties.length > 0
-        
+
         // 4. If not loaded -> Load data immediately
         if (!hasData && !userDataStore.profileLoading) {
           console.log('MainLayout - Loading data')
@@ -467,6 +465,8 @@ async function refreshAllData() {
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
 }
 
 .drawer-logo-icon {
@@ -490,6 +490,52 @@ async function refreshAllData() {
 
 .nav-list {
   padding: 20px 16px;
+  flex: 1;
+}
+
+/* Drawer Profile Section */
+.drawer-profile-section {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.profile-item {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.profile-item:hover {
+  background: #f3f4f6;
+}
+
+.profile-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.profile-role {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.signout-item {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  padding: 12px 16px;
+  color: #6b7280;
+}
+
+.signout-item:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.signout-item:hover .q-icon {
+  color: #dc2626;
 }
 
 /* ========================================
@@ -561,52 +607,6 @@ async function refreshAllData() {
   background: #f3f4f6;
 }
 
-/* User Profile Button */
-.user-profile-btn {
-  padding: 4px 12px 4px 4px;
-  border-radius: 24px;
-  transition: all 0.3s ease;
-}
-
-.user-profile-btn:hover {
-  background: #f3f4f6;
-}
-
-.user-info {
-  text-align: left;
-}
-
-.user-name-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.2;
-}
-
-.user-role-text {
-  font-size: 0.75rem;
-  color: #6b7280;
-  line-height: 1.2;
-}
-
-/* User Menu Dropdown */
-.user-menu-list {
-  min-width: 240px;
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-}
-
-.menu-item {
-  transition: all 0.3s ease;
-  border-radius: 8px;
-  margin: 2px 0;
-  padding: 12px 16px;
-}
-
-.menu-item:hover {
-  background: #f3f4f6;
-}
 
 /* Navigation Links (Dark Theme) */
 .nav-link {
@@ -674,10 +674,6 @@ async function refreshAllData() {
   .action-btn {
     size: sm;
   }
-
-  .user-profile-btn {
-    padding: 4px;
-  }
 }
 
 /* ========================================
@@ -703,7 +699,6 @@ async function refreshAllData() {
    ACCESSIBILITY & FOCUS STATES
    ======================================== */
 
-.user-profile-btn:focus,
 .action-btn:focus {
   outline: 2px solid #1976d2;
   outline-offset: 2px;
