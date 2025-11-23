@@ -36,8 +36,7 @@
 
         <!-- Logo -->
         <div class="header-logo">
-          <span class="header-app-title"
-                  >Handout</span>
+          <span class="header-app-title">Handout</span>
         </div>
 
         <q-space />
@@ -45,12 +44,12 @@
         <!-- Header Actions -->
         <div class="header-actions">
           <!-- Refresh Button -->
-          <q-btn 
-            flat 
-            round 
-            dense 
-            icon="refresh" 
-            color="grey-7" 
+          <q-btn
+            flat
+            round
+            dense
+            icon="refresh"
+            color="grey-7"
             class="action-btn"
             @click="refreshAllData"
             :loading="dataLoading"
@@ -287,20 +286,23 @@ watch(
 
       const currentPath = router.currentRoute.value.path
       const isOnLoadingPage = currentPath === '/loading'
-      const isOnIndexPage = currentPath === '/'
       const hasData = userDataStore.userAccessibleProperties.length > 0
+      const isPageRefresh = wasAuthenticated === undefined
 
-      // On page refresh with authenticated user, redirect to loading page if not already there or on index
-      if (wasAuthenticated === undefined && !isOnLoadingPage && !isOnIndexPage && !hasData) {
-        console.log('MainLayout - Page refresh detected, redirecting to loading page')
-        router.push('/loading')
+      // On page refresh with authenticated user
+      if (isPageRefresh) {
+        if (!hasData && !userDataStore.profileLoading) {
+          console.log('MainLayout - Page refresh detected, loading data')
+          loadAllUserData()
+        } else {
+          console.log('MainLayout - Page refresh but data already loaded or loading')
+        }
         return
       }
 
-      // Only load data in background if not on loading page and data not already loaded
+      // On normal authentication (not page refresh)
       if (!isOnLoadingPage && !hasData && !userDataStore.profileLoading) {
-        console.log('MainLayout - Loading user data in background')
-        needsRedirectAfterLoad.value = true
+        console.log('MainLayout - New authentication, loading user data')
         loadAllUserData()
       } else if (isOnLoadingPage) {
         console.log('MainLayout - On loading page, letting LoadingPage handle data loading')
@@ -413,10 +415,10 @@ async function refreshAllData() {
   if (!userDataStore.isAuthenticated) {
     return
   }
-  
+
   console.log('MainLayout - Refreshing all data...')
   await loadAllUserData()
-  
+
   // Show success notification
   import('quasar').then(({ Notify }) => {
     Notify.create({
