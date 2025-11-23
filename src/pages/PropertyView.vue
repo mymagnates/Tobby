@@ -67,7 +67,7 @@
             <div class="action-buttons">
               <q-btn
                 icon="refresh"
-                color="secondary"
+                color="primary"
                 label="Refresh"
                 @click="refreshData"
                 :loading="loading"
@@ -76,7 +76,7 @@
               />
               <q-btn
                 v-if="selectedProperty"
-                color="accent"
+                color="primary"
                 icon="photo_camera"
                 label="Manage Photos"
                 @click="openPhotoManagementDialog"
@@ -92,7 +92,7 @@
               />
               <q-btn
                 v-if="selectedProperty"
-                color="info"
+                color="primary"
                 icon="dns"
                 label="Create Task"
                 @click="openCreateMxRecordDialog"
@@ -100,7 +100,7 @@
               />
               <q-btn
                 v-if="selectedProperty"
-                color="warning"
+                color="primary"
                 icon="receipt_long"
                 label="Create Transaction"
                 @click="openCreateTransactionDialog"
@@ -108,7 +108,7 @@
               />
               <q-btn
                 v-if="selectedProperty"
-                color="accent"
+                color="primary"
                 icon="home_work"
                 label="Create Lease"
                 @click="openCreateLeaseDialog"
