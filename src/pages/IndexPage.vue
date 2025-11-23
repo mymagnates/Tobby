@@ -356,7 +356,7 @@
                             round
                             dense
                             icon="check_circle"
-                            color="positive"
+                            color="primary"
                             size="sm"
                             class="reminder-complete-btn"
                             @click="markReminderComplete(reminder)"
