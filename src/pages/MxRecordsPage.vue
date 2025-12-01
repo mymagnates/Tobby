@@ -189,8 +189,8 @@
           <!-- Add Comment Button (only action remaining) -->
           <div class="mxrecord-actions">
             <q-btn
-              color="secondary"
-              text-color="white"
+              outline
+              color="primary"
               label="Add Comment"
               class="action-btn"
               @click.stop="addComment(mxRecord)"
@@ -226,8 +226,8 @@
               @click="addPhotosToMxRecord"
             />
             <q-btn
-              color="secondary"
-              text-color="white"
+              outline
+              color="primary"
               label="Add Comment"
               class="add-comment-btn"
               @click="addCommentFromDialog"
