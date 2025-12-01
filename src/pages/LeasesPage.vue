@@ -364,7 +364,7 @@
               />
               <q-btn
                 v-if="isEditMode"
-                color="grey"
+                color="primary"
                 label="Cancel"
                 @click="cancelEdit"
                 class="cancel-btn"

@@ -854,7 +854,7 @@
 
           <!-- Submit Button -->
           <div class="row justify-end q-gutter-sm">
-            <q-btn flat label="Cancel" color="grey-7" @click="resetForm" :disable="submitting" />
+            <q-btn flat label="Cancel" color="primary" @click="resetForm" :disable="submitting" />
             <q-btn
               type="submit"
               label="Submit Application"
@@ -911,7 +911,7 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="closeDocumentDialog" />
+          <q-btn flat label="Cancel" color="primary" @click="closeDocumentDialog" />
           <q-btn
             flat
             label="Add"

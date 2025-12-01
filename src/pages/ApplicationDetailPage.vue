@@ -406,7 +406,7 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="closeAddDocumentDialog" />
+          <q-btn flat label="Cancel" color="primary" @click="closeAddDocumentDialog" />
           <q-btn
             label="Upload"
             color="primary"
@@ -448,7 +448,7 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="closeStartDateDialog" />
+          <q-btn flat label="Cancel" color="primary" @click="closeStartDateDialog" />
           <q-btn
             label="Confirm & Approve"
             color="positive"
@@ -916,7 +916,7 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="closeAddDocumentDialog" />
+          <q-btn flat label="Cancel" color="primary" @click="closeAddDocumentDialog" />
           <q-btn
             label="Upload"
             color="primary"
@@ -958,7 +958,7 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="closeStartDateDialog" />
+          <q-btn flat label="Cancel" color="primary" @click="closeStartDateDialog" />
           <q-btn
             label="Confirm & Approve"
             color="positive"

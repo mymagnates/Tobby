@@ -55,9 +55,7 @@
         <div class="header-content">
           <div class="header-title">
             <h1 class="text-h4 text-weight-bold">Dashboard</h1>
-            <p class="text-subtitle1 text-grey-6">
-              Welcome back!
-            </p>
+            <p class="text-subtitle1 text-grey-6">Welcome back!</p>
           </div>
           <div class="header-actions">
             <div class="row q-gutter-sm items-center">
@@ -793,11 +791,11 @@
                     formatReminderDate(
                       selectedReminderForHistory.created_date ||
                         selectedReminderForHistory.due_date,
-                    )
-                  "
-                  icon="add_circle"
-                  color="grey"
-                >
+                  )
+                "
+                icon="add_circle"
+                color="primary"
+              >
                   <div class="renewal-details">
                     <div class="renewal-detail-item">
                       <span class="detail-label">Original Due Date:</span>
@@ -934,7 +932,6 @@ const activeLeases = computed(() => {
   ).length
 })
 
-
 // Process dashboard data
 const processDashboardData = () => {
   console.log('Processing dashboard data...')
@@ -1052,7 +1049,6 @@ const getTransactionAmountColor = (transacType) => {
       return 'text-grey'
   }
 }
-
 
 // Quick actions dialog handlers
 const openCreatePropertyDialog = () => {
@@ -1385,7 +1381,7 @@ onMounted(async () => {
       router.push('/loading')
       return
     }
-    
+
     // Process existing data from store
     processDashboardData()
   }

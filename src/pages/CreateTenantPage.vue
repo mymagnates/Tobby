@@ -14,7 +14,7 @@
             flat
             icon="arrow_back"
             label="Back"
-            color="grey-7"
+            color="primary"
             @click="$router.back()"
           />
         </div>
@@ -760,7 +760,7 @@
               <q-btn
                 flat
                 label="Cancel"
-                color="grey-7"
+                color="primary"
                 icon="cancel"
                 @click="$router.back()"
                 :disable="submitting"

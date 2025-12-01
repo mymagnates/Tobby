@@ -34,7 +34,7 @@
           />
           <q-btn
             flat
-            color="grey-7"
+            color="primary"
             size="lg"
             label="Go to Home"
             icon="home"
