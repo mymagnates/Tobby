@@ -9,8 +9,8 @@
       class="dark-drawer"
       :breakpoint="1024"
     >
-      <!-- Logo Text -->
-      <div class="drawer-logo-icon">
+      <!-- Logo Text - Click to collapse menu -->
+      <div class="drawer-logo-icon" @click="toggleLeftDrawer">
         <span class="sidebar-app-title">Handout</span>
       </div>
 
@@ -59,18 +59,18 @@
     <!-- Top Header -->
     <q-header class="dashboard-header">
       <q-toolbar class="q-px-lg">
-        <!-- Menu Button -->
-        <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
+        <!-- Handout Logo - Shows when sidebar is closed -->
+        <div 
+          v-if="!leftDrawerOpen" 
+          class="header-handout-logo" 
           @click="toggleLeftDrawer"
-          class="menu-btn"
-        />
+        >
+          <span class="header-app-title">Handout</span>
+        </div>
+        
         <q-space />
-        <!-- Logo -->
+        
+        <!-- Logo Image -->
         <div class="header-logo" @click="refreshAllData">
           <img src="/logo.svg" alt="Handout Logo" class="header-logo-image" />
         </div>
@@ -459,6 +459,12 @@ async function refreshAllData() {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.drawer-logo-icon:hover {
+  background: rgba(25, 118, 210, 0.05);
 }
 
 .sidebar-app-title {
@@ -468,10 +474,9 @@ async function refreshAllData() {
   color: #1976d2;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
-  cursor: pointer;
 }
 
-.sidebar-app-title:hover {
+.drawer-logo-icon:hover .sidebar-app-title {
   transform: scale(1.05);
 }
 
@@ -536,30 +541,26 @@ async function refreshAllData() {
   height: 72px;
 }
 
-.menu-btn {
-  color: #1976d2 !important;
-  margin-right: 12px;
+/* Header Handout Logo - Shows when sidebar is closed */
+.header-handout-logo {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
   transition: all 0.3s ease;
-  border: 2px solid #1976d2 !important;
-  background: white !important;
-  opacity: 1 !important;
-  visibility: visible !important;
 }
 
-.menu-btn .q-icon,
-.menu-btn .q-btn__content .q-icon {
-  color: #1976d2 !important;
-  opacity: 1 !important;
+.header-handout-logo:hover {
+  background: rgba(25, 118, 210, 0.1);
 }
 
-.menu-btn:hover {
-  background: rgba(25, 118, 210, 0.1) !important;
-  color: #1976d2 !important;
-  border-color: #1976d2 !important;
-}
-
-.menu-btn:hover .q-icon {
-  color: #1976d2 !important;
+.header-handout-logo .header-app-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #1976d2;
+  letter-spacing: 0.02em;
 }
 
 /* Header Logo */
