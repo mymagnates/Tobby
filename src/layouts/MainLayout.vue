@@ -537,17 +537,20 @@ async function refreshAllData() {
 }
 
 .menu-btn {
-  color: #1976d2 !important;
+  color: white !important;
   margin-right: 12px;
   transition: all 0.3s ease;
-  border: 1px solid #1976d2 !important;
-  background: white !important;
+  border: none !important;
+  background: #1976d2 !important;
 }
 
 .menu-btn:hover {
-  background: rgba(25, 118, 210, 0.1) !important;
-  color: #1976d2 !important;
-  border-color: #1976d2 !important;
+  background: #1565c0 !important;
+  color: white !important;
+}
+
+.menu-btn .q-icon {
+  color: white !important;
 }
 
 /* Header Logo */
