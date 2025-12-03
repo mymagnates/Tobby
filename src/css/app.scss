@@ -707,14 +707,84 @@ body {
 // Professional Dialog Styles - Flat Design
 .q-dialog__inner--minimized > div {
   border-radius: var(--border-radius);
-  box-shadow: none;
+  box-shadow: none !important;
+  border: 1px solid var(--neutral-200);
+}
+
+.q-dialog__inner > div {
+  box-shadow: none !important;
+  border: 1px solid var(--neutral-200);
+}
+
+.q-dialog .q-card {
+  box-shadow: none !important;
   border: 1px solid var(--neutral-200);
 }
 
 // Professional Notify Styles - Flat Design
 .q-notification {
   border-radius: var(--border-radius-sm);
-  box-shadow: none;
+  box-shadow: none !important;
+  border: 1px solid var(--neutral-200);
+}
+
+// Global Flat Design Override - Remove ALL shadows
+.q-card,
+.q-dialog .q-card,
+.q-menu,
+.q-drawer,
+.q-header,
+.q-toolbar,
+.q-notification,
+.q-banner,
+.q-expansion-item,
+.q-table,
+.q-chip,
+.q-btn,
+.q-avatar,
+.q-badge,
+.q-popup-proxy,
+.q-tooltip,
+.q-page-sticky {
+  box-shadow: none !important;
+}
+
+// Ensure hover states also have no shadows
+.q-card:hover,
+.q-btn:hover,
+.q-chip:hover,
+.q-avatar:hover,
+.q-expansion-item:hover,
+.q-menu:hover,
+.q-item:hover {
+  box-shadow: none !important;
+}
+
+// Remove Quasar's elevated class shadows
+.q-card.q-card--elevated,
+.q-btn.q-btn--elevated,
+.elevated {
+  box-shadow: none !important;
+}
+
+// Remove shadow from all headers
+.q-header.q-header--elevated,
+.q-header[elevated] {
+  box-shadow: none !important;
+}
+
+// Flat popup and dropdown menus
+.q-menu,
+.q-menu .q-card,
+.q-popup-proxy .q-card,
+.q-btn-dropdown__content {
+  box-shadow: none !important;
+  border: 1px solid var(--neutral-200);
+}
+
+// Flat tooltip
+.q-tooltip {
+  box-shadow: none !important;
   border: 1px solid var(--neutral-200);
 }
 
