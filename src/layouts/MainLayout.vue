@@ -537,14 +537,17 @@ async function refreshAllData() {
 }
 
 .menu-btn {
-  color: #6b7280;
+  color: #1976d2 !important;
   margin-right: 12px;
   transition: all 0.3s ease;
+  border: 1px solid #1976d2 !important;
+  background: white !important;
 }
 
 .menu-btn:hover {
-  background: #f3f4f6;
-  color: #1976d2;
+  background: rgba(25, 118, 210, 0.1) !important;
+  color: #1976d2 !important;
+  border-color: #1976d2 !important;
 }
 
 /* Header Logo */
