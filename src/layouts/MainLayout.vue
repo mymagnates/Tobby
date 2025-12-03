@@ -57,7 +57,7 @@
     </q-drawer>
 
     <!-- Top Header -->
-    <q-header elevated class="dashboard-header">
+    <q-header class="dashboard-header">
       <q-toolbar class="q-px-lg">
         <!-- Mobile Menu Button -->
         <q-btn
@@ -75,7 +75,6 @@
           <span class="header-app-title" @click="refreshAllData" :loading="dataLoading"
             >Handout</span
           >
-
         </div>
 
         <!-- Header Actions -->
