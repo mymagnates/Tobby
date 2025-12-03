@@ -448,31 +448,142 @@ body {
   }
 }
 
-// Professional Input Styles
+// Professional Input Styles - Flat Design
 .q-field {
   .q-field__control {
     border-radius: var(--border-radius-sm);
     transition: var(--transition);
-    border: 2px solid var(--neutral-200);
-    background: white;
+    border: none !important;
+    border-bottom: 2px solid var(--neutral-300) !important;
+    background: var(--neutral-50) !important;
+    box-shadow: none !important;
 
     &:hover {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px var(--primary-glow);
+      border-bottom-color: var(--primary-color) !important;
+      background: var(--neutral-100) !important;
+      box-shadow: none !important;
+    }
+
+    &::before,
+    &::after {
+      border: none !important;
     }
   }
 
   &.q-field--focused .q-field__control {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px var(--primary-glow);
+    border-bottom-color: var(--primary-color) !important;
+    background: var(--neutral-100) !important;
+    box-shadow: none !important;
+  }
+
+  // Remove outline styling
+  &.q-field--outlined .q-field__control {
+    border: none !important;
+    border-bottom: 2px solid var(--neutral-300) !important;
+
+    &:hover {
+      border: none !important;
+      border-bottom: 2px solid var(--primary-color) !important;
+    }
+  }
+
+  &.q-field--outlined.q-field--focused .q-field__control {
+    border: none !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+
+  // Label styling
+  .q-field__label {
+    color: var(--neutral-600);
+  }
+
+  &.q-field--focused .q-field__label {
+    color: var(--primary-color);
   }
 }
 
-// Professional Select Styles
+// Professional Select Styles - Flat Design
 .q-select {
   .q-field__control {
     border-radius: var(--border-radius-sm);
+    border: none !important;
+    border-bottom: 2px solid var(--neutral-300) !important;
+    background: var(--neutral-50) !important;
+    box-shadow: none !important;
+
+    &:hover {
+      border-bottom-color: var(--primary-color) !important;
+      background: var(--neutral-100) !important;
+    }
   }
+
+  &.q-field--focused .q-field__control {
+    border-bottom-color: var(--primary-color) !important;
+    background: var(--neutral-100) !important;
+  }
+
+  // Remove outline styling
+  &.q-select--outlined .q-field__control,
+  &.q-field--outlined .q-field__control {
+    border: none !important;
+    border-bottom: 2px solid var(--neutral-300) !important;
+  }
+
+  &.q-select--outlined.q-field--focused .q-field__control,
+  &.q-field--outlined.q-field--focused .q-field__control {
+    border: none !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+}
+
+// Flat File Input
+.q-file {
+  .q-field__control {
+    border: none !important;
+    border-bottom: 2px solid var(--neutral-300) !important;
+    background: var(--neutral-50) !important;
+    box-shadow: none !important;
+
+    &:hover {
+      border-bottom-color: var(--primary-color) !important;
+      background: var(--neutral-100) !important;
+    }
+  }
+
+  &.q-field--focused .q-field__control {
+    border-bottom-color: var(--primary-color) !important;
+  }
+}
+
+// Flat Date/Time Pickers
+.q-date,
+.q-time {
+  border: none !important;
+  box-shadow: none !important;
+  background: white !important;
+}
+
+// Override any outlined class globally
+.q-field--outlined .q-field__control,
+.q-input--outlined .q-field__control,
+.q-select--outlined .q-field__control,
+.q-textarea--outlined .q-field__control {
+  border: none !important;
+  border-bottom: 2px solid var(--neutral-300) !important;
+  border-radius: var(--border-radius-sm) !important;
+
+  &:hover {
+    border: none !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+}
+
+.q-field--outlined.q-field--focused .q-field__control,
+.q-input--outlined.q-field--focused .q-field__control,
+.q-select--outlined.q-field--focused .q-field__control,
+.q-textarea--outlined.q-field--focused .q-field__control {
+  border: none !important;
+  border-bottom: 2px solid var(--primary-color) !important;
 }
 
 // Professional Chip Styles - Flat Design
