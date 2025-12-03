@@ -9,9 +9,9 @@
       class="dark-drawer"
       :breakpoint="1024"
     >
-      <!-- Logo Icon -->
+      <!-- Logo Text -->
       <div class="drawer-logo-icon">
-        <img src="/logo.svg" alt="Logo" class="sidebar-logo" />
+        <span class="sidebar-app-title">Handout</span>
       </div>
 
       <!-- Navigation Links -->
@@ -71,10 +71,8 @@
         />
         <q-space />
         <!-- Logo -->
-        <div class="header-logo">
-          <span class="header-app-title" @click="refreshAllData" :loading="dataLoading"
-            >Handout</span
-          >
+        <div class="header-logo" @click="refreshAllData">
+          <img src="/logo.svg" alt="Handout Logo" class="header-logo-image" />
         </div>
 
         <!-- Header Actions -->
@@ -463,15 +461,18 @@ async function refreshAllData() {
   justify-content: center;
 }
 
-.sidebar-logo {
-  height: 48px;
-  width: auto;
+.sidebar-app-title {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: #1976d2;
+  letter-spacing: 0.02em;
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
-.sidebar-logo:hover {
-  transform: scale(1.1);
+.sidebar-app-title:hover {
+  transform: scale(1.05);
 }
 
 .nav-list {
@@ -553,32 +554,19 @@ async function refreshAllData() {
 .header-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-left: 16px;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.logo-image {
-  height: 36px;
+.header-logo:hover {
+  transform: scale(1.05);
+}
+
+.header-logo-image {
+  height: 40px;
   width: auto;
   transition: all 0.3s ease;
-}
-
-.header-logo:hover .logo-image {
-  transform: scale(1.05);
-}
-
-.header-app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: #1976d2;
-  letter-spacing: 0.02em;
-  transition: all 0.3s ease;
-}
-
-.header-logo:hover .header-app-title {
-  transform: scale(1.05);
 }
 
 /* Header Actions */
