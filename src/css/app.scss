@@ -2048,3 +2048,297 @@ body {
     animation: pulse 2s infinite;
   }
 }
+
+// ============================================
+// STANDARDIZED CREATION FORM STYLES
+// ============================================
+// These styles ensure all creation popup windows
+// have a consistent look and feel
+
+// Creation Form Container
+.create-property,
+.create-mxrecord,
+.create-transaction,
+.create-lease,
+.create-tenant,
+.create-reminder {
+  animation: fadeIn 0.3s ease-out;
+
+  .q-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .q-card-section {
+    padding: 0 !important;
+  }
+}
+
+// Standardized Form Header (inside dialog)
+.form-header,
+.create-form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  .q-icon {
+    font-size: 28px;
+    color: var(--primary-color);
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--neutral-800);
+  }
+
+  .form-subtitle {
+    font-size: 0.875rem;
+    color: var(--neutral-600);
+    margin-top: 4px;
+  }
+}
+
+// Standardized Section Header
+.section-header,
+.form-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 24px 0 16px 0;
+  background: var(--neutral-50);
+  border-radius: var(--border-radius-sm);
+  border-left: 4px solid var(--primary-color);
+
+  .q-icon {
+    color: var(--primary-color);
+    font-size: 18px;
+  }
+
+  .text-subtitle2,
+  .section-title {
+    font-weight: 600;
+    color: var(--neutral-700);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+// Form Row Layout
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+
+  .form-field {
+    flex: 1;
+  }
+
+  .form-field-half {
+    flex: 0 0 calc(50% - 8px);
+
+    @media (max-width: 768px) {
+      flex: 1;
+    }
+  }
+
+  .form-field-third {
+    flex: 0 0 calc(33.333% - 11px);
+
+    @media (max-width: 768px) {
+      flex: 1;
+    }
+  }
+}
+
+// Standardized Form Actions
+.form-actions,
+.create-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 24px;
+  margin-top: 24px;
+  border-top: 1px solid var(--neutral-200);
+
+  .q-btn {
+    min-width: 120px;
+  }
+}
+
+// Picture Upload Section - Standardized
+.picture-upload-section,
+.file-upload-section {
+  margin: 24px 0;
+  padding: 20px;
+  background: var(--neutral-50);
+  border-radius: var(--border-radius);
+  border: 2px dashed var(--neutral-300);
+
+  .text-subtitle2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--neutral-700);
+    margin-bottom: 12px;
+  }
+
+  .q-file {
+    background: white;
+  }
+}
+
+// Image Previews - Standardized
+.image-previews,
+.image-preview-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+
+  .image-preview-item {
+    position: relative;
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--neutral-200);
+    
+    .q-img {
+      width: 120px;
+      height: 120px;
+    }
+
+    .q-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(255, 255, 255, 0.9) !important;
+    }
+  }
+}
+
+// Specs Card - Standardized
+.specs-card {
+  background: var(--neutral-50) !important;
+  border: 1px solid var(--neutral-200) !important;
+  border-radius: var(--border-radius-sm) !important;
+  padding: 16px !important;
+}
+
+// Property Info Card in Forms
+.property-info-card {
+  background: var(--neutral-50) !important;
+  border: 1px solid var(--neutral-200) !important;
+  border-radius: var(--border-radius-sm) !important;
+}
+
+// Debug Section (collapse by default)
+.property-debug-section {
+  .q-expansion-item {
+    background: var(--neutral-100);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 16px;
+  }
+
+  .debug-json {
+    background: var(--neutral-800);
+    color: #10b981;
+    padding: 12px;
+    border-radius: var(--border-radius-sm);
+    font-family: monospace;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
+// Spec Compact Items
+.property-specs-compact {
+  .spec-compact-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--neutral-200);
+
+    .spec-compact-label {
+      font-size: 0.75rem;
+      color: var(--neutral-600);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .spec-compact-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neutral-800);
+    }
+  }
+}
+
+// Standardized Field Labels inside forms
+.q-dialog .q-field {
+  .q-field__label {
+    font-weight: 500;
+  }
+}
+
+// Remove elevated class from cards inside dialogs
+.q-dialog .elevated,
+.q-dialog .q-card.elevated {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+// Standardized textarea
+.q-dialog textarea {
+  min-height: 100px;
+}
+
+// Form Loading State
+.form-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// Success State Animation
+.form-success {
+  animation: successPulse 0.5s ease-out;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
