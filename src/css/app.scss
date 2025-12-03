@@ -363,6 +363,76 @@ body {
   }
 }
 
+// Flat/White/Transparent Buttons - Use Primary Outline Style
+.q-btn.q-btn--flat,
+.q-btn[flat],
+.q-btn.bg-white,
+.q-btn.bg-transparent {
+  background: transparent !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  
+  &:hover {
+    background: var(--primary-glow) !important;
+    border-color: var(--primary-color) !important;
+    transform: translateY(-1px);
+  }
+
+  .q-icon {
+    color: var(--primary-color) !important;
+  }
+}
+
+// Quasar flat button override
+.q-btn--flat:not(.q-btn--round) {
+  background: transparent !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  
+  &:hover {
+    background: var(--primary-glow) !important;
+  }
+}
+
+// Exception for buttons inside dialog headers (keep white)
+.q-dialog .q-card-section:first-child .q-btn--flat,
+.dialog-header .q-btn--flat,
+.q-header .q-btn--flat {
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: white !important;
+  }
+
+  .q-icon {
+    color: white !important;
+  }
+}
+
+// Exception for round icon buttons (no border needed)
+.q-btn--round.q-btn--flat {
+  border: none !important;
+  
+  &:hover {
+    background: var(--primary-glow) !important;
+    border: none !important;
+  }
+}
+
+// Cancel buttons with outline style
+.q-btn[label="Cancel"],
+.q-btn[label="Close"] {
+  background: transparent !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  
+  &:hover {
+    background: var(--primary-glow) !important;
+  }
+}
+
 // Button Group Styles
 .btn-group {
   display: flex;
