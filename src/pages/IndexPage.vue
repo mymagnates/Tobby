@@ -111,7 +111,7 @@
             <q-card class="stat-card income-card">
               <q-card-section class="stat-card__content">
                 <div class="stat-card__icon">
-                  <q-icon name="trending_up" size="24px" color="positive" />
+                  <q-icon name="arrow_circle_up" size="24px" color="positive" />
                 </div>
                 <div class="stat-card__info">
                   <div class="stat-card__value">${{ formatCurrency(monthlyIncome) }}</div>
@@ -125,7 +125,7 @@
             <q-card class="stat-card expense-card">
               <q-card-section class="stat-card__content">
                 <div class="stat-card__icon">
-                  <q-icon name="trending_down" size="24px" color="negative" />
+                  <q-icon name="arrow_circle_down" size="24px" color="negative" />
                 </div>
                 <div class="stat-card__info">
                   <div class="stat-card__value">${{ formatCurrency(monthlyExpense) }}</div>
@@ -791,11 +791,11 @@
                     formatReminderDate(
                       selectedReminderForHistory.created_date ||
                         selectedReminderForHistory.due_date,
-                  )
-                "
-                icon="add_circle"
-                color="primary"
-              >
+                    )
+                  "
+                  icon="add_circle"
+                  color="primary"
+                >
                   <div class="renewal-details">
                     <div class="renewal-detail-item">
                       <span class="detail-label">Original Due Date:</span>
