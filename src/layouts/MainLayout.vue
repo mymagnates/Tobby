@@ -537,20 +537,29 @@ async function refreshAllData() {
 }
 
 .menu-btn {
-  color: white !important;
+  color: #1976d2 !important;
   margin-right: 12px;
   transition: all 0.3s ease;
-  border: none !important;
-  background: #1976d2 !important;
+  border: 2px solid #1976d2 !important;
+  background: white !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.menu-btn .q-icon,
+.menu-btn .q-btn__content .q-icon {
+  color: #1976d2 !important;
+  opacity: 1 !important;
 }
 
 .menu-btn:hover {
-  background: #1565c0 !important;
-  color: white !important;
+  background: rgba(25, 118, 210, 0.1) !important;
+  color: #1976d2 !important;
+  border-color: #1976d2 !important;
 }
 
-.menu-btn .q-icon {
-  color: white !important;
+.menu-btn:hover .q-icon {
+  color: #1976d2 !important;
 }
 
 /* Header Logo */
