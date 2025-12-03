@@ -129,10 +129,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-// Professional Finance Card Styles
+// Professional Finance Card Styles - Flat Design
 .q-card {
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   border: 1px solid var(--neutral-200);
   transition: var(--transition);
   background: white;
@@ -141,12 +141,12 @@ body {
 }
 
 .q-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: none;
+  border-color: var(--primary-color);
 }
 
 .q-card.elevated {
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
 }
 
 .q-card.primary-card {
@@ -213,10 +213,10 @@ body {
   min-height: 40px;
 
   &:not(.flat):not(.outline) {
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
 
     &:hover {
-      box-shadow: var(--shadow-md);
+      box-shadow: none;
       transform: translateY(-1px);
     }
   }
@@ -339,7 +339,7 @@ body {
 
     &:hover {
       transform: none !important;
-      box-shadow: var(--shadow-sm) !important;
+      box-shadow: none !important;
     }
   }
 
@@ -475,7 +475,7 @@ body {
   }
 }
 
-// Professional Chip Styles
+// Professional Chip Styles - Flat Design
 .q-chip {
   border-radius: var(--border-radius-sm);
   font-weight: 600;
@@ -484,7 +484,7 @@ body {
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
   }
 
   &.chip-primary {
@@ -520,32 +520,32 @@ body {
   border: none;
 }
 
-// Professional Avatar Styles
+// Professional Avatar Styles - Flat Design
 .q-avatar {
   border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transition: var(--transition);
 
   &:hover {
     transform: scale(1.05);
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
   }
 }
 
-// Professional Drawer Styles
+// Professional Drawer Styles - Flat Design
 .q-drawer {
   border-radius: 0 var(--border-radius) var(--border-radius) 0;
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
   background: white;
   border-right: 1px solid var(--neutral-200);
 }
 
-// Professional Header Styles
+// Professional Header Styles - Flat Design
 .q-header {
   backdrop-filter: blur(10px);
   background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
   border-bottom: 1px solid var(--accent-color);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   color: white;
 }
 
@@ -557,7 +557,7 @@ body {
   }
 }
 
-// Professional Expansion Item Styles
+// Professional Expansion Item Styles - Flat Design
 .q-expansion-item {
   border-radius: var(--border-radius-sm);
   margin-bottom: var(--spacing-sm);
@@ -566,7 +566,7 @@ body {
 
   &:hover {
     border-color: var(--primary-color);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
   }
 
   .q-expansion-item__content {
@@ -574,7 +574,7 @@ body {
   }
 }
 
-// Modern Banner Styles - Using Background Primary
+// Modern Banner Styles - Flat Design
 .q-banner,
 .q-banner__content {
   border-radius: var(--border-radius-sm) !important;
@@ -582,11 +582,11 @@ body {
   background: var(--bg-primary) !important;
   background-color: var(--bg-primary) !important;
   color: var(--neutral-800) !important;
-  box-shadow: var(--shadow-md) !important;
+  box-shadow: none !important;
   transition: var(--transition) !important;
 
   &:hover {
-    box-shadow: var(--shadow-lg) !important;
+    box-shadow: none !important;
     transform: translateY(-1px) !important;
     background: var(--bg-secondary) !important;
     border-color: var(--neutral-300) !important;
@@ -667,28 +667,28 @@ body {
     }
   }
 
-  // Modern banner variants with glow effects
+  // Modern banner variants with glow effects - Flat Design
   &.banner-glow {
-    box-shadow: var(--shadow-md), var(--glow-sm);
+    box-shadow: none;
 
     &:hover {
-      box-shadow: var(--shadow-lg), var(--glow-md);
+      box-shadow: none;
     }
   }
 
   &.banner-accent.banner-glow {
-    box-shadow: var(--shadow-md), var(--glow-accent);
+    box-shadow: none;
 
     &:hover {
-      box-shadow: var(--shadow-lg), var(--glow-accent);
+      box-shadow: none;
     }
   }
 
   &.banner-secondary.banner-glow {
-    box-shadow: var(--shadow-md), var(--glow-secondary);
+    box-shadow: none;
 
     &:hover {
-      box-shadow: var(--shadow-lg), var(--glow-secondary);
+      box-shadow: none;
     }
   }
 }
@@ -704,17 +704,18 @@ body {
   background: transparent !important;
 }
 
-// Professional Dialog Styles
+// Professional Dialog Styles - Flat Design
 .q-dialog__inner--minimized > div {
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow-xl);
+  box-shadow: none;
+  border: 1px solid var(--neutral-200);
 }
 
-// Professional Notify Styles
+// Professional Notify Styles - Flat Design
 .q-notification {
   border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-lg);
-  border: none;
+  box-shadow: none;
+  border: 1px solid var(--neutral-200);
 }
 
 // Professional Spinner Styles
@@ -727,11 +728,12 @@ body {
   backdrop-filter: blur(4px);
 }
 
-// Professional Table Styles
+// Professional Table Styles - Flat Design
 .q-table {
   border-radius: var(--border-radius);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
+  border: 1px solid var(--neutral-200);
 
   .q-table__top {
     background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
@@ -761,10 +763,10 @@ body {
   }
 }
 
-// Professional Menu Styles
+// Professional Menu Styles - Flat Design
 .q-menu {
   border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
   border: 1px solid var(--neutral-200);
   background: white;
 }
@@ -1003,13 +1005,13 @@ body {
   transition: var(--transition-bounce) !important;
 }
 
-// Professional Hover Effects
+// Professional Hover Effects - Flat Design
 .hover-lift {
   transition: var(--transition);
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
   }
 }
 
@@ -1025,7 +1027,7 @@ body {
   transition: var(--transition);
 
   &:hover {
-    box-shadow: var(--glow-sm);
+    box-shadow: none;
   }
 }
 
@@ -1257,12 +1259,12 @@ body {
   border: 1px solid var(--neutral-200);
   border-radius: var(--border-radius);
   padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transition: var(--transition);
 
   &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: none;
+    border-color: var(--primary-color);
   }
 }
 
@@ -1280,23 +1282,22 @@ body {
   &:hover {
     background: linear-gradient(135deg, var(--accent-dark) 0%, #b45309 100%);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
   }
 }
 
-// Modern Property Card Styles
+// Modern Property Card Styles - Flat Design
 .property-card {
   background: white;
   border: 1px solid var(--neutral-200);
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transition: var(--transition);
   overflow: hidden;
   position: relative;
 
   &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: none;
     border-color: var(--primary-color);
   }
 
@@ -1318,7 +1319,7 @@ body {
 
   &.property-card--featured {
     border-color: var(--accent-color);
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
 
     &::before {
       opacity: 1;
@@ -1507,7 +1508,7 @@ body {
     &:hover {
       background: linear-gradient(135deg, var(--primary-dark) 0%, var(--finance-dark) 100%);
       transform: translateY(-1px);
-      box-shadow: var(--shadow-sm);
+      box-shadow: none;
     }
   }
 
@@ -1529,7 +1530,7 @@ body {
     &:hover {
       background: linear-gradient(135deg, var(--accent-dark) 0%, #b45309 100%);
       transform: translateY(-1px);
-      box-shadow: var(--shadow-sm);
+      box-shadow: none;
     }
   }
 
@@ -1540,7 +1541,7 @@ body {
     &:hover {
       background: linear-gradient(135deg, var(--success-dark) 0%, #047857 100%);
       transform: translateY(-1px);
-      box-shadow: var(--shadow-sm);
+      box-shadow: none;
     }
   }
 }
@@ -1562,7 +1563,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.025em;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 
   &.badge-featured {
     background: var(--accent-color);
@@ -1677,7 +1678,7 @@ body {
   transition: var(--transition);
 
   &:hover {
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
     border-color: var(--primary-color);
   }
 

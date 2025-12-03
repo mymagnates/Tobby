@@ -21,8 +21,6 @@
 
       <!-- User Profile Section at Bottom -->
       <div class="drawer-profile-section">
-        <q-separator class="q-mb-md" />
-
         <!-- Profile Item -->
         <q-item clickable @click="goToProfile" class="profile-item">
           <q-item-section avatar>
@@ -71,40 +69,18 @@
           @click="toggleLeftDrawer"
           class="menu-btn lt-lg"
         />
-
+        <q-space />
         <!-- Logo -->
         <div class="header-logo">
-          <span class="header-app-title">Handout</span>
-        </div>
+          <span class="header-app-title" @click="refreshAllData" :loading="dataLoading"
+            >Handout</span
+          >
 
-        <q-space />
+        </div>
 
         <!-- Header Actions -->
         <div class="header-actions">
           <!-- Refresh Button -->
-          <q-btn
-            flat
-            round
-            dense
-            icon="refresh"
-            color="grey-7"
-            class="action-btn"
-            @click="refreshAllData"
-            :loading="dataLoading"
-          >
-            <q-tooltip>Refresh Data</q-tooltip>
-          </q-btn>
-
-          <!-- History/Clock Icon -->
-          <q-btn flat round dense icon="schedule" color="grey-7" class="action-btn">
-            <q-tooltip>History</q-tooltip>
-          </q-btn>
-
-          <!-- Notifications -->
-          <q-btn flat round dense icon="notifications" color="grey-7" class="action-btn">
-            <q-badge color="primary" floating rounded />
-            <q-tooltip>Notifications</q-tooltip>
-          </q-btn>
         </div>
       </q-toolbar>
     </q-header>
@@ -187,13 +163,6 @@ const allLinksList = [
     caption: 'Manage all tenants',
     icon: 'people',
     link: '/tenants',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-  {
-    title: 'Create Tenant',
-    caption: 'Manually add a new tenant',
-    icon: 'person_add',
-    link: '/create-tenant',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
 
@@ -476,7 +445,7 @@ async function refreshAllData() {
 .dark-drawer {
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* Allow scrolling */
@@ -564,7 +533,7 @@ async function refreshAllData() {
 .dashboard-header {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   height: 72px;
 }
 
