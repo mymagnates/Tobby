@@ -81,7 +81,7 @@
               </div>
               <div class="col-auto">
                 <q-btn
-                  label="Add Transaction"
+                  label="Create Transaction"
                   color="primary"
                   text-color="white"
                   @click="showCreateTransactionDialog = true"
@@ -91,7 +91,7 @@
               </div>
               <div class="col-auto">
                 <q-btn
-                  label="Add Task"
+                  label="Create Task"
                   color="primary"
                   text-color="white"
                   @click="showCreateTaskDialog = true"
@@ -1550,9 +1550,11 @@ onMounted(async () => {
 
 .dashboard-section {
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   margin-bottom: 24px;
   margin-right: 5px;
+  background: white;
+  border: 1px solid #e5e7eb;
 }
 
 .section-header {
@@ -1560,7 +1562,8 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px 16px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
 }
 
 .section-title {
@@ -1572,6 +1575,7 @@ onMounted(async () => {
 
 .section-content {
   padding: 20px 24px;
+  background: white;
 }
 
 .empty-state {
@@ -1593,16 +1597,16 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: #f8f9fa;
+  background: white;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #e5e7eb;
   transition: all 0.2s ease;
 }
 
 .record-item:hover,
 .transaction-item:hover {
-  background: #e9ecef;
-  border-color: #dee2e6;
+  background: white;
+  border-color: #1976d2;
 }
 
 .record-item.clickable {
@@ -1611,10 +1615,9 @@ onMounted(async () => {
 }
 
 .record-item.clickable:hover {
-  background: #e3f2fd;
-  border-color: #2196f3;
+  background: rgba(25, 118, 210, 0.05);
+  border-color: #1976d2;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
 }
 
 .transaction-item.clickable {
@@ -1623,10 +1626,9 @@ onMounted(async () => {
 }
 
 .transaction-item.clickable:hover {
-  background: #e8f5e8;
-  border-color: #4caf50;
+  background: rgba(25, 118, 210, 0.05);
+  border-color: #1976d2;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
 }
 
 .transaction-content {
