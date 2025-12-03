@@ -59,7 +59,7 @@
     <!-- Top Header -->
     <q-header class="dashboard-header">
       <q-toolbar class="q-px-lg">
-        <!-- Mobile Menu Button -->
+        <!-- Menu Button -->
         <q-btn
           flat
           dense
@@ -67,7 +67,7 @@
           icon="menu"
           aria-label="Menu"
           @click="toggleLeftDrawer"
-          class="menu-btn lt-lg"
+          class="menu-btn"
         />
         <q-space />
         <!-- Logo -->
