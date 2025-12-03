@@ -197,7 +197,7 @@ body {
   }
 }
 
-// Professional Button Styles
+// Professional Button Styles - Default: White background with primary outline
 .q-btn {
   border-radius: var(--border-radius-sm);
   font-weight: 600;
@@ -206,68 +206,127 @@ body {
   transition: var(--transition);
   position: relative;
   overflow: hidden;
-  border: none;
   font-size: 0.875rem;
   line-height: 1.4;
   padding: var(--spacing-sm) var(--spacing-md);
   min-height: 40px;
+  
+  // Default style: white background with primary outline
+  background: white !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
+  box-shadow: none !important;
 
-  &:not(.flat):not(.outline) {
-    box-shadow: none;
+  &:hover {
+    background: var(--primary-glow) !important;
+    border-color: var(--primary-color) !important;
+    transform: translateY(-1px);
+    box-shadow: none !important;
+  }
+
+  .q-icon {
+    color: var(--primary-color) !important;
+  }
+
+  // Primary filled button (for main actions)
+  &.bg-primary,
+  &[color="primary"]:not(.q-btn--outline) {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: 1px solid var(--primary-color) !important;
 
     &:hover {
-      box-shadow: none;
-      transform: translateY(-1px);
+      background: var(--primary-dark) !important;
+      border-color: var(--primary-dark) !important;
+    }
+
+    .q-icon {
+      color: white !important;
     }
   }
 
-  &.q-btn--standard:hover {
-    transform: translateY(-1px);
-  }
-
-  // Standard Button Variants
-  &.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    color: white;
+  // Positive/Success buttons
+  &.bg-positive,
+  &[color="positive"] {
+    background: var(--success-color) !important;
+    color: white !important;
+    border: 1px solid var(--success-color) !important;
 
     &:hover {
-      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--finance-dark) 100%);
+      background: var(--success-dark) !important;
+      border-color: var(--success-dark) !important;
+    }
+
+    .q-icon {
+      color: white !important;
+    }
+  }
+
+  // Negative/Error buttons
+  &.bg-negative,
+  &[color="negative"] {
+    background: var(--error-color) !important;
+    color: white !important;
+    border: 1px solid var(--error-color) !important;
+
+    &:hover {
+      background: var(--error-dark) !important;
+      border-color: var(--error-dark) !important;
+    }
+
+    .q-icon {
+      color: white !important;
+    }
+  }
+
+  // Custom class variants (keep for backwards compatibility)
+  &.btn-primary {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: 1px solid var(--primary-color) !important;
+
+    &:hover {
+      background: var(--primary-dark) !important;
     }
   }
 
   &.btn-accent {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
-    color: white;
+    background: var(--accent-color) !important;
+    color: white !important;
+    border: 1px solid var(--accent-color) !important;
 
     &:hover {
-      background: linear-gradient(135deg, var(--accent-dark) 0%, #b45309 100%);
+      background: var(--accent-dark) !important;
     }
   }
 
   &.btn-success {
-    background: linear-gradient(135deg, var(--success-color) 0%, var(--success-dark) 100%);
-    color: white;
+    background: var(--success-color) !important;
+    color: white !important;
+    border: 1px solid var(--success-color) !important;
 
     &:hover {
-      background: linear-gradient(135deg, var(--success-dark) 0%, #047857 100%);
+      background: var(--success-dark) !important;
     }
   }
 
   &.btn-secondary {
-    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-dark) 100%);
-    color: var(--accent-color);
+    background: white !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
 
     &:hover {
-      background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary-color) 100%);
+      background: var(--primary-glow) !important;
     }
   }
 
   &.btn-info {
-    background: linear-gradient(135deg, var(--info-color) 0%, var(--info-dark) 100%);
-    color: white;
+    background: var(--info-color) !important;
+    color: white !important;
+    border: 1px solid var(--info-color) !important;
 
     &:hover {
-      background: linear-gradient(135deg, var(--info-dark) 0%, var(--primary-dark) 100%);
+      background: var(--info-dark) !important;
     }
   }
 
@@ -363,12 +422,12 @@ body {
   }
 }
 
-// Flat/White/Transparent Buttons - Use Primary Outline Style
+// Flat/White/Transparent Buttons - Use White bg with Primary Outline
 .q-btn.q-btn--flat,
 .q-btn[flat],
 .q-btn.bg-white,
 .q-btn.bg-transparent {
-  background: transparent !important;
+  background: white !important;
   color: var(--primary-color) !important;
   border: 1px solid var(--primary-color) !important;
   
@@ -385,7 +444,7 @@ body {
 
 // Quasar flat button override
 .q-btn--flat:not(.q-btn--round) {
-  background: transparent !important;
+  background: white !important;
   color: var(--primary-color) !important;
   border: 1px solid var(--primary-color) !important;
   
@@ -394,10 +453,14 @@ body {
   }
 }
 
-// Exception for buttons inside dialog headers (keep white)
+// Exception for buttons inside dialog headers (keep white text on gradient)
 .q-dialog .q-card-section:first-child .q-btn--flat,
+.q-dialog .q-card-section:first-child .q-btn,
 .dialog-header .q-btn--flat,
-.q-header .q-btn--flat {
+.dialog-header .q-btn,
+.q-header .q-btn--flat,
+.q-header .q-btn {
+  background: transparent !important;
   color: white !important;
   border-color: rgba(255, 255, 255, 0.5) !important;
   
