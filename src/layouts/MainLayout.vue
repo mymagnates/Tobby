@@ -534,7 +534,8 @@ async function refreshAllData() {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   box-shadow: none;
-  height: 72px;
+  height: 56px;
+  min-height: 56px;
 }
 
 /* Header Handout Logo - Shows when sidebar is closed */
@@ -645,7 +646,8 @@ async function refreshAllData() {
 
 @media (max-width: 768px) {
   .dashboard-header {
-    height: 60px;
+    height: 52px;
+    min-height: 52px;
   }
 
   .header-logo {
