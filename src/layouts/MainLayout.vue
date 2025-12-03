@@ -60,16 +60,12 @@
     <q-header class="dashboard-header">
       <q-toolbar class="q-px-lg">
         <!-- Handout Logo - Shows when sidebar is closed -->
-        <div 
-          v-if="!leftDrawerOpen" 
-          class="header-handout-logo" 
-          @click="toggleLeftDrawer"
-        >
+        <div v-if="!leftDrawerOpen" class="header-handout-logo" @click="toggleLeftDrawer">
           <span class="header-app-title">Handout</span>
         </div>
-        
+
         <q-space />
-        
+
         <!-- Logo Image -->
         <div class="header-logo" @click="refreshAllData">
           <img src="/logo.svg" alt="Handout Logo" class="header-logo-image" />
@@ -578,7 +574,9 @@ async function refreshAllData() {
 
 .header-logo-image {
   height: 40px;
-  width: auto;
+  width: 40px;
+  border-radius: 50%;
+  object-fit: cover;
   transition: all 0.3s ease;
 }
 
