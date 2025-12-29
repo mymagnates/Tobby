@@ -315,6 +315,98 @@
               </div>
             </q-card-section>
           </q-card>
+
+          <!-- Rent Tracking Card -->
+          <q-card class="rent-tracking-card">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="payments" class="q-mr-sm" />
+                Rent Tracking
+                <span class="text-caption text-grey-6 q-ml-sm">{{ getCurrentMonthYear() }}</span>
+              </div>
+
+              <!-- Rent Summary -->
+              <div class="rent-summary q-mb-md">
+                <div class="rent-summary-item">
+                  <div class="rent-summary-label">Expected</div>
+                  <div class="rent-summary-value">${{ getExpectedRent() }}</div>
+                </div>
+                <div class="rent-summary-item collected">
+                  <div class="rent-summary-label">Collected</div>
+                  <div class="rent-summary-value">${{ getCollectedRent() }}</div>
+                </div>
+                <div class="rent-summary-item" :class="getRentBalanceClass()">
+                  <div class="rent-summary-label">Balance</div>
+                  <div class="rent-summary-value">${{ getRentBalance() }}</div>
+                </div>
+              </div>
+
+              <!-- Rent Status by Lease -->
+              <div v-if="getPropertyLeases().length > 0" class="rent-status-list">
+                <div class="text-subtitle2 text-grey-7 q-mb-sm">Payment Status by Tenant</div>
+                <div
+                  v-for="lease in getPropertyLeases()"
+                  :key="lease.id"
+                  class="rent-status-item"
+                >
+                  <div class="rent-tenant-info">
+                    <q-avatar size="32px" color="primary" text-color="white">
+                      {{ getTenantInitials(lease.tenant_name) }}
+                    </q-avatar>
+                    <div class="rent-tenant-details">
+                      <div class="rent-tenant-name">{{ lease.tenant_name || 'Unknown Tenant' }}</div>
+                      <div class="rent-tenant-amount">${{ lease.rate_amount || 0 }}/month</div>
+                    </div>
+                  </div>
+                  <div class="rent-payment-status">
+                    <q-chip
+                      :color="getRentStatusColor(getLeaseRentStatus(lease))"
+                      text-color="white"
+                      size="sm"
+                      :icon="getRentStatusIcon(getLeaseRentStatus(lease))"
+                    >
+                      {{ getLeaseRentStatus(lease).label }}
+                    </q-chip>
+                    <div class="rent-paid-amount" v-if="getLeaseRentStatus(lease).paid > 0">
+                      ${{ getLeaseRentStatus(lease).paid }} paid
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- No Leases State -->
+              <div v-else class="no-rent-data">
+                <q-icon name="payments" size="40px" color="grey-4" />
+                <div class="text-grey-6 q-mt-sm">No active leases</div>
+                <div class="text-caption text-grey-5">Add a lease to track rent payments</div>
+              </div>
+
+              <!-- Recent Rent Payments -->
+              <div v-if="getRecentRentPayments().length > 0" class="recent-rent-payments q-mt-md">
+                <div class="text-subtitle2 text-grey-7 q-mb-sm">Recent Rent Payments</div>
+                <q-list dense class="rent-payments-list">
+                  <q-item
+                    v-for="payment in getRecentRentPayments()"
+                    :key="payment.id"
+                    class="rent-payment-item"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="check_circle" color="positive" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ payment.description || 'Rent Payment' }}</q-item-label>
+                      <q-item-label caption>{{ formatDate(payment.transaction_date) }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-item-label class="text-positive text-weight-bold">
+                        +${{ payment.amount }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+            </q-card-section>
+          </q-card>
         </div>
       </div>
     </div>
@@ -1445,6 +1537,172 @@ const getCurrentLease = () => {
   )
 }
 
+// Get all active leases for property
+const getPropertyLeases = () => {
+  if (!selectedProperty.value) return []
+  return userDataStore.leases.filter(
+    (lease) => lease.property_id === selectedProperty.value.id && lease.status === 'Active',
+  )
+}
+
+// Rent Tracking Functions
+const getCurrentMonthYear = () => {
+  const now = new Date()
+  return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+const getCurrentMonthKey = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+const getExpectedRent = () => {
+  const leases = getPropertyLeases()
+  const total = leases.reduce((sum, lease) => sum + (parseFloat(lease.rate_amount) || 0), 0)
+  return total.toFixed(2)
+}
+
+const getCollectedRent = () => {
+  if (!selectedProperty.value) return '0.00'
+  const currentMonth = getCurrentMonthKey()
+  
+  // Find rent payments for current month
+  const rentPayments = userDataStore.transactions.filter((t) => {
+    if (t.property_id !== selectedProperty.value.id) return false
+    if (t.type !== 'income') return false
+    
+    // Check if it's a rent payment (by category or description)
+    const isRent = 
+      (t.category && t.category.toLowerCase().includes('rent')) ||
+      (t.description && t.description.toLowerCase().includes('rent'))
+    
+    if (!isRent) return false
+    
+    // Check if it's from current month
+    const transDate = new Date(t.transaction_date)
+    const transMonth = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
+    return transMonth === currentMonth
+  })
+  
+  const total = rentPayments.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+  return total.toFixed(2)
+}
+
+const getRentBalance = () => {
+  const expected = parseFloat(getExpectedRent())
+  const collected = parseFloat(getCollectedRent())
+  return (expected - collected).toFixed(2)
+}
+
+const getRentBalanceClass = () => {
+  const balance = parseFloat(getRentBalance())
+  if (balance <= 0) return 'paid'
+  if (balance > 0) return 'pending'
+  return ''
+}
+
+const getLeaseRentStatus = (lease) => {
+  if (!selectedProperty.value) return { status: 'unknown', label: 'Unknown', paid: 0 }
+  
+  const currentMonth = getCurrentMonthKey()
+  const expectedRent = parseFloat(lease.rate_amount) || 0
+  
+  // Find rent payments for this lease in current month
+  const rentPayments = userDataStore.transactions.filter((t) => {
+    if (t.property_id !== selectedProperty.value.id) return false
+    if (t.type !== 'income') return false
+    
+    // Check if it's a rent payment
+    const isRent = 
+      (t.category && t.category.toLowerCase().includes('rent')) ||
+      (t.description && t.description.toLowerCase().includes('rent'))
+    
+    if (!isRent) return false
+    
+    // Check if it matches this lease (by tenant name or lease_id if available)
+    const matchesLease = 
+      (t.lease_id && t.lease_id === lease.id) ||
+      (t.tenant_name && t.tenant_name === lease.tenant_name) ||
+      !t.tenant_name // If no tenant specified, count towards property rent
+    
+    if (!matchesLease) return false
+    
+    // Check if it's from current month
+    const transDate = new Date(t.transaction_date)
+    const transMonth = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
+    return transMonth === currentMonth
+  })
+  
+  const paidAmount = rentPayments.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+  
+  // Determine status
+  const now = new Date()
+  const dayOfMonth = now.getDate()
+  
+  if (paidAmount >= expectedRent) {
+    return { status: 'paid', label: 'Paid', paid: paidAmount }
+  } else if (paidAmount > 0 && paidAmount < expectedRent) {
+    return { status: 'partial', label: 'Partial', paid: paidAmount }
+  } else if (dayOfMonth > 5) {
+    // If past the 5th and no payment, consider it overdue
+    return { status: 'overdue', label: 'Overdue', paid: 0 }
+  } else {
+    return { status: 'pending', label: 'Pending', paid: 0 }
+  }
+}
+
+const getRentStatusColor = (status) => {
+  const colors = {
+    paid: 'positive',
+    partial: 'warning',
+    pending: 'info',
+    overdue: 'negative',
+    unknown: 'grey',
+  }
+  return colors[status.status] || 'grey'
+}
+
+const getRentStatusIcon = (status) => {
+  const icons = {
+    paid: 'check_circle',
+    partial: 'pending',
+    pending: 'schedule',
+    overdue: 'error',
+    unknown: 'help',
+  }
+  return icons[status.status] || 'help'
+}
+
+const getTenantInitials = (name) => {
+  if (!name) return '?'
+  const parts = name.split(' ')
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
+  return name[0].toUpperCase()
+}
+
+const getRecentRentPayments = () => {
+  if (!selectedProperty.value) return []
+  
+  // Get last 5 rent payments
+  const rentPayments = userDataStore.transactions
+    .filter((t) => {
+      if (t.property_id !== selectedProperty.value.id) return false
+      if (t.type !== 'income') return false
+      
+      const isRent = 
+        (t.category && t.category.toLowerCase().includes('rent')) ||
+        (t.description && t.description.toLowerCase().includes('rent'))
+      
+      return isRent
+    })
+    .sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date))
+    .slice(0, 5)
+  
+  return rentPayments
+}
+
 // Navigation functions
 const viewProperty = (propertyId) => {
   const property = userProperties.value.find((p) => p.id === propertyId)
@@ -1695,6 +1953,11 @@ const cancelEdit = () => {
 .lease-status-card {
   grid-column: 2;
   grid-row: 3;
+}
+
+.rent-tracking-card {
+  grid-column: 1 / -1;
+  grid-row: 4;
 }
 
 .info-grid {
@@ -2110,6 +2373,164 @@ const cancelEdit = () => {
 
   .upload-section {
     padding: 16px;
+  }
+}
+
+/* Rent Tracking Styles */
+.rent-tracking-card {
+  background: white;
+}
+
+.rent-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.rent-summary-item {
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  background: var(--neutral-100, #f5f5f5);
+  border: 1px solid var(--neutral-200, #e5e5e5);
+}
+
+.rent-summary-item.collected {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.rent-summary-item.paid {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.rent-summary-item.pending {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.rent-summary-label {
+  font-size: 0.875rem;
+  color: var(--neutral-600, #666);
+  margin-bottom: 4px;
+}
+
+.rent-summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--neutral-800, #1a1a1a);
+}
+
+.rent-summary-item.collected .rent-summary-value,
+.rent-summary-item.paid .rent-summary-value {
+  color: var(--positive, #22c55e);
+}
+
+.rent-summary-item.pending .rent-summary-value {
+  color: var(--negative, #ef4444);
+}
+
+.rent-status-list {
+  margin-top: 16px;
+}
+
+.rent-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--neutral-50, #fafafa);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--neutral-200, #e5e5e5);
+  transition: all 0.2s ease;
+}
+
+.rent-status-item:hover {
+  background: var(--neutral-100, #f5f5f5);
+  border-color: var(--primary-color, #1976d2);
+}
+
+.rent-tenant-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rent-tenant-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.rent-tenant-name {
+  font-weight: 600;
+  color: var(--neutral-800, #1a1a1a);
+}
+
+.rent-tenant-amount {
+  font-size: 0.875rem;
+  color: var(--neutral-600, #666);
+}
+
+.rent-payment-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.rent-paid-amount {
+  font-size: 0.75rem;
+  color: var(--neutral-500, #888);
+}
+
+.no-rent-data {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.recent-rent-payments {
+  border-top: 1px solid var(--neutral-200, #e5e5e5);
+  padding-top: 16px;
+}
+
+.rent-payments-list {
+  background: var(--neutral-50, #fafafa);
+  border-radius: 8px;
+}
+
+.rent-payment-item {
+  border-bottom: 1px solid var(--neutral-200, #e5e5e5);
+}
+
+.rent-payment-item:last-child {
+  border-bottom: none;
+}
+
+/* Responsive Rent Tracking */
+@media (max-width: 768px) {
+  .rent-summary {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .rent-status-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .rent-payment-status {
+    align-items: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 1024px) {
+  .rent-tracking-card {
+    grid-column: 1;
+    grid-row: 6;
   }
 }
 </style>
