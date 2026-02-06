@@ -73,7 +73,17 @@
 
         <!-- Header Actions -->
         <div class="header-actions">
-          <!-- Refresh Button -->
+          <!-- Dark Mode Toggle -->
+          <q-btn
+            flat
+            round
+            dense
+            :icon="isDarkMode ? 'light_mode' : 'dark_mode'"
+            @click="toggleDarkMode"
+            class="dark-mode-btn"
+          >
+            <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
+          </q-btn>
         </div>
       </q-toolbar>
     </q-header>
@@ -91,15 +101,47 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import EssentialLink from 'components/EssentialLink.vue'
 
+const $q = useQuasar()
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
+
+// Dark mode state
+const isDarkMode = ref(false)
+
+// Initialize dark mode from localStorage
+onMounted(() => {
+  const savedDarkMode = localStorage.getItem('handout-dark-mode')
+  if (savedDarkMode !== null) {
+    isDarkMode.value = savedDarkMode === 'true'
+    $q.dark.set(isDarkMode.value)
+    applyDarkModeClass(isDarkMode.value)
+  }
+})
+
+// Toggle dark mode
+function toggleDarkMode() {
+  isDarkMode.value = !isDarkMode.value
+  $q.dark.set(isDarkMode.value)
+  localStorage.setItem('handout-dark-mode', isDarkMode.value.toString())
+  applyDarkModeClass(isDarkMode.value)
+}
+
+// Apply dark mode class to body for custom styling
+function applyDarkModeClass(isDark) {
+  if (isDark) {
+    document.body.classList.add('body--dark')
+  } else {
+    document.body.classList.remove('body--dark')
+  }
+}
 
 const allLinksList = [
   {
@@ -588,6 +630,18 @@ async function refreshAllData() {
   gap: 8px;
 }
 
+.dark-mode-btn {
+  color: #1976d2 !important;
+  background: rgba(25, 118, 210, 0.1) !important;
+  border: none !important;
+  transition: all 0.3s ease;
+}
+
+.dark-mode-btn:hover {
+  background: rgba(25, 118, 210, 0.2) !important;
+  transform: scale(1.05);
+}
+
 .action-btn {
   transition: all 0.3s ease;
 }
@@ -713,5 +767,118 @@ async function refreshAllData() {
   .page-container {
     background: white;
   }
+}
+
+/* ========================================
+   DARK MODE STYLES
+   ======================================== */
+
+:global(body.body--dark) .dashboard-layout {
+  background: #121212;
+}
+
+:global(body.body--dark) .dark-drawer {
+  background: #1a1a1a;
+  border-right-color: #3d3d3d;
+  color: white;
+}
+
+:global(body.body--dark) .dashboard-header {
+  background: #1a1a1a;
+  border-bottom-color: #3d3d3d;
+  color: white;
+}
+
+:global(body.body--dark) .sidebar-app-title {
+  color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .header-app-title {
+  color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .profile-name {
+  color: white !important;
+}
+
+:global(body.body--dark) .profile-role {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .signout-item {
+  color: #b0b0b0;
+}
+
+:global(body.body--dark) .signout-item:hover {
+  background: rgba(220, 38, 38, 0.2);
+  color: #ef5350;
+}
+
+:global(body.body--dark) .drawer-profile-section {
+  border-top-color: #3d3d3d;
+  background: #1a1a1a;
+}
+
+:global(body.body--dark) .profile-item {
+  background: transparent;
+}
+
+:global(body.body--dark) .profile-item:hover {
+  background: #2d2d2d;
+}
+
+:global(body.body--dark) .drawer-logo-icon {
+  background: transparent;
+}
+
+:global(body.body--dark) .drawer-logo-icon:hover {
+  background: rgba(66, 165, 245, 0.1);
+}
+
+:global(body.body--dark) .page-container {
+  background: #121212;
+  color: white;
+}
+
+:global(body.body--dark) .nav-list {
+  background: transparent;
+}
+
+:global(body.body--dark) .nav-link {
+  color: white;
+}
+
+:global(body.body--dark) .dark-mode-btn {
+  color: #42a5f5 !important;
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .dark-mode-btn:hover {
+  background: #3d3d3d !important;
+}
+
+:global(body.body--dark) .dark-mode-btn .q-icon {
+  color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .data-loading-overlay {
+  background: rgba(18, 18, 18, 0.96);
+}
+
+:global(body.body--dark) .loading-text {
+  color: #42a5f5;
+}
+
+:global(body.body--dark) .header-handout-logo {
+  background: transparent;
+}
+
+:global(body.body--dark) .header-handout-logo:hover {
+  background: rgba(66, 165, 245, 0.1);
+}
+
+:global(body.body--dark) .header-logo {
+  background: transparent;
 }
 </style>

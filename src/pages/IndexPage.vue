@@ -1998,4 +1998,170 @@ onMounted(async () => {
 .cursor-pointer:hover {
   transform: scale(1.05);
 }
+
+/* ========================================
+   DARK MODE STYLES
+   ======================================== */
+
+:global(body.body--dark) .dashboard-page {
+  background: #121212 !important;
+}
+
+:global(body.body--dark) .data-loading-page {
+  background: rgba(18, 18, 18, 0.95) !important;
+}
+
+:global(body.body--dark) .loading-step {
+  background: #2d2d2d !important;
+  color: white !important;
+}
+
+:global(body.body--dark) .loading-step.active {
+  background: rgba(66, 165, 245, 0.2) !important;
+  color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .loading-step.completed {
+  background: rgba(76, 175, 80, 0.2) !important;
+  color: #4caf50 !important;
+}
+
+:global(body.body--dark) .header-title h1 {
+  color: white !important;
+}
+
+:global(body.body--dark) .stat-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .stat-card__value {
+  color: white !important;
+}
+
+:global(body.body--dark) .stat-card__label {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .stat-card__icon {
+  background: #2d2d2d !important;
+}
+
+:global(body.body--dark) .dashboard-section {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .section-header {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .section-title {
+  color: white !important;
+}
+
+:global(body.body--dark) .section-content {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .record-item,
+:global(body.body--dark) .transaction-item {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .record-item:hover,
+:global(body.body--dark) .transaction-item:hover {
+  background: #3d3d3d !important;
+  border-color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .record-description,
+:global(body.body--dark) .record-title,
+:global(body.body--dark) .transaction-title {
+  color: white !important;
+}
+
+:global(body.body--dark) .record-amount,
+:global(body.body--dark) .transaction-amount {
+  color: white !important;
+}
+
+:global(body.body--dark) .empty-state {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .quick-actions-dialog {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .quick-actions-dialog .q-card-section {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .quick-actions-dialog .q-card-section:first-child {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .dialog-header {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .dialog-close-btn {
+  color: white !important;
+}
+
+:global(body.body--dark) .reminders-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .reminder-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .reminder-card.reminder-overdue {
+  background: rgba(244, 67, 54, 0.1) !important;
+}
+
+:global(body.body--dark) .reminder-title {
+  color: white !important;
+}
+
+:global(body.body--dark) .reminder-description {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .reminder-date {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .empty-reminders {
+  background: transparent !important;
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .renewal-reminder-info {
+  background: #2d2d2d !important;
+}
+
+:global(body.body--dark) .renewal-details {
+  background: #2d2d2d !important;
+}
+
+:global(body.body--dark) .renewal-detail-item {
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .detail-label {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .detail-value {
+  color: white !important;
+}
 </style>

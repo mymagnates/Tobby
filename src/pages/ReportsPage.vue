@@ -11,7 +11,53 @@
           @click="refreshData"
           :loading="loading"
         />
-        <q-btn icon="download" color="secondary" label="Export" @click="exportReport" />
+        <q-btn-dropdown
+          icon="download"
+          color="primary"
+          label="Bulk Export"
+          split
+          @click="exportAllReports"
+        >
+          <q-list>
+            <q-item clickable v-close-popup @click="exportAllReports">
+              <q-item-section avatar>
+                <q-icon name="folder_zip" color="primary" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Export All Reports</q-item-label>
+                <q-item-label caption>Combined transactions & tasks</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup @click="downloadTransactionsCSV">
+              <q-item-section avatar>
+                <q-icon name="account_balance" color="positive" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Export Transactions</q-item-label>
+                <q-item-label caption>Financial records only</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="downloadTasksCSV">
+              <q-item-section avatar>
+                <q-icon name="assignment" color="info" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Export Tasks</q-item-label>
+                <q-item-label caption>Task history only</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="exportSummaryReport">
+              <q-item-section avatar>
+                <q-icon name="summarize" color="warning" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Export Summary</q-item-label>
+                <q-item-label caption>Key metrics & statistics</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
       </div>
     </div>
 
@@ -138,10 +184,11 @@
       </q-card>
     </div>
 
-    <!-- Transaction Timeline Chart -->
-    <div class="row q-mb-lg">
-      <div class="col-12">
-        <q-card class="chart-card">
+    <!-- Charts Row: Timeline + Pie Chart -->
+    <div class="charts-row q-mb-lg">
+      <!-- Transaction Timeline Chart -->
+      <div class="timeline-chart-col">
+        <q-card class="chart-card full-height">
           <q-card-section>
             <div class="text-h6 q-mb-md">
               <q-icon name="show_chart" class="q-mr-sm" />
@@ -149,6 +196,24 @@
             </div>
             <div class="chart-container">
               <canvas ref="timelineChartCanvas" style="max-height: 300px"></canvas>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- Transaction Type Pie Chart -->
+      <div class="pie-chart-col">
+        <q-card class="chart-card full-height">
+          <q-card-section>
+            <div class="text-h6 q-mb-md">
+              <q-icon name="pie_chart" class="q-mr-sm" />
+              By Transaction Type
+            </div>
+            <div class="chart-container pie-chart-container">
+              <canvas ref="typeChartCanvas" style="max-height: 300px"></canvas>
+            </div>
+            <div v-if="transactionTypeData.length === 0" class="text-center text-grey-6 q-pa-md">
+              No transaction data available
             </div>
           </q-card-section>
         </q-card>
@@ -341,9 +406,11 @@ const currentImageUrl = ref('')
 const financialChartCanvas = ref(null)
 const taskChartCanvas = ref(null)
 const timelineChartCanvas = ref(null)
+const typeChartCanvas = ref(null)
 let financialChart = null
 let taskChart = null
 let timelineChart = null
+let typeChart = null
 
 // Options
 const roleOptions = ['Property Owner', 'Property Manager', 'Tenant']
@@ -465,6 +532,30 @@ const netProfit = computed(() => {
 
 const completedTasks = computed(() => {
   return filteredTasks.value.filter((t) => t.status === 'resolved' || t.status === 'closed').length
+})
+
+// Transaction type data for pie chart
+const transactionTypeData = computed(() => {
+  const typeGroups = {}
+  
+  filteredTransactions.value.forEach((t) => {
+    const type = t.transac_type || 'Other'
+    if (!typeGroups[type]) {
+      typeGroups[type] = { income: 0, expense: 0, total: 0 }
+    }
+    const amount = parseFloat(t.amount) || 0
+    typeGroups[type].total += amount
+    if (t.type === 'income') {
+      typeGroups[type].income += amount
+    } else {
+      typeGroups[type].expense += amount
+    }
+  })
+  
+  return Object.entries(typeGroups).map(([type, data]) => ({
+    type,
+    ...data
+  })).sort((a, b) => b.total - a.total)
 })
 
 // Table columns
@@ -688,6 +779,7 @@ const initializeCharts = () => {
     createFinancialChart(Chart.default)
     createTaskChart(Chart.default)
     createTimelineChart(Chart.default)
+    createTypeChart(Chart.default)
   })
 }
 
@@ -965,6 +1057,85 @@ const createTimelineChart = (Chart) => {
   })
 }
 
+const createTypeChart = (Chart) => {
+  if (!typeChartCanvas.value) return
+
+  const ctx = typeChartCanvas.value.getContext('2d')
+
+  // Destroy existing chart if it exists
+  if (typeChart) {
+    typeChart.destroy()
+  }
+
+  const typeData = transactionTypeData.value
+  
+  if (typeData.length === 0) {
+    return
+  }
+
+  // Generate colors for each type
+  const colors = [
+    '#4CAF50', // Green
+    '#F44336', // Red
+    '#2196F3', // Blue
+    '#FF9800', // Orange
+    '#9C27B0', // Purple
+    '#00BCD4', // Cyan
+    '#FFEB3B', // Yellow
+    '#E91E63', // Pink
+    '#3F51B5', // Indigo
+    '#009688', // Teal
+    '#795548', // Brown
+    '#607D8B', // Blue Grey
+  ]
+
+  const labels = typeData.map(d => d.type)
+  const data = typeData.map(d => d.total)
+  const backgroundColors = typeData.map((_, i) => colors[i % colors.length])
+
+  typeChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors.map(c => c),
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            padding: 8,
+            font: {
+              size: 11,
+            },
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const value = context.parsed
+              const total = context.dataset.data.reduce((a, b) => a + b, 0)
+              const percentage = ((value / total) * 100).toFixed(1)
+              return `${context.label}: $${value.toLocaleString()} (${percentage}%)`
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
 const updateCharts = () => {
   console.log('updateCharts called - recreating all charts')
   import('chart.js/auto')
@@ -972,6 +1143,7 @@ const updateCharts = () => {
       createFinancialChart(Chart.default)
       createTaskChart(Chart.default)
       createTimelineChart(Chart.default)
+      createTypeChart(Chart.default)
     })
     .catch((error) => {
       console.error('Error updating charts:', error)
@@ -1203,7 +1375,8 @@ const downloadCSV = (csvContent, reportType) => {
   console.log('CSV exported:', filename)
 }
 
-const exportReport = () => {
+// Export all reports - comprehensive bulk export
+const exportAllReports = () => {
   try {
     // Create CSV content for transactions
     const transactionHeaders = [
@@ -1267,17 +1440,29 @@ const exportReport = () => {
     // Combine both reports
     let csvContent = ''
 
+    // Add report header
+    csvContent += '=== HANDOUT BULK EXPORT REPORT ===\n'
+    csvContent += `Generated on,${new Date().toLocaleString()}\n`
+    csvContent += '\n'
+
     // Add summary section
-    csvContent += '=== COMBINED REPORT SUMMARY ===\n'
+    csvContent += '=== FINANCIAL SUMMARY ===\n'
     csvContent += `Total Income,$${totalIncome.value}\n`
     csvContent += `Total Expenses,$${totalExpenses.value}\n`
     csvContent += `Net Profit,$${netProfit.value}\n`
+    csvContent += `Total Transactions,${filteredTransactions.value.length}\n`
+    csvContent += '\n'
+
+    // Add task summary
+    csvContent += '=== TASK SUMMARY ===\n'
+    csvContent += `Total Tasks,${filteredTasks.value.length}\n`
     csvContent += `Completed Tasks,${completedTasks.value}\n`
+    csvContent += `Open Tasks,${filteredTasks.value.length - completedTasks.value}\n`
     csvContent += '\n'
 
     // Add filters information
     csvContent += '=== FILTERS APPLIED ===\n'
-    csvContent += `Role,${selectedRole.value || 'All Roles'}\n`
+    csvContent += `Role Filter,${selectedRole.value || 'All Roles'}\n`
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.map((id) => getPropertyName(id)).join('; ') : 'All Properties'}\n`
     csvContent += '\n'
@@ -1298,12 +1483,100 @@ const exportReport = () => {
     })
 
     // Download combined report
-    downloadCSV(csvContent, 'Combined_Report')
+    downloadCSV(csvContent, 'Bulk_Export_Report')
+
+    Notify.create({
+      type: 'positive',
+      message: 'Bulk export completed successfully!',
+      caption: `${filteredTransactions.value.length} transactions, ${filteredTasks.value.length} tasks exported`,
+      position: 'top',
+      timeout: 3000,
+    })
   } catch (error) {
-    console.error('Error exporting report:', error)
+    console.error('Error exporting all reports:', error)
     Notify.create({
       type: 'negative',
-      message: 'Failed to export report',
+      message: 'Failed to export reports',
+      position: 'top',
+    })
+  }
+}
+
+// Export summary report only
+const exportSummaryReport = () => {
+  try {
+    let csvContent = ''
+
+    // Header
+    csvContent += '=== HANDOUT SUMMARY REPORT ===\n'
+    csvContent += `Generated on,${new Date().toLocaleString()}\n`
+    csvContent += '\n'
+
+    // Financial Summary
+    csvContent += '=== FINANCIAL METRICS ===\n'
+    csvContent += `Total Income,$${totalIncome.value}\n`
+    csvContent += `Total Expenses,$${totalExpenses.value}\n`
+    csvContent += `Net Profit,$${netProfit.value}\n`
+    csvContent += `Profit Margin,${((parseFloat(netProfit.value.replace(/,/g, '')) / parseFloat(totalIncome.value.replace(/,/g, ''))) * 100 || 0).toFixed(1)}%\n`
+    csvContent += '\n'
+
+    // Transaction Summary
+    csvContent += '=== TRANSACTION METRICS ===\n'
+    csvContent += `Total Transactions,${filteredTransactions.value.length}\n`
+    csvContent += `Income Transactions,${filteredTransactions.value.filter((t) => t.type === 'income').length}\n`
+    csvContent += `Expense Transactions,${filteredTransactions.value.filter((t) => t.type === 'expense').length}\n`
+    csvContent += '\n'
+
+    // Task Summary
+    csvContent += '=== TASK METRICS ===\n'
+    csvContent += `Total Tasks,${filteredTasks.value.length}\n`
+    csvContent += `Completed Tasks,${completedTasks.value}\n`
+    csvContent += `Open Tasks,${filteredTasks.value.length - completedTasks.value}\n`
+    csvContent += `Completion Rate,${((completedTasks.value / filteredTasks.value.length) * 100 || 0).toFixed(1)}%\n`
+    csvContent += '\n'
+
+    // Property Summary
+    csvContent += '=== PROPERTY SUMMARY ===\n'
+    csvContent += `Total Properties,${userDataStore.userAccessibleProperties.length}\n`
+    
+    // Group transactions by property
+    const propertyStats = {}
+    userDataStore.userAccessibleProperties.forEach((p) => {
+      const propTransactions = filteredTransactions.value.filter((t) => t.property_id === p.id)
+      const propIncome = propTransactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+      const propExpense = propTransactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+      propertyStats[p.id] = {
+        name: p.nickname || p.address,
+        income: propIncome,
+        expense: propExpense,
+        net: propIncome - propExpense,
+      }
+    })
+
+    csvContent += '\n=== PROPERTY BREAKDOWN ===\n'
+    csvContent += 'Property,Income,Expenses,Net\n'
+    Object.values(propertyStats).forEach((stat) => {
+      csvContent += `"${stat.name}",$${formatAmount(stat.income)},$${formatAmount(stat.expense)},$${formatAmount(stat.net)}\n`
+    })
+
+    // Filters
+    csvContent += '\n=== FILTERS APPLIED ===\n'
+    csvContent += `Role Filter,${selectedRole.value || 'All Roles'}\n`
+    csvContent += `Date Range,${dateRange.value}\n`
+    csvContent += `Properties Selected,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.length : 'All'}\n`
+
+    downloadCSV(csvContent, 'Summary_Report')
+
+    Notify.create({
+      type: 'positive',
+      message: 'Summary report exported successfully!',
+      position: 'top',
+    })
+  } catch (error) {
+    console.error('Error exporting summary report:', error)
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to export summary report',
       position: 'top',
     })
   }
@@ -1399,6 +1672,7 @@ onUnmounted(() => {
   if (financialChart) financialChart.destroy()
   if (taskChart) taskChart.destroy()
   if (timelineChart) timelineChart.destroy()
+  if (typeChart) typeChart.destroy()
 })
 </script>
 
@@ -1423,6 +1697,57 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   padding: 16px 0;
+}
+
+.pie-chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.pie-chart-container canvas {
+  max-width: 100%;
+  max-height: 280px;
+}
+
+/* Charts row layout - always side by side on large screens */
+.charts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.timeline-chart-col {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.pie-chart-col {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.full-height {
+  height: 100%;
+}
+
+/* Large screens (768px and up) - always keep charts in same row */
+@media (min-width: 768px) {
+  .charts-row {
+    flex-wrap: nowrap;
+  }
+
+  .timeline-chart-col {
+    flex: 2 1 0;
+    min-width: 400px;
+  }
+
+  .pie-chart-col {
+    flex: 1 1 0;
+    min-width: 280px;
+    max-width: 380px;
+  }
 }
 
 .table-card {
@@ -1472,5 +1797,36 @@ onUnmounted(() => {
   .report-table {
     font-size: 0.85rem;
   }
+}
+
+/* ========================================
+   DARK MODE STYLES
+   ======================================== */
+
+:global(body.body--dark) .summary-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .chart-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .chart-container {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .table-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .report-table {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .image-viewer-card {
+  background: rgba(0, 0, 0, 0.98) !important;
 }
 </style>

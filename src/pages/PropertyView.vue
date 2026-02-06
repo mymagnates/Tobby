@@ -77,8 +77,8 @@
               <q-btn
                 v-if="selectedProperty"
                 color="primary"
-                icon="photo_camera"
-                label="Manage Photos"
+                icon="folder"
+                label="Manage Documents"
                 @click="openPhotoManagementDialog"
                 class="action-btn"
                 no-caps
@@ -312,6 +312,91 @@
               <div v-else class="no-lease">
                 <q-icon name="home_work" size="50px" color="grey-4" />
                 <div class="text-grey-6 q-mt-sm">No Active Lease</div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Property Documents Card -->
+          <q-card class="property-documents-card">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="folder" class="q-mr-sm" />
+                Property Documents
+                <span class="text-caption text-grey-6 q-ml-sm">({{ propertyPhotos.length }} files)</span>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="note_add"
+                  color="primary"
+                  class="q-ml-sm"
+                  @click="openPhotoManagementDialog"
+                >
+                  <q-tooltip>Add Documents</q-tooltip>
+                </q-btn>
+              </div>
+
+              <!-- Documents Grid -->
+              <div v-if="loadingPhotos" class="documents-loading">
+                <q-spinner-dots size="32px" color="primary" />
+                <div class="text-caption text-grey-6 q-mt-sm">Loading documents...</div>
+              </div>
+
+              <div v-else-if="propertyPhotos.length > 0" class="documents-grid">
+                <div
+                  v-for="doc in propertyPhotos"
+                  :key="doc.id"
+                  class="document-item"
+                  @click="viewDocument(doc)"
+                >
+                  <div class="document-thumbnail">
+                    <!-- Show image preview for image files -->
+                    <q-img
+                      v-if="isImageFile(doc)"
+                      :src="doc.image_url"
+                      :alt="doc.description || 'Document'"
+                      class="document-image"
+                      fit="cover"
+                    >
+                      <template v-slot:loading>
+                        <q-spinner-gears color="primary" size="24px" />
+                      </template>
+                      <template v-slot:error>
+                        <div class="absolute-full flex flex-center bg-grey-3">
+                          <q-icon name="broken_image" size="24px" color="grey-6" />
+                        </div>
+                      </template>
+                    </q-img>
+                    <!-- Show file type icon for non-image files -->
+                    <div v-else class="document-file-icon">
+                      <q-icon :name="getFileIcon(doc)" :color="getFileIconColor(doc)" size="48px" />
+                    </div>
+                    <div class="document-overlay">
+                      <q-icon :name="isImageFile(doc) ? 'zoom_in' : 'open_in_new'" color="white" size="24px" />
+                    </div>
+                  </div>
+                  <div class="document-info">
+                    <div class="document-name">{{ doc.description || doc.original_filename || 'Document' }}</div>
+                    <div class="document-meta">
+                      <span class="document-type">{{ getFileExtension(doc) }}</span>
+                      <span class="document-date">{{ formatDate(doc.upload_date) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else class="no-documents">
+                <q-icon name="folder_open" size="48px" color="grey-4" />
+                <div class="text-grey-6 q-mt-sm">No documents uploaded</div>
+                <q-btn
+                  flat
+                  color="primary"
+                  icon="note_add"
+                  label="Upload Documents"
+                  class="q-mt-md"
+                  @click="openPhotoManagementDialog"
+                />
               </div>
             </q-card-section>
           </q-card>
@@ -651,14 +736,14 @@
       </q-card>
     </q-dialog>
 
-    <!-- Photo Management Dialog -->
+    <!-- Document Management Dialog -->
     <q-dialog v-model="showPhotoManagementDialog" maximized>
       <q-card class="photo-management-dialog">
         <q-card-section class="dialog-header">
           <div class="row items-center justify-between">
             <div class="text-h5 text-weight-bold">
-              <q-icon name="photo_camera" class="q-mr-sm" />
-              Manage Property Photos
+              <q-icon name="folder" class="q-mr-sm" />
+              Manage Property Documents
             </div>
             <q-btn
               flat
@@ -676,9 +761,11 @@
             <!-- Upload Section -->
             <div class="upload-section q-mb-lg">
               <div class="section-header">
-                <div class="text-h6 text-weight-medium">Upload New Photos</div>
+                <div class="text-h6 text-weight-medium">Upload New Documents</div>
                 <div class="text-caption text-grey-6 q-mt-xs">
-                  Upload new photos for {{ selectedProperty.nickname || selectedProperty.address }}
+                  Upload documents for {{ selectedProperty.nickname || selectedProperty.address }}
+                  <br />
+                  <span class="text-primary">Supported: Images, PDFs, Documents, Spreadsheets, and more</span>
                 </div>
               </div>
 
@@ -688,17 +775,17 @@
                   <div class="upload-field">
                     <q-file
                       v-model="uploadFiles"
-                      accept="image/*"
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.rar,.mp4,.mov,.mp3,.ppt,.pptx"
                       outlined
                       dense
-                      label="Choose photos *"
+                      label="Choose files *"
                       multiple
                       bg-color="grey-1"
-                      :rules="[(val) => !!val || 'At least one photo is required']"
+                      :rules="[(val) => !!val || 'At least one file is required']"
                       @update:model-value="onPhotosSelected"
                     >
                       <template v-slot:prepend>
-                        <q-icon name="photo_library" />
+                        <q-icon name="attach_file" />
                       </template>
                     </q-file>
                   </div>
@@ -710,7 +797,7 @@
                     type="submit"
                     color="primary"
                     icon="cloud_upload"
-                    label="Upload Photos"
+                    label="Upload Documents"
                     :loading="uploading"
                     :disable="!uploadFiles || uploadFiles.length === 0"
                   />
@@ -718,12 +805,12 @@
               </q-form>
             </div>
 
-            <!-- Current Photos Section -->
+            <!-- Current Documents Section -->
             <div class="photos-section">
               <div class="section-header">
                 <div class="row items-center justify-between">
                   <div class="text-h6 text-weight-medium">
-                    Current Photos ({{ propertyPhotos.length }})
+                    Current Documents ({{ propertyPhotos.length }})
                   </div>
                   <q-btn
                     flat
@@ -748,17 +835,19 @@
                 </div>
               </div>
 
-              <!-- Photos Grid -->
+              <!-- Documents Grid -->
               <div v-else-if="propertyPhotos.length > 0" class="photos-grid q-mt-md">
-                <div v-for="photo in propertyPhotos" :key="photo.id" class="photo-card">
-                  <!-- Photo -->
+                <div v-for="doc in propertyPhotos" :key="doc.id" class="photo-card">
+                  <!-- Document Preview -->
                   <div class="photo-container">
+                    <!-- Image preview for image files -->
                     <q-img
-                      :src="photo.image_url"
-                      :alt="photo.description || 'Property photo'"
+                      v-if="isImageFile(doc)"
+                      :src="doc.image_url"
+                      :alt="doc.description || 'Property document'"
                       class="photo-image"
                       fit="cover"
-                      @click="showPhotoFullscreen(photo.image_url, photo.description)"
+                      @click="viewDocument(doc)"
                     >
                       <template v-slot:loading>
                         <q-spinner-gears color="primary" />
@@ -769,19 +858,34 @@
                         </div>
                       </template>
                     </q-img>
+                    <!-- File icon for non-image files -->
+                    <div v-else class="file-preview" @click="viewDocument(doc)">
+                      <q-icon :name="getFileIcon(doc)" :color="getFileIconColor(doc)" size="64px" />
+                      <div class="file-type-badge">{{ getFileExtension(doc) }}</div>
+                    </div>
 
-                    <!-- Photo Overlay -->
+                    <!-- Document Overlay -->
                     <div class="photo-overlay">
                       <div class="photo-actions">
                         <q-btn
                           flat
                           round
-                          icon="zoom_in"
+                          :icon="isImageFile(doc) ? 'zoom_in' : 'open_in_new'"
                           color="white"
                           size="sm"
-                          @click.stop="showPhotoFullscreen(photo.image_url, photo.description)"
+                          @click.stop="viewDocument(doc)"
                         >
-                          <q-tooltip>View fullscreen</q-tooltip>
+                          <q-tooltip>{{ isImageFile(doc) ? 'View fullscreen' : 'Open file' }}</q-tooltip>
+                        </q-btn>
+                        <q-btn
+                          flat
+                          round
+                          icon="download"
+                          color="white"
+                          size="sm"
+                          @click.stop="downloadDocument(doc)"
+                        >
+                          <q-tooltip>Download</q-tooltip>
                         </q-btn>
                         <q-btn
                           flat
@@ -789,24 +893,24 @@
                           icon="delete"
                           color="negative"
                           size="sm"
-                          @click.stop="confirmDeletePhoto(photo)"
+                          @click.stop="confirmDeletePhoto(doc)"
                         >
-                          <q-tooltip>Delete photo</q-tooltip>
+                          <q-tooltip>Delete</q-tooltip>
                         </q-btn>
                       </div>
                     </div>
 
-                    <!-- Set as Main Photo Button -->
-                    <div class="photo-main-action">
+                    <!-- Set as Main Photo Button (only for images) -->
+                    <div v-if="isImageFile(doc)" class="photo-main-action">
                       <q-btn
-                        v-if="selectedProperty.image_url !== photo.image_url"
+                        v-if="selectedProperty.image_url !== doc.image_url"
                         flat
                         dense
                         color="primary"
                         size="sm"
                         icon="star_border"
                         label="Set as Main"
-                        @click="setAsMainPhoto(photo)"
+                        @click="setAsMainPhoto(doc)"
                       />
                       <q-chip
                         v-else
@@ -819,15 +923,20 @@
                     </div>
                   </div>
 
-                  <!-- Photo Info -->
+                  <!-- Document Info -->
                   <div class="photo-info">
                     <div class="photo-description">
-                      {{ photo.description || 'No description' }}
+                      {{ doc.description || doc.original_filename || 'No description' }}
                     </div>
                     <div class="photo-meta">
                       <div class="meta-item">
+                        <q-chip size="xs" :color="getFileIconColor(doc)" text-color="white" dense>
+                          {{ getFileExtension(doc) }}
+                        </q-chip>
+                      </div>
+                      <div class="meta-item">
                         <q-icon name="event" size="14px" class="q-mr-xs" />
-                        {{ formatDate(photo.upload_date) }}
+                        {{ formatDate(doc.upload_date) }}
                       </div>
                     </div>
                   </div>
@@ -1703,6 +1812,89 @@ const getRecentRentPayments = () => {
   return rentPayments
 }
 
+// Document helper functions
+const isImageFile = (doc) => {
+  const filename = doc.original_filename || doc.image_url || ''
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
+  const lowerFilename = filename.toLowerCase()
+  return imageExtensions.some(ext => lowerFilename.includes(ext))
+}
+
+const getFileExtension = (doc) => {
+  const filename = doc.original_filename || doc.image_url || ''
+  const parts = filename.split('.')
+  if (parts.length > 1) {
+    return parts[parts.length - 1].toUpperCase()
+  }
+  return 'FILE'
+}
+
+const getFileIcon = (doc) => {
+  const ext = getFileExtension(doc).toLowerCase()
+  const iconMap = {
+    pdf: 'picture_as_pdf',
+    doc: 'description',
+    docx: 'description',
+    xls: 'table_chart',
+    xlsx: 'table_chart',
+    csv: 'table_chart',
+    txt: 'article',
+    zip: 'folder_zip',
+    rar: 'folder_zip',
+    mp4: 'video_file',
+    mov: 'video_file',
+    avi: 'video_file',
+    mp3: 'audio_file',
+    wav: 'audio_file',
+    ppt: 'slideshow',
+    pptx: 'slideshow',
+  }
+  return iconMap[ext] || 'insert_drive_file'
+}
+
+const getFileIconColor = (doc) => {
+  const ext = getFileExtension(doc).toLowerCase()
+  const colorMap = {
+    pdf: 'red',
+    doc: 'blue',
+    docx: 'blue',
+    xls: 'green',
+    xlsx: 'green',
+    csv: 'green',
+    txt: 'grey-7',
+    zip: 'amber',
+    rar: 'amber',
+    mp4: 'purple',
+    mov: 'purple',
+    avi: 'purple',
+    mp3: 'orange',
+    wav: 'orange',
+    ppt: 'deep-orange',
+    pptx: 'deep-orange',
+  }
+  return colorMap[ext] || 'primary'
+}
+
+const viewDocument = (doc) => {
+  if (isImageFile(doc)) {
+    showPhotoFullscreen(doc.image_url, doc.description)
+  } else {
+    // Open non-image files in a new tab
+    window.open(doc.image_url, '_blank')
+  }
+}
+
+const downloadDocument = (doc) => {
+  // Create a temporary link to download the file
+  const link = document.createElement('a')
+  link.href = doc.image_url
+  link.download = doc.original_filename || 'document'
+  link.target = '_blank'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 // Navigation functions
 const viewProperty = (propertyId) => {
   const property = userProperties.value.find((p) => p.id === propertyId)
@@ -1955,9 +2147,14 @@ const cancelEdit = () => {
   grid-row: 3;
 }
 
-.rent-tracking-card {
+.property-documents-card {
   grid-column: 1 / -1;
   grid-row: 4;
+}
+
+.rent-tracking-card {
+  grid-column: 1 / -1;
+  grid-row: 5;
 }
 
 .info-grid {
@@ -2337,6 +2534,31 @@ const cancelEdit = () => {
   color: #666;
 }
 
+.file-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-preview:hover {
+  background: linear-gradient(135deg, #e8e8e8 0%, #d0d0d0 100%);
+}
+
+.file-type-badge {
+  margin-top: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .loading-photos {
   text-align: center;
   padding: 40px 20px;
@@ -2374,6 +2596,114 @@ const cancelEdit = () => {
   .upload-section {
     padding: 16px;
   }
+}
+
+/* Property Documents Styles */
+.property-documents-card {
+  background: white;
+}
+
+.documents-loading {
+  text-align: center;
+  padding: 32px;
+}
+
+.documents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.document-item {
+  background: var(--neutral-50, #fafafa);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--neutral-200, #e5e5e5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.document-item:hover {
+  border-color: var(--primary-color, #1976d2);
+  transform: translateY(-2px);
+}
+
+.document-item:hover .document-overlay {
+  opacity: 1;
+}
+
+.document-thumbnail {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  overflow: hidden;
+}
+
+.document-image {
+  width: 100%;
+  height: 100%;
+}
+
+.document-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.document-file-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--neutral-100, #f5f5f5);
+}
+
+.document-info {
+  padding: 8px;
+}
+
+.document-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--neutral-800, #1a1a1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.document-type {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--primary-color, #1976d2);
+  background: rgba(25, 118, 210, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.document-date {
+  font-size: 0.625rem;
+  color: var(--neutral-500, #888);
+}
+
+.no-documents {
+  text-align: center;
+  padding: 32px;
 }
 
 /* Rent Tracking Styles */
@@ -2528,9 +2858,201 @@ const cancelEdit = () => {
 }
 
 @media (max-width: 1024px) {
-  .rent-tracking-card {
+  .property-documents-card {
     grid-column: 1;
     grid-row: 6;
   }
+
+  .rent-tracking-card {
+    grid-column: 1;
+    grid-row: 7;
+  }
+
+  .documents-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+}
+
+/* Dark Mode Styles */
+:global(body.body--dark) .property-view-container {
+  background: #121212;
+}
+
+:global(body.body--dark) .property-sidebar {
+  background: transparent;
+}
+
+:global(body.body--dark) .property-list-card,
+:global(body.body--dark) .action-buttons-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .property-list-item {
+  background: transparent;
+  color: white;
+}
+
+:global(body.body--dark) .property-list-item:hover {
+  background: #2d2d2d;
+}
+
+:global(body.body--dark) .property-content {
+  background: transparent;
+}
+
+:global(body.body--dark) .property-image-card,
+:global(body.body--dark) .property-info-card,
+:global(body.body--dark) .tasks-summary-card,
+:global(body.body--dark) .transaction-summary-card,
+:global(body.body--dark) .lease-status-card,
+:global(body.body--dark) .rent-tracking-card,
+:global(body.body--dark) .property-documents-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .info-grid,
+:global(body.body--dark) .tasks-grid,
+:global(body.body--dark) .financial-grid {
+  background: transparent;
+}
+
+:global(body.body--dark) .info-item,
+:global(body.body--dark) .task-item,
+:global(body.body--dark) .financial-item,
+:global(body.body--dark) .lease-item {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+  color: white;
+}
+
+:global(body.body--dark) .info-label,
+:global(body.body--dark) .task-label,
+:global(body.body--dark) .financial-label,
+:global(body.body--dark) .lease-label {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .info-value,
+:global(body.body--dark) .task-count,
+:global(body.body--dark) .financial-value,
+:global(body.body--dark) .lease-value {
+  color: white !important;
+}
+
+:global(body.body--dark) .rent-summary,
+:global(body.body--dark) .rent-status-list {
+  background: transparent;
+}
+
+:global(body.body--dark) .rent-summary-item {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .rent-summary-label {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .rent-summary-value {
+  color: white !important;
+}
+
+:global(body.body--dark) .rent-status-item {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .rent-tenant-name {
+  color: white !important;
+}
+
+:global(body.body--dark) .rent-tenant-amount {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .documents-grid {
+  background: transparent;
+}
+
+:global(body.body--dark) .document-item {
+  background: #2d2d2d !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .document-thumbnail {
+  background: #3d3d3d !important;
+}
+
+:global(body.body--dark) .document-file-icon {
+  background: #3d3d3d !important;
+}
+
+:global(body.body--dark) .document-info {
+  background: #2d2d2d !important;
+}
+
+:global(body.body--dark) .document-name {
+  color: white !important;
+}
+
+:global(body.body--dark) .document-date {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .no-documents,
+:global(body.body--dark) .no-lease,
+:global(body.body--dark) .no-rent-data {
+  background: transparent;
+  color: #b0b0b0;
+}
+
+:global(body.body--dark) .photo-management-dialog {
+  background: #121212 !important;
+}
+
+:global(body.body--dark) .photo-management-content {
+  background: #121212 !important;
+}
+
+:global(body.body--dark) .upload-section {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .photos-grid {
+  background: transparent;
+}
+
+:global(body.body--dark) .photo-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .photo-info {
+  background: #1e1e1e !important;
+}
+
+:global(body.body--dark) .photo-description {
+  color: white !important;
+}
+
+:global(body.body--dark) .meta-item {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .file-preview {
+  background: #3d3d3d !important;
+}
+
+:global(body.body--dark) .file-type-badge {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .empty-photos {
+  background: transparent;
+  color: #b0b0b0;
 }
 </style>

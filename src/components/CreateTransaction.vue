@@ -454,6 +454,7 @@ const transactionTypeOptions = [
   'Insurance',
   'Utility',
   'Maintenance',
+  'Labor',
   'HOA',
   'Fee',
   'Refund',

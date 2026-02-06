@@ -112,6 +112,34 @@
   --spacing-xl: 24px;
 }
 
+// Dark Mode Color Overrides
+body.body--dark {
+  --primary-color: #64b5f6;
+  --primary-light: #90caf9;
+  --primary-dark: #42a5f5;
+  --primary-glow: rgba(100, 181, 246, 0.2);
+
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;
+  --bg-tertiary: #2e2e2e;
+  --bg-surface: #242424;
+  --bg-muted: #2e2e2e;
+
+  --neutral-50: #2e2e2e;
+  --neutral-100: #383838;
+  --neutral-200: #424242;
+  --neutral-300: #525252;
+  --neutral-400: #6b6b6b;
+  --neutral-500: #8a8a8a;
+  --neutral-600: #a3a3a3;
+  --neutral-700: #bcbcbc;
+  --neutral-800: #e0e0e0;
+  --neutral-900: #f5f5f5;
+
+  background-color: var(--bg-primary);
+  color: #e0e0e0;
+}
+
 // Global Typography
 body {
   font-family:
@@ -127,6 +155,7 @@ body {
   background-color: var(--bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 // Professional Finance Card Styles - Flat Design
@@ -2474,4 +2503,86 @@ body {
   100% {
     transform: scale(1);
   }
+}
+
+// ============================================
+// DARK MODE COMPONENT STYLES
+// ============================================
+
+body.body--dark {
+  // Base colors
+  color: #e0e0e0;
+  
+  // Background utilities
+  .bg-white { background-color: #242424 !important; }
+  .bg-grey-1, .bg-grey-2, .bg-grey-3 { background-color: #2e2e2e !important; }
+  .bg-grey-4, .bg-grey-5, .bg-grey-6 { background-color: #383838 !important; }
+
+  // Text colors
+  .text-grey-6, .text-grey-7, .text-grey-8, .text-grey-9, .text-grey-10 {
+    color: #b0b0b0 !important;
+  }
+
+  // Cards
+  .q-card {
+    background: #242424 !important;
+    border-color: #383838 !important;
+    color: #e0e0e0 !important;
+  }
+
+  // Drawers & Headers
+  .q-drawer { background: #1a1a1a !important; }
+  .q-header { background: #1a1a1a !important; }
+
+  // Page
+  .q-page { background: #1a1a1a !important; }
+
+  // Inputs
+  .q-field__control { background: #2e2e2e !important; }
+  .q-field__native, .q-field__input { color: #e0e0e0 !important; }
+  .q-field__label { color: #a0a0a0 !important; }
+
+  // Tables
+  .q-table { background: #242424 !important; }
+  .q-table thead th { background: #2e2e2e !important; color: #e0e0e0 !important; }
+  .q-table tbody td { color: #e0e0e0 !important; border-color: #383838 !important; }
+  .q-table__bottom { background: #242424 !important; color: #e0e0e0 !important; }
+
+  // Lists
+  .q-item { color: #e0e0e0 !important; }
+  .q-item:hover { background: #2e2e2e !important; }
+  .q-item__label--caption { color: #a0a0a0 !important; }
+
+  // Menus
+  .q-menu { background: #242424 !important; border-color: #383838 !important; }
+
+  // Dialogs
+  .q-dialog .q-card { background: #242424 !important; }
+
+  // Buttons
+  .q-btn:not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not([color="primary"]):not([color="positive"]):not([color="negative"]):not([color="warning"]):not([color="info"]) {
+    background: #2e2e2e !important;
+    color: #e0e0e0 !important;
+    border-color: #424242 !important;
+  }
+  
+  .q-btn--flat:not(.bg-primary):not([color="primary"]) {
+    background: transparent !important;
+  }
+
+  // Chips
+  .q-chip { background: #383838 !important; color: #e0e0e0 !important; }
+
+  // Banner
+  .q-banner { background: #242424 !important; color: #e0e0e0 !important; }
+
+  // Expansion
+  .q-expansion-item { background: #242424 !important; }
+  .q-expansion-item__content { background: #242424 !important; }
+
+  // Separator
+  .q-separator { background: #383838 !important; }
+
+  // Tooltip
+  .q-tooltip { background: #383838 !important; color: #e0e0e0 !important; }
 }

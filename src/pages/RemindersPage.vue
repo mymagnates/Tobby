@@ -513,7 +513,7 @@ const reminderForm = ref({
 })
 
 // Options
-const categoryOptions = ['fee', 'rent', 'maintenance', 'tax', 'other']
+const categoryOptions = ['fee', 'rent', 'maintenance', 'labor', 'tax', 'other']
 const repeatOptions = ['daily', 'weekly', 'monthly', 'yearly', 'one-time']
 const statusOptions = [
   { label: 'Active', value: true },

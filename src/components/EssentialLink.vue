@@ -183,4 +183,55 @@ const getIconColor = () => {
 .essential-link:hover .link-icon .q-icon {
   transform: scale(1.05);
 }
+
+/* Dark Mode Styles */
+:global(body.body--dark) .essential-link {
+  background: transparent;
+}
+
+:global(body.body--dark) .essential-link:hover {
+  background: #2d2d2d;
+}
+
+:global(body.body--dark) .link-title {
+  color: white;
+}
+
+:global(body.body--dark) .link-caption {
+  color: #b0b0b0;
+}
+
+:global(body.body--dark) .link-icon .q-icon {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .essential-link:hover .link-title {
+  color: #42a5f5;
+}
+
+:global(body.body--dark) .essential-link:hover .link-icon .q-icon {
+  color: #42a5f5 !important;
+}
+
+:global(body.body--dark) .link-arrow .q-icon {
+  color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .essential-link.router-link-active {
+  background: #42a5f5;
+  border-color: #42a5f5;
+  box-shadow: 0 4px 16px rgba(66, 165, 245, 0.4);
+}
+
+:global(body.body--dark) .essential-link.router-link-active .link-title {
+  color: white;
+}
+
+:global(body.body--dark) .essential-link.router-link-active .link-icon .q-icon {
+  color: white !important;
+}
+
+:global(body.body--dark) .essential-link.router-link-active .link-arrow .q-icon {
+  color: white !important;
+}
 </style>
