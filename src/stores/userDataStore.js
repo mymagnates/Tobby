@@ -19,6 +19,18 @@ import {
   debugPropertyIdComparison,
 } from '../utils/propertyIdUtils'
 
+// LocalStorage keys for data persistence
+const STORAGE_KEYS = {
+  USER_PROFILE: 'userData_profile',
+  USER_ROLES: 'userData_roles',
+  PROPERTIES: 'userData_properties',
+  DATA_TIMESTAMP: 'userData_timestamp',
+  USER_ID: 'userData_userId',
+}
+
+// Data expiration time: 5 minutes (data will be refreshed if older)
+const DATA_CACHE_DURATION = 5 * 60 * 1000
+
 export const useUserDataStore = defineStore('userData', () => {
   // State
   const user = ref(null)
@@ -37,6 +49,7 @@ export const useUserDataStore = defineStore('userData', () => {
   const userRolesLoading = ref(false)
   const propertiesLoading = ref(false)
   const mxRecordsLoading = ref(false)
+  const isInitialized = ref(false) // Track if store has been initialized
 
   // Unsubscribe functions
   const unsubscribeUserProfile = ref(null)
@@ -252,41 +265,148 @@ export const useUserDataStore = defineStore('userData', () => {
     )
   }
 
-  // Methods
-  const setUser = (newUser) => {
-    console.log(
-      'UserDataStore - setUser called with:',
-      newUser ? `User: ${newUser.email}` : 'No user',
-    )
+  /**
+   * Save data to localStorage for persistence
+   */
+  const saveToStorage = () => {
+    if (typeof window === 'undefined') return
+    
+    try {
+      if (user.value?.uid) {
+        localStorage.setItem(STORAGE_KEYS.USER_ID, user.value.uid)
+      }
+      if (userProfile.value) {
+        localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(userProfile.value))
+      }
+      if (userRoles.value.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.USER_ROLES, JSON.stringify(userRoles.value))
+      }
+      if (properties.value.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.PROPERTIES, JSON.stringify(properties.value))
+      }
+      localStorage.setItem(STORAGE_KEYS.DATA_TIMESTAMP, Date.now().toString())
+    } catch (error) {
+      console.error('UserDataStore - Error saving to storage:', error)
+    }
+  }
+
+  /**
+   * Load data from localStorage
+   */
+  const loadFromStorage = (userId) => {
+    if (typeof window === 'undefined') return false
+    
+    try {
+      const storedUserId = localStorage.getItem(STORAGE_KEYS.USER_ID)
+      if (storedUserId !== userId) {
+        // Different user, clear storage
+        clearStorage()
+        return false
+      }
+
+      const timestamp = localStorage.getItem(STORAGE_KEYS.DATA_TIMESTAMP)
+      if (timestamp) {
+        const age = Date.now() - parseInt(timestamp, 10)
+        if (age > DATA_CACHE_DURATION) {
+          // Data is stale, don't use it
+          return false
+        }
+      }
+
+      const profileData = localStorage.getItem(STORAGE_KEYS.USER_PROFILE)
+      if (profileData) {
+        userProfile.value = JSON.parse(profileData)
+      }
+
+      const rolesData = localStorage.getItem(STORAGE_KEYS.USER_ROLES)
+      if (rolesData) {
+        userRoles.value = JSON.parse(rolesData)
+      }
+
+      const propertiesData = localStorage.getItem(STORAGE_KEYS.PROPERTIES)
+      if (propertiesData) {
+        properties.value = JSON.parse(propertiesData)
+      }
+
+      return true
+    } catch (error) {
+      console.error('UserDataStore - Error loading from storage:', error)
+      clearStorage()
+      return false
+    }
+  }
+
+  /**
+   * Clear localStorage
+   */
+  const clearStorage = () => {
+    if (typeof window === 'undefined') return
+    try {
+      Object.values(STORAGE_KEYS).forEach((key) => {
+        localStorage.removeItem(key)
+      })
+    } catch (error) {
+      console.error('UserDataStore - Error clearing storage:', error)
+    }
+  }
+
+  /**
+   * Initialize store with user - this is the main entry point
+   * Handles both new logins and page refreshes
+   * Prevents duplicate initialization for the same user
+   */
+  const initialize = async (newUser) => {
+    if (!newUser) {
+      // No user, clear everything
+      clearAllData()
+      return
+    }
+
     const previousUser = user.value
+
+    // If already initialized with the same user, skip
+    if (isInitialized.value && previousUser && previousUser.uid === newUser.uid) {
+      return
+    }
+
+    // If user changed, clear old data
+    if (previousUser && previousUser.uid !== newUser.uid) {
+      clearAllData()
+    }
+
     user.value = newUser
 
-    if (newUser && !previousUser) {
-      // User logged in
-      console.log('UserDataStore - User logged in, loading all data...')
-      loadAllUserData().catch((error) => {
-        console.error('UserDataStore - Error loading user data after login:', error)
+    // Try to load from cache first
+    const cacheLoaded = loadFromStorage(newUser.uid)
+    
+    if (cacheLoaded && userRoles.value.length > 0 && properties.value.length > 0) {
+      // Cache is valid, set up listeners to keep data fresh
+      isInitialized.value = true
+      // Set up listeners without blocking
+      Promise.all([
+        loadUserProfile(),
+        loadUserRoles(),
+        loadProperties(),
+      ]).catch((error) => {
+        console.error('UserDataStore - Error setting up listeners:', error)
       })
-    } else if (!newUser && previousUser) {
-      // User logged out
-      console.log('UserDataStore - User logged out, clearing all data...')
-      clearAllData()
-    } else if (newUser && previousUser && newUser.uid !== previousUser.uid) {
-      // User changed
-      console.log('UserDataStore - User changed, clearing old data and loading new data...')
-      clearAllData()
-      setTimeout(() => {
-        loadAllUserData().catch((error) => {
-          console.error('UserDataStore - Error loading user data after user change:', error)
-        })
-      }, 100) // Small delay to ensure cleanup is complete
+    } else {
+      // No cache or cache invalid, load fresh data
+      isInitialized.value = false
+      await loadAllUserData()
+      isInitialized.value = true
     }
-    // If same user, do nothing
+  }
+
+  // Methods
+  const setUser = (newUser) => {
+    // Use the new initialize method
+    initialize(newUser).catch((error) => {
+      console.error('UserDataStore - Error initializing:', error)
+    })
   }
 
   const clearAllData = () => {
-    console.log('UserDataStore - Clearing all data...')
-
     // Unsubscribe from all listeners
     if (unsubscribeUserProfile.value) {
       unsubscribeUserProfile.value()
@@ -330,6 +450,10 @@ export const useUserDataStore = defineStore('userData', () => {
     transactionsLoading.value = false
     leasesLoading.value = false
     loading.value = false
+    isInitialized.value = false
+
+    // Clear storage
+    clearStorage()
   }
 
   // Alias for clearAllData for better API consistency
@@ -379,14 +503,8 @@ export const useUserDataStore = defineStore('userData', () => {
       await loadLeases() // Load leases after properties
       console.log('UserDataStore - Step 6 complete: Leases loaded. Count:', leases.value.length)
 
-      console.log('UserDataStore - All user data loaded successfully')
-      console.log('UserDataStore - Final state:', {
-        userRoles: userRoles.value.length,
-        properties: properties.value.length,
-        leases: leases.value.length,
-        userAccessibleProperties: userAccessibleProperties.value.length,
-        userAccessibleLeases: userAccessibleLeases.value.length,
-      })
+      // Save to storage after successful load
+      saveToStorage()
     } catch (error) {
       console.error('UserDataStore - Error loading all user data:', error)
       throw error // Re-throw error so calling components can handle it
@@ -986,6 +1104,7 @@ export const useUserDataStore = defineStore('userData', () => {
     mxRecordsLoading,
     transactionsLoading,
     leasesLoading,
+    isInitialized,
 
     // Computed
     userId,
@@ -998,6 +1117,7 @@ export const useUserDataStore = defineStore('userData', () => {
     universalPropertyOptions,
 
     // Methods
+    initialize,
     setUser,
     clearAllData,
     clearUserData,

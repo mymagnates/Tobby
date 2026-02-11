@@ -8,7 +8,7 @@
     class="essential-link"
   >
     <q-item-section v-if="icon" avatar class="link-icon">
-      <q-icon :name="icon" :color="getIconColor()" />
+      <q-icon :name="icon" class="link-icon-svg" />
     </q-item-section>
 
     <q-item-section class="link-content">
@@ -60,9 +60,7 @@ const handleInternalClick = () => {
   router.push(props.link)
 }
 
-const getIconColor = () => {
-  return 'grey-8'
-}
+// Icon color is handled by CSS for better dark mode support
 </script>
 
 <style scoped>
@@ -96,14 +94,14 @@ const getIconColor = () => {
 
 .link-title {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--neutral-800);
   font-size: 0.9rem;
   line-height: 1.4;
   transition: all 0.3s ease;
 }
 
 .link-caption {
-  color: #6b7280;
+  color: var(--neutral-600);
   font-size: 0.7rem;
   line-height: 1.3;
   margin-top: 2px;
@@ -121,25 +119,25 @@ const getIconColor = () => {
 }
 
 .essential-link:hover .link-title {
-  color: #1976d2;
+  color: var(--primary-color);
 }
 
 .essential-link:hover .link-icon .q-icon {
-  color: #1976d2 !important;
+  color: var(--primary-color) !important;
 }
 
 /* Focus states for accessibility */
 .essential-link:focus {
-  outline: 2px solid #1976d2;
+  outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
 /* Active state */
 .essential-link.router-link-active {
-  background: #1976d2;
+  background: var(--primary-color);
   color: white;
-  border-color: #1976d2;
-  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.4);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 16px var(--primary-glow);
 }
 
 .essential-link.router-link-active .link-title {
@@ -175,56 +173,68 @@ const getIconColor = () => {
 }
 
 /* Animation for icon */
-.link-icon .q-icon {
+.link-icon .q-icon,
+.link-icon-svg {
   transition: all 0.3s ease;
-  color: #4b5563;
+  color: var(--neutral-600);
+}
+
+.essential-link:hover .link-icon .q-icon,
+.essential-link:hover .link-icon-svg {
+  color: var(--primary-color) !important;
+}
+
+.essential-link.router-link-active .link-icon .q-icon,
+.essential-link.router-link-active .link-icon-svg {
+  color: white !important;
 }
 
 .essential-link:hover .link-icon .q-icon {
   transform: scale(1.05);
 }
 
-/* Dark Mode Styles */
+/* Dark Mode Styles - Fixed visibility */
 :global(body.body--dark) .essential-link {
   background: transparent;
 }
 
 :global(body.body--dark) .essential-link:hover {
-  background: #2d2d2d;
+  background: var(--bg-tertiary);
 }
 
 :global(body.body--dark) .link-title {
-  color: white;
+  color: var(--neutral-600) !important; /* Fixed: Now visible in dark mode */
+  font-weight: 500;
 }
 
 :global(body.body--dark) .link-caption {
-  color: #b0b0b0;
+  color: var(--neutral-500) !important;
 }
 
 :global(body.body--dark) .link-icon .q-icon {
-  color: #b0b0b0 !important;
+  color: var(--neutral-500) !important; /* Fixed: Now visible in dark mode */
 }
 
 :global(body.body--dark) .essential-link:hover .link-title {
-  color: #42a5f5;
+  color: var(--primary-color) !important; /* Fixed: Bright color on hover */
 }
 
 :global(body.body--dark) .essential-link:hover .link-icon .q-icon {
-  color: #42a5f5 !important;
+  color: var(--primary-color) !important;
 }
 
 :global(body.body--dark) .link-arrow .q-icon {
-  color: #b0b0b0 !important;
+  color: var(--neutral-500) !important; /* Fixed: Now visible */
 }
 
 :global(body.body--dark) .essential-link.router-link-active {
-  background: #42a5f5;
-  border-color: #42a5f5;
-  box-shadow: 0 4px 16px rgba(66, 165, 245, 0.4);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 16px var(--primary-glow);
 }
 
 :global(body.body--dark) .essential-link.router-link-active .link-title {
-  color: white;
+  color: white !important; /* Fixed: White text on active */
 }
 
 :global(body.body--dark) .essential-link.router-link-active .link-icon .q-icon {

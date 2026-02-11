@@ -223,7 +223,6 @@
                   dense
                   label="View All"
                   color="primary"
-                  text-color="white"
                   class="btn-primary"
                   @click="$router.push('/mx-records')"
                 />
@@ -292,7 +291,6 @@
                   dense
                   label="View All"
                   color="primary"
-                  text-color="white"
                   class="btn-primary"
                   @click="$router.push('/transactions')"
                 />
@@ -394,7 +392,6 @@
                 <!-- View All Button -->
                 <div v-if="reminders.length > 5" class="text-center q-mt-md">
                   <q-btn
-                    flat
                     color="primary"
                     label="View All Reminders"
                     @click="$router.push('/reminders')"
@@ -1393,9 +1390,15 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard-page {
-  padding: 16px;
-  background: #f8f9fa;
+  padding: 24px;
+  background: var(--bg-primary);
   min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 16px;
+  }
 }
 
 .data-loading-page {
@@ -1478,17 +1481,20 @@ onMounted(async () => {
 }
 
 .stat-card {
-  height: 100px;
-  min-height: 100px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  height: 120px;
+  min-height: 120px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--neutral-200);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin: 2px;
+  background: var(--bg-surface);
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary-color);
 }
 
 .stat-card__content {
@@ -1530,18 +1536,22 @@ onMounted(async () => {
 }
 
 .stat-card__value {
-  font-size: 1.2rem !important;
+  font-size: 1.5rem !important;
   font-weight: 700;
   line-height: 1.2;
-  margin-bottom: 2px;
-  color: #1a1a1a;
+  margin-bottom: 4px;
+  color: var(--neutral-900);
+  letter-spacing: -0.02em;
 }
 
 .stat-card__label {
-  font-size: 0.75rem !important;
-  line-height: 1.3;
-  color: #666;
+  font-size: 0.8125rem !important;
+  line-height: 1.4;
+  color: var(--neutral-600);
   margin: 0;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .dashboard-sections {
@@ -1549,33 +1559,42 @@ onMounted(async () => {
 }
 
 .dashboard-section {
-  border-radius: 12px;
-  box-shadow: none;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   margin-bottom: 24px;
   margin-right: 5px;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-surface);
+  border: 1px solid var(--neutral-200);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.dashboard-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--neutral-300);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: white;
+  padding: 24px;
+  border-bottom: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
 }
 
 .section-title {
   display: flex;
   align-items: center;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--neutral-900);
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
 }
 
 .section-content {
-  padding: 20px 24px;
-  background: white;
+  padding: 24px;
+  background: var(--bg-surface);
 }
 
 .empty-state {
@@ -1596,17 +1615,20 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  border: 1px solid var(--neutral-200);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 8px;
 }
 
 .record-item:hover,
 .transaction-item:hover {
-  background: white;
-  border-color: #1976d2;
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
 }
 
 .record-item.clickable {
@@ -1657,9 +1679,9 @@ onMounted(async () => {
 .record-description {
   flex: 1;
   font-weight: 600;
-  color: #1a1a1a;
-  font-size: 0.9rem;
-  line-height: 1.3;
+  color: var(--neutral-900);
+  font-size: 0.9375rem;
+  line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1717,12 +1739,12 @@ onMounted(async () => {
   background: #f8f9fa;
 }
 
-/* Button Text Styling - Keep Default Colors */
+/* Button Text Styling - Use outline style colors */
 .btn-primary,
 .btn-secondary,
 .refresh-btn {
-  color: white !important;
   font-weight: 600 !important;
+  /* Color is handled by global button styles - no override needed */
 }
 
 /* Responsive adjustments */
@@ -1807,14 +1829,17 @@ onMounted(async () => {
 }
 
 .reminders-card {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--neutral-200);
   transition: all 0.3s ease;
+  background: var(--bg-surface);
 }
 
 .reminders-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--neutral-300);
 }
 
 .reminders-grid {
@@ -1826,16 +1851,20 @@ onMounted(async () => {
 
 .reminder-card {
   border-radius: 12px;
-  border-left: 4px solid #2196f3;
-  transition: all 0.3s ease;
+  border-left: 4px solid var(--primary-color);
+  border: 1px solid var(--neutral-200);
+  border-left-width: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   height: 160px;
   display: flex;
   flex-direction: column;
+  background: var(--bg-surface);
 }
 
 .reminder-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+  border-color: var(--primary-color);
 }
 
 .reminder-card.reminder-overdue {
@@ -1860,9 +1889,9 @@ onMounted(async () => {
 
 .reminder-title {
   font-weight: 600;
-  color: #1a1a1a;
-  font-size: 0.9rem;
-  line-height: 1.3;
+  color: var(--neutral-900);
+  font-size: 0.9375rem;
+  line-height: 1.4;
   flex: 1;
   margin-right: 8px;
 }
@@ -1886,9 +1915,9 @@ onMounted(async () => {
 }
 
 .reminder-description {
-  color: #666;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  color: var(--neutral-600);
+  font-size: 0.8125rem;
+  line-height: 1.5;
   margin-bottom: 12px;
   flex: 1;
   display: -webkit-box;
@@ -1908,7 +1937,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--neutral-600);
   font-weight: 500;
 }
 

@@ -5,7 +5,8 @@
       <div class="logo-section">
         <img src="/logo.svg" alt="Property Manager Logo" class="loading-logo" />
         <h1 class="app-title">Handout - Property Manager</h1>
-        <p class="app-subtitle">{{ hasError ? 'Unable to load data' : 'Loading your data...' }}</p>
+        <p class="app-subtitle">{{ hasError ? 'Unable to load data' : loadingMessage }}</p>
+        <p v-if="hasError && errorMessage" class="error-message">{{ errorMessage }}</p>
       </div>
 
       <!-- Loading Animation or Error Icon -->
@@ -22,6 +23,7 @@
           @click="retryLoading"
           size="lg"
           unelevated
+          :loading="isLoading"
         />
       </div>
     </div>
@@ -29,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 
@@ -39,27 +41,68 @@ const userDataStore = useUserDataStore()
 
 // Loading state
 const hasError = ref(false)
+const errorMessage = ref('')
+const isLoading = ref(false)
+const hasRedirected = ref(false) // Prevent multiple redirects
 
 // Get redirect URL from query params
 const redirectUrl = route.query.redirect
 
-// Helper function to perform redirect
-const performRedirect = () => {
-  // If there's a specific redirect URL, use it
-  if (redirectUrl) {
-    console.log('LoadingPage - Redirecting to specified URL:', redirectUrl)
-    router.push(redirectUrl)
-    return
-  }
+/**
+ * Computed loading message based on current state
+ */
+const loadingMessage = computed(() => {
+  if (userDataStore.profileLoading) return 'Loading profile...'
+  if (userDataStore.userRolesLoading) return 'Loading roles...'
+  if (userDataStore.propertiesLoading) return 'Loading properties...'
+  if (userDataStore.loading) return 'Loading data...'
+  return 'Loading your data...'
+})
 
-  // For all users after login, redirect to IndexPage (dashboard)
-  console.log('LoadingPage - Redirecting to IndexPage (dashboard)')
-  router.push('/')
+/**
+ * Check if data is ready (user authenticated and has accessible properties)
+ */
+const isDataReady = computed(() => {
+  return (
+    userDataStore.isAuthenticated &&
+    userDataStore.isInitialized &&
+    !userDataStore.loading &&
+    !userDataStore.profileLoading &&
+    !userDataStore.propertiesLoading &&
+    !userDataStore.userRolesLoading
+  )
+})
+
+/**
+ * Perform redirect to destination
+ */
+const performRedirect = () => {
+  if (hasRedirected.value) return
+  
+  hasRedirected.value = true
+  
+  try {
+    if (redirectUrl) {
+      router.push(redirectUrl)
+    } else {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('LoadingPage - Error during redirect:', error)
+    hasRedirected.value = false
+    hasError.value = true
+    errorMessage.value = 'Failed to redirect. Please try again.'
+  }
 }
 
-// Methods
+/**
+ * Retry loading data manually
+ */
 const retryLoading = async () => {
   hasError.value = false
+  errorMessage.value = ''
+  hasRedirected.value = false
+  isLoading.value = true
 
   if (!userDataStore.isAuthenticated) {
     router.push('/public/login')
@@ -67,82 +110,91 @@ const retryLoading = async () => {
   }
 
   try {
-    await userDataStore.loadAllUserData()
+    // Re-initialize the store
+    await userDataStore.initialize(userDataStore.user)
+    
+    // Wait a bit for data to load
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    
+    if (isDataReady.value) {
+      performRedirect()
+    } else {
+      hasError.value = true
+      errorMessage.value = 'No properties found. Please contact your administrator.'
+    }
   } catch (error) {
     console.error('LoadingPage - Error loading data:', error)
     hasError.value = true
+    errorMessage.value = error.message || 'Failed to load data. Please try again.'
+  } finally {
+    isLoading.value = false
   }
 }
 
-// Watch for successful data load
+/**
+ * Watch for data readiness and auto-redirect
+ */
 watch(
-  () => [
-    userDataStore.isAuthenticated,
-    userDataStore.userAccessibleProperties.length,
-    userDataStore.profileLoading,
-    userDataStore.propertiesLoading,
-    userDataStore.userRolesLoading,
-  ],
-  () => {
-    if (!userDataStore.isAuthenticated) {
-      console.log('LoadingPage - User not authenticated, redirecting to login')
-      router.push('/public/login')
-      return
-    }
-
-    // Auto-redirect when data is loaded
-    if (
-      userDataStore.isAuthenticated &&
-      userDataStore.userAccessibleProperties.length > 0 &&
-      !userDataStore.profileLoading &&
-      !userDataStore.propertiesLoading &&
-      !userDataStore.userRolesLoading
-    ) {
-      console.log('LoadingPage - Data load complete via watch, redirecting')
+  isDataReady,
+  (ready) => {
+    if (ready && !hasRedirected.value) {
       performRedirect()
     }
   },
-  { deep: true },
+  { immediate: true },
 )
 
-// Mount handling
+/**
+ * Watch for authentication state changes
+ */
+watch(
+  () => userDataStore.isAuthenticated,
+  (authenticated) => {
+    if (!authenticated && !hasRedirected.value) {
+      router.push('/public/login')
+    }
+  },
+)
+
+/**
+ * Component mount handling
+ */
 onMounted(async () => {
-  // Check authentication
+  // Check authentication first
   if (!userDataStore.isAuthenticated) {
     router.push('/public/login')
     return
   }
 
-  // Check if data is already loaded
-  if (
-    userDataStore.userAccessibleProperties.length > 0 &&
-    !userDataStore.profileLoading &&
-    !userDataStore.propertiesLoading &&
-    !userDataStore.userRolesLoading
-  ) {
-    // Data already loaded, perform immediate redirect
-    console.log('LoadingPage - Data already loaded, redirecting immediately')
+  // If data is already ready, redirect immediately
+  if (isDataReady.value) {
     performRedirect()
     return
   }
 
-  console.log('LoadingPage - Loading user data...')
-  // Load data
-  try {
-    await userDataStore.loadAllUserData()
-    
-    // Check if data loaded successfully
-    if (userDataStore.userAccessibleProperties.length > 0) {
-      console.log('LoadingPage - Data loaded successfully, redirecting')
-      performRedirect()
-      return
-    } else {
-      console.log('LoadingPage - No properties found after loading')
+  // If store is not initialized, initialize it
+  if (!userDataStore.isInitialized && userDataStore.user) {
+    try {
+      isLoading.value = true
+      await userDataStore.initialize(userDataStore.user)
+      
+      // Wait a moment for computed properties to update
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      
+      if (isDataReady.value) {
+        performRedirect()
+      } else {
+        // No properties found - might be normal for new users
+        hasError.value = true
+        errorMessage.value = 'No properties found. Please contact your administrator to get access.'
+      }
+    } catch (error) {
+      console.error('LoadingPage - Error initializing:', error)
       hasError.value = true
+      errorMessage.value = error.message || 'Failed to initialize. Please try again.'
+    } finally {
+      isLoading.value = false
     }
-  } catch (error) {
-    console.error('LoadingPage - Error loading data:', error)
-    hasError.value = true
   }
 })
 </script>
@@ -191,6 +243,13 @@ onMounted(async () => {
   color: var(--neutral-600);
   margin: 0;
   font-weight: 500;
+}
+
+.error-message {
+  font-size: 0.95rem;
+  color: var(--negative);
+  margin: 12px 0 0 0;
+  font-weight: 400;
 }
 
 .loading-animation {

@@ -28,17 +28,13 @@ export function useFirebase() {
 
   // Auth state observer with session timeout check
   onAuthStateChanged(auth, async (currentUser) => {
-    console.log('Auth state changed:', currentUser ? `User: ${currentUser.email}` : 'No user')
-    
     if (currentUser) {
       // Check if session has expired (24 hours)
       if (sessionManager.isSessionExpired()) {
-        console.log('Session expired after 24 hours, logging out...')
         try {
           await signOut(auth)
           sessionManager.clearLoginTime()
           userDataStore.clearAllData()
-          console.log('User logged out due to session expiration')
           
           // Redirect to login page
           if (typeof window !== 'undefined') {
@@ -49,14 +45,10 @@ export function useFirebase() {
         }
         return
       }
-      
-      // Session is still valid
-      const remainingTime = sessionManager.getRemainingTimeFormatted()
-      console.log('Session remaining time:', remainingTime)
     }
     
     user.value = currentUser
-    // Update the store with user data
+    // Use the new initialize method which handles both new logins and page refreshes
     userDataStore.setUser(currentUser)
   })
 

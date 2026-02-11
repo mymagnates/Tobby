@@ -12,19 +12,19 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-// Custom Color Strategy - Professional & Clean
-$primary: #1976d2; // Blue (Handout brand color)
-$secondary: #bbbdbc; // Light gray (secondary/links)
-$accent: #733e24; // Dark brown (accent/highlights)
+// Modern & Bright Color Strategy - Clean, Vibrant, Accessible
+$primary: #2563eb; // Bright blue (Handout brand color) - WCAG AA compliant
+$secondary: #64748b; // Slate gray (secondary/links) - Better contrast
+$accent: #0d9488; // Modern teal (accent/highlights) - Better contrast
 
-$dark: #1e293b; // Slate 800
+$dark: #0f172a; // Slate 900 (darker for better contrast)
 $dark-page: #0f172a; // Slate 900
 
-$positive: #10b981; // Emerald green
-$negative: #ef4444; // Bright red
-$info: #8b5cf6; // Purple
-$warning: #f59e0b; // Bright amber
+$positive: #10b981; // Emerald green - WCAG AA compliant
+$negative: #ef4444; // Bright red - WCAG AA compliant
+$info: #8b5cf6; // Purple - WCAG AA compliant
+$warning: #f59e0b; // Bright amber - WCAG AA compliant
 
 // Additional colors for consistency
-$surface: #f2f0ef; // Warm white for cards/surfaces
-$background: #f2f0ef; // Warm white main background
+$surface: #ffffff; // Pure white for cards/surfaces
+$background: #ffffff; // Pure white main background

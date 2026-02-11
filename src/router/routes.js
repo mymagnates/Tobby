@@ -63,6 +63,7 @@ const routes = [
       { path: 'leases', component: () => import('pages/LeasesPage.vue') },
       { path: 'tenants', component: () => import('pages/TenantsPage.vue') },
       { path: 'reminders', component: () => import('pages/RemindersPage.vue') },
+      { path: 'documents', component: () => import('pages/DocumentsPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
       { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
       { path: 'create-tenant', component: () => import('pages/CreateTenantPage.vue') },

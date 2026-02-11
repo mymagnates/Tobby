@@ -50,7 +50,7 @@
             <q-icon name="logout" color="grey-7" size="20px" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Sign Out</q-item-label>
+            <q-item-label>{{ t('signOut') }}</q-item-label>
           </q-item-section>
         </q-item>
       </div>
@@ -58,7 +58,7 @@
 
     <!-- Top Header -->
     <q-header class="dashboard-header">
-      <q-toolbar class="q-px-lg">
+      <q-toolbar class="header-toolbar q-px-lg">
         <!-- Handout Logo - Shows when sidebar is closed -->
         <div v-if="!leftDrawerOpen" class="header-handout-logo" @click="toggleLeftDrawer">
           <span class="header-app-title">Handout</span>
@@ -71,8 +71,58 @@
           <img src="/logo.svg" alt="Handout Logo" class="header-logo-image" />
         </div>
 
-        <!-- Header Actions -->
+        <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
+          <!-- Refresh -->
+          <q-btn flat round dense icon="refresh" @click="refreshAllData" class="header-action-btn">
+            <q-tooltip>Refresh data</q-tooltip>
+          </q-btn>
+
+          <!-- Language Switcher -->
+          <q-btn-dropdown
+            flat
+            dense
+            :label="currentLanguageLabel"
+            class="header-action-btn language-switcher"
+            content-class="language-dropdown"
+          >
+            <q-tooltip>Language</q-tooltip>
+            <q-list>
+              <q-item
+                clickable
+                v-close-popup
+                @click="changeLanguage('en-US')"
+                :active="currentLocale === 'en-US'"
+              >
+                <q-item-section avatar>
+                  <q-icon name="flag" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>English</q-item-label>
+                </q-item-section>
+                <q-item-section side v-if="currentLocale === 'en-US'">
+                  <q-icon name="check" color="primary" />
+                </q-item-section>
+              </q-item>
+              <q-item
+                clickable
+                v-close-popup
+                @click="changeLanguage('es-ES')"
+                :active="currentLocale === 'es-ES'"
+              >
+                <q-item-section avatar>
+                  <q-icon name="flag" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Español</q-item-label>
+                </q-item-section>
+                <q-item-section side v-if="currentLocale === 'es-ES'">
+                  <q-icon name="check" color="primary" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+
           <!-- Dark Mode Toggle -->
           <q-btn
             flat
@@ -80,7 +130,7 @@
             dense
             :icon="isDarkMode ? 'light_mode' : 'dark_mode'"
             @click="toggleDarkMode"
-            class="dark-mode-btn"
+            class="header-action-btn dark-mode-btn"
           >
             <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
           </q-btn>
@@ -104,17 +154,31 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import EssentialLink from 'components/EssentialLink.vue'
 
 const $q = useQuasar()
 const router = useRouter()
+const { locale, t } = useI18n()
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
 
 // Dark mode state
 const isDarkMode = ref(false)
+
+// Language state
+const currentLocale = computed(() => locale.value)
+const currentLanguageLabel = computed(() => {
+  return currentLocale.value === 'es-ES' ? 'ES' : 'EN'
+})
+
+// Change language
+function changeLanguage(lang) {
+  locale.value = lang
+  localStorage.setItem('handout-locale', lang)
+}
 
 // Initialize dark mode from localStorage
 onMounted(() => {
@@ -143,72 +207,79 @@ function applyDarkModeClass(isDark) {
   }
 }
 
-const allLinksList = [
+const allLinksList = computed(() => [
   {
-    title: 'Dashboard',
-    caption: 'Main page',
+    title: t('dashboard'),
+    caption: t('mainPage'),
     icon: 'dashboard',
     link: '/',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
   {
-    title: 'My Properties',
-    caption: 'View your properties',
+    title: t('Properties'),
+    caption: t('viewYourProperties'),
     icon: 'home',
     link: '/my-properties',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Tasks',
-    caption: 'View all tasks',
+    title: t('tasks'),
+    caption: t('viewAllTasks'),
     icon: 'dns',
     link: '/mx-records',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Transactions',
-    caption: 'View all transactions',
+    title: t('transactions'),
+    caption: t('viewAllTransactions'),
     icon: 'receipt_long',
     link: '/transactions',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Reminders',
-    caption: 'Manage reminders',
+    title: t('reminders'),
+    caption: t('manageReminders'),
     icon: 'notifications',
     link: '/reminders',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
+
   {
-    title: 'Reports',
-    caption: 'View reports & analytics',
-    icon: 'assessment',
-    link: '/reports',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-  {
-    title: 'Leases',
-    caption: 'View all leases',
+    title: t('leases'),
+    caption: t('viewAllLeases'),
     icon: 'description',
     link: '/leases',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: 'Tenants',
-    caption: 'Manage all tenants',
+    title: t('tenants'),
+    caption: t('manageAllTenants'),
     icon: 'people',
     link: '/tenants',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
-
   {
-    title: 'Tenant Home',
-    caption: 'Tenant home page',
+    title: t('tenantHome'),
+    caption: t('tenantHomePage'),
     icon: 'home_work',
     link: '/tenant-home',
     allowedFor: ['tenant'], // Only for tenants
   },
-]
+  {
+    title: t('reports'),
+    caption: t('viewReportsAnalytics'),
+    icon: 'assessment',
+    link: '/reports',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: t('documents'),
+    caption: t('viewAllDocuments'),
+    icon: 'folder',
+    link: '/documents',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+])
 
 // Computed property to filter links based on user category
 const linksList = computed(() => {
@@ -221,7 +292,7 @@ const linksList = computed(() => {
   }
 
   // Filter links based on user category
-  const filtered = allLinksList.filter((link) => {
+  const filtered = allLinksList.value.filter((link) => {
     // Handle "PM/PO" as a single category
     if (userCategory === 'PM/PO') {
       // PM/PO users should see all property management pages
@@ -502,14 +573,14 @@ async function refreshAllData() {
 }
 
 .drawer-logo-icon:hover {
-  background: rgba(25, 118, 210, 0.05);
+  background: var(--primary-glow);
 }
 
 .sidebar-app-title {
   font-family: 'Pacifico', cursive;
   font-size: 1.8rem;
   font-weight: 400;
-  color: #1976d2;
+  color: var(--primary-color);
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
 }
@@ -580,6 +651,13 @@ async function refreshAllData() {
   min-height: 56px;
 }
 
+.header-toolbar {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  min-height: 56px;
+}
+
 /* Header Handout Logo - Shows when sidebar is closed */
 .header-handout-logo {
   display: flex;
@@ -591,14 +669,14 @@ async function refreshAllData() {
 }
 
 .header-handout-logo:hover {
-  background: rgba(25, 118, 210, 0.1);
+  background: var(--primary-glow);
 }
 
 .header-handout-logo .header-app-title {
   font-family: 'Pacifico', cursive;
   font-size: 1.5rem;
   font-weight: 400;
-  color: #1976d2;
+  color: var(--primary-color);
   letter-spacing: 0.02em;
 }
 
@@ -623,23 +701,51 @@ async function refreshAllData() {
   transition: all 0.3s ease;
 }
 
-/* Header Actions */
+/* Header Actions - same size, aligned in top bar */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
+  margin-left: 12px;
+}
+
+/* Base: all header action buttons same size */
+.header-action-btn {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  color: var(--primary-color) !important;
+  background: transparent !important;
+  border: 1px solid var(--neutral-200) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease;
+  margin: 0 4px;
+}
+
+.header-action-btn .q-icon {
+  color: var(--primary-color) !important;
+  font-size: 20px;
+}
+
+.header-action-btn:hover {
+  background: var(--primary-glow) !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* Language switcher: same 40x40, label centered */
+.language-switcher {
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+}
+
+.language-switcher .q-btn__content {
+  justify-content: center;
 }
 
 .dark-mode-btn {
-  color: #1976d2 !important;
-  background: rgba(25, 118, 210, 0.1) !important;
-  border: none !important;
-  transition: all 0.3s ease;
-}
-
-.dark-mode-btn:hover {
-  background: rgba(25, 118, 210, 0.2) !important;
-  transform: scale(1.05);
+  border: 1px solid var(--neutral-200) !important;
 }
 
 .action-btn {
@@ -691,7 +797,7 @@ async function refreshAllData() {
   margin-top: 16px;
   font-size: 1rem;
   font-weight: 600;
-  color: #1976d2;
+  color: var(--primary-color);
 }
 
 /* ========================================
@@ -702,6 +808,22 @@ async function refreshAllData() {
   .dashboard-header {
     height: 52px;
     min-height: 52px;
+  }
+
+  .header-toolbar {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .header-action-btn {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .header-action-btn .q-icon {
+    font-size: 18px;
   }
 
   .header-logo {
@@ -790,11 +912,11 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .sidebar-app-title {
-  color: #42a5f5 !important;
+  color: var(--primary-color) !important;
 }
 
 :global(body.body--dark) .header-app-title {
-  color: #42a5f5 !important;
+  color: var(--primary-color) !important;
 }
 
 :global(body.body--dark) .profile-name {
@@ -832,7 +954,7 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .drawer-logo-icon:hover {
-  background: rgba(66, 165, 245, 0.1);
+  background: var(--primary-glow);
 }
 
 :global(body.body--dark) .page-container {
@@ -848,18 +970,20 @@ async function refreshAllData() {
   color: white;
 }
 
-:global(body.body--dark) .dark-mode-btn {
-  color: #42a5f5 !important;
-  background: #2d2d2d !important;
-  border-color: #3d3d3d !important;
+/* Dark mode: all header action buttons same style */
+:global(body.body--dark) .header-action-btn {
+  color: var(--primary-color) !important;
+  background: transparent !important;
+  border-color: var(--neutral-300) !important;
 }
 
-:global(body.body--dark) .dark-mode-btn:hover {
-  background: #3d3d3d !important;
+:global(body.body--dark) .header-action-btn .q-icon {
+  color: var(--primary-color) !important;
 }
 
-:global(body.body--dark) .dark-mode-btn .q-icon {
-  color: #42a5f5 !important;
+:global(body.body--dark) .header-action-btn:hover {
+  background: var(--primary-glow) !important;
+  border-color: var(--primary-color) !important;
 }
 
 :global(body.body--dark) .data-loading-overlay {
@@ -867,7 +991,7 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .loading-text {
-  color: #42a5f5;
+  color: var(--primary-color);
 }
 
 :global(body.body--dark) .header-handout-logo {
@@ -875,7 +999,7 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .header-handout-logo:hover {
-  background: rgba(66, 165, 245, 0.1);
+  background: var(--primary-glow);
 }
 
 :global(body.body--dark) .header-logo {

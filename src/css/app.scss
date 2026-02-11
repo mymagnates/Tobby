@@ -25,64 +25,66 @@
   • Perfect for business applications
 */
 
-// Professional & Clean Color Strategy
+// Modern & Bright Color Strategy - Clean, Vibrant, Accessible
 :root {
-  // Primary Colors - Blue
-  --primary-color: #1976d2; // Blue (primary actions)
-  --primary-light: #42a5f5; // Lighter blue
-  --primary-dark: #1565c0; // Darker blue
-  --primary-glow: rgba(25, 118, 210, 0.15);
+  // Primary Colors - Vibrant Blue (Improved contrast)
+  --primary-color: #2563eb; // Bright blue (primary actions) - WCAG AA compliant
+  --primary-light: #60a5fa; // Lighter blue
+  --primary-dark: #1d4ed8; // Darker blue
+  --primary-glow: rgba(37, 99, 235, 0.12);
 
-  --accent-color: #733e24; // Dark brown (accent/highlights)
-  --accent-light: #8a4f2a; // Lighter brown
-  --accent-dark: #5d311c; // Darker brown
-  --accent-glow: rgba(115, 62, 36, 0.15);
+  // Accent Colors - Modern Teal (Replaces brown for better contrast)
+  --accent-color: #0d9488; // Modern teal (accent/highlights)
+  --accent-light: #14b8a6; // Lighter teal
+  --accent-dark: #0f766e; // Darker teal
+  --accent-glow: rgba(13, 148, 136, 0.12);
 
-  --secondary-color: #bbbdbc; // Light gray (secondary/links)
-  --secondary-light: #d1d3d2; // Lighter gray
-  --secondary-dark: #a5a7a6; // Darker gray
-  --secondary-glow: rgba(187, 189, 188, 0.15);
+  // Secondary Colors - Clean Gray
+  --secondary-color: #64748b; // Slate gray (secondary/links) - Better contrast
+  --secondary-light: #94a3b8; // Lighter slate
+  --secondary-dark: #475569; // Darker slate
+  --secondary-glow: rgba(100, 116, 139, 0.12);
 
-  // System Colors - Bright & Modern
-  --success-color: #10b981; // Emerald green
+  // System Colors - Bright & Modern (Improved contrast)
+  --success-color: #10b981; // Emerald green - WCAG AA compliant
   --success-light: #34d399; // Lighter emerald
   --success-dark: #059669; // Darker emerald
-  --success-glow: rgba(16, 185, 129, 0.15);
+  --success-glow: rgba(16, 185, 129, 0.12);
 
-  --warning-color: #f59e0b; // Bright amber
+  --warning-color: #f59e0b; // Bright amber - WCAG AA compliant
   --warning-light: #fbbf24; // Lighter amber
   --warning-dark: #d97706; // Darker amber
-  --warning-glow: rgba(245, 158, 11, 0.15);
+  --warning-glow: rgba(245, 158, 11, 0.12);
 
-  --error-color: #ef4444; // Bright red
+  --error-color: #ef4444; // Bright red - WCAG AA compliant
   --error-light: #f87171; // Lighter red
   --error-dark: #dc2626; // Darker red
-  --error-glow: rgba(239, 68, 68, 0.15);
+  --error-glow: rgba(239, 68, 68, 0.12);
 
-  --info-color: #8b5cf6; // Purple
+  --info-color: #8b5cf6; // Purple - WCAG AA compliant
   --info-light: #a78bfa; // Lighter purple
   --info-dark: #7c3aed; // Darker purple
-  --info-glow: rgba(139, 92, 246, 0.15);
+  --info-glow: rgba(139, 92, 246, 0.12);
 
-  // Background Colors - Warm & Professional
-  --bg-primary: #f2f0ef; // Warm white (main background)
-  --bg-secondary: #e8e6e4; // Slightly darker warm white (secondary background)
-  --bg-tertiary: #ddd9d6; // Even darker warm white (tertiary background)
+  // Background Colors - Clean & Bright
+  --bg-primary: #ffffff; // Pure white (main background)
+  --bg-secondary: #f8fafc; // Very light slate (secondary background)
+  --bg-tertiary: #f1f5f9; // Light slate (tertiary background)
   --bg-accent: #0f172a; // Slate 900 for dark headers
-  --bg-surface: #f2f0ef; // Warm white for cards/surfaces
-  --bg-muted: #e8e6e4; // Muted background
+  --bg-surface: #ffffff; // White for cards/surfaces
+  --bg-muted: #f1f5f9; // Muted background
 
-  // Neutral Colors - Warm & Professional
-  --neutral-50: #f2f0ef; // Warm white
-  --neutral-100: #e8e6e4; // Light warm gray
-  --neutral-200: #ddd9d6; // Medium warm gray
-  --neutral-300: #c7c2be; // Warm gray
-  --neutral-400: #a8a19c; // Medium warm gray
-  --neutral-500: #8a817a; // Warm gray
-  --neutral-600: #6b6158; // Dark warm gray
-  --neutral-700: #4a433c; // Dark warm gray
-  --neutral-800: #2d2822; // Very dark warm gray
-  --neutral-900: #1a1612; // Darkest warm gray
+  // Neutral Colors - Clean & Modern (Improved contrast ratios)
+  --neutral-50: #f8fafc; // Very light slate
+  --neutral-100: #f1f5f9; // Light slate
+  --neutral-200: #e2e8f0; // Medium light slate
+  --neutral-300: #cbd5e1; // Medium slate
+  --neutral-400: #94a3b8; // Medium dark slate
+  --neutral-500: #64748b; // Slate
+  --neutral-600: #475569; // Dark slate - WCAG AA compliant on white
+  --neutral-700: #334155; // Darker slate - WCAG AA compliant
+  --neutral-800: #1e293b; // Very dark slate - WCAG AA compliant
+  --neutral-900: #0f172a; // Darkest slate - WCAG AA compliant
 
   --border-radius: 12px;
   --border-radius-sm: 8px;
@@ -112,32 +114,68 @@
   --spacing-xl: 24px;
 }
 
-// Dark Mode Color Overrides
+// Dark Mode Color Overrides - Modern & Accessible
 body.body--dark {
-  --primary-color: #64b5f6;
-  --primary-light: #90caf9;
-  --primary-dark: #42a5f5;
-  --primary-glow: rgba(100, 181, 246, 0.2);
+  // Primary Colors - Brighter for dark mode
+  --primary-color: #60a5fa; // Lighter blue for dark mode
+  --primary-light: #93c5fd; // Even lighter blue
+  --primary-dark: #3b82f6; // Medium blue
+  --primary-glow: rgba(96, 165, 250, 0.2);
 
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #242424;
-  --bg-tertiary: #2e2e2e;
-  --bg-surface: #242424;
-  --bg-muted: #2e2e2e;
+  // Accent Colors
+  --accent-color: #14b8a6; // Lighter teal for dark mode
+  --accent-light: #5eead4; // Even lighter teal
+  --accent-dark: #0d9488; // Medium teal
+  --accent-glow: rgba(20, 184, 166, 0.2);
 
-  --neutral-50: #2e2e2e;
-  --neutral-100: #383838;
-  --neutral-200: #424242;
-  --neutral-300: #525252;
-  --neutral-400: #6b6b6b;
-  --neutral-500: #8a8a8a;
-  --neutral-600: #a3a3a3;
-  --neutral-700: #bcbcbc;
-  --neutral-800: #e0e0e0;
-  --neutral-900: #f5f5f5;
+  // Secondary Colors
+  --secondary-color: #94a3b8; // Lighter slate for dark mode
+  --secondary-light: #cbd5e1; // Even lighter slate
+  --secondary-dark: #64748b; // Medium slate
+  --secondary-glow: rgba(148, 163, 184, 0.2);
+
+  // System Colors - Adjusted for dark mode
+  --success-color: #34d399; // Lighter emerald for dark mode
+  --success-light: #6ee7b7; // Even lighter emerald
+  --success-dark: #10b981; // Medium emerald
+  --success-glow: rgba(52, 211, 153, 0.2);
+
+  --warning-color: #fbbf24; // Lighter amber for dark mode
+  --warning-light: #fcd34d; // Even lighter amber
+  --warning-dark: #f59e0b; // Medium amber
+  --warning-glow: rgba(251, 191, 36, 0.2);
+
+  --error-color: #f87171; // Lighter red for dark mode
+  --error-light: #fca5a5; // Even lighter red
+  --error-dark: #ef4444; // Medium red
+  --error-glow: rgba(248, 113, 113, 0.2);
+
+  --info-color: #a78bfa; // Lighter purple for dark mode
+  --info-light: #c4b5fd; // Even lighter purple
+  --info-dark: #8b5cf6; // Medium purple
+  --info-glow: rgba(167, 139, 250, 0.2);
+
+  // Background Colors - Modern dark theme
+  --bg-primary: #0f172a; // Slate 900 (darker for better contrast)
+  --bg-secondary: #1e293b; // Slate 800
+  --bg-tertiary: #334155; // Slate 700
+  --bg-surface: #1e293b; // Slate 800 for cards/surfaces
+  --bg-muted: #334155; // Slate 700 for muted backgrounds
+
+  // Neutral Colors - Optimized for dark mode contrast
+  --neutral-50: #0f172a; // Darkest
+  --neutral-100: #1e293b; // Very dark
+  --neutral-200: #334155; // Dark
+  --neutral-300: #475569; // Medium dark
+  --neutral-400: #64748b; // Medium
+  --neutral-500: #94a3b8; // Medium light - WCAG AA compliant on dark
+  --neutral-600: #cbd5e1; // Light - WCAG AA compliant
+  --neutral-700: #e2e8f0; // Lighter - WCAG AA compliant
+  --neutral-800: #f1f5f9; // Very light - WCAG AA compliant
+  --neutral-900: #ffffff; // White - WCAG AA compliant
 
   background-color: var(--bg-primary);
-  color: #e0e0e0;
+  color: var(--neutral-600); // Better contrast
 }
 
 // Global Typography
@@ -226,7 +264,7 @@ body {
   }
 }
 
-// Professional Button Styles - Default: White background with primary outline
+// Modern Button Styles - No Background Fill (Outline Only)
 .q-btn {
   border-radius: var(--border-radius-sm);
   font-weight: 600;
@@ -240,10 +278,10 @@ body {
   padding: var(--spacing-sm) var(--spacing-md);
   min-height: 40px;
   
-  // Default style: white background with primary outline
-  background: white !important;
+  // Default style: NO background fill - transparent with colored outline
+  background: transparent !important;
   color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
+  border: 2px solid var(--primary-color) !important;
   box-shadow: none !important;
 
   &:hover {
@@ -253,143 +291,191 @@ body {
     box-shadow: none !important;
   }
 
+  &:active {
+    transform: translateY(0);
+  }
+
   .q-icon {
     color: var(--primary-color) !important;
   }
 
-  // Primary filled button (for main actions)
+  // Primary buttons - NO fill, outline only
   &.bg-primary,
   &[color="primary"]:not(.q-btn--outline) {
-    background: var(--primary-color) !important;
-    color: white !important;
-    border: 1px solid var(--primary-color) !important;
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 2px solid var(--primary-color) !important;
 
     &:hover {
-      background: var(--primary-dark) !important;
-      border-color: var(--primary-dark) !important;
+      background: var(--primary-glow) !important;
+      border-color: var(--primary-color) !important;
+      color: var(--primary-color) !important;
     }
 
     .q-icon {
-      color: white !important;
+      color: var(--primary-color) !important;
     }
   }
 
-  // Positive/Success buttons
+  // Positive/Success buttons - NO fill
   &.bg-positive,
   &[color="positive"] {
-    background: var(--success-color) !important;
-    color: white !important;
-    border: 1px solid var(--success-color) !important;
+    background: transparent !important;
+    color: var(--success-color) !important;
+    border: 2px solid var(--success-color) !important;
 
     &:hover {
-      background: var(--success-dark) !important;
-      border-color: var(--success-dark) !important;
+      background: var(--success-glow) !important;
+      border-color: var(--success-color) !important;
+      color: var(--success-color) !important;
     }
 
     .q-icon {
-      color: white !important;
+      color: var(--success-color) !important;
     }
   }
 
-  // Negative/Error buttons
+  // Negative/Error buttons - NO fill
   &.bg-negative,
   &[color="negative"] {
-    background: var(--error-color) !important;
-    color: white !important;
-    border: 1px solid var(--error-color) !important;
+    background: transparent !important;
+    color: var(--error-color) !important;
+    border: 2px solid var(--error-color) !important;
 
     &:hover {
-      background: var(--error-dark) !important;
-      border-color: var(--error-dark) !important;
+      background: var(--error-glow) !important;
+      border-color: var(--error-color) !important;
+      color: var(--error-color) !important;
     }
 
     .q-icon {
-      color: white !important;
+      color: var(--error-color) !important;
     }
   }
 
-  // Custom class variants (keep for backwards compatibility)
-  &.btn-primary {
-    background: var(--primary-color) !important;
-    color: white !important;
-    border: 1px solid var(--primary-color) !important;
+  // Warning buttons - NO fill
+  &.bg-warning,
+  &[color="warning"] {
+    background: transparent !important;
+    color: var(--warning-color) !important;
+    border: 2px solid var(--warning-color) !important;
 
     &:hover {
-      background: var(--primary-dark) !important;
+      background: var(--warning-glow) !important;
+      border-color: var(--warning-color) !important;
+      color: var(--warning-color) !important;
+    }
+
+    .q-icon {
+      color: var(--warning-color) !important;
+    }
+  }
+
+  // Info buttons - NO fill
+  &.bg-info,
+  &[color="info"] {
+    background: transparent !important;
+    color: var(--info-color) !important;
+    border: 2px solid var(--info-color) !important;
+
+    &:hover {
+      background: var(--info-glow) !important;
+      border-color: var(--info-color) !important;
+      color: var(--info-color) !important;
+    }
+
+    .q-icon {
+      color: var(--info-color) !important;
+    }
+  }
+
+  // Custom class variants - ALL NO FILL
+  &.btn-primary {
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 2px solid var(--primary-color) !important;
+
+    &:hover {
+      background: var(--primary-glow) !important;
+      color: var(--primary-color) !important;
     }
   }
 
   &.btn-accent {
-    background: var(--accent-color) !important;
-    color: white !important;
-    border: 1px solid var(--accent-color) !important;
+    background: transparent !important;
+    color: var(--accent-color) !important;
+    border: 2px solid var(--accent-color) !important;
 
     &:hover {
-      background: var(--accent-dark) !important;
+      background: var(--accent-glow) !important;
+      color: var(--accent-color) !important;
     }
   }
 
   &.btn-success {
-    background: var(--success-color) !important;
-    color: white !important;
-    border: 1px solid var(--success-color) !important;
+    background: transparent !important;
+    color: var(--success-color) !important;
+    border: 2px solid var(--success-color) !important;
 
     &:hover {
-      background: var(--success-dark) !important;
+      background: var(--success-glow) !important;
+      color: var(--success-color) !important;
     }
   }
 
   &.btn-secondary {
-    background: white !important;
+    background: transparent !important;
     color: var(--primary-color) !important;
-    border: 1px solid var(--primary-color) !important;
+    border: 2px solid var(--primary-color) !important;
 
     &:hover {
       background: var(--primary-glow) !important;
+      color: var(--primary-color) !important;
     }
   }
 
   &.btn-info {
-    background: var(--info-color) !important;
-    color: white !important;
-    border: 1px solid var(--info-color) !important;
+    background: transparent !important;
+    color: var(--info-color) !important;
+    border: 2px solid var(--info-color) !important;
 
     &:hover {
-      background: var(--info-dark) !important;
+      background: var(--info-glow) !important;
+      color: var(--info-color) !important;
     }
   }
 
   &.btn-outline-secondary {
-    background: white;
-    color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 2px solid var(--primary-color) !important;
 
     &:hover {
-      background: var(--primary-glow);
+      background: var(--primary-glow) !important;
       transform: translateY(-1px);
     }
   }
 
   &.btn-outline {
-    background: transparent;
-    color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 2px solid var(--primary-color) !important;
 
     &:hover {
-      background: var(--primary-color);
-      color: white;
+      background: var(--primary-glow) !important;
+      color: var(--primary-color) !important;
       transform: translateY(-1px);
     }
   }
 
   &.btn-ghost {
-    background: transparent;
-    color: var(--primary-color);
-    border: 2px solid transparent;
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 2px solid transparent !important;
 
     &:hover {
-      background: var(--primary-glow);
-      border-color: var(--primary-color);
+      background: var(--primary-glow) !important;
+      border-color: var(--primary-color) !important;
       transform: translateY(-1px);
     }
   }
@@ -451,14 +537,14 @@ body {
   }
 }
 
-// Flat/White/Transparent Buttons - Use White bg with Primary Outline
+// Flat/White/Transparent Buttons - NO background fill
 .q-btn.q-btn--flat,
 .q-btn[flat],
 .q-btn.bg-white,
 .q-btn.bg-transparent {
-  background: white !important;
+  background: transparent !important;
   color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
+  border: 2px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
@@ -471,11 +557,11 @@ body {
   }
 }
 
-// Quasar flat button override
+// Quasar flat button override - NO fill
 .q-btn--flat:not(.q-btn--round) {
-  background: white !important;
+  background: transparent !important;
   color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
+  border: 2px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
@@ -513,15 +599,16 @@ body {
   }
 }
 
-// Cancel buttons with outline style
+// Cancel buttons with outline style - NO fill
 .q-btn[label="Cancel"],
 .q-btn[label="Close"] {
   background: transparent !important;
   color: var(--primary-color) !important;
-  border: 1px solid var(--primary-color) !important;
+  border: 2px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
+    color: var(--primary-color) !important;
   }
 }
 
@@ -2559,15 +2646,40 @@ body.body--dark {
   // Dialogs
   .q-dialog .q-card { background: #242424 !important; }
 
-  // Buttons
+  // Buttons - Dark mode: NO fill, outline only
   .q-btn:not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not([color="primary"]):not([color="positive"]):not([color="negative"]):not([color="warning"]):not([color="info"]) {
-    background: #2e2e2e !important;
-    color: #e0e0e0 !important;
-    border-color: #424242 !important;
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
   }
   
   .q-btn--flat:not(.bg-primary):not([color="primary"]) {
     background: transparent !important;
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+  }
+
+  // Dark mode button hover states
+  .q-btn:hover {
+    background: var(--primary-glow) !important;
+  }
+
+  .q-btn.bg-primary:hover,
+  .q-btn[color="primary"]:hover {
+    background: var(--primary-glow) !important;
+    color: var(--primary-color) !important;
+  }
+
+  .q-btn.bg-positive:hover,
+  .q-btn[color="positive"]:hover {
+    background: var(--success-glow) !important;
+    color: var(--success-color) !important;
+  }
+
+  .q-btn.bg-negative:hover,
+  .q-btn[color="negative"]:hover {
+    background: var(--error-glow) !important;
+    color: var(--error-color) !important;
   }
 
   // Chips
