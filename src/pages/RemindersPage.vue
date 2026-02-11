@@ -122,9 +122,15 @@
               >
                 {{ reminder.status ? 'Active' : 'Inactive' }}
               </q-chip>
+              <q-chip>{{ getPropertyName(reminder.property_id) }}</q-chip>
             </div>
 
-            <div class="text-h6 q-mb-sm">{{ getPropertyName(reminder.property_id) }}</div>
+            <div class="text-h6 q-mb-sm">
+              <div v-if="reminder.note" class="text-body  q-mb-md">
+              <q-icon name="note" size="16px" class="q-mr-xs" />
+              {{ reminder.note }}
+            </div>
+           </div>
 
             <div class="text-body2 text-grey-6 q-mb-xs">
               <q-icon name="schedule" size="16px" class="q-mr-xs" />
@@ -150,10 +156,7 @@
               Amount: ${{ formatCurrency(reminder.amount) }}
             </div>
 
-            <div v-if="reminder.note" class="text-body2 text-grey-6 q-mb-sm">
-              <q-icon name="note" size="16px" class="q-mr-xs" />
-              {{ reminder.note }}
-            </div>
+
           </q-card-section>
 
           <q-card-actions class="reminder-actions">
