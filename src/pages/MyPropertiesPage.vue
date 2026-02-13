@@ -4,14 +4,6 @@
       <div class="text-h4">My Properties</div>
       <div class="row q-gutter-sm">
         <q-btn
-          icon="refresh"
-          color="secondary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="loading"
-          flat
-        />
-        <q-btn
           @click="openCreatePropertyDialog"
           color="primary"
           icon="add"

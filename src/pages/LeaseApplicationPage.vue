@@ -28,8 +28,8 @@
 
         <!-- Lease Information Display (if lease is pre-selected) -->
         <q-card v-if="selectedLeaseData" class="q-mb-lg lease-info-card">
-          <q-card-section class="bg-primary text-white">
-            <div class="text-h6">
+          <q-card-section class="lease-info-header">
+            <div class="text-h6 q-mb-none">
               <q-icon name="description" class="q-mr-sm" />
               Lease Information
             </div>
@@ -860,8 +860,8 @@
               label="Submit Application"
               color="primary"
               icon-right="send"
+              unelevated
               :loading="submitting"
-              class="btn-primary"
             />
           </div>
         </q-form>
@@ -870,9 +870,10 @@
 
     <!-- Add Document Dialog -->
     <q-dialog v-model="showAddDocumentDialog" persistent>
-      <q-card style="min-width: 500px">
-        <q-card-section>
+      <q-card class="add-document-dialog" style="min-width: 500px">
+        <q-card-section class="dialog-header">
           <div class="text-h6">Add Document</div>
+          <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
         <q-card-section>
@@ -910,10 +911,10 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="Cancel" color="primary" @click="closeDocumentDialog" />
           <q-btn
-            flat
+            unelevated
             label="Add"
             color="primary"
             @click="addDocument"
@@ -1270,18 +1271,22 @@ onMounted(async () => {
 <style scoped>
 .lease-application-page {
   min-height: 100vh;
-  padding: 24px;
-  background-color: #f5f5f5;
+  padding: 0;
+  background: transparent;
 }
 
 .page-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
 }
 
 .page-header h4 {
-  color: #1a1a1a;
+  color: var(--neutral-900);
   font-weight: 600;
+}
+
+.page-header .text-grey-7 {
+  color: var(--neutral-600);
 }
 
 .application-form {
@@ -1289,45 +1294,54 @@ onMounted(async () => {
 }
 
 .lease-info-card {
-  border: 2px solid var(--q-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
+  overflow: hidden;
+}
+
+.lease-info-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white;
+}
+
+.lease-info-header .text-h6,
+.lease-info-header .q-icon {
+  color: white;
+}
+
+.application-form .q-card {
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
 }
 
 .detail-label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--neutral-600);
   margin-bottom: 4px;
 }
 
 .detail-value {
   font-size: 1rem;
-  color: #333;
+  color: var(--neutral-800);
 }
 
 .vehicle-item,
 .pet-item,
 .co-applicant-item {
-  background: #f8f9fa;
+  background: var(--neutral-50);
   padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid #1976d2;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-weight: 600;
-  padding: 8px 24px;
-  border-radius: 8px;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
+  border-left: 4px solid var(--primary-color);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .lease-application-page {
+    padding: 12px 16px;
+  }
+
   .page-header h4 {
     font-size: 1.5rem;
   }
@@ -1335,5 +1349,22 @@ onMounted(async () => {
   .text-h6 {
     font-size: 1.1rem;
   }
+}
+
+/* Dark mode */
+:global(body.body--dark) .lease-application-page {
+  background-color: var(--bg-primary);
+}
+
+:global(body.body--dark) .page-header h4 {
+  color: white;
+}
+
+:global(body.body--dark) .vehicle-item,
+:global(body.body--dark) .pet-item,
+:global(body.body--dark) .co-applicant-item {
+  background: #2d2d2d;
+  border-color: #3d3d3d;
+  border-left-color: var(--primary-color);
 }
 </style>

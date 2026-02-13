@@ -4,13 +4,6 @@
       <div class="text-h4">My Transactions</div>
       <div class="row q-gutter-sm">
         <q-btn
-          icon="refresh"
-          color="primary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="userDataStore.transactionsLoading"
-        />
-        <q-btn
           @click="openCreateTransactionDialog"
           color="primary"
           icon="add"

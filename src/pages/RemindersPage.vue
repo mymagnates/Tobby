@@ -5,15 +5,9 @@
       <div class="text-h4">Reminders</div>
       <div class="row q-gutter-sm">
         <q-btn
-          icon="refresh"
-          color="primary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="loading"
-        />
-        <q-btn
           icon="add"
           color="primary"
+          flat
           label="Create Reminder"
           @click="showCreateDialog = true"
         />
@@ -31,7 +25,7 @@
 
       <q-card class="summary-card">
         <q-card-section class="text-center">
-          <div class="text-h4 text-green">{{ activeReminders }}</div>
+          <div class="text-h4 text-primary">{{ activeReminders }}</div>
           <div class="text-subtitle2">Active</div>
         </q-card-section>
       </q-card>
@@ -45,7 +39,7 @@
 
       <q-card class="summary-card">
         <q-card-section class="text-center">
-          <div class="text-h4 text-blue">{{ oneTimeReminders }}</div>
+          <div class="text-h4 text-primary">{{ oneTimeReminders }}</div>
           <div class="text-subtitle2">One-time</div>
         </q-card-section>
       </q-card>
@@ -107,12 +101,7 @@
         >
           <q-card-section>
             <div class="row items-center q-mb-sm">
-              <q-chip
-                :color="getCategoryColor(reminder.category)"
-                text-color="white"
-                size="sm"
-                class="q-mr-sm"
-              >
+              <q-chip size="sm" class="q-mr-sm chip-tag">
                 {{ reminder.category }}
               </q-chip>
               <q-chip
@@ -616,10 +605,6 @@ const loadReminders = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const refreshData = async () => {
-  await loadReminders()
 }
 
 // Debug function to test property ID matching
@@ -1133,23 +1118,6 @@ const onPropertyChange = ({ propertyId, property }) => {
   // Additional logic can be added here if needed
 }
 
-const getCategoryColor = (category) => {
-  switch (category?.toLowerCase()) {
-    case 'fee':
-      return 'primary'
-    case 'rent':
-      return 'positive'
-    case 'maintenance':
-      return 'warning'
-    case 'tax':
-      return 'negative'
-    case 'other':
-      return 'info'
-    default:
-      return 'grey'
-  }
-}
-
 const formatDate = (date) => {
   if (!date) return 'N/A'
   return new Date(date).toLocaleDateString('en-US', {
@@ -1273,15 +1241,26 @@ onMounted(() => {
 <style scoped>
 .summary-card {
   min-width: 120px;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--neutral-200);
+  transition: var(--transition);
+}
+
+.summary-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .reminder-card {
   transition: all 0.2s ease;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--neutral-200);
 }
 
 .reminder-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .reminder-inactive {

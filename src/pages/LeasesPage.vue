@@ -4,13 +4,6 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">Leases</div>
       <div class="row q-gutter-sm">
-        <q-btn
-          icon="refresh"
-          color="primary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="userDataStore.leasesLoading"
-        />
         <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
       </div>
     </div>
@@ -137,106 +130,106 @@
     </div>
 
     <!-- Leases Grid -->
-    <div v-else class="row">
-      <div
+    <div v-else class="leases-grid">
+      <q-card
         v-for="lease in filteredLeases"
         :key="lease.id"
-        class="col-12 col-md-6 q-gutter-md"
-        style="margin-right: 5px"
+        class="lease-card"
+        flat
+        clickable
+        @click="viewLease(lease)"
       >
-        <q-card class="lease-card" clickable @click="viewLease(lease)">
-          <!-- Header Section -->
-          <q-card-section class="bg-primary text-white compact-header">
-            <div class="row items-center justify-between no-wrap">
-              <div class="text-body2 text-weight-bold ellipsis">
-                {{ lease.property_id?.nickname || lease.property_id?.displayName || 'N/A' }}
+        <q-card-section class="lease-card-content">
+          <!-- Header Row -->
+          <div class="lease-card-header-compact">
+            <div class="lease-main-info">
+              <q-avatar size="48px" class="lease-avatar-compact">
+                <q-icon name="home" size="24px" color="white" />
+              </q-avatar>
+              <div class="lease-info-compact">
+                <div class="lease-name-compact">
+                  {{ lease.property_id?.nickname || lease.property_id?.displayName || 'N/A' }}
+                </div>
+                <div class="lease-meta-compact">
+                  <q-chip
+                    :color="getLeaseStatusColor(lease.status)"
+                    text-color="white"
+                    size="sm"
+                    dense
+                    class="status-chip-compact"
+                  >
+                    {{ lease.status }}
+                  </q-chip>
+                  <span class="lease-address-compact">
+                    <q-icon name="place" size="12px" class="q-mr-xs" />
+                    {{ lease.property_id?.address || 'N/A' }}
+                  </span>
+                </div>
               </div>
-              <q-chip
-                :color="getLeaseStatusColor(lease.status)"
-                text-color="white"
-                size="sm"
-                class="q-ml-xs"
-                style="margin: 0"
-              >
-                {{ lease.status }}
-              </q-chip>
             </div>
-          </q-card-section>
+          </div>
 
-          <!-- Content Section -->
-          <q-card-section class="compact-content">
-            <!-- Rate Information -->
-            <div class="text-center" style="padding: 8px 0">
-              <div class="text-h6 text-primary text-weight-bold" style="line-height: 1.2">
-                {{ lease.property_id?.address || 'N/A' }}
-
-                <div class="text-caption text-grey-6"></div>
-              </div>
-            </div>
-
-            <!-- Condensed Details Grid -->
-            <div class="condensed-grid">
-              <div class="detail-mini">
-                <q-icon name="home" size="14px" color="grey-6" />
+          <!-- Details Row -->
+          <div class="lease-details-row">
+            <div class="lease-specs-compact">
+              <div class="lease-spec-item">
+                <q-icon name="home" size="14px" color="grey-6" class="q-mr-xs" />
                 <span>{{ lease.property_id?.spec?.type || 'N/A' }}</span>
               </div>
-              <div class="detail-mini">
-                <q-icon name="bed" size="14px" color="grey-6" />
-                <span
-                  >{{ lease.property_id?.spec?.bedroom || 0 }} bed /
-                  {{ lease.property_id?.spec?.full_bathroom || 0 }} bath</span
-                >
+              <div class="lease-spec-item">
+                <q-icon name="bed" size="14px" color="grey-6" class="q-mr-xs" />
+                <span>{{ lease.property_id?.spec?.bedroom || 0 }} bed / {{ lease.property_id?.spec?.full_bathroom || 0 }} bath</span>
               </div>
-              <div class="detail-mini">
-                <q-icon name="attach_money" size="14px" color="grey-6" />
-                <span>${{ formatAmount(lease.rate_amount) }}/{{ getRateType(lease) }}</span>
-              </div>
-              <div class="detail-mini">
-                <q-icon name="calendar_today" size="14px" color="grey-6" />
-                <span>Start {{ formatDate(lease.start_date) }}</span>
+              <div class="lease-spec-item">
+                <q-icon name="calendar_today" size="14px" color="grey-6" class="q-mr-xs" />
+                <span>{{ formatDate(lease.start_date) }}</span>
               </div>
             </div>
+            <div class="lease-rent-compact">
+              <div class="lease-amount-compact">${{ formatAmount(lease.rate_amount) }}</div>
+              <div class="lease-label-compact">/{{ getRateType(lease) }}</div>
+            </div>
+          </div>
 
-            <!-- Tenant Info (for Rented leases) - Condensed -->
+          <!-- Tenant / Footer Row -->
+          <div class="lease-footer-row">
             <div
               v-if="lease.status === 'Rented' && leaseTenantsMap[lease.id]"
-              class="tenant-compact"
+              class="lease-tenant-compact"
             >
-              <div class="tenant-compact-header">
-                <q-icon name="person" size="14px" />
-                <span
-                  >{{ leaseTenantsMap[lease.id].applicant?.first_name }}
-                  {{ leaseTenantsMap[lease.id].applicant?.last_name }}</span
-                >
-              </div>
-              <div class="tenant-compact-contact">
-                <div class="ellipsis">
-                  <q-icon name="email" size="12px" />
-                  {{ leaseTenantsMap[lease.id].applicant?.email }}
-                </div>
-                <div class="ellipsis">
-                  <q-icon name="phone" size="12px" />
-                  {{ leaseTenantsMap[lease.id].applicant?.phone }}
-                </div>
-              </div>
+              <q-icon name="person" size="12px" color="grey-6" class="q-mr-xs" />
+              <span class="tenant-name-text">
+                {{ leaseTenantsMap[lease.id].applicant?.first_name }}
+                {{ leaseTenantsMap[lease.id].applicant?.last_name }}
+              </span>
+              <span class="tenant-contact-text">
+                {{ leaseTenantsMap[lease.id].applicant?.email }}
+              </span>
             </div>
-
-            <!-- Shareable Link Button (only for non-rented leases) -->
-            <div v-else-if="lease.status !== 'Rented'" style="margin-top: 8px">
+            <div v-else-if="lease.status !== 'Rented'" class="lease-share-compact">
               <q-btn
                 flat
                 dense
+                size="sm"
                 color="primary"
                 icon="share"
-                label="Shareable Link"
-                size="sm"
+                label="Share Link"
+                class="lease-share-btn"
                 @click.stop="copyShareableLink(lease.id)"
-                class="shareable-link-btn full-width"
               />
             </div>
-          </q-card-section>
-        </q-card>
-      </div>
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="primary"
+              label="View"
+              class="lease-view-btn"
+              @click.stop="viewLease(lease)"
+            />
+          </div>
+        </q-card-section>
+      </q-card>
     </div>
 
     <!-- Lease Details Dialog -->
@@ -1999,110 +1992,199 @@ watch(
   box-shadow: 0 6px 16px rgba(36, 87, 115, 0.4);
 }
 
+/* Leases Grid - matches tenant card layout */
+.leases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
 .lease-card {
-  height: 320px;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
   overflow: hidden;
+  border: 1px solid var(--neutral-200);
+  background: white;
+  cursor: pointer;
 }
 
 .lease-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border-color: var(--primary-color);
-  background: linear-gradient(135deg, rgba(36, 87, 115, 0.02) 0%, rgba(36, 87, 115, 0.05) 100%);
 }
 
-.compact-header {
-  padding: 10px 12px;
-  min-height: 60px;
+/* Compact Card Content */
+.lease-card-content {
+  padding: 16px;
 }
 
-.compact-content {
-  padding: 12px;
+/* Compact Header */
+.lease-card-header-compact {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.lease-main-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
+  min-width: 0;
+}
+
+.lease-avatar-compact {
+  background: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.lease-info-compact {
+  flex: 1;
+  min-width: 0;
+}
+
+.lease-name-compact {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--neutral-900);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lease-meta-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-chip-compact {
+  font-size: 10px;
+  height: 20px;
+  padding: 0 6px;
+}
+
+.lease-address-compact {
+  font-size: 12px;
+  color: var(--neutral-600);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Details Row */
+.lease-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.lease-specs-compact {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.lease-spec-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--neutral-700);
+}
+
+.lease-spec-item span {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lease-rent-compact {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--neutral-200);
+}
+
+.lease-amount-compact {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+  line-height: 1;
+}
+
+.lease-label-compact {
+  font-size: 11px;
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+
+/* Footer Row */
+.lease-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lease-tenant-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--neutral-700);
+}
+
+.tenant-name-text {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-contact-text {
+  font-size: 11px;
+  color: var(--neutral-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lease-share-compact {
+  flex: 1;
+}
+
+.lease-share-btn {
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.lease-view-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 24px;
+  flex-shrink: 0;
 }
 
 .ellipsis {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Condensed Details Grid */
-.condensed-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 12px 0;
-}
-
-.detail-mini {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: #666;
-  padding: 4px 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
-}
-
-.detail-mini span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Tenant Compact Styling */
-.tenant-compact {
-  margin-top: 8px;
-  padding: 8px;
-  background: linear-gradient(135deg, rgba(33, 186, 69, 0.08), rgba(33, 186, 69, 0.03));
-  border-left: 3px solid #21ba45;
-  border-radius: 4px;
-}
-
-.tenant-compact-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #21ba45;
-  margin-bottom: 6px;
-}
-
-.tenant-compact-header span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tenant-compact-contact {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.tenant-compact-contact > div {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: #666;
-}
-
-.tenant-compact-contact .q-icon {
-  flex-shrink: 0;
 }
 
 .text-truncate {
@@ -2295,18 +2377,33 @@ watch(
     font-size: 0.7rem;
   }
 
-  .lease-card {
-    height: auto;
-    min-height: 280px;
+  .leases-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .condensed-grid {
-    gap: 6px;
+  .lease-card-content {
+    padding: 12px;
   }
 
-  .detail-mini {
-    font-size: 0.7rem;
-    padding: 3px 6px;
+  .lease-details-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .lease-rent-compact {
+    border-left: none;
+    border-top: 1px solid var(--neutral-200);
+    padding-left: 0;
+    padding-top: 8px;
+    width: 100%;
+  }
+
+  .lease-footer-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 

@@ -109,30 +109,35 @@
           class="tenant-card"
           flat
         >
-          <!-- Card Header with Gradient -->
-          <div class="tenant-card-header">
-            <div class="header-content">
-              <div class="tenant-avatar-section">
-                <q-avatar size="72px" class="tenant-avatar">
-                  <div class="avatar-initials">
+          <!-- Compact Card Content -->
+          <q-card-section class="tenant-card-content">
+            <!-- Header Row -->
+            <div class="tenant-card-header-compact">
+              <div class="tenant-main-info">
+                <q-avatar size="48px" class="tenant-avatar-compact">
+                  <div class="avatar-initials-compact">
                     {{ (tenant.personal_info?.first_name?.[0] || '') + (tenant.personal_info?.last_name?.[0] || '') }}
                   </div>
                 </q-avatar>
-                <q-badge
-                  :color="tenant.status === 'active' ? 'positive' : 'grey'"
-                  floating
-                  class="status-badge"
-                >
-                  <q-icon name="check_circle" size="12px" />
-                </q-badge>
-              </div>
-              <div class="tenant-info-section">
-                <div class="tenant-name">
-                  {{ tenant.personal_info?.first_name }} {{ tenant.personal_info?.last_name }}
-                </div>
-                <div class="tenant-property">
-                  <q-icon name="home" size="14px" class="q-mr-xs" />
-                  {{ getPropertyName(tenant.property_id) }}
+                <div class="tenant-info-compact">
+                  <div class="tenant-name-compact">
+                    {{ tenant.personal_info?.first_name }} {{ tenant.personal_info?.last_name }}
+                  </div>
+                  <div class="tenant-meta-compact">
+                    <q-chip
+                      :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                      text-color="white"
+                      size="sm"
+                      dense
+                      class="status-chip-compact"
+                    >
+                      {{ tenant.status || 'Active' }}
+                    </q-chip>
+                    <span class="tenant-property-compact">
+                      <q-icon name="home" size="12px" class="q-mr-xs" />
+                      {{ getPropertyName(tenant.property_id) }}
+                    </span>
+                  </div>
                 </div>
               </div>
               <q-btn
@@ -140,8 +145,9 @@
                 round
                 dense
                 icon="more_vert"
-                color="white"
-                class="action-menu-btn"
+                color="grey-7"
+                size="sm"
+                class="action-menu-btn-compact"
               >
                 <q-menu>
                   <q-list style="min-width: 180px">
@@ -168,98 +174,79 @@
                 </q-menu>
               </q-btn>
             </div>
-          </div>
 
-          <!-- Card Body -->
-          <q-card-section class="tenant-card-body">
-            <!-- Contact Information Grid -->
-            <div class="contact-grid">
-              <div class="contact-item">
-                <div class="contact-icon-wrapper">
-                  <q-icon name="email" size="20px" color="primary" />
+            <!-- Contact & Rent Row -->
+            <div class="tenant-details-row">
+              <div class="contact-info-compact">
+                <div class="contact-item-compact">
+                  <q-icon name="email" size="14px" color="grey-6" class="q-mr-xs" />
+                  <span class="contact-text">{{ tenant.personal_info?.email || 'N/A' }}</span>
                 </div>
-                <div class="contact-details">
-                  <div class="contact-label">Email</div>
-                  <div class="contact-value">{{ tenant.personal_info?.email || 'N/A' }}</div>
+                <div class="contact-item-compact">
+                  <q-icon name="phone" size="14px" color="grey-6" class="q-mr-xs" />
+                  <span class="contact-text">{{ tenant.personal_info?.phone || 'N/A' }}</span>
                 </div>
               </div>
-              <div class="contact-item">
-                <div class="contact-icon-wrapper">
-                  <q-icon name="phone" size="20px" color="primary" />
-                </div>
-                <div class="contact-details">
-                  <div class="contact-label">Phone</div>
-                  <div class="contact-value">{{ tenant.personal_info?.phone || 'N/A' }}</div>
-                </div>
+              <div class="rent-info-compact" v-if="tenant.lease_info">
+                <div class="rent-amount-compact">${{ tenant.lease_info?.monthly_rent || 'N/A' }}</div>
+                <div class="rent-label-compact">/mo</div>
               </div>
             </div>
 
-            <!-- Rent Information -->
-            <div class="rent-info" v-if="tenant.lease_info">
-              <div class="rent-amount">
-                ${{ tenant.lease_info?.monthly_rent || 'N/A' }}
-                <span class="rent-period">/month</span>
+            <!-- Tags & Footer Row -->
+            <div class="tenant-footer-row">
+              <div class="tags-compact" v-if="tenant.vehicles?.length || tenant.pets?.length || tenant.co_applicants?.length || tenant.employment">
+                <q-chip
+                  v-if="tenant.vehicles && tenant.vehicles.length > 0"
+                  size="sm"
+                  dense
+                  class="info-chip-compact"
+                >
+                  <q-icon name="directions_car" size="12px" class="q-mr-xs" />
+                  {{ tenant.vehicles.length }}
+                </q-chip>
+                <q-chip
+                  v-if="tenant.pets && tenant.pets.length > 0"
+                  size="sm"
+                  dense
+                  class="info-chip-compact"
+                >
+                  <q-icon name="pets" size="12px" class="q-mr-xs" />
+                  {{ tenant.pets.length }}
+                </q-chip>
+                <q-chip
+                  v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
+                  size="sm"
+                  dense
+                  class="info-chip-compact"
+                >
+                  <q-icon name="group" size="12px" class="q-mr-xs" />
+                  +{{ tenant.co_applicants.length }}
+                </q-chip>
+                <q-chip
+                  v-if="tenant.employment"
+                  size="sm"
+                  dense
+                  class="info-chip-compact"
+                >
+                  <q-icon name="work" size="12px" class="q-mr-xs" />
+                  Work
+                </q-chip>
               </div>
-              <div class="rent-label">Monthly Rent</div>
+              <div class="footer-compact">
+                <q-icon name="schedule" size="12px" color="grey-5" class="q-mr-xs" />
+                <span class="footer-text-compact">{{ formatDate(tenant.created_at) }}</span>
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="primary"
+                  label="View"
+                  class="view-btn-compact"
+                  @click="viewTenantDetails(tenant)"
+                />
+              </div>
             </div>
-
-            <!-- Quick Info Tags -->
-            <div class="quick-info-tags" v-if="tenant.vehicles?.length || tenant.pets?.length || tenant.co_applicants?.length">
-              <q-chip
-                v-if="tenant.vehicles && tenant.vehicles.length > 0"
-                size="sm"
-                dense
-                class="info-chip"
-              >
-                <q-icon name="directions_car" size="14px" class="q-mr-xs" />
-                {{ tenant.vehicles.length }}
-              </q-chip>
-              <q-chip
-                v-if="tenant.pets && tenant.pets.length > 0"
-                size="sm"
-                dense
-                class="info-chip"
-              >
-                <q-icon name="pets" size="14px" class="q-mr-xs" />
-                {{ tenant.pets.length }}
-              </q-chip>
-              <q-chip
-                v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
-                size="sm"
-                dense
-                class="info-chip"
-              >
-                <q-icon name="group" size="14px" class="q-mr-xs" />
-                +{{ tenant.co_applicants.length }}
-              </q-chip>
-              <q-chip
-                v-if="tenant.employment"
-                size="sm"
-                dense
-                class="info-chip"
-              >
-                <q-icon name="work" size="14px" class="q-mr-xs" />
-                Employed
-              </q-chip>
-            </div>
-          </q-card-section>
-
-          <!-- Card Footer -->
-          <q-card-section class="tenant-card-footer">
-            <div class="footer-left">
-              <q-icon name="schedule" size="16px" class="q-mr-xs" />
-              <span class="footer-text">{{ formatDate(tenant.created_at) }}</span>
-            </div>
-            <q-btn
-              unelevated
-              color="primary"
-              label="View Details"
-              size="sm"
-              class="view-details-btn"
-              @click="viewTenantDetails(tenant)"
-            >
-              <q-icon name="arrow_forward" size="16px" class="q-ml-xs" />
-            </q-btn>
           </q-card-section>
         </q-card>
       </div>
@@ -291,12 +278,160 @@
           >
             {{ selectedTenant.status || 'Active' }}
           </q-chip>
-          <q-btn flat round dense icon="close" @click="closeDetailDialog" />
+          <q-btn 
+            v-if="!isEditMode"
+            flat 
+            round 
+            icon="edit" 
+            @click="enterEditMode" 
+            class="edit-dialog-btn"
+            size="md"
+          >
+            <q-tooltip>Edit Tenant</q-tooltip>
+          </q-btn>
+          <q-btn 
+            flat 
+            round 
+            icon="close" 
+            @click="closeDetailDialog" 
+            class="close-dialog-btn"
+            size="md"
+          />
         </q-toolbar>
 
         <!-- Dialog Content -->
         <q-card-section class="q-pa-lg scroll">
-          <div class="tenant-detail-content">
+          <q-form v-if="isEditMode" @submit.prevent="saveTenant" class="tenant-detail-content">
+            <!-- Personal Information -->
+            <q-card flat bordered class="q-mb-md">
+              <q-card-section class="bg-secondary text-white">
+                <div class="text-h6">
+                  <q-icon name="person" class="q-mr-sm" />
+                  Personal Information
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.first_name"
+                      label="First Name *"
+                      outlined
+                      dense
+                      :rules="[(val) => !!val || 'First name is required']"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.middle_name"
+                      label="Middle Name"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.last_name"
+                      label="Last Name *"
+                      outlined
+                      dense
+                      :rules="[(val) => !!val || 'Last name is required']"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.email"
+                      type="email"
+                      label="Email *"
+                      outlined
+                      dense
+                      :rules="[
+                        (val) => !!val || 'Email is required',
+                        (val) => /.+@.+\..+/.test(val) || 'Email must be valid',
+                      ]"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.phone"
+                      label="Phone *"
+                      outlined
+                      dense
+                      mask="(###) ###-####"
+                      :rules="[(val) => !!val || 'Phone is required']"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.date_of_birth"
+                      label="Date of Birth"
+                      outlined
+                      dense
+                      mask="YYYY-MM-DD"
+                    >
+                      <template v-slot:append>
+                        <q-icon name="event" class="cursor-pointer">
+                          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                            <q-date v-model="editFormData.personal_info.date_of_birth" mask="YYYY-MM-DD">
+                              <div class="row items-center justify-end">
+                                <q-btn v-close-popup label="Close" color="primary" flat />
+                              </div>
+                            </q-date>
+                          </q-popup-proxy>
+                        </q-icon>
+                      </template>
+                    </q-input>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select
+                      v-model="editFormData.personal_info.gender"
+                      :options="['Male', 'Female', 'Other', 'Prefer not to say']"
+                      label="Gender"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.personal_info.ssn"
+                      label="SSN"
+                      outlined
+                      dense
+                      mask="###-##-####"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select
+                      v-model="editFormData.personal_info.marital_status"
+                      :options="['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Domestic Partnership']"
+                      label="Marital Status"
+                      outlined
+                      dense
+                    />
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+            
+            <!-- Save/Cancel Buttons -->
+            <div class="row justify-end q-mt-lg q-gutter-md">
+              <q-btn
+                flat
+                label="Cancel"
+                color="grey"
+                @click="cancelEdit"
+              />
+              <q-btn
+                unelevated
+                label="Save Changes"
+                color="primary"
+                type="submit"
+                :loading="saving"
+              />
+            </div>
+          </q-form>
+          
+          <div v-else class="tenant-detail-content">
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
               <q-card-section class="bg-secondary text-white">
@@ -354,27 +489,103 @@
               <q-card-section>
                 <div class="row q-col-gutter-md">
                   <div class="col-12 col-md-6">
-                    <div class="text-caption text-grey-7">Street Address</div>
-                    <div class="text-body1">{{ selectedTenant.current_address?.street || 'N/A' }}</div>
+                    <q-input
+                      v-model="editFormData.current_address.street"
+                      label="Street Address"
+                      outlined
+                      dense
+                    />
                   </div>
                   <div class="col-12 col-md-2">
-                    <div class="text-caption text-grey-7">City</div>
-                    <div class="text-body1">{{ selectedTenant.current_address?.city || 'N/A' }}</div>
+                    <q-input
+                      v-model="editFormData.current_address.city"
+                      label="City"
+                      outlined
+                      dense
+                    />
                   </div>
                   <div class="col-12 col-md-2">
-                    <div class="text-caption text-grey-7">State</div>
-                    <div class="text-body1">{{ selectedTenant.current_address?.state || 'N/A' }}</div>
+                    <q-input
+                      v-model="editFormData.current_address.state"
+                      label="State"
+                      outlined
+                      dense
+                    />
                   </div>
                   <div class="col-12 col-md-2">
-                    <div class="text-caption text-grey-7">ZIP Code</div>
-                    <div class="text-body1">{{ selectedTenant.current_address?.zipCode || 'N/A' }}</div>
+                    <q-input
+                      v-model="editFormData.current_address.zipCode"
+                      label="ZIP Code"
+                      outlined
+                      dense
+                      mask="#####"
+                    />
                   </div>
                 </div>
               </q-card-section>
             </q-card>
+            
 
             <!-- Employment Information -->
-            <q-card flat bordered class="q-mb-md" v-if="selectedTenant.employment">
+            <q-card flat bordered class="q-mb-md" v-if="editFormData.employment">
+              <q-card-section class="bg-accent text-white">
+                <div class="text-h6">
+                  <q-icon name="work" class="q-mr-sm" />
+                  Employment Information
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.employment.employer_name"
+                      label="Employer Name"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.employment.position"
+                      label="Position"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model.number="editFormData.employment.monthly_income"
+                      type="number"
+                      label="Monthly Income"
+                      outlined
+                      dense
+                      prefix="$"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model.number="editFormData.employment.years_employed"
+                      type="number"
+                      label="Years Employed"
+                      outlined
+                      dense
+                      suffix="years"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.employment.employer_phone"
+                      label="Employer Phone"
+                      outlined
+                      dense
+                      mask="(###) ###-####"
+                    />
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+            
+            <q-card flat bordered class="q-mb-md" v-else-if="selectedTenant.employment">
               <q-card-section class="bg-accent text-white">
                 <div class="text-h6">
                   <q-icon name="work" class="q-mr-sm" />
@@ -446,7 +657,45 @@
             </q-card>
 
             <!-- Emergency Contact -->
-            <q-card flat bordered class="q-mb-md" v-if="selectedTenant.emergency_contact">
+            <q-card flat bordered class="q-mb-md" v-if="editFormData.emergency_contact">
+              <q-card-section class="bg-warning text-white">
+                <div class="text-h6">
+                  <q-icon name="emergency" class="q-mr-sm" />
+                  Emergency Contact
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.emergency_contact.name"
+                      label="Contact Name"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.emergency_contact.relationship"
+                      label="Relationship"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-model="editFormData.emergency_contact.phone"
+                      label="Phone Number"
+                      outlined
+                      dense
+                      mask="(###) ###-####"
+                    />
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+            
+            <q-card flat bordered class="q-mb-md" v-else-if="selectedTenant.emergency_contact">
               <q-card-section class="bg-warning text-white">
                 <div class="text-h6">
                   <q-icon name="emergency" class="q-mr-sm" />
@@ -597,7 +846,7 @@
             </q-card>
 
             <!-- Notes -->
-            <q-card flat bordered class="q-mb-md" v-if="selectedTenant.notes">
+            <q-card flat bordered class="q-mb-md">
               <q-card-section class="bg-grey-3 text-grey-9">
                 <div class="text-h6">
                   <q-icon name="notes" class="q-mr-sm" />
@@ -605,9 +854,16 @@
                 </div>
               </q-card-section>
               <q-card-section>
-                <div class="text-body1">{{ selectedTenant.notes }}</div>
+                <q-input
+                  v-model="editFormData.notes"
+                  type="textarea"
+                  label="Notes"
+                  outlined
+                  rows="4"
+                />
               </q-card-section>
             </q-card>
+            
 
             <!-- Timestamps -->
             <q-card flat bordered>
@@ -618,10 +874,13 @@
                     <div class="text-body1">{{ formatDateTime(selectedTenant.created_at) }}</div>
                   </div>
                   <div class="col-12 col-md-6">
-                    <div class="text-caption text-grey-7">Status</div>
-                    <q-chip :color="selectedTenant.status === 'active' ? 'positive' : 'grey'" text-color="white">
-                      {{ selectedTenant.status || 'Active' }}
-                    </q-chip>
+                    <q-select
+                      v-model="editFormData.status"
+                      :options="['active', 'inactive', 'past']"
+                      label="Status"
+                      outlined
+                      dense
+                    />
                   </div>
                 </div>
               </q-card-section>
@@ -640,10 +899,12 @@ import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../boot/firebase'
+import { useFirebase } from '../composables/useFirebase'
 
 const router = useRouter()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
+const { updateDocument } = useFirebase()
 
 // Data
 const tenants = ref([])
@@ -653,6 +914,9 @@ const error = ref(null)
 // Dialog
 const showDetailDialog = ref(false)
 const selectedTenant = ref(null)
+const isEditMode = ref(false)
+const editFormData = ref(null)
+const saving = ref(false)
 
 // Filters
 const searchQuery = ref('')
@@ -787,31 +1051,128 @@ const openDocument = (url) => {
 const viewTenantDetails = (tenant) => {
   if (!tenant) return
   selectedTenant.value = { ...tenant }
+  isEditMode.value = false
   // Use nextTick to ensure DOM is ready
   setTimeout(() => {
     showDetailDialog.value = true
   }, 0)
 }
 
+const enterEditMode = () => {
+  if (!selectedTenant.value) return
+  
+  // Deep clone tenant data for editing
+  editFormData.value = {
+    personal_info: {
+      first_name: selectedTenant.value.personal_info?.first_name || '',
+      middle_name: selectedTenant.value.personal_info?.middle_name || '',
+      last_name: selectedTenant.value.personal_info?.last_name || '',
+      email: selectedTenant.value.personal_info?.email || '',
+      phone: selectedTenant.value.personal_info?.phone || '',
+      date_of_birth: selectedTenant.value.personal_info?.date_of_birth || '',
+      gender: selectedTenant.value.personal_info?.gender || '',
+      ssn: selectedTenant.value.personal_info?.ssn || '',
+      marital_status: selectedTenant.value.personal_info?.marital_status || '',
+    },
+    current_address: {
+      street: selectedTenant.value.current_address?.street || '',
+      city: selectedTenant.value.current_address?.city || '',
+      state: selectedTenant.value.current_address?.state || '',
+      zipCode: selectedTenant.value.current_address?.zipCode || '',
+    },
+    employment: selectedTenant.value.employment ? {
+      employer_name: selectedTenant.value.employment.employer_name || '',
+      position: selectedTenant.value.employment.position || '',
+      monthly_income: selectedTenant.value.employment.monthly_income || '',
+      years_employed: selectedTenant.value.employment.years_employed || '',
+      employer_phone: selectedTenant.value.employment.employer_phone || '',
+    } : null,
+    emergency_contact: selectedTenant.value.emergency_contact ? {
+      name: selectedTenant.value.emergency_contact.name || '',
+      relationship: selectedTenant.value.emergency_contact.relationship || '',
+      phone: selectedTenant.value.emergency_contact.phone || '',
+    } : null,
+    notes: selectedTenant.value.notes || '',
+    status: selectedTenant.value.status || 'active',
+  }
+  
+  isEditMode.value = true
+}
+
+const cancelEdit = () => {
+  isEditMode.value = false
+  editFormData.value = null
+}
+
+const saveTenant = async () => {
+  if (!selectedTenant.value || !editFormData.value) return
+  
+  try {
+    saving.value = true
+    
+    // Prepare update data
+    const updateData = {
+      personal_info: editFormData.value.personal_info,
+      current_address: editFormData.value.current_address,
+      employment: editFormData.value.employment,
+      emergency_contact: editFormData.value.emergency_contact,
+      notes: editFormData.value.notes,
+      status: editFormData.value.status,
+      updated_at: new Date().toISOString(),
+    }
+    
+    // Update tenant in Firestore
+    await updateDocument('tenants', selectedTenant.value.id, updateData)
+    
+    // Update local state
+    Object.assign(selectedTenant.value, updateData)
+    
+    // Refresh tenants list
+    await fetchTenants()
+    
+    $q.notify({
+      type: 'positive',
+      message: 'Tenant updated successfully',
+      position: 'top',
+      icon: 'check_circle',
+    })
+    
+    // Exit edit mode
+    isEditMode.value = false
+    editFormData.value = null
+  } catch (error) {
+    console.error('Error updating tenant:', error)
+    $q.notify({
+      type: 'negative',
+      message: error.message || 'Failed to update tenant',
+      position: 'top',
+      icon: 'error',
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
 const closeDetailDialog = () => {
   showDetailDialog.value = false
+  isEditMode.value = false
+  editFormData.value = null
 }
 
 const onDialogHide = () => {
   // Clean up when dialog is hidden (by any means)
   setTimeout(() => {
     selectedTenant.value = null
+    isEditMode.value = false
+    editFormData.value = null
   }, 100)
 }
 
-// eslint-disable-next-line no-unused-vars
 const editTenant = (tenant) => {
-  // TODO: Implement tenant edit
-  $q.notify({
-    type: 'info',
-    message: 'Tenant edit coming soon',
-    position: 'top'
-  })
+  viewTenantDetails(tenant)
+  setTimeout(() => {
+    enterEditMode()
+  }, 100)
 }
 
 const confirmDeleteTenant = (tenant) => {
@@ -853,260 +1214,272 @@ onMounted(() => {
 
 .tenants-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
 
 .tenant-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: fit-content;
-  border-radius: 16px;
+  transition: all 0.2s ease;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--neutral-200);
   background: white;
 }
 
 .tenant-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  border-color: #1976d2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-color);
 }
 
-/* Card Header with Gradient */
-.tenant-card-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
-  position: relative;
+/* Compact Card Content */
+.tenant-card-content {
+  padding: 16px;
 }
 
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.tenant-avatar-section {
-  position: relative;
-}
-
-.tenant-avatar {
-  background: rgba(255, 255, 255, 0.95);
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.avatar-initials {
-  font-size: 24px;
-  font-weight: 700;
-  color: #667eea;
-  text-transform: uppercase;
-}
-
-.status-badge {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.tenant-info-section {
-  flex: 1;
-}
-
-.tenant-name {
-  font-size: 20px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 6px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  letter-spacing: 0.3px;
-}
-
-.tenant-property {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-}
-
-.action-menu-btn {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-}
-
-.action-menu-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Card Body */
-.tenant-card-body {
-  padding: 20px;
-}
-
-.contact-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.contact-item {
+/* Compact Header */
+.tenant-card-header-compact {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  transition: all 0.2s;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.contact-item:hover {
-  background: #e3f2fd;
-  transform: translateX(4px);
-}
-
-.contact-icon-wrapper {
+.tenant-main-info {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.contact-details {
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 
-.contact-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+.tenant-avatar-compact {
+  background: var(--primary-color);
+  flex-shrink: 0;
 }
 
-.contact-value {
-  font-size: 14px;
-  color: #1a1a1a;
-  font-weight: 500;
+.avatar-initials-compact {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.tenant-info-compact {
+  flex: 1;
+  min-width: 0;
+}
+
+.tenant-name-compact {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--neutral-900);
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Rent Information */
-.rent-info {
-  text-align: center;
-  padding: 16px;
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  border-radius: 12px;
-  margin-bottom: 16px;
+.tenant-meta-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.rent-amount {
-  font-size: 28px;
-  font-weight: 700;
-  color: #2e7d32;
-  line-height: 1;
-  margin-bottom: 4px;
+.status-chip-compact {
+  font-size: 10px;
+  height: 20px;
+  padding: 0 6px;
 }
 
-.rent-period {
-  font-size: 14px;
-  font-weight: 500;
-  color: #4caf50;
-}
-
-.rent-label {
+.tenant-property-compact {
   font-size: 12px;
-  font-weight: 600;
-  color: #558b2f;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--neutral-600);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Quick Info Tags */
-.quick-info-tags {
+.action-menu-btn-compact {
+  flex-shrink: 0;
+}
+
+/* Contact & Rent Row */
+.tenant-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.contact-info-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-item-compact {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--neutral-700);
+}
+
+.contact-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rent-info-compact {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--neutral-200);
+}
+
+.rent-amount-compact {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+  line-height: 1;
+}
+
+.rent-label-compact {
+  font-size: 11px;
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+
+/* Tags & Footer Row */
+.tenant-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tags-compact {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
+  gap: 4px;
+  flex: 1;
 }
 
-.info-chip {
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  color: #666;
-  font-weight: 600;
-  transition: all 0.2s;
+.info-chip-compact {
+  background: var(--tag-blue-bg);
+  color: var(--tag-blue-text);
+  border: none;
+  font-size: 10px;
+  height: 22px;
+  padding: 0 6px;
 }
 
-.info-chip:hover {
-  background: #1976d2;
+.info-chip-compact:hover {
+  background: var(--primary-color);
   color: white;
-  border-color: #1976d2;
-  transform: scale(1.05);
 }
 
-/* Card Footer */
-.tenant-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: linear-gradient(to right, #f8f9fa 0%, #e9ecef 100%);
-  border-top: 1px solid #e0e0e0;
-}
-
-.footer-left {
+.footer-compact {
   display: flex;
   align-items: center;
-  color: #666;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.footer-text {
+.footer-text-compact {
+  font-size: 11px;
+  color: var(--neutral-500);
+  white-space: nowrap;
+}
+
+.view-btn-compact {
   font-size: 12px;
-  font-weight: 500;
-}
-
-.view-details-btn {
-  border-radius: 20px;
-  font-weight: 600;
-  padding: 6px 16px;
-  transition: all 0.3s;
-}
-
-.view-details-btn:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  padding: 4px 10px;
+  min-height: 24px;
 }
 
 @media (max-width: 768px) {
   .tenants-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .contact-grid {
-    grid-template-columns: 1fr;
+  .tenant-card-content {
+    padding: 12px;
   }
 
-  .tenant-card-header {
-    padding: 16px;
+  .tenant-details-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
-  .tenant-avatar {
-    size: 60px;
+  .rent-info-compact {
+    border-left: none;
+    border-top: 1px solid var(--neutral-200);
+    padding-left: 0;
+    padding-top: 8px;
+    width: 100%;
   }
 
-  .tenant-name {
-    font-size: 18px;
+  .tenant-footer-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
-  .rent-amount {
-    font-size: 24px;
+  .footer-compact {
+    width: 100%;
+    justify-content: space-between;
   }
+}
+
+/* Tenant Detail Dialog Close Button */
+.close-dialog-btn {
+  background: white !important;
+  color: var(--primary-color) !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  transition: all 0.2s ease;
+}
+
+.close-dialog-btn:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  transform: scale(1.1);
+}
+
+.close-dialog-btn .q-icon {
+  font-size: 24px;
+}
+
+/* Tenant Detail Dialog Edit Button */
+.edit-dialog-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  transition: all 0.2s ease;
+}
+
+.edit-dialog-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.1);
+}
+
+.edit-dialog-btn .q-icon {
+  font-size: 20px;
 }
 </style>

@@ -4,13 +4,6 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">Reports & Analytics</div>
       <div class="row q-gutter-sm">
-        <q-btn
-          icon="refresh"
-          color="primary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="loading"
-        />
         <q-btn-dropdown
           icon="download"
           color="primary"
@@ -1168,43 +1161,6 @@ const selectAllProperties = () => {
     position: 'top',
     timeout: 2000,
   })
-}
-
-const refreshData = async () => {
-  loading.value = true
-  dataLoaded.value = false
-
-  try {
-    await userDataStore.loadAllUserData()
-
-    // Verify data was loaded
-    console.log('Data refreshed:', {
-      properties: userDataStore.userAccessibleProperties.length,
-      transactions: userDataStore.userAccessibleTransactions.length,
-      tasks: userDataStore.userAccessibleMxRecords.length,
-      totalRecords: totalDataCount.value,
-    })
-
-    dataLoaded.value = true
-    updateCharts()
-
-    Notify.create({
-      type: 'positive',
-      message: `Reports refreshed: ${totalDataCount.value} records loaded`,
-      position: 'top',
-    })
-  } catch (error) {
-    console.error('Error refreshing data:', error)
-    dataLoaded.value = false
-
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to refresh reports',
-      position: 'top',
-    })
-  } finally {
-    loading.value = false
-  }
 }
 
 const downloadTransactionsCSV = () => {

@@ -3,8 +3,7 @@
     <div class="signup-container">
       <!-- Logo and Property Info Section -->
       <div class="header-section">
-        <img src="/logo.svg" alt="Property Manager Logo" class="logo" />
-        <h1 class="app-title">Handout - Property Manager</h1>
+        <h1 class="app-title">Handout</h1>
         <div v-if="property" class="property-info">
           <q-icon name="home" size="24px" color="primary" />
           <div class="property-details">
@@ -386,6 +385,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
 .tenant-signup-page {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
   min-height: 100vh;
@@ -409,18 +410,13 @@ onMounted(async () => {
   margin-bottom: 32px;
 }
 
-.logo {
-  height: 64px;
-  width: auto;
-  margin-bottom: 16px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-}
-
 .app-title {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-family: 'Pacifico', cursive;
+  font-size: 2rem;
+  font-weight: 400;
   color: var(--primary-color);
   margin: 0 0 24px 0;
+  letter-spacing: 0.02em;
 }
 
 .property-info {
@@ -520,10 +516,6 @@ onMounted(async () => {
 
   .app-title {
     font-size: 1.5rem;
-  }
-
-  .logo {
-    height: 48px;
   }
 
   .property-name {

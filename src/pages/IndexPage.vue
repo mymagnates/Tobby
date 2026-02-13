@@ -54,8 +54,8 @@
       <div class="page-header">
         <div class="header-content">
           <div class="header-title">
-            <h1 class="text-h4 text-weight-bold">Dashboard</h1>
-            <p class="text-subtitle1 text-grey-6">Welcome back!</p>
+            <h1 class="text-h4 text-weight-bold"></h1>
+            <p class="text-subtitle1 text-grey-6"></p>
           </div>
           <div class="header-actions">
             <div class="row q-gutter-sm items-center">
@@ -106,7 +106,7 @@
 
       <!-- Quick Stats Cards -->
       <div class="stats-section">
-        <div class="row" style="margin: 5px">
+        <div class="row q-col-gutter-sm">
           <div class="col-12 col-sm-6 col-md-3">
             <q-card class="stat-card income-card">
               <q-card-section class="stat-card__content">
@@ -165,11 +165,110 @@
         </div>
       </div>
 
+      <!-- Reminders Section (moved to top) -->
+      <div class="reminders-section">
+        <div class="row q-col-gutter-sm">
+          <div class="col-12">
+            <q-card class="reminders-card">
+              <q-card-section>
+                <div class="section-header-inline">
+                  <div class="text-h6">
+                    <q-icon name="notifications" class="q-mr-sm" />
+                    Reminders
+                  </div>
+                  <q-btn
+                    v-if="reminders.length > 0"
+                    flat
+                    dense
+                    color="primary"
+                    label="View All"
+                    @click="$router.push('/reminders')"
+                  />
+                </div>
+
+                <!-- Reminders Grid -->
+                <div v-if="reminders.length > 0" class="reminders-grid">
+                  <q-card
+                    v-for="reminder in reminders.slice(0, 6)"
+                    :key="reminder.id"
+                    class="reminder-card"
+                    :class="{ 'reminder-overdue': isReminderOverdue(reminder) }"
+                  >
+                    <q-card-section class="reminder-card-content">
+                      <div class="reminder-header">
+                        <div class="reminder-title">{{ reminder.title }}</div>
+                        <div class="reminder-actions-header">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="refresh"
+                            color="primary"
+                            size="sm"
+                            class="reminder-renew-btn"
+                            @click="renewReminder(reminder)"
+                          >
+                            <q-tooltip>Defer reminder</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="check_circle"
+                            color="primary"
+                            size="sm"
+                            class="reminder-complete-btn"
+                            @click="markReminderComplete(reminder)"
+                          >
+                            <q-tooltip>Mark as complete</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
+                      <div class="reminder-description">{{ reminder.description }}</div>
+                      <div class="reminder-footer">
+                        <div class="reminder-date">
+                          <q-icon name="event" size="12px" class="q-mr-xs" />
+                          <span>{{ formatReminderDate(reminder.due_date) }}</span>
+                          <q-badge
+                            v-if="reminder.renewals && reminder.renewals.length > 0"
+                            color="orange"
+                            :label="`${reminder.renewals.length}x`"
+                            class="q-ml-xs cursor-pointer"
+                            @click.stop="viewRenewalHistory(reminder)"
+                          >
+                            <q-tooltip>Click to view renewal history</q-tooltip>
+                          </q-badge>
+                        </div>
+                        <q-chip
+                          v-if="reminder.property_name"
+                          size="xs"
+                          color="primary"
+                          text-color="white"
+                        >
+                          {{ reminder.property_name }}
+                        </q-chip>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="empty-reminders text-center q-pa-lg">
+                  <q-icon name="notifications_off" size="48px" color="grey-4" />
+                  <div class="text-body2 text-grey-6 q-mt-sm">No reminders</div>
+                  <div class="text-caption text-grey-5">All caught up!</div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </div>
+
       <!-- Dashboard Sections -->
       <div class="dashboard-sections">
-        <div class="row">
+        <div class="row q-col-gutter-sm items-stretch">
           <!-- Left Column -->
-          <div class="col-sm-6 col-lg-6">
+          <div class="col-12 col-sm-6 col-lg-6">
             <!-- Recent Tasks -->
             <q-card class="dashboard-section">
               <q-card-section class="section-header">
@@ -231,7 +330,7 @@
           </div>
 
           <!-- Right Column -->
-          <div class="col-sm-6 col-lg-6">
+          <div class="col-12 col-sm-6 col-lg-6">
             <!-- Recent Transactions -->
             <q-card class="dashboard-section">
               <q-card-section class="section-header">
@@ -295,109 +394,6 @@
                   @click="$router.push('/transactions')"
                 />
               </q-card-actions>
-            </q-card>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reminders Card -->
-      <div class="reminders-section q-pa-md">
-        <div class="row">
-          <div class="col-12">
-            <q-card class="reminders-card">
-              <q-card-section>
-                <div class="text-h6 q-mb-md">
-                  <q-icon name="notifications" class="q-mr-sm" />
-                  Reminders
-                </div>
-
-                <!-- Reminders Grid -->
-                <div v-if="reminders.length > 0" class="reminders-grid">
-                  <q-card
-                    v-for="reminder in reminders.slice(0, 6)"
-                    :key="reminder.id"
-                    class="reminder-card"
-                    :class="{ 'reminder-overdue': isReminderOverdue(reminder) }"
-                  >
-                    <q-card-section class="reminder-card-content">
-                      <!-- Reminder Header -->
-                      <div class="reminder-header">
-                        <div class="reminder-title">{{ reminder.title }}</div>
-                        <div class="reminder-actions-header">
-                          <q-btn
-                            flat
-                            round
-                            dense
-                            icon="refresh"
-                            color="primary"
-                            size="sm"
-                            class="reminder-renew-btn"
-                            @click="renewReminder(reminder)"
-                          >
-                            <q-tooltip>Defer reminder</q-tooltip>
-                          </q-btn>
-                          <q-btn
-                            flat
-                            round
-                            dense
-                            icon="check_circle"
-                            color="primary"
-                            size="sm"
-                            class="reminder-complete-btn"
-                            @click="markReminderComplete(reminder)"
-                          >
-                            <q-tooltip>Mark as complete</q-tooltip>
-                          </q-btn>
-                        </div>
-                      </div>
-
-                      <!-- Reminder Description -->
-                      <div class="reminder-description">{{ reminder.description }}</div>
-
-                      <!-- Reminder Footer -->
-                      <div class="reminder-footer">
-                        <div class="reminder-date">
-                          <q-icon name="event" size="12px" class="q-mr-xs" />
-                          <span>{{ formatReminderDate(reminder.due_date) }}</span>
-                          <q-badge
-                            v-if="reminder.renewals && reminder.renewals.length > 0"
-                            color="orange"
-                            :label="`${reminder.renewals.length}x`"
-                            class="q-ml-xs cursor-pointer"
-                            @click.stop="viewRenewalHistory(reminder)"
-                          >
-                            <q-tooltip>Click to view renewal history</q-tooltip>
-                          </q-badge>
-                        </div>
-                        <q-chip
-                          v-if="reminder.property_name"
-                          size="xs"
-                          color="primary"
-                          text-color="white"
-                        >
-                          {{ reminder.property_name }}
-                        </q-chip>
-                      </div>
-                    </q-card-section>
-                  </q-card>
-                </div>
-
-                <!-- Empty State -->
-                <div v-else class="empty-reminders text-center q-pa-lg">
-                  <q-icon name="notifications_off" size="48px" color="grey-4" />
-                  <div class="text-body2 text-grey-6 q-mt-sm">No reminders</div>
-                  <div class="text-caption text-grey-5">All caught up!</div>
-                </div>
-
-                <!-- View All Button -->
-                <div v-if="reminders.length > 5" class="text-center q-mt-md">
-                  <q-btn
-                    color="primary"
-                    label="View All Reminders"
-                    @click="$router.push('/reminders')"
-                  />
-                </div>
-              </q-card-section>
             </q-card>
           </div>
         </div>
@@ -1390,14 +1386,14 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard-page {
-  padding: 24px;
-  background: var(--bg-primary);
+  padding: 16px 20px;
+  background: var(--bg-secondary);
   min-height: 100vh;
 }
 
 @media (max-width: 768px) {
   .dashboard-page {
-    padding: 16px;
+    padding: 8px 12px;
   }
 }
 
@@ -1439,22 +1435,27 @@ onMounted(async () => {
 }
 
 .loading-step.active {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--tag-blue-bg);
+  color: var(--primary-color);
 }
 
 .loading-step.completed {
-  background: #e8f5e8;
-  color: #2e7d32;
+  background: var(--tag-blue-alt);
+  color: var(--primary-dark);
 }
 
 .dashboard-content {
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+}
+
+.page-header .header-title p {
+  color: var(--neutral-600);
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .header-content {
@@ -1465,7 +1466,7 @@ onMounted(async () => {
 
 .header-title h1 {
   margin: 0;
-  color: #1a1a1a;
+  color: var(--neutral-900);
 }
 
 .header-title p {
@@ -1477,17 +1478,16 @@ onMounted(async () => {
 }
 
 .stats-section {
-  margin-bottom: 32px;
+  margin-bottom: 12px;
 }
 
 .stat-card {
-  height: 120px;
-  min-height: 120px;
-  border-radius: 16px;
+  height: 110px;
+  min-height: 110px;
+  border-radius: var(--border-radius-card);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--neutral-200);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin: 2px;
   background: var(--bg-surface);
 }
 
@@ -1555,18 +1555,17 @@ onMounted(async () => {
 }
 
 .dashboard-sections {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .dashboard-section {
-  border-radius: 16px;
+  border-radius: var(--border-radius-card);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  margin-bottom: 24px;
-  margin-right: 5px;
   background: var(--bg-surface);
   border: 1px solid var(--neutral-200);
   transition: all 0.3s ease;
   overflow: hidden;
+  height: 100%;
 }
 
 .dashboard-section:hover {
@@ -1578,9 +1577,18 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--neutral-200);
   background: var(--bg-surface);
+}
+
+.section-header-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .section-title {
@@ -1593,7 +1601,7 @@ onMounted(async () => {
 }
 
 .section-content {
-  padding: 24px;
+  padding: 16px 20px;
   background: var(--bg-surface);
 }
 
@@ -1825,11 +1833,11 @@ onMounted(async () => {
 
 /* Reminders Styles */
 .reminders-section {
-  margin-bottom: 100px; /* Space for fixed quick actions */
+  margin-bottom: 12px;
 }
 
 .reminders-card {
-  border-radius: 16px;
+  border-radius: var(--border-radius-card);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--neutral-200);
   transition: all 0.3s ease;
@@ -1837,34 +1845,31 @@ onMounted(async () => {
 }
 
 .reminders-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-color: var(--neutral-300);
 }
 
 .reminders-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 .reminder-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   border-left: 4px solid var(--primary-color);
   border: 1px solid var(--neutral-200);
   border-left-width: 4px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 160px;
+  transition: all 0.2s ease;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
 }
 
 .reminder-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
   border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
 }
 
 .reminder-card.reminder-overdue {

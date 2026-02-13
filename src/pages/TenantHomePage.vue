@@ -10,7 +10,6 @@
               Welcome back, {{ userDataStore.userDisplayName || 'Tenant' }}!
             </p>
           </div>
-          <q-btn color="primary" icon="refresh" label="Refresh" @click="refreshData" />
         </div>
       </div>
 
@@ -640,16 +639,6 @@ const loadAllData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// Refresh data
-const refreshData = async () => {
-  await loadAllData()
-  Notify.create({
-    type: 'positive',
-    message: 'Dashboard refreshed',
-    position: 'top',
-  })
 }
 
 // Navigation functions

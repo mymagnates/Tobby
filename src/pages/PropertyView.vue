@@ -66,15 +66,6 @@
             <div class="text-subtitle1 q-mb-sm">Actions</div>
             <div class="action-buttons">
               <q-btn
-                icon="refresh"
-                color="primary"
-                label="Refresh"
-                @click="refreshData"
-                :loading="loading"
-                flat
-                class="action-btn"
-              />
-              <q-btn
                 v-if="selectedProperty"
                 color="primary"
                 icon="folder"
@@ -812,18 +803,6 @@
                   <div class="text-h6 text-weight-medium">
                     Current Documents ({{ propertyPhotos.length }})
                   </div>
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    icon="refresh"
-                    color="primary"
-                    @click="loadPropertyPhotos"
-                    :loading="loadingPhotos"
-                    size="sm"
-                  >
-                    <q-tooltip>Refresh photos</q-tooltip>
-                  </q-btn>
                 </div>
               </div>
 

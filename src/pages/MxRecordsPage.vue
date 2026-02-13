@@ -3,13 +3,6 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">Tasks</div>
       <div class="row q-gutter-sm">
-        <q-btn
-          icon="refresh"
-          color="primary"
-          label="Refresh"
-          @click="refreshData"
-          :loading="userDataStore.mxRecordsLoading"
-        />
         <q-btn @click="openCreateMxRecordDialog" color="primary" icon="add" label="Create Task" />
       </div>
     </div>

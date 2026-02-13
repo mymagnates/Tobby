@@ -5,16 +5,7 @@
       <q-toolbar class="q-px-md">
         <q-toolbar-title class="row items-center">
           <div class="logo-container">
-            <img src="/logo.svg" alt="Property Manager Logo" class="logo" />
-            <span
-              class="app-title"
-              style="
-                font-family: 'Orbitron', 'cursive', 'Comic Sans MS', Impact, fantasy, system-ui;
-                letter-spacing: 0.08em;
-              "
-            >
-              Handout
-            </span>
+            <span class="app-title">Handout</span>
           </div>
         </q-toolbar-title>
 
@@ -82,31 +73,29 @@ const goToLogin = () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
 .guest-layout {
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 .guest-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  box-shadow: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.logo {
-  height: 32px;
-  width: auto;
 }
 
 .app-title {
+  font-family: 'Pacifico', cursive;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 400;
   color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.02em;
 }
 
 .login-btn {
@@ -159,10 +148,6 @@ const goToLogin = () => {
 @media (max-width: 768px) {
   .app-title {
     font-size: 1.2rem;
-  }
-
-  .logo {
-    height: 28px;
   }
 
   .login-btn {

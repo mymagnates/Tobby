@@ -8,16 +8,6 @@
           Centralized view of all documents. Search and open the source record in a dialog.
         </p>
       </div>
-      <q-btn
-        icon="refresh"
-        color="primary"
-        flat
-        round
-        :loading="loading"
-        @click="loadAllDocuments"
-      >
-        <q-tooltip>Refresh documents</q-tooltip>
-      </q-btn>
     </div>
 
     <!-- Search and filters -->
@@ -72,7 +62,7 @@
               color="primary"
               label="Search"
               icon="search"
-              unelevated
+              flat
               @click="applySearch"
             />
           </div>

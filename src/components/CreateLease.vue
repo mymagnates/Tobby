@@ -32,34 +32,6 @@
         <div v-if="selectedPropertyId" class="q-mb-lg">
           <q-card flat bordered class="property-info-card">
             <q-card-section>
-              <!-- Debug: Property Data Structure -->
-              <div class="property-debug-section q-mb-md">
-                <q-expansion-item
-                  icon="code"
-                  label="Debug: View Property Data Structure"
-                  header-class="bg-grey-2"
-                >
-                  <q-card flat bordered>
-                    <q-card-section>
-                      <div class="text-caption text-weight-bold q-mb-sm">Selected Property ID:</div>
-                      <pre class="debug-json">{{ selectedPropertyId }}</pre>
-
-                      <div class="text-caption text-weight-bold q-mb-sm q-mt-md">
-                        Selected Property Object:
-                      </div>
-                      <pre class="debug-json">{{ JSON.stringify(selectedProperty, null, 2) }}</pre>
-
-                      <div class="text-caption text-weight-bold q-mb-sm q-mt-md">
-                        Lease Data Property (what will be saved):
-                      </div>
-                      <pre class="debug-json">{{
-                        JSON.stringify(leaseData.property, null, 2)
-                      }}</pre>
-                    </q-card-section>
-                  </q-card>
-                </q-expansion-item>
-              </div>
-
               <!-- Property Specifications -->
               <div class="property-specs-compact q-mt-md">
                 <div class="row q-col-gutter-md">
@@ -869,28 +841,6 @@ watch(
 .text-body1 {
   font-size: 1rem;
   line-height: 1.5;
-}
-
-/* Debug Section */
-.property-debug-section {
-  margin-bottom: 16px;
-}
-
-.debug-json {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  margin: 0;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: #212529;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 /* Compact Property Specifications */

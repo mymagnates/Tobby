@@ -27,17 +27,23 @@
 
 // Modern & Bright Color Strategy - Clean, Vibrant, Accessible
 :root {
-  // Primary Colors - Vibrant Blue (Improved contrast)
-  --primary-color: #2563eb; // Bright blue (primary actions) - WCAG AA compliant
-  --primary-light: #60a5fa; // Lighter blue
-  --primary-dark: #1d4ed8; // Darker blue
-  --primary-glow: rgba(37, 99, 235, 0.12);
+  // Primary Colors - Soft Blue
+  --primary-color: #82A6D7; // Primary
+  --primary-light: #a8c4e6; // Lighter
+  --primary-dark: #5d8bc4; // Darker
+  --primary-glow: rgba(130, 166, 215, 0.12);
 
-  // Accent Colors - Modern Teal (Replaces brown for better contrast)
-  --accent-color: #0d9488; // Modern teal (accent/highlights)
-  --accent-light: #14b8a6; // Lighter teal
-  --accent-dark: #0f766e; // Darker teal
-  --accent-glow: rgba(13, 148, 136, 0.12);
+  // Accent Colors - Blue (aligned with reference dashboard)
+  --accent-color: #1d4ed8; // Dark blue (accent/highlights, like "Start Now" fill)
+  --accent-light: #3b82f6; // Medium blue
+  --accent-dark: #1e40af; // Darker blue
+  --accent-glow: rgba(29, 78, 216, 0.12);
+  // Tag/chip muted backgrounds (reference style)
+  --tag-blue-bg: #dbeafe;
+  --tag-blue-text: #1e40af;
+  --tag-blue-alt: #bfdbfe;
+  --highlight-card-bg: #1e3a8a; // Dark blue for prominent cards
+  --highlight-card-pattern: rgba(255, 255, 255, 0.06);
 
   // Secondary Colors - Clean Gray
   --secondary-color: #64748b; // Slate gray (secondary/links) - Better contrast
@@ -90,6 +96,8 @@
   --border-radius-sm: 8px;
   --border-radius-lg: 16px;
   --border-radius-xl: 20px;
+  --border-radius-btn: 2px;
+  --border-radius-card: 3px;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -117,16 +125,19 @@
 // Dark Mode Color Overrides - Modern & Accessible
 body.body--dark {
   // Primary Colors - Brighter for dark mode
-  --primary-color: #60a5fa; // Lighter blue for dark mode
-  --primary-light: #93c5fd; // Even lighter blue
-  --primary-dark: #3b82f6; // Medium blue
-  --primary-glow: rgba(96, 165, 250, 0.2);
+  --primary-color: #a8c4e6;
+  --primary-light: #c5d9f0;
+  --primary-dark: #5d8bc4;
+  --primary-glow: rgba(168, 196, 230, 0.22);
 
-  // Accent Colors
-  --accent-color: #14b8a6; // Lighter teal for dark mode
-  --accent-light: #5eead4; // Even lighter teal
-  --accent-dark: #0d9488; // Medium teal
-  --accent-glow: rgba(20, 184, 166, 0.2);
+  // Accent Colors (blue)
+  --accent-color: #3b82f6;
+  --accent-light: #60a5fa;
+  --accent-dark: #2563eb;
+  --accent-glow: rgba(59, 130, 246, 0.2);
+  --tag-blue-bg: rgba(59, 130, 246, 0.2);
+  --tag-blue-text: #93c5fd;
+  --highlight-card-bg: #1e3a8a;
 
   // Secondary Colors
   --secondary-color: #94a3b8; // Lighter slate for dark mode
@@ -178,38 +189,76 @@ body.body--dark {
   color: var(--neutral-600); // Better contrast
 }
 
-// Global Typography
+// Global Typography - Modern, Readable Font Stack
 body {
   font-family:
     'Inter',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
-    Roboto,
+    'Roboto',
+    'Helvetica Neue',
+    Arial,
     sans-serif;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
   color: var(--neutral-800);
   background-color: var(--bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-// Professional Finance Card Styles - Flat Design
+// Heading Font - Pacifico for titles
+h1, h2, h3, h4, h5, h6,
+.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
+  font-family: 'Pacifico', cursive;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+// Dashboard-style cards (reference: clean, rounded, subtle shadow)
+// All card objects use consistent 3px radius
+.q-card,
+.q-card.search-card,
+.q-card.empty-card,
+.q-card.summary-card,
+.q-card.tasks-summary-card,
+.q-card.transaction-summary-card,
+.q-card.documents-card {
+  border-radius: var(--border-radius-card) !important;
+}
+
 .q-card {
-  border-radius: var(--border-radius);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--neutral-200);
   transition: var(--transition);
-  background: white;
+  background: var(--bg-surface);
   position: relative;
   overflow: hidden;
 }
 
 .q-card:hover {
-  box-shadow: none;
-  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+  border-color: var(--neutral-300);
+}
+
+/* Prominent highlight card (e.g. "27 Free days left" style) */
+.q-card.highlight-card {
+  background: var(--highlight-card-bg);
+  border: none;
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.q-card.highlight-card .text-h6,
+.q-card.highlight-card .text-subtitle1,
+.q-card.highlight-card .text-body1,
+.q-card.highlight-card .text-body2 {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .q-card.elevated {
@@ -266,22 +315,23 @@ body {
 
 // Modern Button Styles - No Background Fill (Outline Only)
 .q-btn {
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--border-radius-btn) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: 600;
   text-transform: none;
-  letter-spacing: 0.025em;
+  letter-spacing: -0.01em;
   transition: var(--transition);
   position: relative;
   overflow: hidden;
   font-size: 0.875rem;
-  line-height: 1.4;
+  line-height: 1.5;
   padding: var(--spacing-sm) var(--spacing-md);
   min-height: 40px;
   
   // Default style: NO background fill - transparent with colored outline
   background: transparent !important;
   color: var(--primary-color) !important;
-  border: 2px solid var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
   box-shadow: none !important;
 
   &:hover {
@@ -299,21 +349,41 @@ body {
     color: var(--primary-color) !important;
   }
 
-  // Primary buttons - NO fill, outline only
+  // Primary buttons: filled when unelevated (main CTA), outline otherwise
   &.bg-primary,
-  &[color="primary"]:not(.q-btn--outline) {
-    background: transparent !important;
-    color: var(--primary-color) !important;
-    border: 2px solid var(--primary-color) !important;
+  &[color="primary"] {
+    &.unelevated,
+    &.q-btn--unelevated,
+    &.btn-filled {
+      background: var(--primary-color) !important;
+      color: white !important;
+      border: 1px solid var(--primary-color) !important;
 
-    &:hover {
-      background: var(--primary-glow) !important;
-      border-color: var(--primary-color) !important;
-      color: var(--primary-color) !important;
+      &:hover {
+        background: var(--primary-dark) !important;
+        border-color: var(--primary-dark) !important;
+        color: white !important;
+      }
+
+      .q-icon {
+        color: white !important;
+      }
     }
 
-    .q-icon {
+    &:not(.unelevated):not(.q-btn--unelevated):not(.btn-filled) {
+      background: transparent !important;
       color: var(--primary-color) !important;
+      border: 1px solid var(--primary-color) !important;
+
+      &:hover {
+        background: var(--primary-glow) !important;
+        border-color: var(--primary-color) !important;
+        color: var(--primary-color) !important;
+      }
+
+      .q-icon {
+        color: var(--primary-color) !important;
+      }
     }
   }
 
@@ -322,7 +392,7 @@ body {
   &[color="positive"] {
     background: transparent !important;
     color: var(--success-color) !important;
-    border: 2px solid var(--success-color) !important;
+    border: 1px solid var(--success-color) !important;
 
     &:hover {
       background: var(--success-glow) !important;
@@ -340,7 +410,7 @@ body {
   &[color="negative"] {
     background: transparent !important;
     color: var(--error-color) !important;
-    border: 2px solid var(--error-color) !important;
+    border: 1px solid var(--error-color) !important;
 
     &:hover {
       background: var(--error-glow) !important;
@@ -358,7 +428,7 @@ body {
   &[color="warning"] {
     background: transparent !important;
     color: var(--warning-color) !important;
-    border: 2px solid var(--warning-color) !important;
+    border: 1px solid var(--warning-color) !important;
 
     &:hover {
       background: var(--warning-glow) !important;
@@ -376,7 +446,7 @@ body {
   &[color="info"] {
     background: transparent !important;
     color: var(--info-color) !important;
-    border: 2px solid var(--info-color) !important;
+    border: 1px solid var(--info-color) !important;
 
     &:hover {
       background: var(--info-glow) !important;
@@ -389,22 +459,37 @@ body {
     }
   }
 
-  // Custom class variants - ALL NO FILL
+  // Custom class variants
   &.btn-primary {
-    background: transparent !important;
-    color: var(--primary-color) !important;
-    border: 2px solid var(--primary-color) !important;
-
+    &.btn-filled,
+    &.unelevated,
+    &.q-btn--unelevated {
+      background: var(--primary-color) !important;
+      color: white !important;
+      border: 1px solid var(--primary-color) !important;
+    }
+    &:not(.btn-filled):not(.unelevated):not(.q-btn--unelevated) {
+      background: transparent !important;
+      color: var(--primary-color) !important;
+      border: 1px solid var(--primary-color) !important;
+    }
     &:hover {
       background: var(--primary-glow) !important;
       color: var(--primary-color) !important;
+    }
+    &.btn-filled:hover,
+    &.unelevated:hover,
+    &.q-btn--unelevated:hover {
+      background: var(--primary-dark) !important;
+      color: white !important;
+      border-color: var(--primary-dark) !important;
     }
   }
 
   &.btn-accent {
     background: transparent !important;
     color: var(--accent-color) !important;
-    border: 2px solid var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
 
     &:hover {
       background: var(--accent-glow) !important;
@@ -415,7 +500,7 @@ body {
   &.btn-success {
     background: transparent !important;
     color: var(--success-color) !important;
-    border: 2px solid var(--success-color) !important;
+    border: 1px solid var(--success-color) !important;
 
     &:hover {
       background: var(--success-glow) !important;
@@ -426,7 +511,7 @@ body {
   &.btn-secondary {
     background: transparent !important;
     color: var(--primary-color) !important;
-    border: 2px solid var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
 
     &:hover {
       background: var(--primary-glow) !important;
@@ -437,7 +522,7 @@ body {
   &.btn-info {
     background: transparent !important;
     color: var(--info-color) !important;
-    border: 2px solid var(--info-color) !important;
+    border: 1px solid var(--info-color) !important;
 
     &:hover {
       background: var(--info-glow) !important;
@@ -448,7 +533,7 @@ body {
   &.btn-outline-secondary {
     background: transparent !important;
     color: var(--primary-color) !important;
-    border: 2px solid var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
 
     &:hover {
       background: var(--primary-glow) !important;
@@ -459,7 +544,7 @@ body {
   &.btn-outline {
     background: transparent !important;
     color: var(--primary-color) !important;
-    border: 2px solid var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
 
     &:hover {
       background: var(--primary-glow) !important;
@@ -471,7 +556,7 @@ body {
   &.btn-ghost {
     background: transparent !important;
     color: var(--primary-color) !important;
-    border: 2px solid transparent !important;
+    border: 1px solid transparent !important;
 
     &:hover {
       background: var(--primary-glow) !important;
@@ -544,7 +629,7 @@ body {
 .q-btn.bg-transparent {
   background: transparent !important;
   color: var(--primary-color) !important;
-  border: 2px solid var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
@@ -561,7 +646,7 @@ body {
 .q-btn--flat:not(.q-btn--round) {
   background: transparent !important;
   color: var(--primary-color) !important;
-  border: 2px solid var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
@@ -604,7 +689,7 @@ body {
 .q-btn[label="Close"] {
   background: transparent !important;
   color: var(--primary-color) !important;
-  border: 2px solid var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
   
   &:hover {
     background: var(--primary-glow) !important;
@@ -618,16 +703,16 @@ body {
   gap: var(--spacing-xs);
 
   .q-btn {
-    border-radius: 0;
+    border-radius: var(--border-radius-btn) !important;
 
     &:first-child {
-      border-top-left-radius: var(--border-radius-sm);
-      border-bottom-left-radius: var(--border-radius-sm);
+      border-top-left-radius: var(--border-radius-btn) !important;
+      border-bottom-left-radius: var(--border-radius-btn) !important;
     }
 
     &:last-child {
-      border-top-right-radius: var(--border-radius-sm);
-      border-bottom-right-radius: var(--border-radius-sm);
+      border-top-right-radius: var(--border-radius-btn) !important;
+      border-bottom-right-radius: var(--border-radius-btn) !important;
     }
 
     &:not(:last-child) {
@@ -697,20 +782,22 @@ body {
   }
 }
 
-// Professional Input Styles - Flat Design
+// Input Styles - Clean underline (inp-style)
+// Inspired by minimal underline inputs with smooth focus transition
 .q-field {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  position: relative;
+
   .q-field__control {
-    border-radius: var(--border-radius-sm);
-    transition: var(--transition);
+    border-radius: 0 !important;
     border: none !important;
     border-bottom: 2px solid var(--neutral-300) !important;
-    background: var(--neutral-50) !important;
+    background: transparent !important;
     box-shadow: none !important;
+    transition: border-color 0.2s ease, background 0.2s ease;
 
     &:hover {
-      border-bottom-color: var(--primary-color) !important;
-      background: var(--neutral-100) !important;
-      box-shadow: none !important;
+      border-bottom-color: var(--neutral-400) !important;
     }
 
     &::before,
@@ -721,18 +808,15 @@ body {
 
   &.q-field--focused .q-field__control {
     border-bottom-color: var(--primary-color) !important;
-    background: var(--neutral-100) !important;
-    box-shadow: none !important;
   }
 
-  // Remove outline styling
   &.q-field--outlined .q-field__control {
     border: none !important;
     border-bottom: 2px solid var(--neutral-300) !important;
+    background: transparent !important;
 
     &:hover {
-      border: none !important;
-      border-bottom: 2px solid var(--primary-color) !important;
+      border-bottom-color: var(--neutral-400) !important;
     }
   }
 
@@ -741,41 +825,58 @@ body {
     border-bottom: 2px solid var(--primary-color) !important;
   }
 
-  // Label styling
   .q-field__label {
     color: var(--neutral-600);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: color 0.2s ease;
   }
 
   &.q-field--focused .q-field__label {
     color: var(--primary-color);
   }
+
+  .q-field__native,
+  .q-field__input {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--neutral-800);
+    letter-spacing: 0;
+    line-height: 1.5;
+    -webkit-appearance: none;
+  }
+
+  .q-field__native::placeholder,
+  .q-field__input::placeholder {
+    color: var(--neutral-500);
+  }
 }
 
-// Professional Select Styles - Flat Design
+// Select - same underline style
 .q-select {
   .q-field__control {
-    border-radius: var(--border-radius-sm);
+    border-radius: 0 !important;
     border: none !important;
     border-bottom: 2px solid var(--neutral-300) !important;
-    background: var(--neutral-50) !important;
+    background: transparent !important;
     box-shadow: none !important;
+    transition: border-color 0.2s ease;
 
     &:hover {
-      border-bottom-color: var(--primary-color) !important;
-      background: var(--neutral-100) !important;
+      border-bottom-color: var(--neutral-400) !important;
     }
   }
 
   &.q-field--focused .q-field__control {
     border-bottom-color: var(--primary-color) !important;
-    background: var(--neutral-100) !important;
   }
 
-  // Remove outline styling
   &.q-select--outlined .q-field__control,
   &.q-field--outlined .q-field__control {
     border: none !important;
     border-bottom: 2px solid var(--neutral-300) !important;
+    background: transparent !important;
   }
 
   &.q-select--outlined.q-field--focused .q-field__control,
@@ -785,17 +886,18 @@ body {
   }
 }
 
-// Flat File Input
+// File Input - same underline style
 .q-file {
   .q-field__control {
+    border-radius: 0 !important;
     border: none !important;
     border-bottom: 2px solid var(--neutral-300) !important;
-    background: var(--neutral-50) !important;
+    background: transparent !important;
     box-shadow: none !important;
+    transition: border-color 0.2s ease;
 
     &:hover {
-      border-bottom-color: var(--primary-color) !important;
-      background: var(--neutral-100) !important;
+      border-bottom-color: var(--neutral-400) !important;
     }
   }
 
@@ -812,18 +914,19 @@ body {
   background: white !important;
 }
 
-// Override any outlined class globally
+// Outlined inputs - underline style
 .q-field--outlined .q-field__control,
 .q-input--outlined .q-field__control,
 .q-select--outlined .q-field__control,
 .q-textarea--outlined .q-field__control {
   border: none !important;
   border-bottom: 2px solid var(--neutral-300) !important;
-  border-radius: var(--border-radius-sm) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  transition: border-color 0.2s ease;
 
   &:hover {
-    border: none !important;
-    border-bottom: 2px solid var(--primary-color) !important;
+    border-bottom-color: var(--neutral-400) !important;
   }
 }
 
@@ -837,8 +940,11 @@ body {
 
 // Professional Chip Styles - Flat Design
 .q-chip {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   border-radius: var(--border-radius-sm);
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: -0.005em;
   transition: var(--transition);
   border: none;
 
@@ -847,36 +953,49 @@ body {
     box-shadow: none;
   }
 
+  /* Reference-style tags: muted blue background */
+  &.chip-tag,
+  &.tag-reminders,
+  &.tag-maintenance,
+  &.tag-financials,
+  &.tag-rental {
+    background: var(--tag-blue-bg) !important;
+    color: var(--tag-blue-text) !important;
+  }
+
   &.chip-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    color: white;
+    background: var(--primary-color) !important;
+    color: white !important;
   }
 
   &.chip-accent {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
-    color: white;
+    background: var(--accent-color) !important;
+    color: white !important;
   }
 
   &.chip-success {
-    background: linear-gradient(135deg, var(--success-color) 0%, var(--success-dark) 100%);
-    color: white;
+    background: var(--success-color) !important;
+    color: white !important;
   }
 
   &.chip-secondary {
-    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-dark) 100%);
-    color: var(--accent-color);
+    background: var(--tag-blue-alt) !important;
+    color: var(--tag-blue-text) !important;
   }
 
   &.chip-info {
-    background: linear-gradient(135deg, var(--info-color) 0%, var(--info-dark) 100%);
-    color: white;
+    background: var(--info-color) !important;
+    color: white !important;
   }
 }
 
 // Professional Badge Styles
 .q-badge {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   border-radius: var(--border-radius-sm);
   font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
   border: none;
 }
 
@@ -911,8 +1030,13 @@ body {
 
 // Professional Toolbar Styles
 .q-toolbar {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  
   .q-toolbar__title {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
     color: white;
   }
 }
@@ -1064,38 +1188,85 @@ body {
   background: transparent !important;
 }
 
-// Professional Dialog Styles - Full Screen & Flat Design
-// Make all dialogs full screen by default
+// Professional Dialog Styles - Centered modal with half-transparent backdrop
+.q-dialog__backdrop {
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(2px);
+}
+
+.q-dialog {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  .q-card {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .q-card__section h1,
+  .q-card__section h2,
+  .q-card__section h3,
+  .q-card__section h4,
+  .q-card__section h5,
+  .q-card__section h6 {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  }
+}
+
 .q-dialog__inner {
-  padding: 0 !important;
+  padding: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .q-dialog__inner--minimized {
   padding: 0 !important;
 }
 
+// Large screens: centered card with max-width
 .q-dialog__inner--minimized > div,
 .q-dialog__inner > div {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  border: none !important;
-  margin: 0 !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  max-height: calc(100vh - 48px) !important;
+  margin: auto !important;
+  border-radius: var(--border-radius-card) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--neutral-200) !important;
+  overflow: hidden !important;
 }
 
 .q-dialog .q-card {
   width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  border-radius: 0 !important;
+  max-height: calc(100vh - 48px) !important;
+  border-radius: var(--border-radius-card) !important;
   box-shadow: none !important;
   border: none !important;
   display: flex !important;
   flex-direction: column !important;
+  background: var(--bg-surface) !important;
+}
+
+// Mobile: full screen dialog
+@media (max-width: 768px) {
+  .q-dialog__inner {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .q-dialog__inner--minimized > div,
+  .q-dialog__inner > div {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .q-dialog .q-card {
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
 }
 
 // Standardized Dialog Header - Primary Gradient
@@ -1236,7 +1407,8 @@ body {
 
 // Professional Table Styles - Flat Design
 .q-table {
-  border-radius: var(--border-radius);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   box-shadow: none;
   border: 1px solid var(--neutral-200);
@@ -1247,15 +1419,28 @@ body {
   }
 
   .q-table__thead th {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     background: var(--neutral-100);
     font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.01em;
     color: var(--neutral-700);
+  }
+  
+  .q-table__tbody td {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    letter-spacing: 0;
   }
 }
 
 // Professional List Styles
 .q-list {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  
   .q-item {
+    font-size: 0.9375rem;
+    line-height: 1.5;
     border-radius: var(--border-radius-sm);
     margin-bottom: var(--spacing-xs);
     transition: var(--transition);
@@ -1271,10 +1456,16 @@ body {
 
 // Professional Menu Styles - Flat Design
 .q-menu {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   border-radius: var(--border-radius-sm);
   box-shadow: none;
   border: 1px solid var(--neutral-200);
   background: white;
+  
+  .q-item {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
 }
 
 // Professional Dropdown Styles
@@ -1330,50 +1521,72 @@ body {
   }
 }
 
-// Professional Typography Scale
+// Professional Typography Scale - Improved Readability
 .text-h1 {
   font-size: 2.5rem;
   font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
 }
 .text-h2 {
   font-size: 2rem;
   font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 .text-h3 {
   font-size: 1.75rem;
   font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 .text-h4 {
   font-size: 1.5rem;
   font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 .text-h5 {
   font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .text-h6 {
   font-size: 1.125rem;
   font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .text-subtitle1 {
   font-size: 1rem;
   font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
 }
 .text-subtitle2 {
   font-size: 0.875rem;
   font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 .text-body1 {
   font-size: 1rem;
   font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
 }
 .text-body2 {
   font-size: 0.875rem;
   font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 .text-caption {
   font-size: 0.75rem;
   font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 // Professional Color Classes - Updated for New Palette
@@ -1611,11 +1824,11 @@ body {
 // Professional Responsive Utilities
 @media (max-width: 768px) {
   .q-card {
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--border-radius-card);
   }
 
   .q-btn {
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--border-radius-btn) !important;
   }
 
   .q-field .q-field__control {
@@ -1763,7 +1976,7 @@ body {
 .finance-card {
   background: white;
   border: 1px solid var(--neutral-200);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-card);
   padding: var(--spacing-lg);
   box-shadow: none;
   transition: var(--transition);
@@ -1796,7 +2009,7 @@ body {
 .property-card {
   background: white;
   border: 1px solid var(--neutral-200);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-card);
   box-shadow: none;
   transition: var(--transition);
   overflow: hidden;
@@ -2021,7 +2234,7 @@ body {
   &.action-secondary {
     background: white;
     color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    border: 1px solid var(--primary-color);
 
     &:hover {
       background: var(--primary-glow);
@@ -2176,7 +2389,7 @@ body {
 .property-list-item {
   background: white;
   border: 1px solid var(--neutral-200);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-card);
   padding: var(--spacing-md);
   display: flex;
   align-items: center;
@@ -2624,9 +2837,18 @@ body.body--dark {
   // Page
   .q-page { background: #1a1a1a !important; }
 
-  // Inputs
-  .q-field__control { background: #2e2e2e !important; }
+  // Inputs - keep underline style, dark mode colors
+  .q-field__control {
+    background: transparent !important;
+    border-bottom-color: #64748b !important;
+  }
+  .q-field--focused .q-field__control,
+  .q-field.q-field--focused .q-field__control {
+    border-bottom-color: var(--primary-color) !important;
+  }
   .q-field__native, .q-field__input { color: #e0e0e0 !important; }
+  .q-field__native::placeholder,
+  .q-field__input::placeholder { color: #94a3b8 !important; }
   .q-field__label { color: #a0a0a0 !important; }
 
   // Tables

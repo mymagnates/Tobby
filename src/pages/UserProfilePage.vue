@@ -12,7 +12,7 @@
             </div>
             <div class="col">
               <div class="text-h6 q-mb-xs">{{ userProfile?.user_name || 'Loading...' }}</div>
-              <div class="text-body2 text-grey-7 q-mb-xs">
+              <div class="text-body2 text-white-7 q-mb-xs">
                 <q-icon name="email" size="14px" class="q-mr-xs" />
                 {{ userProfile?.email || 'No email' }}
               </div>
@@ -20,9 +20,7 @@
                 <q-icon name="phone" size="14px" class="q-mr-xs" />
                 {{ userProfile.cellphone }}
               </div>
-              <div class="text-caption text-grey-6">
-                User ID: {{ userProfile?.user_id || 'Unknown' }}
-              </div>
+
             </div>
           </div>
         </q-card-section>
@@ -82,6 +80,7 @@
                 outlined
                 readonly
                 dense
+                font-color="white"
               />
             </div>
           </div>
@@ -120,6 +119,7 @@
               icon="add"
               label="Assign Role"
               size="sm"
+              unelevated
               class="q-ml-sm"
               @click="showAssignRoleDialog = true"
             />
@@ -189,19 +189,7 @@
         </q-card-section>
       </q-card>
 
-      <!-- Debug Info (remove in production) -->
-      <q-card class="debug-info q-mt-lg" v-if="showDebug">
-        <q-card-section>
-          <div class="text-h6 q-mb-md">Debug Information</div>
-          <pre>{{
-            JSON.stringify({ userProfile, userRoles, loading, rolesLoading }, null, 2)
-          }}</pre>
-
-          <div class="q-mt-md">
-            <q-btn color="primary" label="Reload Data" @click="reloadData" :loading="loading" />
-          </div>
-        </q-card-section>
-      </q-card>
+ 
     </div>
 
     <!-- Assign Role Dialog -->
@@ -280,11 +268,7 @@ const $q = useQuasar()
 // Computed properties
 const userProfile = computed(() => userDataStore.userProfile)
 const userRoles = computed(() => userDataStore.userRoles)
-const loading = computed(() => userDataStore.loading)
 const rolesLoading = computed(() => userDataStore.rolesLoading)
-
-// Debug mode (set to false in production)
-const showDebug = ref(true)
 
 // Assign role dialog
 const showAssignRoleDialog = ref(false)
@@ -313,7 +297,6 @@ onMounted(() => {
     userProfile: userDataStore.userProfile,
     userRoles: userDataStore.userRoles,
     properties: userDataStore.properties,
-    loading: userDataStore.loading,
     rolesLoading: userDataStore.rolesLoading,
     propertiesLoading: userDataStore.propertiesLoading,
   })
@@ -369,11 +352,11 @@ const getPropertyName = (propertyId) => {
 
 const getRoleColor = (role) => {
   const colors = {
-    'Property Owner': 'deep-purple',
-    'Property Manager': 'blue',
-    Tenant: 'green',
-    Contractor: 'orange',
-    Other: 'grey',
+    'Property Owner': 'primary',
+    'Property Manager': 'accent',
+    Tenant: 'positive',
+    Contractor: 'warning',
+    Other: 'secondary',
   }
   return colors[role] || 'grey'
 }
@@ -396,13 +379,6 @@ const viewProperty = (propertyId) => {
   // TODO: In the future, this could navigate to a specific property detail page
   console.log('Viewing property:', propertyId)
   router.push(`/my-properties`)
-}
-
-const reloadData = () => {
-  console.log('Manually reloading data...')
-  if (userDataStore.isAuthenticated) {
-    userDataStore.loadAllUserData()
-  }
 }
 
 const assignRole = async () => {
@@ -464,32 +440,65 @@ const assignRole = async () => {
 }
 
 .profile-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
 }
 
 .profile-header .q-card-section {
   color: white;
 }
 
+.user-details,
 .role-card {
-  transition: all 0.3s ease;
+  border-radius: var(--border-radius-card);
+}
+
+.role-card {
+  transition: all 0.2s ease;
   height: 100%;
+  border-radius: var(--border-radius-card);
 }
 
 .role-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--primary-glow);
+  border-color: var(--primary-color);
 }
 
 .debug-info {
-  background-color: #f5f5f5;
+  background-color: var(--neutral-100);
   font-family: monospace;
   font-size: 12px;
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
 }
 
 .debug-info pre {
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* Dark mode */
+:global(body.body--dark) .profile-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border-color: var(--neutral-300);
+}
+
+:global(body.body--dark) .user-details,
+:global(body.body--dark) .role-card {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .role-card:hover {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+:global(body.body--dark) .debug-info {
+  background-color: #2d2d2d !important;
+  border-color: #3d3d3d !important;
 }
 </style>

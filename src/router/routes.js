@@ -12,11 +12,6 @@ const routes = [
         meta: { isPublic: true },
       },
       {
-        path: 'lease-application/:leaseId?',
-        component: () => import('pages/LeaseApplicationPage.vue'),
-        meta: { isPublic: true },
-      },
-      {
         path: 'application-detail/:applicationId',
         component: () => import('pages/ApplicationDetailPage.vue'),
         meta: { isPublic: true },
@@ -24,6 +19,21 @@ const routes = [
       {
         path: 'tenant-signup/:propertyId',
         component: () => import('pages/TenantSignUpPage.vue'),
+        meta: { isPublic: true },
+      },
+    ],
+  },
+
+  // ============================================
+  // LEASE APPLICATION (ApplicationLayout - Form-focused frame)
+  // ============================================
+  {
+    path: '/apply',
+    component: () => import('layouts/ApplicationLayout.vue'),
+    children: [
+      {
+        path: 'lease-application/:leaseId?',
+        component: () => import('pages/LeaseApplicationPage.vue'),
         meta: { isPublic: true },
       },
     ],
@@ -97,7 +107,11 @@ const routes = [
   },
   {
     path: '/lease-application/:leaseId?',
-    redirect: (to) => `/public/lease-application/${to.params.leaseId || ''}`,
+    redirect: (to) => `/apply/lease-application/${to.params.leaseId || ''}`,
+  },
+  {
+    path: '/public/lease-application/:leaseId?',
+    redirect: (to) => `/apply/lease-application/${to.params.leaseId || ''}`,
   },
   {
     path: '/tenant-signup/:propertyId',

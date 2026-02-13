@@ -3,8 +3,7 @@
     <div class="loading-container">
       <!-- Logo Section -->
       <div class="logo-section">
-        <img src="/logo.svg" alt="Property Manager Logo" class="loading-logo" />
-        <h1 class="app-title">Handout - Property Manager</h1>
+        <h1 class="app-title">Handout</h1>
         <p class="app-subtitle">{{ hasError ? 'Unable to load data' : loadingMessage }}</p>
         <p v-if="hasError && errorMessage" class="error-message">{{ errorMessage }}</p>
       </div>
@@ -200,6 +199,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
 .loading-page {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
   height: 100vh;
@@ -223,19 +224,13 @@ onMounted(async () => {
   margin-bottom: 48px;
 }
 
-.loading-logo {
-  height: 80px;
-  width: auto;
-  margin-bottom: 24px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-}
-
 .app-title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-family: 'Pacifico', cursive;
+  font-size: 2.5rem;
+  font-weight: 400;
   color: var(--primary-color);
   margin: 0 0 12px 0;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.02em;
 }
 
 .app-subtitle {
@@ -268,11 +263,7 @@ onMounted(async () => {
   }
 
   .app-title {
-    font-size: 1.75rem;
-  }
-
-  .loading-logo {
-    height: 64px;
+    font-size: 2rem;
   }
 }
 </style>

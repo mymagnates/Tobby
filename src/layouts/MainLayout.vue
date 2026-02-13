@@ -66,62 +66,31 @@
 
         <q-space />
 
-        <!-- Logo Image -->
-        <div class="header-logo" @click="refreshAllData">
-          <img src="/logo.svg" alt="Handout Logo" class="header-logo-image" />
-        </div>
 
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
           <!-- Refresh -->
-          <q-btn flat round dense icon="refresh" @click="refreshAllData" class="header-action-btn">
+          <q-btn 
+            flat 
+            round 
+            dense 
+            icon="refresh" 
+            @click="refreshAllData" 
+            class="header-action-btn refresh-btn"
+          >
             <q-tooltip>Refresh data</q-tooltip>
           </q-btn>
 
           <!-- Language Switcher -->
-          <q-btn-dropdown
+          <q-btn
             flat
             dense
             :label="currentLanguageLabel"
             class="header-action-btn language-switcher"
-            content-class="language-dropdown"
+            @click="toggleLanguage"
           >
-            <q-tooltip>Language</q-tooltip>
-            <q-list>
-              <q-item
-                clickable
-                v-close-popup
-                @click="changeLanguage('en-US')"
-                :active="currentLocale === 'en-US'"
-              >
-                <q-item-section avatar>
-                  <q-icon name="flag" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>English</q-item-label>
-                </q-item-section>
-                <q-item-section side v-if="currentLocale === 'en-US'">
-                  <q-icon name="check" color="primary" />
-                </q-item-section>
-              </q-item>
-              <q-item
-                clickable
-                v-close-popup
-                @click="changeLanguage('es-ES')"
-                :active="currentLocale === 'es-ES'"
-              >
-                <q-item-section avatar>
-                  <q-icon name="flag" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>Español</q-item-label>
-                </q-item-section>
-                <q-item-section side v-if="currentLocale === 'es-ES'">
-                  <q-icon name="check" color="primary" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
+            <q-tooltip>Switch Language</q-tooltip>
+          </q-btn>
 
           <!-- Dark Mode Toggle -->
           <q-btn
@@ -174,10 +143,21 @@ const currentLanguageLabel = computed(() => {
   return currentLocale.value === 'es-ES' ? 'ES' : 'EN'
 })
 
-// Change language
-function changeLanguage(lang) {
-  locale.value = lang
-  localStorage.setItem('handout-locale', lang)
+// Toggle language between English and Spanish - updates all system text globally
+function toggleLanguage() {
+  const newLang = currentLocale.value === 'en-US' ? 'es-ES' : 'en-US'
+  // Update locale - this will automatically update all components using i18n
+  locale.value = newLang
+  localStorage.setItem('handout-locale', newLang)
+
+  // Show confirmation notification
+  $q.notify({
+    type: 'info',
+    message: newLang === 'es-ES' ? 'Idioma cambiado a Español' : 'Language changed to English',
+    position: 'top',
+    timeout: 1500,
+    color: 'primary'
+  })
 }
 
 // Initialize dark mode from localStorage
@@ -647,14 +627,13 @@ async function refreshAllData() {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   box-shadow: none;
-  height: 56px;
   min-height: 56px;
+  padding-top: max(10px, env(safe-area-inset-top, 10px));
 }
 
 .header-toolbar {
   display: flex;
   align-items: center;
-  height: 56px;
   min-height: 56px;
 }
 
@@ -716,36 +695,94 @@ async function refreshAllData() {
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 !important;
-  color: var(--primary-color) !important;
-  background: transparent !important;
-  border: 1px solid var(--neutral-200) !important;
-  border-radius: 8px !important;
+  color: #82A6D7 !important;
+  background: #82A6D7 !important;
+  border: none !important;
+  border-radius: 2px !important;
   transition: all 0.2s ease;
   margin: 0 4px;
 }
 
 .header-action-btn .q-icon {
-  color: var(--primary-color) !important;
+  color: white !important;
   font-size: 20px;
+  opacity: 1 !important;
+}
+
+.header-action-btn .q-btn__label {
+  color: white !important;
 }
 
 .header-action-btn:hover {
-  background: var(--primary-glow) !important;
-  border-color: var(--primary-color) !important;
+  background: transparent !important;
 }
 
-/* Language switcher: same 40x40, label centered */
+.header-action-btn:hover .q-icon {
+  color: #82A6D7 !important;
+}
+
+.header-action-btn:hover .q-btn__label {
+  color: #82A6D7 !important;
+}
+
+/* Language switcher: same 40x40, label centered, text only */
 .language-switcher {
   font-weight: 600 !important;
-  font-size: 0.75rem !important;
+  font-size: 0.875rem !important;
+  background: #82A6D7 !important;
+  color: white !important;
 }
 
 .language-switcher .q-btn__content {
   justify-content: center;
 }
 
+.language-switcher .q-btn__label {
+  color: white !important;
+}
+
+.language-switcher:hover {
+  background: transparent !important;
+}
+
+.language-switcher:hover .q-btn__label {
+  color: #82A6D7 !important;
+}
+
+/* Refresh and Dark Mode buttons: primary background with white icon */
+.refresh-btn,
 .dark-mode-btn {
-  border: 1px solid var(--neutral-200) !important;
+  background: #82A6D7 !important;
+  border: none !important;
+  color: white !important;
+}
+
+.refresh-btn .q-icon,
+.dark-mode-btn .q-icon {
+  color: white !important;
+  opacity: 1 !important;
+  display: inline-block !important;
+}
+
+.refresh-btn .q-btn__content,
+.dark-mode-btn .q-btn__content {
+  color: white !important;
+}
+
+.refresh-btn:hover,
+.dark-mode-btn:hover {
+  background: transparent !important;
+}
+
+.refresh-btn:hover .q-icon,
+.dark-mode-btn:hover .q-icon {
+  color: #82A6D7 !important;
+  opacity: 1 !important;
+}
+
+.refresh-btn:hover .q-btn__content,
+.dark-mode-btn:hover .q-btn__content {
+  color: #82A6D7 !important;
 }
 
 .action-btn {
@@ -806,13 +843,12 @@ async function refreshAllData() {
 
 @media (max-width: 768px) {
   .dashboard-header {
-    height: 52px;
-    min-height: 52px;
+    min-height: 48px;
+    padding-top: min(12px, env(safe-area-inset-top, 10px));
   }
 
   .header-toolbar {
-    height: 52px;
-    min-height: 52px;
+    min-height: 48px;
   }
 
   .header-action-btn {
@@ -970,20 +1006,80 @@ async function refreshAllData() {
   color: white;
 }
 
-/* Dark mode: all header action buttons same style */
+/* Dark mode: all header action buttons - white background with primary icon */
 :global(body.body--dark) .header-action-btn {
-  color: var(--primary-color) !important;
-  background: transparent !important;
-  border-color: var(--neutral-300) !important;
+  color: white !important;
+  background: white !important;
+  border: none !important;
 }
 
 :global(body.body--dark) .header-action-btn .q-icon {
-  color: var(--primary-color) !important;
+  color: #82A6D7 !important;
+}
+
+:global(body.body--dark) .header-action-btn .q-btn__label {
+  color: #82A6D7 !important;
 }
 
 :global(body.body--dark) .header-action-btn:hover {
-  background: var(--primary-glow) !important;
-  border-color: var(--primary-color) !important;
+  background: transparent !important;
+}
+
+:global(body.body--dark) .header-action-btn:hover .q-icon {
+  color: white !important;
+}
+
+:global(body.body--dark) .header-action-btn:hover .q-btn__label {
+  color: white !important;
+}
+
+:global(body.body--dark) .language-switcher {
+  background: white !important;
+}
+
+:global(body.body--dark) .language-switcher .q-btn__label {
+  color: #82A6D7 !important;
+}
+
+:global(body.body--dark) .language-switcher:hover {
+  background: transparent !important;
+}
+
+:global(body.body--dark) .language-switcher:hover .q-btn__label {
+  color: white !important;
+}
+
+/* Dark mode: refresh and dark mode buttons - white background with primary icon */
+:global(body.body--dark) .refresh-btn,
+:global(body.body--dark) .dark-mode-btn {
+  background: white !important;
+  border: none !important;
+  color: #82A6D7 !important;
+}
+
+:global(body.body--dark) .refresh-btn .q-icon,
+:global(body.body--dark) .dark-mode-btn .q-icon {
+  color: #82A6D7 !important;
+}
+
+:global(body.body--dark) .refresh-btn .q-btn__content,
+:global(body.body--dark) .dark-mode-btn .q-btn__content {
+  color: #82A6D7 !important;
+}
+
+:global(body.body--dark) .refresh-btn:hover,
+:global(body.body--dark) .dark-mode-btn:hover {
+  background: transparent !important;
+}
+
+:global(body.body--dark) .refresh-btn:hover .q-icon,
+:global(body.body--dark) .dark-mode-btn:hover .q-icon {
+  color: white !important;
+}
+
+:global(body.body--dark) .refresh-btn:hover .q-btn__content,
+:global(body.body--dark) .dark-mode-btn:hover .q-btn__content {
+  color: white !important;
 }
 
 :global(body.body--dark) .data-loading-overlay {
