@@ -99,6 +99,26 @@
                   class="quick-action-btn"
                 />
               </div>
+              <div class="col-auto">
+                <q-btn
+                  label="Add Document"
+                  color="primary"
+                  outline
+                  @click="openDocumentsPage"
+                  icon="description"
+                  class="quick-action-btn"
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  label="Add Asset"
+                  color="primary"
+                  outline
+                  @click="openAssetsPage"
+                  icon="inventory_2"
+                  class="quick-action-btn"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -458,6 +478,24 @@
                   outline
                   class="btn-primary full-width"
                   @click="openCreateTaskDialog"
+                />
+              </div>
+              <div class="col-6">
+                <q-btn
+                  label="Add Document"
+                  color="primary"
+                  outline
+                  class="btn-primary full-width"
+                  @click="openDocumentsPage"
+                />
+              </div>
+              <div class="col-6">
+                <q-btn
+                  label="Add Asset"
+                  color="primary"
+                  outline
+                  class="btn-primary full-width"
+                  @click="openAssetsPage"
                 />
               </div>
             </div>
@@ -1186,6 +1224,16 @@ const openCreateTransactionDialog = () => {
 
 const openCreateTaskDialog = () => {
   showCreateTaskDialog.value = true
+  showQuickActions.value = false
+}
+
+const openDocumentsPage = () => {
+  router.push('/documents')
+  showQuickActions.value = false
+}
+
+const openAssetsPage = () => {
+  router.push('/assets')
   showQuickActions.value = false
 }
 
