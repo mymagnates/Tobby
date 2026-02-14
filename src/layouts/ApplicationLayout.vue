@@ -32,7 +32,7 @@
     <q-footer class="application-footer">
       <div class="footer-content">
         <span class="text-caption text-grey-6">
-          © {{ currentYear }} Handout Property Management
+          © {{ currentYear }} Developed by Magnates Solution LLC. All rights reserved.
         </span>
       </div>
     </q-footer>

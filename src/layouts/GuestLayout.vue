@@ -32,16 +32,18 @@
       <div class="footer-content">
         <div class="text-center q-pa-md">
           <div class="footer-links q-mb-sm">
-            <a href="#" class="footer-link">About</a>
+            <router-link to="/public/about" class="footer-link">About</router-link>
             <span class="footer-separator">•</span>
-            <a href="#" class="footer-link">Contact</a>
+            <router-link to="/public/contact-support" class="footer-link"
+              >Contact & Support</router-link
+            >
             <span class="footer-separator">•</span>
-            <a href="#" class="footer-link">Privacy Policy</a>
+            <router-link to="/public/privacy" class="footer-link">Privacy Policy</router-link>
             <span class="footer-separator">•</span>
-            <a href="#" class="footer-link">Terms of Service</a>
+            <router-link to="/public/terms" class="footer-link">Terms of Service</router-link>
           </div>
           <div class="text-body2 text-grey-6">
-            © {{ currentYear }} Handout Property Management. All rights reserved.
+            © {{ currentYear }} Developed by Magnates Solution LLC. All rights reserved.
           </div>
         </div>
       </div>
@@ -173,4 +175,3 @@ const goToLogin = () => {
   }
 }
 </style>
-

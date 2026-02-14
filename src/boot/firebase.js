@@ -48,10 +48,10 @@ let auth, db, storage
 try {
   auth = getAuth(app)
   
-  // Set persistence to LOCAL (default) but we'll implement custom 24h timeout
+  // Keep users signed in using LOCAL persistence
   setPersistence(auth, browserLocalPersistence)
     .then(() => {
-      console.log('Firebase Auth persistence set to LOCAL with custom 24h timeout')
+      console.log('Firebase Auth persistence set to LOCAL (always signed in)')
     })
     .catch((error) => {
       console.error('Error setting persistence:', error)
@@ -76,22 +76,22 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================
-// SESSION TIMEOUT CONFIGURATION
+// SESSION CONFIGURATION
 // ============================================
-// Session will expire after 24 hours
-export const SESSION_TIMEOUT_HOURS = 24
-export const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_HOURS * 60 * 60 * 1000 // 24 hours in milliseconds
+// Session is configured to remain signed in.
+export const SESSION_TIMEOUT_HOURS = null
+export const SESSION_TIMEOUT_MS = null
 export const SESSION_LOGIN_TIME_KEY = 'firebase_session_login_time'
 
 // Session management helpers
 export const sessionManager = {
   // Set login time when user signs in
   setLoginTime: () => {
-    const loginTime = Date.now()
+    // No-op by design when using always-on persistence.
     if (typeof window !== 'undefined') {
-      localStorage.setItem(SESSION_LOGIN_TIME_KEY, loginTime.toString())
+      localStorage.removeItem(SESSION_LOGIN_TIME_KEY)
     }
-    console.log('Session login time set:', new Date(loginTime).toISOString())
+    console.log('Session persistence is always-on; no timeout login time tracked')
   },
 
   // Get login time
@@ -103,23 +103,9 @@ export const sessionManager = {
     return null
   },
 
-  // Check if session has expired (24 hours)
+  // Session expiration is disabled when using always-on persistence.
   isSessionExpired: () => {
-    const loginTime = sessionManager.getLoginTime()
-    if (!loginTime) {
-      return false // No login time means fresh state
-    }
-    const currentTime = Date.now()
-    const elapsed = currentTime - loginTime
-    const expired = elapsed >= SESSION_TIMEOUT_MS
-    
-    if (expired) {
-      console.log('Session expired. Login time:', new Date(loginTime).toISOString())
-      console.log('Current time:', new Date(currentTime).toISOString())
-      console.log('Elapsed time:', Math.floor(elapsed / 1000 / 60 / 60), 'hours')
-    }
-    
-    return expired
+    return false
   },
 
   // Clear login time (on logout)
@@ -132,21 +118,12 @@ export const sessionManager = {
 
   // Get remaining session time in milliseconds
   getRemainingTime: () => {
-    const loginTime = sessionManager.getLoginTime()
-    if (!loginTime) {
-      return 0
-    }
-    const elapsed = Date.now() - loginTime
-    const remaining = SESSION_TIMEOUT_MS - elapsed
-    return remaining > 0 ? remaining : 0
+    return Number.POSITIVE_INFINITY
   },
 
   // Get remaining time in human-readable format
   getRemainingTimeFormatted: () => {
-    const remaining = sessionManager.getRemainingTime()
-    const hours = Math.floor(remaining / 1000 / 60 / 60)
-    const minutes = Math.floor((remaining / 1000 / 60) % 60)
-    return `${hours}h ${minutes}m`
+    return 'Always'
   },
 }
 

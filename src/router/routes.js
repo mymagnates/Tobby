@@ -21,6 +21,26 @@ const routes = [
         component: () => import('pages/TenantSignUpPage.vue'),
         meta: { isPublic: true },
       },
+      {
+        path: 'about',
+        component: () => import('pages/AboutPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'contact-support',
+        component: () => import('pages/ContactSupportPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'privacy',
+        component: () => import('pages/PrivacyPolicyPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'terms',
+        component: () => import('pages/TermsOfUsePage.vue'),
+        meta: { isPublic: true },
+      },
     ],
   },
 
@@ -121,6 +141,22 @@ const routes = [
   {
     path: '/application-detail/:applicationId',
     redirect: (to) => `/public/application-detail/${to.params.applicationId}`,
+  },
+  {
+    path: '/about',
+    redirect: '/public/about',
+  },
+  {
+    path: '/contact-support',
+    redirect: '/public/contact-support',
+  },
+  {
+    path: '/privacy',
+    redirect: '/public/privacy',
+  },
+  {
+    path: '/terms',
+    redirect: '/public/terms',
   },
 
   // ============================================

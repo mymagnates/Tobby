@@ -5,6 +5,10 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
 } from 'firebase/auth'
 import {
   doc,
@@ -26,27 +30,8 @@ export function useFirebase() {
   const error = ref(null)
   const userDataStore = useUserDataStore()
 
-  // Auth state observer with session timeout check
+  // Auth state observer
   onAuthStateChanged(auth, async (currentUser) => {
-    if (currentUser) {
-      // Check if session has expired (24 hours)
-      if (sessionManager.isSessionExpired()) {
-        try {
-          await signOut(auth)
-          sessionManager.clearLoginTime()
-          userDataStore.clearAllData()
-          
-          // Redirect to login page
-          if (typeof window !== 'undefined') {
-            window.location.href = '/public/login?expired=true'
-          }
-        } catch (err) {
-          console.error('Error during auto-logout:', err)
-        }
-        return
-      }
-    }
-    
     user.value = currentUser
     // Use the new initialize method which handles both new logins and page refreshes
     userDataStore.setUser(currentUser)
@@ -59,9 +44,9 @@ export function useFirebase() {
       error.value = null
       const result = await signInWithEmailAndPassword(auth, email, password)
       
-      // Set login time for 24-hour session timeout
+      // Persist session with LOCAL auth persistence
       sessionManager.setLoginTime()
-      console.log('User signed in successfully, session will expire in 24 hours')
+      console.log('User signed in successfully; session persistence is always-on')
       
       return result
     } catch (err) {
@@ -82,6 +67,52 @@ export function useFirebase() {
         await updateProfile(result.user, { displayName })
       }
 
+      return result
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const resetPassword = async (email) => {
+    try {
+      loading.value = true
+      error.value = null
+      await sendPasswordResetEmail(auth, email)
+      return true
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      sessionManager.setLoginTime()
+      return result
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const signInWithFacebook = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      const provider = new FacebookAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      sessionManager.setLoginTime()
       return result
     } catch (err) {
       error.value = err.message
@@ -479,6 +510,9 @@ export function useFirebase() {
     // Auth methods
     signIn,
     signUp,
+    resetPassword,
+    signInWithGoogle,
+    signInWithFacebook,
     logout,
 
     // Firestore methods
