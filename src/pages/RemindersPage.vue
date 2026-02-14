@@ -166,7 +166,8 @@
               >
                 <q-tooltip>
                   {{
-                    reminder.repeat_by && reminder.repeat_by !== 'One-time'
+                    reminder.repeat_by &&
+                    String(reminder.repeat_by).toLowerCase() !== 'one-time'
                       ? 'Complete & auto-defer'
                       : 'Complete & deactivate'
                   }}
@@ -512,6 +513,7 @@ const reminderForm = ref({
 // Options
 const categorySelectOptions = [
   { label: 'Fee', value: 'fee' },
+  { label: 'HOA', value: 'hoa' },
   { label: 'Rent', value: 'rent' },
   { label: 'Maintenance', value: 'maintenance' },
   { label: 'Labor', value: 'labor' },
@@ -697,7 +699,10 @@ const saveReminder = async () => {
 
   saving.value = true
   try {
-    const propertyId = reminderForm.value.property_id
+    const propertyId =
+      reminderForm.value.property_id?.value ||
+      reminderForm.value.property_id?.id ||
+      reminderForm.value.property_id
     console.log('Property ID:', propertyId)
     console.log('Property ID type:', typeof propertyId)
 
@@ -736,7 +741,12 @@ const saveReminder = async () => {
       return
     }
 
-    if (!reminderForm.value.category) {
+    const normalizedCategory = String(
+      reminderForm.value.category?.value || reminderForm.value.category || '',
+    )
+      .trim()
+      .toLowerCase()
+    if (!normalizedCategory) {
       console.log('ERROR: No category selected')
       Notify.create({
         type: 'negative',
@@ -756,13 +766,25 @@ const saveReminder = async () => {
       return
     }
 
+    const normalizedRepeat = String(
+      reminderForm.value.repeat_by?.value || reminderForm.value.repeat_by || '',
+    )
+      .trim()
+      .toLowerCase()
+
+    const amountValue = reminderForm.value.amount
+    const normalizedAmount =
+      amountValue === null || amountValue === '' || Number.isNaN(Number(amountValue))
+        ? null
+        : Number(amountValue)
+
     const reminderData = {
-      category: reminderForm.value.category,
+      category: normalizedCategory,
       start_date: reminderForm.value.start_date,
-      repeat_by: reminderForm.value.repeat_by,
-      amount: reminderForm.value.amount,
-      note: reminderForm.value.note,
-      status: reminderForm.value.status,
+      repeat_by: normalizedRepeat || 'one-time',
+      amount: normalizedAmount,
+      note: (reminderForm.value.note || '').trim(),
+      status: !!reminderForm.value.status,
       created_date: new Date().toISOString(),
       created_by: userDataStore.userId,
     }
@@ -849,7 +871,7 @@ const saveReminder = async () => {
           position: 'top',
           caption: createError.message,
         })
-        throw createError
+        return
       }
     }
 
@@ -859,7 +881,7 @@ const saveReminder = async () => {
     console.error('Error saving reminder:', error)
     Notify.create({
       type: 'negative',
-      message: 'Failed to save reminder',
+      message: error?.message || 'Failed to save reminder',
       position: 'top',
     })
   } finally {
@@ -888,7 +910,8 @@ const editReminder = (reminder) => {
 
 const completeReminder = async (reminder) => {
   try {
-    const isRecurring = reminder.repeat_by && reminder.repeat_by !== 'One-time'
+    const isRecurring =
+      reminder.repeat_by && String(reminder.repeat_by).toLowerCase() !== 'one-time'
 
     if (isRecurring) {
       // For recurring reminders: Auto-defer

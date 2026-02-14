@@ -186,13 +186,22 @@
                   />
                 </div>
 
-                <!-- Reminders Grid -->
-                <div v-if="reminders.length > 0" class="reminders-grid">
+                <!-- Reminders Carousel -->
+                <div
+                  v-if="reminders.length > 0"
+                  ref="remindersCarouselRef"
+                  class="reminders-carousel"
+                  @mouseenter="stopReminderAutoRotate"
+                  @mouseleave="startReminderAutoRotate"
+                >
                   <q-card
-                    v-for="reminder in reminders.slice(0, 6)"
+                    v-for="(reminder, index) in reminders"
                     :key="reminder.id"
-                    class="reminder-card"
-                    :class="{ 'reminder-overdue': isReminderOverdue(reminder) }"
+                    class="reminder-card reminder-carousel-item"
+                    :class="{
+                      'reminder-overdue': isReminderOverdue(reminder),
+                      'is-active': activeReminderIndex === index,
+                    }"
                   >
                     <q-card-section class="reminder-card-content">
                       <div class="reminder-header">
@@ -250,6 +259,16 @@
                       </div>
                     </q-card-section>
                   </q-card>
+                </div>
+                <div v-if="reminders.length > 1" class="reminders-carousel-dots">
+                  <button
+                    v-for="(reminder, idx) in reminders"
+                    :key="`dot-${reminder.id}`"
+                    type="button"
+                    class="carousel-dot"
+                    :class="{ active: idx === activeReminderIndex }"
+                    @click="scrollToReminderIndex(idx)"
+                  />
                 </div>
 
                 <!-- Empty State -->
@@ -819,12 +838,62 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <!-- Due Soon Reminders Alert -->
+      <q-dialog v-model="showDueReminderAlert" persistent>
+        <q-card class="due-reminder-dialog" style="min-width: 520px; max-width: 720px">
+          <q-card-section class="dialog-header">
+            <div class="row items-center justify-between">
+              <div class="text-h6">
+                <q-icon name="warning_amber" color="warning" class="q-mr-sm" />
+                Reminders Due In 7 Days
+              </div>
+            </div>
+          </q-card-section>
+
+          <q-card-section>
+            <div class="text-body2 text-grey-7 q-mb-md">
+              Please review the reminders below.
+            </div>
+            <q-list bordered separator class="rounded-borders">
+              <q-item v-for="reminder in dueSoonReminders" :key="`due-${reminder.id}`">
+                <q-item-section>
+                  <q-item-label class="text-weight-medium">{{ reminder.title }}</q-item-label>
+                  <q-item-label caption>
+                    {{ reminder.property_name || 'Unknown Property' }} •
+                    {{ formatReminderDate(reminder.due_date) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-chip
+                    :color="getDueReminderChipColor(reminder)"
+                    text-color="white"
+                    size="sm"
+                    dense
+                  >
+                    {{ getDueReminderChipLabel(reminder) }}
+                  </q-chip>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn
+              color="primary"
+              text-color="white"
+              label="I Understand"
+              @click="closeDueReminderAlert"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
@@ -870,6 +939,10 @@ const selectedTransaction = ref(null)
 // Reminders data
 const reminders = ref([])
 const dataLoaded = ref(false)
+const remindersCarouselRef = ref(null)
+const activeReminderIndex = ref(0)
+const showDueReminderAlert = ref(false)
+let reminderRotateTimer = null
 
 // Dialog states for create forms
 const showCreatePropertyDialog = ref(false)
@@ -985,6 +1058,20 @@ const sortedRenewals = computed(() => {
   })
 })
 
+const dueSoonReminders = computed(() => {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
+  return reminders.value.filter((reminder) => {
+    if (!reminder?.due_date) return false
+    const dueDate = new Date(reminder.due_date)
+    if (Number.isNaN(dueDate.getTime())) return false
+    dueDate.setHours(0, 0, 0, 0)
+    const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    return diffDays >= 0 && diffDays <= 7
+  })
+})
+
 // Renewal history functions
 const viewRenewalHistory = (reminder) => {
   selectedReminderForHistory.value = reminder
@@ -994,6 +1081,44 @@ const viewRenewalHistory = (reminder) => {
 const closeRenewalHistoryDialog = () => {
   showRenewalHistoryDialog.value = false
   selectedReminderForHistory.value = null
+}
+
+const getDueReminderChipLabel = (reminder) => {
+  if (!reminder?.due_date) return 'Unknown'
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const dueDate = new Date(reminder.due_date)
+  dueDate.setHours(0, 0, 0, 0)
+  const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return '1 Day'
+  return `${diffDays} Days`
+}
+
+const getDueReminderChipColor = (reminder) => {
+  const label = getDueReminderChipLabel(reminder)
+  if (label === 'Today') return 'negative'
+  if (label === '1 Day') return 'warning'
+  return 'primary'
+}
+
+const getDueAlertSessionKey = () => {
+  const userId = userDataStore.userId || 'anonymous'
+  const today = new Date().toISOString().split('T')[0]
+  return `due-reminder-alert-dismissed:${userId}:${today}`
+}
+
+const maybeShowDueReminderAlert = () => {
+  if (!userDataStore.isAuthenticated) return
+  if (dueSoonReminders.value.length === 0) return
+  const dismissed = sessionStorage.getItem(getDueAlertSessionKey())
+  if (dismissed === 'true') return
+  showDueReminderAlert.value = true
+}
+
+const closeDueReminderAlert = () => {
+  showDueReminderAlert.value = false
+  sessionStorage.setItem(getDueAlertSessionKey(), 'true')
 }
 
 const getStatusColor = (status) => {
@@ -1130,10 +1255,37 @@ const loadReminders = () => {
         ], // Has been renewed once
       },
     ]
+    activeReminderIndex.value = 0
   } catch (error) {
     console.error('Error loading reminders:', error)
     reminders.value = []
   }
+}
+
+const scrollToReminderIndex = (index) => {
+  if (!remindersCarouselRef.value || !reminders.value.length) return
+  const safeIndex = Math.max(0, Math.min(index, reminders.value.length - 1))
+  const reminderNodes = remindersCarouselRef.value.querySelectorAll('.reminder-carousel-item')
+  const targetNode = reminderNodes[safeIndex]
+  if (!targetNode) return
+  targetNode.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+  activeReminderIndex.value = safeIndex
+}
+
+const stopReminderAutoRotate = () => {
+  if (reminderRotateTimer) {
+    clearInterval(reminderRotateTimer)
+    reminderRotateTimer = null
+  }
+}
+
+const startReminderAutoRotate = () => {
+  stopReminderAutoRotate()
+  if (reminders.value.length <= 1) return
+  reminderRotateTimer = setInterval(() => {
+    const nextIndex = (activeReminderIndex.value + 1) % reminders.value.length
+    scrollToReminderIndex(nextIndex)
+  }, 4000)
 }
 
 const isReminderOverdue = (reminder) => {
@@ -1381,7 +1533,32 @@ onMounted(async () => {
 
   // Load reminders
   loadReminders()
+  maybeShowDueReminderAlert()
+  await nextTick()
+  startReminderAutoRotate()
 })
+
+onUnmounted(() => {
+  stopReminderAutoRotate()
+})
+
+watch(
+  () => reminders.value.length,
+  async (length) => {
+    if (length === 0) {
+      stopReminderAutoRotate()
+      activeReminderIndex.value = 0
+      return
+    }
+    if (activeReminderIndex.value >= length) {
+      activeReminderIndex.value = 0
+    }
+    await nextTick()
+    scrollToReminderIndex(activeReminderIndex.value)
+    startReminderAutoRotate()
+    maybeShowDueReminderAlert()
+  },
+)
 </script>
 
 <style scoped>
@@ -1865,10 +2042,51 @@ onMounted(async () => {
   border-color: var(--neutral-300);
 }
 
-.reminders-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+.reminders-carousel {
+  display: flex;
   gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-bottom: 8px;
+}
+
+.reminders-carousel::-webkit-scrollbar {
+  height: 8px;
+}
+
+.reminders-carousel::-webkit-scrollbar-thumb {
+  background: var(--neutral-300);
+  border-radius: 999px;
+}
+
+.reminders-carousel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reminders-carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--neutral-300);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.carousel-dot.active {
+  width: 22px;
+  background: var(--primary-color);
 }
 
 .reminder-card {
@@ -1881,6 +2099,15 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
+}
+
+.reminder-carousel-item {
+  flex: 0 0 300px;
+  scroll-snap-align: start;
+}
+
+.reminder-carousel-item.is-active {
+  border-color: var(--primary-color);
 }
 
 .reminder-card:hover {
@@ -1968,13 +2195,12 @@ onMounted(async () => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .reminders-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .reminders-carousel {
+    gap: 10px;
   }
 
-  .reminder-card {
-    height: 140px;
+  .reminder-carousel-item {
+    flex-basis: 88%;
   }
 
   .reminder-card-content {
@@ -1990,15 +2216,9 @@ onMounted(async () => {
   }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .reminders-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (min-width: 1025px) {
-  .reminders-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .reminder-carousel-item {
+    flex-basis: 320px;
   }
 }
 
@@ -2008,6 +2228,10 @@ onMounted(async () => {
   padding: 16px;
   border-radius: 8px;
   border-left: 4px solid #1976d2;
+}
+
+.due-reminder-dialog {
+  border-radius: 12px;
 }
 
 .renewal-details {
@@ -2188,6 +2412,18 @@ onMounted(async () => {
 
 :global(body.body--dark) .reminder-date {
   color: #b0b0b0 !important;
+}
+
+:global(body.body--dark) .carousel-dot {
+  background: #4a4a4a !important;
+}
+
+:global(body.body--dark) .carousel-dot.active {
+  background: #42a5f5 !important;
+}
+
+:global(body.body--dark) .reminders-carousel::-webkit-scrollbar-thumb {
+  background: #4a4a4a !important;
 }
 
 :global(body.body--dark) .empty-reminders {
