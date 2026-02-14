@@ -108,6 +108,10 @@
           :key="tenant.id"
           class="tenant-card"
           flat
+          clickable
+          tabindex="0"
+          @click="viewTenantDetails(tenant)"
+          @keyup.enter="viewTenantDetails(tenant)"
         >
           <!-- Compact Card Content -->
           <q-card-section class="tenant-card-content">
@@ -148,23 +152,24 @@
                 color="grey-7"
                 size="sm"
                 class="action-menu-btn-compact"
+                @click.stop
               >
                 <q-menu>
                   <q-list style="min-width: 180px">
-                    <q-item clickable v-close-popup @click="viewTenantDetails(tenant)">
+                    <q-item clickable v-close-popup @click.stop="viewTenantDetails(tenant)">
                       <q-item-section avatar>
                         <q-icon name="visibility" color="primary" />
                       </q-item-section>
                       <q-item-section>View Details</q-item-section>
                     </q-item>
-                    <q-item clickable v-close-popup @click="editTenant(tenant)">
+                    <q-item clickable v-close-popup @click.stop="editTenant(tenant)">
                       <q-item-section avatar>
                         <q-icon name="edit" color="secondary" />
                       </q-item-section>
                       <q-item-section>Edit Tenant</q-item-section>
                     </q-item>
                     <q-separator />
-                    <q-item clickable v-close-popup @click="confirmDeleteTenant(tenant)">
+                    <q-item clickable v-close-popup @click.stop="confirmDeleteTenant(tenant)">
                       <q-item-section avatar>
                         <q-icon name="delete" color="negative" />
                       </q-item-section>
@@ -243,7 +248,7 @@
                   color="primary"
                   label="View"
                   class="view-btn-compact"
-                  @click="viewTenantDetails(tenant)"
+                  @click.stop="viewTenantDetails(tenant)"
                 />
               </div>
             </div>
@@ -260,7 +265,8 @@
       transition-hide="slide-down"
       @hide="onDialogHide"
     >
-      <q-card v-if="selectedTenant" class="tenant-detail-dialog" style="width: 100%; height: 100%;">
+      <q-card class="tenant-detail-dialog" style="width: 100%; height: 100%;">
+        <template v-if="selectedTenant">
         <!-- Dialog Header -->
         <q-toolbar class="bg-primary text-white">
           <q-avatar size="48px">
@@ -270,21 +276,15 @@
             <div class="text-h6">
               {{ selectedTenant.personal_info?.first_name }} {{ selectedTenant.personal_info?.last_name }}
             </div>
-            <div class="text-caption">Tenant Details</div>
+            <div class="text-caption">{{ getPropertyName(selectedTenant.property_id) }}</div>
           </q-toolbar-title>
-          <q-chip
-            :color="selectedTenant.status === 'active' ? 'positive' : 'grey'"
-            text-color="white"
-          >
-            {{ selectedTenant.status || 'Active' }}
-          </q-chip>
           <q-btn 
             v-if="!isEditMode"
             flat 
             round 
             icon="edit" 
             @click="enterEditMode" 
-            class="edit-dialog-btn"
+            class="edit-dialog-btn close-dialog-btn"
             size="md"
           >
             <q-tooltip>Edit Tenant</q-tooltip>
@@ -294,7 +294,7 @@
             round 
             icon="close" 
             @click="closeDetailDialog" 
-            class="close-dialog-btn"
+            class="close-dialog-btn q-ml-xs"
             size="md"
           />
         </q-toolbar>
@@ -304,7 +304,7 @@
           <q-form v-if="isEditMode" @submit.prevent="saveTenant" class="tenant-detail-content">
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
-              <q-card-section class="bg-secondary text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="person" class="q-mr-sm" />
                   Personal Information
@@ -432,9 +432,53 @@
           </q-form>
           
           <div v-else class="tenant-detail-content">
+            <!-- Property & Lease Information -->
+            <q-card flat bordered class="q-mb-md">
+              <q-card-section class="tenant-section-header">
+                <div class="text-h6">
+                  <q-icon name="home" class="q-mr-sm" />
+                  Property & Lease Information
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">Property</div>
+                    <div class="text-body1 text-weight-medium">{{ getPropertyName(selectedTenant.property_id) }}</div>
+                  </div>
+                  <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
+                    <div class="text-caption text-grey-7">Monthly Rent</div>
+                    <div class="text-body1 text-weight-bold text-positive">
+                      ${{ selectedTenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
+                    <div class="text-caption text-grey-7">Lease Start Date</div>
+                    <div class="text-body1">{{ formatDate(selectedTenant.lease_info?.start_date) || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
+                    <div class="text-caption text-grey-7">Lease End Date</div>
+                    <div class="text-body1">{{ formatDate(selectedTenant.lease_info?.end_date) || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
+                    <div class="text-caption text-grey-7">Security Deposit</div>
+                    <div class="text-body1">${{ selectedTenant.lease_info?.security_deposit || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">Created At</div>
+                    <div class="text-body1">{{ formatDateTime(selectedTenant.created_at) }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">Status</div>
+                    <div class="text-body1 text-capitalize">{{ selectedTenant.status || 'active' }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
-              <q-card-section class="bg-secondary text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="person" class="q-mr-sm" />
                   Personal Information
@@ -442,7 +486,7 @@
               </q-card-section>
               <q-card-section>
                 <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-4">
+                  <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">Full Name</div>
                     <div class="text-body1 text-weight-medium">
                       {{ selectedTenant.personal_info?.first_name }} 
@@ -450,13 +494,17 @@
                       {{ selectedTenant.personal_info?.last_name }}
                     </div>
                   </div>
-                  <div class="col-12 col-md-4">
+                  <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">Email</div>
                     <div class="text-body1">{{ selectedTenant.personal_info?.email || 'N/A' }}</div>
                   </div>
-                  <div class="col-12 col-md-4">
+                  <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">Phone</div>
                     <div class="text-body1">{{ selectedTenant.personal_info?.phone || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">Marital Status</div>
+                    <div class="text-body1">{{ selectedTenant.personal_info?.marital_status || 'N/A' }}</div>
                   </div>
                   <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">Date of Birth</div>
@@ -468,125 +516,32 @@
                   </div>
                   <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">SSN</div>
-                    <div class="text-body1">{{ selectedTenant.personal_info?.ssn || 'N/A' }}</div>
+                    <div class="text-caption text-grey-6">Protected</div>
+                    <div class="text-body1">{{ maskSensitiveSsn(selectedTenant.personal_info?.ssn) }}</div>
                   </div>
                   <div class="col-12 col-md-3">
-                    <div class="text-caption text-grey-7">Marital Status</div>
-                    <div class="text-body1">{{ selectedTenant.personal_info?.marital_status || 'N/A' }}</div>
+                    <div class="text-caption text-grey-7">Street Address</div>
+                    <div class="text-body1">{{ selectedTenant.current_address?.street || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">City</div>
+                    <div class="text-body1">{{ selectedTenant.current_address?.city || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">State</div>
+                    <div class="text-body1">{{ selectedTenant.current_address?.state || 'N/A' }}</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <div class="text-caption text-grey-7">ZIP Code</div>
+                    <div class="text-body1">{{ selectedTenant.current_address?.zipCode || 'N/A' }}</div>
                   </div>
                 </div>
               </q-card-section>
             </q-card>
-
-            <!-- Current Address -->
-            <q-card flat bordered class="q-mb-md">
-              <q-card-section class="bg-info text-white">
-                <div class="text-h6">
-                  <q-icon name="location_on" class="q-mr-sm" />
-                  Current Address
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-6">
-                    <q-input
-                      v-model="editFormData.current_address.street"
-                      label="Street Address"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-2">
-                    <q-input
-                      v-model="editFormData.current_address.city"
-                      label="City"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-2">
-                    <q-input
-                      v-model="editFormData.current_address.state"
-                      label="State"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-2">
-                    <q-input
-                      v-model="editFormData.current_address.zipCode"
-                      label="ZIP Code"
-                      outlined
-                      dense
-                      mask="#####"
-                    />
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-            
 
             <!-- Employment Information -->
-            <q-card flat bordered class="q-mb-md" v-if="editFormData.employment">
-              <q-card-section class="bg-accent text-white">
-                <div class="text-h6">
-                  <q-icon name="work" class="q-mr-sm" />
-                  Employment Information
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.employment.employer_name"
-                      label="Employer Name"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.employment.position"
-                      label="Position"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model.number="editFormData.employment.monthly_income"
-                      type="number"
-                      label="Monthly Income"
-                      outlined
-                      dense
-                      prefix="$"
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model.number="editFormData.employment.years_employed"
-                      type="number"
-                      label="Years Employed"
-                      outlined
-                      dense
-                      suffix="years"
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.employment.employer_phone"
-                      label="Employer Phone"
-                      outlined
-                      dense
-                      mask="(###) ###-####"
-                    />
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-            
-            <q-card flat bordered class="q-mb-md" v-else-if="selectedTenant.employment">
-              <q-card-section class="bg-accent text-white">
+            <q-card flat bordered class="q-mb-md" v-if="selectedTenant.employment">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="work" class="q-mr-sm" />
                   Employment Information
@@ -620,83 +575,9 @@
               </q-card-section>
             </q-card>
 
-            <!-- Property & Lease Information -->
-            <q-card flat bordered class="q-mb-md">
-              <q-card-section class="bg-positive text-white">
-                <div class="text-h6">
-                  <q-icon name="home" class="q-mr-sm" />
-                  Property & Lease Information
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-6">
-                    <div class="text-caption text-grey-7">Property</div>
-                    <div class="text-body1 text-weight-medium">{{ getPropertyName(selectedTenant.property_id) }}</div>
-                  </div>
-                  <div class="col-12 col-md-6" v-if="selectedTenant.lease_info">
-                    <div class="text-caption text-grey-7">Monthly Rent</div>
-                    <div class="text-body1 text-weight-bold text-positive">
-                      ${{ selectedTenant.lease_info?.monthly_rent || 'N/A' }}/mo
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-4" v-if="selectedTenant.lease_info">
-                    <div class="text-caption text-grey-7">Lease Start Date</div>
-                    <div class="text-body1">{{ formatDate(selectedTenant.lease_info?.start_date) || 'N/A' }}</div>
-                  </div>
-                  <div class="col-12 col-md-4" v-if="selectedTenant.lease_info">
-                    <div class="text-caption text-grey-7">Lease End Date</div>
-                    <div class="text-body1">{{ formatDate(selectedTenant.lease_info?.end_date) || 'N/A' }}</div>
-                  </div>
-                  <div class="col-12 col-md-4" v-if="selectedTenant.lease_info">
-                    <div class="text-caption text-grey-7">Security Deposit</div>
-                    <div class="text-body1">${{ selectedTenant.lease_info?.security_deposit || 'N/A' }}</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-
             <!-- Emergency Contact -->
-            <q-card flat bordered class="q-mb-md" v-if="editFormData.emergency_contact">
-              <q-card-section class="bg-warning text-white">
-                <div class="text-h6">
-                  <q-icon name="emergency" class="q-mr-sm" />
-                  Emergency Contact
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.emergency_contact.name"
-                      label="Contact Name"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.emergency_contact.relationship"
-                      label="Relationship"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <q-input
-                      v-model="editFormData.emergency_contact.phone"
-                      label="Phone Number"
-                      outlined
-                      dense
-                      mask="(###) ###-####"
-                    />
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-            
-            <q-card flat bordered class="q-mb-md" v-else-if="selectedTenant.emergency_contact">
-              <q-card-section class="bg-warning text-white">
+            <q-card flat bordered class="q-mb-md" v-if="selectedTenant.emergency_contact">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="emergency" class="q-mr-sm" />
                   Emergency Contact
@@ -722,7 +603,7 @@
 
             <!-- Vehicles -->
             <q-card flat bordered class="q-mb-md" v-if="selectedTenant.vehicles && selectedTenant.vehicles.length > 0">
-              <q-card-section class="bg-indigo text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="directions_car" class="q-mr-sm" />
                   Vehicles ({{ selectedTenant.vehicles.length }})
@@ -752,7 +633,7 @@
 
             <!-- Pets -->
             <q-card flat bordered class="q-mb-md" v-if="selectedTenant.pets && selectedTenant.pets.length > 0">
-              <q-card-section class="bg-orange text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="pets" class="q-mr-sm" />
                   Pets ({{ selectedTenant.pets.length }})
@@ -783,7 +664,7 @@
 
             <!-- Additional Occupants -->
             <q-card flat bordered class="q-mb-md" v-if="selectedTenant.co_applicants && selectedTenant.co_applicants.length > 0">
-              <q-card-section class="bg-deep-purple text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="group" class="q-mr-sm" />
                   Additional Occupants ({{ selectedTenant.co_applicants.length }})
@@ -814,7 +695,7 @@
 
             <!-- Documents -->
             <q-card flat bordered class="q-mb-md" v-if="selectedTenant.documents && selectedTenant.documents.length > 0">
-              <q-card-section class="bg-deep-purple text-white">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="upload_file" class="q-mr-sm" />
                   Documents ({{ selectedTenant.documents.length }})
@@ -847,53 +728,26 @@
 
             <!-- Notes -->
             <q-card flat bordered class="q-mb-md">
-              <q-card-section class="bg-grey-3 text-grey-9">
+              <q-card-section class="tenant-section-header">
                 <div class="text-h6">
                   <q-icon name="notes" class="q-mr-sm" />
                   Additional Notes
                 </div>
               </q-card-section>
               <q-card-section>
-                <q-input
-                  v-model="editFormData.notes"
-                  type="textarea"
-                  label="Notes"
-                  outlined
-                  rows="4"
-                />
-              </q-card-section>
-            </q-card>
-            
-
-            <!-- Timestamps -->
-            <q-card flat bordered>
-              <q-card-section class="bg-grey-2 text-grey-8">
-                <div class="row q-col-gutter-md">
-                  <div class="col-12 col-md-6">
-                    <div class="text-caption text-grey-7">Created At</div>
-                    <div class="text-body1">{{ formatDateTime(selectedTenant.created_at) }}</div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <q-select
-                      v-model="editFormData.status"
-                      :options="['active', 'inactive', 'past']"
-                      label="Status"
-                      outlined
-                      dense
-                    />
-                  </div>
-                </div>
+                <div class="text-body1">{{ selectedTenant.notes || 'N/A' }}</div>
               </q-card-section>
             </q-card>
           </div>
         </q-card-section>
+        </template>
       </q-card>
     </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
@@ -1038,6 +892,13 @@ const formatDateTime = (dateString) => {
   }
 }
 
+const maskSensitiveSsn = (ssn) => {
+  if (!ssn) return 'N/A'
+  const digits = String(ssn).replace(/\D/g, '')
+  if (digits.length < 4) return '***-**-****'
+  return `***-**-${digits.slice(-4)}`
+}
+
 const navigateToCreateTenant = () => {
   router.push('/create-tenant')
 }
@@ -1050,12 +911,10 @@ const openDocument = (url) => {
 
 const viewTenantDetails = (tenant) => {
   if (!tenant) return
+
   selectedTenant.value = { ...tenant }
   isEditMode.value = false
-  // Use nextTick to ensure DOM is ready
-  setTimeout(() => {
-    showDetailDialog.value = true
-  }, 0)
+  showDetailDialog.value = true
 }
 
 const enterEditMode = () => {
@@ -1160,19 +1019,15 @@ const closeDetailDialog = () => {
 }
 
 const onDialogHide = () => {
-  // Clean up when dialog is hidden (by any means)
-  setTimeout(() => {
-    selectedTenant.value = null
-    isEditMode.value = false
-    editFormData.value = null
-  }, 100)
+  // Keep selectedTenant stable to avoid transition/unmount race conditions.
+  isEditMode.value = false
+  editFormData.value = null
 }
 
-const editTenant = (tenant) => {
+const editTenant = async (tenant) => {
   viewTenantDetails(tenant)
-  setTimeout(() => {
-    enterEditMode()
-  }, 100)
+  await nextTick()
+  enterEditMode()
 }
 
 const confirmDeleteTenant = (tenant) => {
@@ -1455,7 +1310,8 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.close-dialog-btn:hover {
+.close-dialog-btn:hover,
+.edit-dialog-btn:hover {
   background: rgba(255, 255, 255, 0.95) !important;
   transform: scale(1.1);
 }
@@ -1464,22 +1320,40 @@ onMounted(() => {
   font-size: 24px;
 }
 
-/* Tenant Detail Dialog Edit Button */
-.edit-dialog-btn {
-  background: rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  transition: all 0.2s ease;
-}
-
-.edit-dialog-btn:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-  transform: scale(1.1);
-}
-
 .edit-dialog-btn .q-icon {
-  font-size: 20px;
+  font-size: 24px;
+}
+
+/* Tenant detail section headers - unified system style */
+.tenant-section-header {
+  background: var(--neutral-100);
+  color: var(--neutral-800);
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Tenant detail readability: enforce consistent left alignment */
+.tenant-detail-content,
+.tenant-detail-content .row,
+.tenant-detail-content .text-caption,
+.tenant-detail-content .text-body1,
+.tenant-detail-content .q-item__label,
+.tenant-detail-content .q-item__label--caption,
+.tenant-detail-content .q-card-section {
+  text-align: left;
+}
+
+.tenant-detail-content .q-item__section--side {
+  align-items: flex-start;
+}
+
+.tenant-detail-content .text-caption {
+  display: block;
+  min-height: 18px;
+  margin-bottom: 2px;
+}
+
+.tenant-detail-content .text-body1 {
+  display: block;
+  min-height: 22px;
 }
 </style>

@@ -198,9 +198,26 @@
   <q-dialog v-model="showMxRecordDialog" maximized>
     <q-card class="mxrecord-dialog">
       <q-card-section class="dialog-header">
-        <div class="row items-center justify-between">
+        <div class="dialog-header-row">
           <div class="text-h5 text-weight-bold">Task Details</div>
-          <div class="row q-gutter-sm">
+          <div class="dialog-header-actions">
+            <q-btn
+              outline
+              color="primary"
+              icon="photo_camera"
+              label="Add Photos"
+              size="sm"
+              class="dialog-action-btn"
+              @click="addPhotosToMxRecord"
+            />
+            <q-btn
+              outline
+              color="primary"
+              label="Add Comment"
+              size="sm"
+              class="dialog-action-btn"
+              @click="addCommentFromDialog"
+            />
             <q-btn
               flat
               round
@@ -209,23 +226,6 @@
               @click="closeMxRecordDialog"
               class="dialog-close-btn"
             />
-            <q-btn
-              color="primary"
-              text-color="white"
-              icon="photo_camera"
-              label="Add Photos"
-              size="sm"
-              class="add-photos-btn"
-              @click="addPhotosToMxRecord"
-            />
-            <q-btn
-              outline
-              color="primary"
-              label="Add Comment"
-              class="add-comment-btn"
-              @click="addCommentFromDialog"
-            />
-            <q-btn flat round icon="close" @click="closeMxRecordDialog" class="close-btn" />
           </div>
         </div>
       </q-card-section>
@@ -2095,28 +2095,35 @@ const refreshData = async () => {
 .dialog-header {
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
-  padding: 16px 24px;
+  padding: 12px 16px;
 }
 
-.close-btn {
-  color: #666;
+.dialog-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.close-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.add-comment-btn {
-  font-weight: 500;
+.dialog-action-btn {
+  font-weight: 600;
   text-transform: none;
-  border-radius: 4px;
-  padding: 8px 16px;
+  border-radius: 6px;
+  padding: 6px 12px;
   font-size: 0.9rem;
-  min-height: 36px;
+  min-height: 34px;
 }
 
 .dialog-content {
-  padding: 24px;
+  padding: 16px;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
 }
@@ -2127,7 +2134,7 @@ const refreshData = async () => {
 }
 
 .details-section {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .section-title {
@@ -2141,8 +2148,8 @@ const refreshData = async () => {
 
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 .detail-item {
@@ -2153,8 +2160,8 @@ const refreshData = async () => {
 
 .detail-label {
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #666;
+  font-weight: 700;
+  color: #374151;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -2168,8 +2175,8 @@ const refreshData = async () => {
 .activity-log {
   background: #f8f9fa;
   border-radius: 8px;
-  padding: 16px;
-  max-height: 400px;
+  padding: 12px;
+  max-height: 320px;
   overflow-y: auto;
 }
 

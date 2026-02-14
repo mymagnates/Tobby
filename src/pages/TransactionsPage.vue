@@ -180,7 +180,12 @@
           <!-- Amount -->
           <div class="transaction-amount">
             <div class="amount-label">Amount</div>
-            <div class="amount-value">${{ formatAmount(transaction.amount) }}</div>
+            <div
+              class="amount-value"
+              :class="{ 'amount-value-expense': isExpenseType(transaction.transac_type) }"
+            >
+              ${{ formatAmount(transaction.amount) }}
+            </div>
           </div>
         </q-card-section>
       </q-card>
@@ -201,7 +206,7 @@
             <!-- Basic Information -->
             <div class="details-section">
               <div class="section-title">Transaction Information</div>
-              <div class="details-grid">
+              <div class="details-grid transaction-info-grid">
                 <div class="detail-item">
                   <div class="detail-label">Transaction ID</div>
                   <div class="detail-value">{{ selectedTransaction.transac_id || 'N/A' }}</div>
@@ -220,7 +225,12 @@
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Amount</div>
-                  <div class="detail-value">${{ formatAmount(selectedTransaction.amount) }}</div>
+                  <div
+                    class="detail-value"
+                    :class="{ 'amount-value-expense': isExpenseType(selectedTransaction.transac_type) }"
+                  >
+                    ${{ formatAmount(selectedTransaction.amount) }}
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Property</div>
@@ -228,32 +238,43 @@
                     {{ getPropertyName(selectedTransaction.property_id) }}
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <!-- Transaction Details -->
-            <div class="details-section">
-              <div class="section-title">Transaction Details</div>
-              <div class="details-grid">
-                <div class="detail-item">
-                  <div class="detail-label">From</div>
-                  <div class="detail-value">
-                    {{ capitalizeFirst(selectedTransaction.transac_from || 'Unknown') }}
-                  </div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">To</div>
-                  <div class="detail-value">
-                    {{ capitalizeFirst(selectedTransaction.transac_to || 'Unknown') }}
-                  </div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Date</div>
-                  <div class="detail-value">{{ formatDate(selectedTransaction.transac_date) }}</div>
-                </div>
                 <div class="detail-item">
                   <div class="detail-label">Lease ID</div>
                   <div class="detail-value">{{ selectedTransaction.lease_id || 'N/A' }}</div>
+                </div>
+                <div class="detail-item full-width">
+                  <div class="detail-label">Flow</div>
+                  <div class="transaction-flow-graph">
+                    <div class="flow-node flow-node-from">
+                      <div class="flow-node-label">From</div>
+                      <div class="flow-node-value">
+                        {{ capitalizeFirst(selectedTransaction.transac_from || 'Unknown') }}
+                      </div>
+                    </div>
+                    <div class="flow-center">
+                      <div
+                        class="flow-amount"
+                        :class="{ 'amount-value-expense': isExpenseType(selectedTransaction.transac_type) }"
+                      >
+                        ${{ formatAmount(selectedTransaction.amount) }}
+                      </div>
+                      <div class="flow-arrow-wrap">
+                        <q-icon name="arrow_forward" class="flow-arrow" />
+                      </div>
+                      <div class="flow-date">
+                        {{ formatDate(selectedTransaction.transac_date) }}
+                      </div>
+                    </div>
+                    <div class="flow-arrow-wrap flow-arrow-wrap-mobile">
+                      <q-icon name="arrow_forward" class="flow-arrow" />
+                    </div>
+                    <div class="flow-node flow-node-to">
+                      <div class="flow-node-label">To</div>
+                      <div class="flow-node-value">
+                        {{ capitalizeFirst(selectedTransaction.transac_to || 'Unknown') }}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -320,7 +341,7 @@
             <!-- User Information -->
             <div class="details-section">
               <div class="section-title">User Information</div>
-              <div class="details-grid">
+              <div class="details-grid user-info-grid">
                 <div class="detail-item">
                   <div class="detail-label">Role</div>
                   <div class="detail-value">{{ selectedTransaction.role || 'Unknown' }}</div>
@@ -685,6 +706,11 @@ const capitalizeFirst = (str) => {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
+const isExpenseType = (type) => {
+  if (!type || typeof type !== 'string') return false
+  return type.trim().toLowerCase() === 'expense'
+}
+
 // Format date
 const formatDate = (date) => {
   if (!date) return 'N/A'
@@ -1009,6 +1035,10 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+.amount-value-expense {
+  color: #dc2626 !important;
+}
+
 .search-input {
   max-width: 600px;
 }
@@ -1093,10 +1123,22 @@ onMounted(async () => {
   gap: 16px;
 }
 
+.transaction-info-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.user-info-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .detail-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
 }
 
 .detail-label {
@@ -1111,6 +1153,80 @@ onMounted(async () => {
   font-size: 1rem;
   color: #1a1a1a;
   word-break: break-word;
+}
+
+.transaction-flow-graph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.flow-node {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+}
+
+.flow-node-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.flow-node-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.flow-arrow-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.flow-amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1976d2;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+.flow-date {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.flow-arrow-wrap-mobile {
+  display: none;
+}
+
+.flow-arrow {
+  color: #64748b;
+  font-size: 20px;
 }
 
 .activity-log {
@@ -1211,6 +1327,33 @@ onMounted(async () => {
   .details-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .transaction-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-flow-graph {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .flow-center .flow-arrow-wrap {
+    display: none;
+  }
+
+  .flow-arrow-wrap-mobile {
+    display: flex;
+    margin: -2px 0;
+  }
+
+  .flow-arrow-wrap-mobile .flow-arrow {
+    transform: rotate(90deg);
   }
 
   .log-header {

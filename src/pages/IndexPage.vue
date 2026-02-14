@@ -63,40 +63,40 @@
                 <q-btn
                   label="Create Property"
                   color="primary"
-                  text-color="white"
+                  outline
                   @click="showCreatePropertyDialog = true"
                   icon="home_work"
-                  unelevated
+                  class="quick-action-btn"
                 />
               </div>
               <div class="col-auto">
                 <q-btn
                   label="Create Lease"
                   color="primary"
-                  text-color="white"
+                  outline
                   @click="showCreateLeaseDialog = true"
                   icon="assignment"
-                  unelevated
+                  class="quick-action-btn"
                 />
               </div>
               <div class="col-auto">
                 <q-btn
                   label="Create Transaction"
                   color="primary"
-                  text-color="white"
+                  outline
                   @click="showCreateTransactionDialog = true"
                   icon="receipt"
-                  unelevated
+                  class="quick-action-btn"
                 />
               </div>
               <div class="col-auto">
                 <q-btn
                   label="Create Task"
                   color="primary"
-                  text-color="white"
+                  outline
                   @click="showCreateTaskDialog = true"
                   icon="dns"
-                  unelevated
+                  class="quick-action-btn"
                 />
               </div>
             </div>
@@ -409,7 +409,7 @@
                 <q-btn
                   label="Create Property"
                   color="primary"
-                  text-color="white"
+                  outline
                   class="btn-primary full-width"
                   @click="openCreatePropertyDialog"
                 />
@@ -418,7 +418,7 @@
                 <q-btn
                   label="Create Lease"
                   color="primary"
-                  text-color="white"
+                  outline
                   class="btn-primary full-width"
                   @click="openCreateLeaseDialog"
                 />
@@ -427,7 +427,7 @@
                 <q-btn
                   label="Add Transaction"
                   color="primary"
-                  text-color="white"
+                  outline
                   class="btn-primary full-width"
                   @click="openCreateTransactionDialog"
                 />
@@ -436,7 +436,7 @@
                 <q-btn
                   label="Create Task"
                   color="primary"
-                  text-color="white"
+                  outline
                   class="btn-primary full-width"
                   @click="openCreateTaskDialog"
                 />
@@ -1460,8 +1460,24 @@ onMounted(async () => {
 
 .header-content {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: flex-start;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-actions .row {
+  justify-content: center;
+  margin: 0;
+}
+
+.quick-action-btn {
+  font-weight: 600;
 }
 
 .header-title h1 {
@@ -1615,7 +1631,7 @@ onMounted(async () => {
 .transactions-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 .record-item,
@@ -1623,12 +1639,12 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 10px 14px;
   background: var(--bg-surface);
   border-radius: 12px;
   border: 1px solid var(--neutral-200);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .record-item:hover,
@@ -1666,13 +1682,13 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  gap: 12px;
+  gap: 8px;
 }
 
 .transaction-details {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -1681,7 +1697,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  gap: 12px;
+  gap: 8px;
 }
 
 .record-description {
@@ -1698,7 +1714,7 @@ onMounted(async () => {
 .record-details {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 

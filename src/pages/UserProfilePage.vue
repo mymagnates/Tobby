@@ -467,19 +467,6 @@ const assignRole = async () => {
   border-color: var(--primary-color);
 }
 
-.debug-info {
-  background-color: var(--neutral-100);
-  font-family: monospace;
-  font-size: 12px;
-  border-radius: var(--border-radius-card);
-  border: 1px solid var(--neutral-200);
-}
-
-.debug-info pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
 /* Dark mode */
 :global(body.body--dark) .profile-header {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
@@ -497,8 +484,4 @@ const assignRole = async () => {
   box-shadow: 0 4px 12px var(--primary-glow);
 }
 
-:global(body.body--dark) .debug-info {
-  background-color: #2d2d2d !important;
-  border-color: #3d3d3d !important;
-}
 </style>

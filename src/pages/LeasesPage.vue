@@ -237,116 +237,106 @@
       <q-card class="full-height">
         <!-- Dialog Header -->
         <q-card-section class="dialog-header">
-          <div class="row items-center justify-between q-mb-md">
-            <div class="text-h5 text-weight-bold">
-              {{
-                selectedLease
-                  ? selectedLease.property_id?.nickname ||
-                    selectedLease.property_id?.displayName ||
-                    'Lease Details'
-                  : 'Lease Details'
-              }}
+          <div class="dialog-header-layout">
+            <div class="header-identity">
+              <div class="title-row">
+                <div class="dialog-title ellipsis">
+                  {{
+                    selectedLease
+                      ? selectedLease.property_id?.nickname ||
+                        selectedLease.property_id?.displayName ||
+                        'Lease Details'
+                      : 'Lease Details'
+                  }}
+                </div>
+                <div v-if="selectedLease?.property_id?.address" class="title-address ellipsis">
+                  {{ selectedLease.property_id.address }}
+                </div>
+              </div>
+              <div class="header-meta-row">
+
+                <div v-if="selectedLease" class="header-meta-item">
+                  <span class="header-meta-label">Available Date</span>
+                  <span class="header-meta-value">{{ formatDate(selectedLease.lease_create_date) }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="row items-center justify-between">
-            <!-- Status Buttons -->
-            <div v-if="selectedLease && !isEditMode" class="row q-gutter-sm">
-              <div class="text-subtitle2 text-white q-mr-xs" style="line-height: 32px">Status:</div>
-              <q-btn
-                unelevated
-                :color="selectedLease.status === 'Available' ? 'green' : 'green-3'"
-                text-color="white"
-                label="Available"
-                size="sm"
-                @click="quickChangeStatus('Available')"
-                class="status-btn"
-              />
-              <q-btn
-                unelevated
-                :color="selectedLease.status === 'Rented' ? 'blue' : 'blue-3'"
-                text-color="white"
-                label="Rented"
-                size="sm"
-                @click="quickChangeStatus('Rented')"
-                class="status-btn"
-              />
-              <q-btn
-                unelevated
-                :color="selectedLease.status === 'Pending' ? 'orange' : 'orange-3'"
-                text-color="white"
-                label="Pending"
-                size="sm"
-                @click="quickChangeStatus('Pending')"
-                class="status-btn"
-              />
-              <q-btn
-                unelevated
-                :color="selectedLease.status === 'Expired' ? 'red' : 'red-3'"
-                text-color="white"
-                label="Expired"
-                size="sm"
-                @click="quickChangeStatus('Expired')"
-                class="status-btn"
-              />
-              <q-btn
-                unelevated
-                :color="selectedLease.status === 'Terminated' ? 'purple' : 'purple-3'"
-                text-color="white"
-                label="Terminated"
-                size="sm"
-                @click="quickChangeStatus('Terminated')"
-                class="status-btn"
-              />
-            </div>
-            <div v-else></div>
-            <div class="row q-gutter-sm">
-              <q-btn
-                v-if="!isEditMode && leaseTenants.length === 0"
-                color="secondary"
-                icon="share"
-                label="Shareable Link"
-                @click="copyShareableLink(selectedLease.id)"
-                class="shareable-link-btn"
-              />
+          <div class="header-actions">
               <q-btn
                 v-if="!isEditMode"
-                color="primary"
+                color="white"
+                text-color="secondary"
                 icon="inventory"
                 label="Inventory"
                 @click="openInventoryDialog"
-                class="inventory-btn"
+                class="header-action-btn"
               />
               <q-btn
                 v-if="!isEditMode"
-                color="primary"
+                color="white"
+                text-color="secondary"
                 icon="folder"
                 label="Documents"
                 @click="openDocumentsDialog"
-                class="documents-btn"
+                class="header-action-btn"
               />
               <q-btn
                 v-if="!isEditMode"
-                color="primary"
+                color="white"
+                text-color="secondary"
                 label="Edit"
                 @click="toggleEditMode"
-                class="edit-btn"
+                class="header-action-btn"
               />
-              <q-btn
+              <div v-if="selectedLease && !isEditMode" class="header-status-control">
+                  
+                  <q-btn-dropdown
+                    :label="selectedLease.status || 'Unknown'"
+                    no-caps
+                    unelevated
+                    text-color="white"
+                    class="status-chip-dropdown"
+                    :style="{ backgroundColor: getHeaderStatusBg(selectedLease.status) }"
+                  >
+                    <q-list dense style="min-width: 180px">
+                      <q-item
+                        v-for="status in leaseStatusOptions"
+                        :key="status"
+                        clickable
+                        v-close-popup
+                        @click="quickChangeStatus(status)"
+                      >
+                        <q-item-section>{{ status }}</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                </div>
+              <q-btn-dropdown
                 v-if="!isEditMode"
-                color="negative"
-                label="Delete"
-                @click="confirmDeleteLease"
-                class="delete-btn"
-              />
-              <q-btn
-                v-if="!isEditMode"
-                color="primary"
-                label="Create Tenant"
-                icon="person_add"
-                @click="navigateToCreateTenant(selectedLease)"
-                class="create-tenant-btn"
-              />
+                color="white"
+                text-color="secondary"
+                label="More"
+                no-caps
+                unelevated
+                class="header-action-btn"
+              >
+                <q-list dense style="min-width: 190px">
+                  <q-item clickable v-close-popup @click="navigateToCreateTenant(selectedLease)">
+                    <q-item-section avatar>
+                      <q-icon name="person_add" />
+                    </q-item-section>
+                    <q-item-section>Create Tenant</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup @click="confirmDeleteLease">
+                    <q-item-section avatar>
+                      <q-icon name="delete" color="negative" />
+                    </q-item-section>
+                    <q-item-section class="text-negative">Delete Lease</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-btn-dropdown>
               <q-btn
                 v-if="isEditMode"
                 color="green"
@@ -362,86 +352,31 @@
                 @click="cancelEdit"
                 class="cancel-btn"
               />
-              <q-btn flat round icon="close" @click="closeLeaseDialog" class="close-btn" />
-            </div>
+          </div>
+          <div class="header-corner-controls">
+            <q-btn
+              v-if="!isEditMode && leaseTenants.length === 0"
+              color="white"
+              text-color="secondary"
+              icon="share"
+              label="Shareable Link"
+              @click="copyShareableLink(selectedLease.id)"
+              class="header-action-btn header-share-fixed"
+            />
+            <q-btn
+              round
+              dense
+              unelevated
+              icon="close"
+              @click="closeLeaseDialog"
+              class="close-btn header-close-fixed"
+            />
           </div>
         </q-card-section>
 
         <!-- Dialog Content -->
         <q-card-section class="dialog-content">
           <div v-if="selectedLease" class="details-container">
-            <!-- Basic Information -->
-            <div class="details-section">
-              <div class="section-title">Basic Information</div>
-              <div class="details-grid">
-                <div class="detail-item">
-                  <div class="detail-label">Lease ID</div>
-                  <div class="detail-value">
-                    {{ selectedLease.id || 'N/A' }}
-                  </div>
-                </div>
-
-                <div class="detail-item">
-                  <div class="detail-label">Property</div>
-                  <div class="detail-value">
-                    <div class="text-weight-bold">
-                      {{
-                        selectedLease.property_id?.nickname ||
-                        selectedLease.property_id?.displayName ||
-                        'N/A'
-                      }}
-                    </div>
-                    <div class="text-caption text-grey-6">
-                      {{ selectedLease.property_id?.address || 'N/A' }}
-                    </div>
-                    <div v-if="selectedLease.property_id?.spec" class="property-details-mini">
-                      <div class="text-caption text-grey-5">
-                        {{ selectedLease.property_id.spec.type || 'N/A' }} •
-                        {{ selectedLease.property_id.spec.bedroom || 'N/A' }} bed •
-                        {{ selectedLease.property_id.spec.full_bathroom || 'N/A' }} bath
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="detail-item">
-                  <div class="detail-label">Status</div>
-                  <div v-if="!isEditMode" class="detail-value">
-                    <q-chip
-                      :color="getLeaseStatusColor(selectedLease.status)"
-                      text-color="white"
-                      size="sm"
-                    >
-                      {{ selectedLease.status || 'Unknown' }}
-                    </q-chip>
-                  </div>
-                  <q-select
-                    v-else
-                    v-model="selectedLease.status"
-                    :options="['Available', 'Rented', 'Pending', 'Expired', 'Terminated']"
-                    outlined
-                    dense
-                    class="detail-input"
-                  />
-                </div>
-
-                <div class="detail-item">
-                  <div class="detail-label">Available Date</div>
-                  <div v-if="!isEditMode" class="detail-value">
-                    {{ formatDate(selectedLease.lease_create_date) }}
-                  </div>
-                  <q-input
-                    v-else
-                    v-model="selectedLease.lease_create_date"
-                    type="date"
-                    outlined
-                    dense
-                    class="detail-input"
-                  />
-                </div>
-              </div>
-            </div>
-
             <!-- Financial Information -->
             <div class="details-section">
               <div class="section-title">Financial Information</div>
@@ -449,7 +384,11 @@
                 <div class="detail-item">
                   <div class="detail-label">Rate Type</div>
                   <div v-if="!isEditMode" class="detail-value">
-                    {{ selectedLease.rate_type || 'N/A' }}
+                    {{
+                      selectedLease.rate_type
+                        ? selectedLease.rate_type.charAt(0).toUpperCase() + selectedLease.rate_type.slice(1)
+                        : 'N/A'
+                    }}
                   </div>
                   <q-select
                     v-else
@@ -770,7 +709,7 @@
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Full Name</div>
                             <div class="text-body2 text-weight-medium">
-                              {{ application.applicant?.first_name }} 
+                              {{ application.applicant?.first_name }}
                               {{ application.applicant?.middle_name }}
                               {{ application.applicant?.last_name }}
                       </div>
@@ -1013,7 +952,7 @@
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Full Name</div>
                             <div class="text-body2 text-weight-medium">
-                              {{ tenant.personal_info?.first_name }} 
+                              {{ tenant.personal_info?.first_name }}
                               {{ tenant.personal_info?.middle_name }}
                               {{ tenant.personal_info?.last_name }}
                       </div>
@@ -1377,6 +1316,7 @@ const selectedLease = ref(null)
 const isEditMode = ref(false)
 const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
+const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
 
 // Inventory dialog states
 const showInventoryDialog = ref(false)
@@ -1490,6 +1430,17 @@ const getLeaseStatusColor = (status) => {
     Terminated: 'purple',
   }
   return colors[status] || 'blue'
+}
+
+const getHeaderStatusBg = (status) => {
+  const colors = {
+    Available: '#2e7d32',
+    Rented: '#1565c0',
+    Pending: '#ef6c00',
+    Expired: '#c62828',
+    Terminated: '#6a1b9a',
+  }
+  return colors[status] || '#245773'
 }
 
 // Fetch tenants for a lease
@@ -2201,17 +2152,170 @@ watch(
   background: var(--q-secondary);
   color: white;
   padding: 16px 24px;
+  padding-right: 260px;
+  position: relative;
 }
 
-.status-btn {
+.dialog-header-layout {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.header-identity {
+  min-width: 260px;
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dialog-title {
+  font-family: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.title-address {
+  font-size: 0.86rem;
+  font-weight: 500;
+  opacity: 0.9;
+  max-width: 420px;
+}
+
+.header-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-status-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-chip-dropdown {
+  border-radius: 999px;
+  min-height: 32px;
+}
+
+.status-chip-dropdown :deep(.q-btn__content) {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.status-chip-dropdown :deep(.q-btn-dropdown__arrow) {
+  color: #ffffff;
+}
+
+.header-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.16);
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.header-meta-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+
+.header-meta-value {
+  font-size: 0.82rem;
   font-weight: 600;
-  min-width: 90px;
-  transition: all 0.2s ease;
 }
 
-.status-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-top: 12px;
+}
+
+.header-action-btn {
+  border-radius: 8px;
+  border: 1px solid rgba(36, 87, 115, 0.22);
+  font-weight: 600;
+  min-height: 36px;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.header-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(12, 24, 36, 0.12);
+}
+
+.header-close-fixed {
+  background: #ffffff;
+  color: var(--q-secondary);
+}
+
+.header-close-fixed:hover {
+  background: #f3f6f8;
+}
+
+.header-close-fixed.q-btn--round {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+}
+
+.header-corner-controls {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.header-share-fixed {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.header-share-fixed :deep(.q-btn__content) {
+  min-height: 34px;
+  align-items: center;
+}
+
+.header-action-btn :deep(.q-btn__content) {
+  gap: 6px;
+}
+
+.header-action-btn :deep(.q-btn-dropdown__arrow) {
+  margin-left: 2px;
+}
+
+.header-action-btn :deep(.q-icon) {
+  font-size: 1rem;
+}
+
+.header-action-btn :deep(.q-focus-helper) {
+  opacity: 1 !important;
 }
 
 .dialog-content {
@@ -2279,36 +2383,6 @@ watch(
   min-width: 80px;
 }
 
-.inventory-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white !important;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.inventory-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-}
-
-.documents-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white !important;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(240, 147, 251, 0.3);
-}
-
-.documents-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
-  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
-}
-
 /* Property Details Styling */
 .property-details-mini {
   margin-top: 4px;
@@ -2328,17 +2402,6 @@ watch(
   color: var(--primary-color);
   background: rgba(36, 87, 115, 0.1);
   transform: scale(1.1);
-}
-
-/* Shareable Link Button Styling */
-.shareable-link-btn {
-  border: 1px solid currentColor;
-  transition: all 0.2s ease;
-}
-
-.shareable-link-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Applications Section Styling */
@@ -2367,10 +2430,35 @@ watch(
 
   .dialog-header {
     padding: 12px 16px;
+    padding-right: 160px;
   }
 
   .dialog-content {
     padding: 16px;
+  }
+
+  .dialog-header-layout {
+    align-items: flex-start;
+  }
+
+  .header-meta-row {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .header-status-control {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .header-corner-controls {
+    top: 10px;
+    right: 10px;
   }
 
   .application-item .q-item__label caption {

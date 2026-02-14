@@ -4,7 +4,84 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">Reports & Analytics</div>
       <div class="row q-gutter-sm">
-        <q-btn-dropdown
+
+      </div>
+    </div>
+
+    <!-- End of Selection -->
+
+
+    <!-- Role Filter -->
+    <div class="row q-mb-md q-padding-sm">
+      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+        <q-select
+          v-model="selectedRole"
+          :options="roleOptions"
+          label="Filter by Role"
+          outlined
+          dense
+          clearable
+          bg-color="grey-1"
+          @update:model-value="onRoleFilterChange"
+        >
+          <template v-slot:prepend>
+            <q-icon name="person" />
+          </template>
+        </q-select>
+      </div>
+      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+        <q-select
+          v-model="dateRange"
+          :options="dateRangeOptions"
+          label="Date Range"
+          outlined
+          dense
+          bg-color="grey-1"
+          @update:model-value="updateCharts"
+        >
+          <template v-slot:prepend>
+            <q-icon name="date_range" />
+          </template>
+        </q-select>
+      </div>
+      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+        <q-select
+          v-model="selectedProperties"
+          :options="propertyOptions"
+          label="Filter by Properties (Multiple)"
+          outlined
+          dense
+          clearable
+          multiple
+          bg-color="grey-1"
+          option-label="label"
+          option-value="value"
+          emit-value
+          map-options
+          use-chips
+          @update:model-value="updateCharts"
+        >
+          <template v-slot:prepend>
+            <q-icon name="home" />
+          </template>
+          <template v-slot:hint> Select one or more properties to filter </template>
+          <template v-slot:append>
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="primary"
+              label="Select All"
+              @click.stop="selectAllProperties"
+              class="select-all-btn"
+            />
+          </template>
+        </q-select>
+
+      </div>
+      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+
+      <q-btn-dropdown
           icon="download"
           color="primary"
           label="Bulk Export"
@@ -51,96 +128,8 @@
             </q-item>
           </q-list>
         </q-btn-dropdown>
+        </div>
       </div>
-    </div>
-
-    <!-- Data Loading Status -->
-    <div v-if="!dataLoaded" class="data-status-banner q-mb-md">
-      <q-banner class="bg-warning text-white">
-        <template v-slot:avatar>
-          <q-spinner-dots size="24px" />
-        </template>
-        Loading data... Please wait.
-      </q-banner>
-    </div>
-
-    <div v-else class="data-status-banner q-mb-md">
-      <q-banner class="bg-positive text-white">
-        <template v-slot:avatar>
-          <q-icon name="check_circle" />
-        </template>
-        Data loaded successfully! {{ totalDataCount }} records available.
-      </q-banner>
-    </div>
-
-    <!-- Role Filter -->
-    <div class="row q-mb-md q-padding-sm">
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
-        <q-select
-          v-model="selectedRole"
-          :options="roleOptions"
-          label="Filter by Role"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-          @update:model-value="onRoleFilterChange"
-        >
-          <template v-slot:prepend>
-            <q-icon name="person" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
-        <q-select
-          v-model="dateRange"
-          :options="dateRangeOptions"
-          label="Date Range"
-          outlined
-          dense
-          bg-color="grey-1"
-          @update:model-value="updateCharts"
-        >
-          <template v-slot:prepend>
-            <q-icon name="date_range" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-6" style="padding-left: 2px; padding-right: 2px">
-        <q-select
-          v-model="selectedProperties"
-          :options="propertyOptions"
-          label="Filter by Properties (Multiple)"
-          outlined
-          dense
-          clearable
-          multiple
-          bg-color="grey-1"
-          option-label="label"
-          option-value="value"
-          emit-value
-          map-options
-          use-chips
-          @update:model-value="updateCharts"
-        >
-          <template v-slot:prepend>
-            <q-icon name="home" />
-          </template>
-          <template v-slot:hint> Select one or more properties to filter </template>
-          <template v-slot:append>
-            <q-btn
-              flat
-              dense
-              size="sm"
-              color="primary"
-              label="Select All"
-              @click.stop="selectAllProperties"
-              class="select-all-btn"
-            />
-          </template>
-        </q-select>
-      </div>
-    </div>
 
     <!-- Summary Cards -->
     <div class="row q-gutter-md q-mb-lg">
@@ -177,36 +166,93 @@
       </q-card>
     </div>
 
-    <!-- Charts Row: Timeline + Pie Chart -->
-    <div class="charts-row q-mb-lg">
-      <!-- Transaction Timeline Chart -->
-      <div class="timeline-chart-col">
-        <q-card class="chart-card full-height">
+    <!-- Core Reports (Free) -->
+    <div class="q-mb-lg">
+      <div class="row items-center q-mb-sm">
+        <div class="text-h6">
+          <q-icon name="dashboard" class="q-mr-sm" />
+          Core Reports
+        </div>
+      </div>
+      <div class="core-charts-grid">
+        <q-card class="chart-card">
           <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="show_chart" class="q-mr-sm" />
-              Transaction Timeline ({{ dateRange }})
-            </div>
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Monthly Cash Flow</div>
             <div class="chart-container">
-              <canvas ref="timelineChartCanvas" style="max-height: 300px"></canvas>
+              <canvas ref="coreCashFlowChartCanvas" style="max-height: 300px"></canvas>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <q-card class="chart-card">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Occupancy & Vacancy Trend</div>
+            <div class="chart-container">
+              <canvas ref="occupancyChartCanvas" style="max-height: 300px"></canvas>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <q-card class="chart-card">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Delinquency Aging</div>
+            <div class="chart-container">
+              <canvas ref="delinquencyChartCanvas" style="max-height: 300px"></canvas>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <q-card class="chart-card">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium q-mb-sm">Maintenance Performance</div>
+            <div class="chart-container">
+              <canvas ref="maintenanceChartCanvas" style="max-height: 300px"></canvas>
             </div>
           </q-card-section>
         </q-card>
       </div>
+    </div>
 
-      <!-- Transaction Type Pie Chart -->
-      <div class="pie-chart-col">
-        <q-card class="chart-card full-height">
+    <!-- Premium Charts (Future Paid) -->
+    <div class="q-mb-lg premium-section">
+      <div class="row items-center q-mb-sm">
+        <div class="text-h6">
+          <q-icon name="workspace_premium" class="q-mr-sm" />
+          Premium Charts
+        </div>
+        <q-chip color="warning" text-color="black" size="sm" class="q-ml-sm">Future Paid</q-chip>
+      </div>
+      <div class="premium-grid">
+        <q-card class="premium-card">
           <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="pie_chart" class="q-mr-sm" />
-              By Transaction Type
+            <div class="premium-title">
+              <q-icon name="lock" size="16px" class="q-mr-xs" />
+              Delinquency Recovery Cohort
             </div>
-            <div class="chart-container pie-chart-container">
-              <canvas ref="typeChartCanvas" style="max-height: 300px"></canvas>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Recovery rate by overdue age bucket and cohort month.
             </div>
-            <div v-if="transactionTypeData.length === 0" class="text-center text-grey-6 q-pa-md">
-              No transaction data available
+          </q-card-section>
+        </q-card>
+        <q-card class="premium-card">
+          <q-card-section>
+            <div class="premium-title">
+              <q-icon name="lock" size="16px" class="q-mr-xs" />
+              Renewal Risk Prediction
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Predicted lease non-renewal risk by tenant and property.
+            </div>
+          </q-card-section>
+        </q-card>
+        <q-card class="premium-card">
+          <q-card-section>
+            <div class="premium-title">
+              <q-icon name="lock" size="16px" class="q-mr-xs" />
+              Maintenance Cost Forecast
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              Forecasted maintenance spend by property and category.
             </div>
           </q-card-section>
         </q-card>
@@ -396,14 +442,14 @@ const showImageViewer = ref(false)
 const currentImageUrl = ref('')
 
 // Chart references
-const financialChartCanvas = ref(null)
-const taskChartCanvas = ref(null)
-const timelineChartCanvas = ref(null)
-const typeChartCanvas = ref(null)
-let financialChart = null
-let taskChart = null
-let timelineChart = null
-let typeChart = null
+const coreCashFlowChartCanvas = ref(null)
+const occupancyChartCanvas = ref(null)
+const delinquencyChartCanvas = ref(null)
+const maintenanceChartCanvas = ref(null)
+let coreCashFlowChart = null
+let occupancyChart = null
+let delinquencyChart = null
+let maintenanceChart = null
 
 // Options
 const roleOptions = ['Property Owner', 'Property Manager', 'Tenant']
@@ -525,30 +571,6 @@ const netProfit = computed(() => {
 
 const completedTasks = computed(() => {
   return filteredTasks.value.filter((t) => t.status === 'resolved' || t.status === 'closed').length
-})
-
-// Transaction type data for pie chart
-const transactionTypeData = computed(() => {
-  const typeGroups = {}
-  
-  filteredTransactions.value.forEach((t) => {
-    const type = t.transac_type || 'Other'
-    if (!typeGroups[type]) {
-      typeGroups[type] = { income: 0, expense: 0, total: 0 }
-    }
-    const amount = parseFloat(t.amount) || 0
-    typeGroups[type].total += amount
-    if (t.type === 'income') {
-      typeGroups[type].income += amount
-    } else {
-      typeGroups[type].expense += amount
-    }
-  })
-  
-  return Object.entries(typeGroups).map(([type, data]) => ({
-    type,
-    ...data
-  })).sort((a, b) => b.total - a.total)
 })
 
 // Table columns
@@ -769,164 +791,23 @@ const getAmountClass = (type) => {
 const initializeCharts = () => {
   // Import Chart.js dynamically
   import('chart.js/auto').then((Chart) => {
-    createFinancialChart(Chart.default)
-    createTaskChart(Chart.default)
-    createTimelineChart(Chart.default)
-    createTypeChart(Chart.default)
+    createCoreCashFlowChart(Chart.default)
+    createOccupancyChart(Chart.default)
+    createDelinquencyChart(Chart.default)
+    createMaintenanceChart(Chart.default)
   })
 }
 
-const createFinancialChart = (Chart) => {
-  if (!financialChartCanvas.value) return
-
-  const ctx = financialChartCanvas.value.getContext('2d')
-
-  // Destroy existing chart if it exists
-  if (financialChart) {
-    financialChart.destroy()
-  }
-
-  // Calculate data by role
-  const roleData = {}
-  roleOptions.forEach((role) => {
-    const roleTransactions = filteredTransactions.value.filter(
-      (t) => t.transac_from === role || t.transac_to === role || t.role === role,
-    )
-
-    // Calculate income: transactions where role is in "to" field
-    const income = roleTransactions
-      .filter((t) => isIncomeForRole(t, role))
-      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
-
-    // Calculate expenses: transactions where role is in "from" field
-    const expenses = roleTransactions
-      .filter((t) => isExpenseForRole(t, role))
-      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
-
-    roleData[role] = { income, expenses }
-  })
-
-  financialChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: roleOptions,
-      datasets: [
-        {
-          label: 'Income',
-          data: roleOptions.map((role) => roleData[role].income),
-          backgroundColor: 'rgba(76, 175, 80, 0.7)',
-          borderColor: 'rgba(76, 175, 80, 1)',
-          borderWidth: 2,
-        },
-        {
-          label: 'Expenses',
-          data: roleOptions.map((role) => roleData[role].expenses),
-          backgroundColor: 'rgba(244, 67, 54, 0.7)',
-          borderColor: 'rgba(244, 67, 54, 1)',
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function (value) {
-              return '$' + value.toLocaleString()
-            },
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-        },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return context.dataset.label + ': $' + context.parsed.y.toLocaleString()
-            },
-          },
-        },
-      },
-    },
-  })
+const toDateSafe = (value) => {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (typeof value?.toDate === 'function') return value.toDate()
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
 }
 
-const createTaskChart = (Chart) => {
-  if (!taskChartCanvas.value) return
-
-  const ctx = taskChartCanvas.value.getContext('2d')
-
-  // Destroy existing chart if it exists
-  if (taskChart) {
-    taskChart.destroy()
-  }
-
-  // Calculate task status by role
-  const statusData = {}
-  roleOptions.forEach((role) => {
-    const roleTasks = filteredTasks.value.filter((t) => t.reported_role === role)
-
-    statusData[role] = {
-      open: roleTasks.filter((t) => !t.status || t.status === 'open').length,
-      resolved: roleTasks.filter((t) => t.status === 'resolved' || t.status === 'closed').length,
-    }
-  })
-
-  taskChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Open Tasks', 'Resolved Tasks'],
-      datasets: [
-        {
-          data: [
-            filteredTasks.value.filter((t) => !t.status || t.status === 'open').length,
-            filteredTasks.value.filter((t) => t.status === 'resolved' || t.status === 'closed')
-              .length,
-          ],
-          backgroundColor: ['rgba(255, 193, 7, 0.7)', 'rgba(76, 175, 80, 0.7)'],
-          borderColor: ['rgba(255, 193, 7, 1)', 'rgba(76, 175, 80, 1)'],
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-        },
-      },
-    },
-  })
-}
-
-const createTimelineChart = (Chart) => {
-  if (!timelineChartCanvas.value) return
-
-  const ctx = timelineChartCanvas.value.getContext('2d')
-
-  // Destroy existing chart if it exists
-  if (timelineChart) {
-    timelineChart.destroy()
-  }
-
-  console.log('Creating timeline chart with filters:', {
-    role: selectedRole.value,
-    properties: selectedProperties.value,
-    dateRange: dateRange.value,
-    transactionCount: filteredTransactions.value.length,
-  })
-
-  // Determine number of months based on date range filter
-  let monthsToShow = 6 // Default
+const getMonthsForSelectedRange = () => {
+  let monthsToShow = 6
   switch (dateRange.value) {
     case 'Last 30 Days':
       monthsToShow = 1
@@ -941,188 +822,288 @@ const createTimelineChart = (Chart) => {
       monthsToShow = 12
       break
     case 'All Time':
-      monthsToShow = 12 // Show last 12 months for "All Time"
+      monthsToShow = 12
       break
-    default:
-      monthsToShow = 6
   }
 
-  console.log(`Timeline will show ${monthsToShow} months`)
-
-  // Group transactions by month
-  const monthlyData = {}
-  const timelineMonths = []
   const now = new Date()
-
+  const months = []
   for (let i = monthsToShow - 1; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    const monthLabel = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    timelineMonths.push({ key: monthKey, label: monthLabel })
-    monthlyData[monthKey] = { income: 0, expenses: 0 }
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    })
   }
+  return months
+}
 
-  let processedCount = 0
-  filteredTransactions.value.forEach((t) => {
-    const date = new Date(t.transac_date)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+const createCoreCashFlowChart = (Chart) => {
+  if (!coreCashFlowChartCanvas.value) return
+  const ctx = coreCashFlowChartCanvas.value.getContext('2d')
+  if (coreCashFlowChart) coreCashFlowChart.destroy()
 
-    if (monthlyData[monthKey]) {
-      const amount = parseFloat(t.amount) || 0
-
-      // Determine income/expense based on role filter or transaction type
-      if (selectedRole.value) {
-        if (isIncomeForRole(t, selectedRole.value)) {
-          monthlyData[monthKey].income += amount
-          processedCount++
-        } else if (isExpenseForRole(t, selectedRole.value)) {
-          monthlyData[monthKey].expenses += amount
-          processedCount++
-        }
-      } else {
-        // Fallback to transaction type if no role filter
-        if (t.type === 'income') {
-          monthlyData[monthKey].income += amount
-          processedCount++
-        } else {
-          monthlyData[monthKey].expenses += amount
-          processedCount++
-        }
-      }
-    }
+  const months = getMonthsForSelectedRange()
+  const monthly = {}
+  months.forEach((m) => {
+    monthly[m.key] = { income: 0, expense: 0 }
   })
 
-  console.log(
-    `Timeline processed ${processedCount} transactions out of ${filteredTransactions.value.length}`,
-  )
-  console.log('Monthly data:', monthlyData)
+  filteredTransactions.value.forEach((t) => {
+    const d = toDateSafe(t.transac_date)
+    if (!d) return
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    if (!monthly[key]) return
+    const amount = parseFloat(t.amount) || 0
+    if (t.type === 'income') monthly[key].income += amount
+    else monthly[key].expense += amount
+  })
 
-  timelineChart = new Chart(ctx, {
-    type: 'line',
+  coreCashFlowChart = new Chart(ctx, {
     data: {
-      labels: timelineMonths.map((m) => m.label),
+      labels: months.map((m) => m.label),
       datasets: [
         {
+          type: 'bar',
           label: 'Income',
-          data: timelineMonths.map((m) => monthlyData[m.key].income),
-          borderColor: 'rgba(76, 175, 80, 1)',
-          backgroundColor: 'rgba(76, 175, 80, 0.2)',
-          fill: true,
-          tension: 0.4,
+          data: months.map((m) => monthly[m.key].income),
+          backgroundColor: 'rgba(34, 197, 94, 0.7)',
+          borderColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 1,
         },
         {
+          type: 'bar',
           label: 'Expenses',
-          data: timelineMonths.map((m) => monthlyData[m.key].expenses),
-          borderColor: 'rgba(244, 67, 54, 1)',
-          backgroundColor: 'rgba(244, 67, 54, 0.2)',
-          fill: true,
-          tension: 0.4,
+          data: months.map((m) => monthly[m.key].expense),
+          backgroundColor: 'rgba(239, 68, 68, 0.7)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 1,
+        },
+        {
+          type: 'line',
+          label: 'Net Cash Flow',
+          data: months.map((m) => monthly[m.key].income - monthly[m.key].expense),
+          borderColor: 'rgba(37, 99, 235, 1)',
+          backgroundColor: 'rgba(37, 99, 235, 0.15)',
+          tension: 0.35,
+          fill: false,
+          yAxisID: 'y',
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' } },
       scales: {
         y: {
           beginAtZero: true,
-          ticks: {
-            callback: function (value) {
-              return '$' + value.toLocaleString()
-            },
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-        },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return context.dataset.label + ': $' + context.parsed.y.toLocaleString()
-            },
-          },
+          ticks: { callback: (v) => `$${Number(v).toLocaleString()}` },
         },
       },
     },
   })
 }
 
-const createTypeChart = (Chart) => {
-  if (!typeChartCanvas.value) return
+const createOccupancyChart = (Chart) => {
+  if (!occupancyChartCanvas.value) return
+  const ctx = occupancyChartCanvas.value.getContext('2d')
+  if (occupancyChart) occupancyChart.destroy()
 
-  const ctx = typeChartCanvas.value.getContext('2d')
+  const months = getMonthsForSelectedRange()
+  const totalProps = userDataStore.userAccessibleProperties.length || 1
+  const occupancyRate = months.map(() => 0)
+  const vacancyCount = months.map(() => 0)
 
-  // Destroy existing chart if it exists
-  if (typeChart) {
-    typeChart.destroy()
-  }
+  const occupiedStatuses = new Set(['rented', 'active', 'occupied'])
+  const vacantStatuses = new Set(['available', 'pending', 'expired', 'terminated'])
 
-  const typeData = transactionTypeData.value
-  
-  if (typeData.length === 0) {
-    return
-  }
+  months.forEach((m, idx) => {
+    const occupiedProperties = new Set()
+    const vacantProperties = new Set()
+    userDataStore.userAccessibleLeases.forEach((lease) => {
+      const status = String(lease.status || '').toLowerCase()
+      const propertyId = lease.property_id?.id || lease.property_id
+      if (!propertyId) return
+      if (occupiedStatuses.has(status)) occupiedProperties.add(propertyId)
+      else if (vacantStatuses.has(status)) vacantProperties.add(propertyId)
+    })
+    occupancyRate[idx] = Math.min(100, (occupiedProperties.size / totalProps) * 100)
+    vacancyCount[idx] = vacantProperties.size
+  })
 
-  // Generate colors for each type
-  const colors = [
-    '#4CAF50', // Green
-    '#F44336', // Red
-    '#2196F3', // Blue
-    '#FF9800', // Orange
-    '#9C27B0', // Purple
-    '#00BCD4', // Cyan
-    '#FFEB3B', // Yellow
-    '#E91E63', // Pink
-    '#3F51B5', // Indigo
-    '#009688', // Teal
-    '#795548', // Brown
-    '#607D8B', // Blue Grey
-  ]
-
-  const labels = typeData.map(d => d.type)
-  const data = typeData.map(d => d.total)
-  const backgroundColors = typeData.map((_, i) => colors[i % colors.length])
-
-  typeChart = new Chart(ctx, {
-    type: 'pie',
+  occupancyChart = new Chart(ctx, {
     data: {
-      labels: labels,
+      labels: months.map((m) => m.label),
       datasets: [
         {
-          data: data,
-          backgroundColor: backgroundColors,
-          borderColor: backgroundColors.map(c => c),
-          borderWidth: 2,
+          type: 'line',
+          label: 'Occupancy Rate (%)',
+          data: occupancyRate,
+          borderColor: 'rgba(22, 163, 74, 1)',
+          backgroundColor: 'rgba(22, 163, 74, 0.15)',
+          tension: 0.35,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar',
+          label: 'Vacant Properties',
+          data: vacancyCount,
+          backgroundColor: 'rgba(234, 179, 8, 0.5)',
+          borderColor: 'rgba(234, 179, 8, 1)',
+          borderWidth: 1,
+          yAxisID: 'y1',
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: {
-            boxWidth: 12,
-            padding: 8,
-            font: {
-              size: 11,
-            },
-          },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: (v) => `${v}%` },
+          position: 'left',
         },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              const value = context.parsed
-              const total = context.dataset.data.reduce((a, b) => a + b, 0)
-              const percentage = ((value / total) * 100).toFixed(1)
-              return `${context.label}: $${value.toLocaleString()} (${percentage}%)`
-            },
-          },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+        },
+      },
+    },
+  })
+}
+
+const createDelinquencyChart = (Chart) => {
+  if (!delinquencyChartCanvas.value) return
+  const ctx = delinquencyChartCanvas.value.getContext('2d')
+  if (delinquencyChart) delinquencyChart.destroy()
+
+  const buckets = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
+  const now = new Date()
+
+  filteredTransactions.value.forEach((t) => {
+    const typeText = String(t.transac_type || '').toLowerCase()
+    const isRentLike = typeText.includes('rent') || t.type === 'expense'
+    if (!isRentLike) return
+    const d = toDateSafe(t.transac_date)
+    if (!d) return
+    const days = Math.floor((now - d) / (1000 * 60 * 60 * 24))
+    const amount = parseFloat(t.amount) || 0
+    if (days <= 0) return
+    if (days <= 30) buckets['1-30'] += amount
+    else if (days <= 60) buckets['31-60'] += amount
+    else if (days <= 90) buckets['61-90'] += amount
+    else buckets['90+'] += amount
+  })
+
+  delinquencyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [
+        {
+          label: 'Outstanding Amount',
+          data: Object.values(buckets),
+          backgroundColor: [
+            'rgba(251, 191, 36, 0.65)',
+            'rgba(249, 115, 22, 0.65)',
+            'rgba(239, 68, 68, 0.65)',
+            'rgba(185, 28, 28, 0.75)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: (v) => `$${Number(v).toLocaleString()}` },
+        },
+      },
+    },
+  })
+}
+
+const createMaintenanceChart = (Chart) => {
+  if (!maintenanceChartCanvas.value) return
+  const ctx = maintenanceChartCanvas.value.getContext('2d')
+  if (maintenanceChart) maintenanceChart.destroy()
+
+  const months = getMonthsForSelectedRange()
+  const monthly = {}
+  months.forEach((m) => {
+    monthly[m.key] = { open: 0, closed: 0, resolutionDays: [] }
+  })
+
+  filteredTasks.value.forEach((task) => {
+    const reportDate = toDateSafe(task.report_date)
+    if (!reportDate) return
+    const key = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`
+    if (!monthly[key]) return
+
+    const status = String(task.status || 'open').toLowerCase()
+    if (status === 'resolved' || status === 'closed') {
+      monthly[key].closed += 1
+      const resolvDate = toDateSafe(task.resolv_date)
+      if (resolvDate) {
+        const days = Math.max(0, Math.floor((resolvDate - reportDate) / (1000 * 60 * 60 * 24)))
+        monthly[key].resolutionDays.push(days)
+      }
+    } else {
+      monthly[key].open += 1
+    }
+  })
+
+  maintenanceChart = new Chart(ctx, {
+    data: {
+      labels: months.map((m) => m.label),
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Open Tasks',
+          data: months.map((m) => monthly[m.key].open),
+          backgroundColor: 'rgba(245, 158, 11, 0.65)',
+        },
+        {
+          type: 'bar',
+          label: 'Closed Tasks',
+          data: months.map((m) => monthly[m.key].closed),
+          backgroundColor: 'rgba(34, 197, 94, 0.65)',
+        },
+        {
+          type: 'line',
+          label: 'Avg Resolution Days',
+          data: months.map((m) => {
+            const arr = monthly[m.key].resolutionDays
+            if (!arr.length) return 0
+            return arr.reduce((s, d) => s + d, 0) / arr.length
+          }),
+          borderColor: 'rgba(59, 130, 246, 1)',
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          tension: 0.35,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { beginAtZero: true, position: 'left' },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { callback: (v) => `${Number(v).toFixed(0)}d` },
         },
       },
     },
@@ -1133,10 +1114,10 @@ const updateCharts = () => {
   console.log('updateCharts called - recreating all charts')
   import('chart.js/auto')
     .then((Chart) => {
-      createFinancialChart(Chart.default)
-      createTaskChart(Chart.default)
-      createTimelineChart(Chart.default)
-      createTypeChart(Chart.default)
+      createCoreCashFlowChart(Chart.default)
+      createOccupancyChart(Chart.default)
+      createDelinquencyChart(Chart.default)
+      createMaintenanceChart(Chart.default)
     })
     .catch((error) => {
       console.error('Error updating charts:', error)
@@ -1494,7 +1475,7 @@ const exportSummaryReport = () => {
     // Property Summary
     csvContent += '=== PROPERTY SUMMARY ===\n'
     csvContent += `Total Properties,${userDataStore.userAccessibleProperties.length}\n`
-    
+
     // Group transactions by property
     const propertyStats = {}
     userDataStore.userAccessibleProperties.forEach((p) => {
@@ -1625,10 +1606,10 @@ watch(
 
 onUnmounted(() => {
   // Clean up charts
-  if (financialChart) financialChart.destroy()
-  if (taskChart) taskChart.destroy()
-  if (timelineChart) timelineChart.destroy()
-  if (typeChart) typeChart.destroy()
+  if (coreCashFlowChart) coreCashFlowChart.destroy()
+  if (occupancyChart) occupancyChart.destroy()
+  if (delinquencyChart) delinquencyChart.destroy()
+  if (maintenanceChart) maintenanceChart.destroy()
 })
 </script>
 
@@ -1655,55 +1636,36 @@ onUnmounted(() => {
   padding: 16px 0;
 }
 
-.pie-chart-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 280px;
-}
-
-.pie-chart-container canvas {
-  max-width: 100%;
-  max-height: 280px;
-}
-
-/* Charts row layout - always side by side on large screens */
-.charts-row {
-  display: flex;
-  flex-wrap: wrap;
+.core-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.timeline-chart-col {
-  flex: 1 1 100%;
-  min-width: 0;
+.premium-section {
+  border: 1px dashed var(--neutral-300);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--neutral-50);
 }
 
-.pie-chart-col {
-  flex: 1 1 100%;
-  min-width: 0;
+.premium-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.full-height {
-  height: 100%;
+.premium-card {
+  border-radius: 10px;
+  border: 1px solid var(--neutral-200);
+  background: white;
 }
 
-/* Large screens (768px and up) - always keep charts in same row */
-@media (min-width: 768px) {
-  .charts-row {
-    flex-wrap: nowrap;
-  }
-
-  .timeline-chart-col {
-    flex: 2 1 0;
-    min-width: 400px;
-  }
-
-  .pie-chart-col {
-    flex: 1 1 0;
-    min-width: 280px;
-    max-width: 380px;
-  }
+.premium-title {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  color: var(--neutral-800);
 }
 
 .table-card {
@@ -1746,6 +1708,14 @@ onUnmounted(() => {
     min-width: 150px;
   }
 
+  .core-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .premium-grid {
+    grid-template-columns: 1fr;
+  }
+
   .chart-container {
     padding: 8px 0;
   }
@@ -1775,6 +1745,16 @@ onUnmounted(() => {
 
 :global(body.body--dark) .table-card {
   background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .premium-section {
+  background: #1e1e1e !important;
+  border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .premium-card {
+  background: #242424 !important;
   border-color: #3d3d3d !important;
 }
 

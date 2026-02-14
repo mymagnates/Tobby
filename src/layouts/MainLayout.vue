@@ -19,41 +19,6 @@
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
       </q-list>
 
-      <!-- User Profile Section at Bottom -->
-      <div class="drawer-profile-section">
-        <!-- Profile Item -->
-        <q-item clickable @click="goToProfile" class="profile-item">
-          <q-item-section avatar>
-            <q-avatar size="40px" color="primary" text-color="white">
-              <img
-                v-if="userDataStore.user?.photoURL"
-                :src="userDataStore.user.photoURL"
-                alt="User Avatar"
-              />
-              <span v-else>{{ getUserInitials() }}</span>
-            </q-avatar>
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="profile-name">{{ getUserDisplayName() }}</q-item-label>
-            <q-item-label caption class="profile-role">{{
-              userDataStore.userCategory || 'User'
-            }}</q-item-label>
-          </q-item-section>
-          <q-item-section side>
-            <q-icon name="settings" color="grey-6" size="20px" />
-          </q-item-section>
-        </q-item>
-
-        <!-- Sign Out Item -->
-        <q-item clickable @click="handleSignOut" class="signout-item">
-          <q-item-section avatar>
-            <q-icon name="logout" color="grey-7" size="20px" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>{{ t('signOut') }}</q-item-label>
-          </q-item-section>
-        </q-item>
-      </div>
     </q-drawer>
 
     <!-- Top Header -->
@@ -70,12 +35,12 @@
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
           <!-- Refresh -->
-          <q-btn 
-            flat 
-            round 
-            dense 
-            icon="refresh" 
-            @click="refreshAllData" 
+          <q-btn
+            flat
+            round
+            dense
+            icon="refresh"
+            @click="refreshAllData"
             class="header-action-btn refresh-btn"
           >
             <q-tooltip>Refresh data</q-tooltip>
@@ -102,6 +67,28 @@
             class="header-action-btn dark-mode-btn"
           >
             <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            flat
+            round
+            dense
+            icon="manage_accounts"
+            class="header-action-btn profile-btn"
+            @click="goToProfile"
+          >
+            <q-tooltip>User Profile</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            flat
+            round
+            dense
+            icon="logout"
+            class="header-action-btn signout-btn"
+            @click="handleSignOut"
+          >
+            <q-tooltip>{{ t('signOut') }}</q-tooltip>
           </q-btn>
         </div>
       </q-toolbar>
@@ -223,7 +210,20 @@ const allLinksList = computed(() => [
     link: '/reminders',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
-
+  {
+    title: t('documents'),
+    caption: t('viewAllDocuments'),
+    icon: 'folder',
+    link: '/documents',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: t('assets'),
+    caption: t('viewAllAssets'),
+    icon: 'inventory_2',
+    link: '/assets',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
   {
     title: t('leases'),
     caption: t('viewAllLeases'),
@@ -252,13 +252,7 @@ const allLinksList = computed(() => [
     link: '/reports',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
-  {
-    title: t('documents'),
-    caption: t('viewAllDocuments'),
-    icon: 'folder',
-    link: '/documents',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
+
 ])
 
 // Computed property to filter links based on user category
@@ -462,23 +456,6 @@ function goToProfile() {
   router.push('/user-profile')
 }
 
-function getUserInitials() {
-  if (userDataStore.user?.displayName) {
-    const names = userDataStore.user.displayName.split(' ')
-    return names.length > 1
-      ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-      : names[0][0].toUpperCase()
-  }
-  if (userDataStore.user?.email) {
-    return userDataStore.user.email[0].toUpperCase()
-  }
-  return 'U'
-}
-
-function getUserDisplayName() {
-  return userDataStore.user?.displayName || userDataStore.user?.email?.split('@')[0] || 'User'
-}
-
 // Refresh all data
 async function refreshAllData() {
   if (!userDataStore.isAuthenticated) {
@@ -574,51 +551,6 @@ async function refreshAllData() {
   flex: 1;
 }
 
-/* Drawer Profile Section */
-.drawer-profile-section {
-  margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.profile-item {
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-}
-
-.profile-item:hover {
-  background: #f3f4f6;
-}
-
-.profile-name {
-  font-weight: 600;
-  color: #1f2937;
-  font-size: 0.95rem;
-}
-
-.profile-role {
-  color: #6b7280;
-  font-size: 0.8rem;
-}
-
-.signout-item {
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  padding: 12px 16px;
-  color: #6b7280;
-}
-
-.signout-item:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.signout-item:hover .q-icon {
-  color: #dc2626;
-}
-
 /* ========================================
    HEADER STYLING
    ======================================== */
@@ -696,93 +628,80 @@ async function refreshAllData() {
   min-height: 40px !important;
   padding: 0 !important;
   color: #82A6D7 !important;
-  background: #82A6D7 !important;
-  border: none !important;
+  background: transparent !important;
+  border: 1.5px solid #82A6D7 !important;
   border-radius: 2px !important;
   transition: all 0.2s ease;
   margin: 0 4px;
 }
 
-.header-action-btn .q-icon {
-  color: white !important;
+.header-action-btn :deep(.q-icon) {
+  color: currentColor !important;
   font-size: 20px;
   opacity: 1 !important;
 }
 
-.header-action-btn .q-btn__label {
-  color: white !important;
+.header-action-btn :deep(.q-btn__label),
+.header-action-btn :deep(.q-btn__content) {
+  color: currentColor !important;
 }
 
 .header-action-btn:hover {
-  background: transparent !important;
-}
-
-.header-action-btn:hover .q-icon {
-  color: #82A6D7 !important;
-}
-
-.header-action-btn:hover .q-btn__label {
-  color: #82A6D7 !important;
+  background: rgba(130, 166, 215, 0.12) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(93, 139, 196, 0.18);
 }
 
 /* Language switcher: same 40x40, label centered, text only */
 .language-switcher {
   font-weight: 600 !important;
   font-size: 0.875rem !important;
-  background: #82A6D7 !important;
-  color: white !important;
+  background: transparent !important;
+  color: #82A6D7 !important;
 }
 
-.language-switcher .q-btn__content {
+.language-switcher :deep(.q-btn__content) {
   justify-content: center;
 }
 
-.language-switcher .q-btn__label {
-  color: white !important;
-}
-
 .language-switcher:hover {
-  background: transparent !important;
-}
-
-.language-switcher:hover .q-btn__label {
-  color: #82A6D7 !important;
+  background: rgba(130, 166, 215, 0.12) !important;
 }
 
 /* Refresh and Dark Mode buttons: primary background with white icon */
 .refresh-btn,
 .dark-mode-btn {
-  background: #82A6D7 !important;
-  border: none !important;
-  color: white !important;
-}
-
-.refresh-btn .q-icon,
-.dark-mode-btn .q-icon {
-  color: white !important;
-  opacity: 1 !important;
-  display: inline-block !important;
-}
-
-.refresh-btn .q-btn__content,
-.dark-mode-btn .q-btn__content {
-  color: white !important;
+  background: transparent !important;
+  border: 1.5px solid #82A6D7 !important;
+  color: #82A6D7 !important;
 }
 
 .refresh-btn:hover,
 .dark-mode-btn:hover {
+  background: rgba(130, 166, 215, 0.12) !important;
+}
+
+.profile-btn {
+  margin-left: 8px;
   background: transparent !important;
+  border: 1.5px solid #f59e0b !important;
+  color: #f59e0b !important;
 }
 
-.refresh-btn:hover .q-icon,
-.dark-mode-btn:hover .q-icon {
-  color: #82A6D7 !important;
-  opacity: 1 !important;
+.profile-btn:hover {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #d97706 !important;
 }
 
-.refresh-btn:hover .q-btn__content,
-.dark-mode-btn:hover .q-btn__content {
-  color: #82A6D7 !important;
+.signout-btn {
+  background: transparent !important;
+  border: 1.5px solid #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+.signout-btn:hover {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #dc2626 !important;
 }
 
 .action-btn {
@@ -955,36 +874,6 @@ async function refreshAllData() {
   color: var(--primary-color) !important;
 }
 
-:global(body.body--dark) .profile-name {
-  color: white !important;
-}
-
-:global(body.body--dark) .profile-role {
-  color: #b0b0b0 !important;
-}
-
-:global(body.body--dark) .signout-item {
-  color: #b0b0b0;
-}
-
-:global(body.body--dark) .signout-item:hover {
-  background: rgba(220, 38, 38, 0.2);
-  color: #ef5350;
-}
-
-:global(body.body--dark) .drawer-profile-section {
-  border-top-color: #3d3d3d;
-  background: #1a1a1a;
-}
-
-:global(body.body--dark) .profile-item {
-  background: transparent;
-}
-
-:global(body.body--dark) .profile-item:hover {
-  background: #2d2d2d;
-}
-
 :global(body.body--dark) .drawer-logo-icon {
   background: transparent;
 }
@@ -1006,80 +895,59 @@ async function refreshAllData() {
   color: white;
 }
 
-/* Dark mode: all header action buttons - white background with primary icon */
+/* Dark mode: keep action buttons visible with strong contrast */
 :global(body.body--dark) .header-action-btn {
-  color: white !important;
-  background: white !important;
-  border: none !important;
-}
-
-:global(body.body--dark) .header-action-btn .q-icon {
-  color: #82A6D7 !important;
-}
-
-:global(body.body--dark) .header-action-btn .q-btn__label {
-  color: #82A6D7 !important;
+  color: #8fb4e3 !important;
+  background: transparent !important;
+  border: 1.5px solid #8fb4e3 !important;
 }
 
 :global(body.body--dark) .header-action-btn:hover {
-  background: transparent !important;
-}
-
-:global(body.body--dark) .header-action-btn:hover .q-icon {
-  color: white !important;
-}
-
-:global(body.body--dark) .header-action-btn:hover .q-btn__label {
-  color: white !important;
+  background: rgba(143, 180, 227, 0.16) !important;
+  color: #b9d4f3 !important;
 }
 
 :global(body.body--dark) .language-switcher {
-  background: white !important;
-}
-
-:global(body.body--dark) .language-switcher .q-btn__label {
-  color: #82A6D7 !important;
-}
-
-:global(body.body--dark) .language-switcher:hover {
   background: transparent !important;
 }
 
-:global(body.body--dark) .language-switcher:hover .q-btn__label {
-  color: white !important;
+:global(body.body--dark) .language-switcher:hover {
+  background: rgba(143, 180, 227, 0.16) !important;
 }
 
-/* Dark mode: refresh and dark mode buttons - white background with primary icon */
 :global(body.body--dark) .refresh-btn,
 :global(body.body--dark) .dark-mode-btn {
-  background: white !important;
-  border: none !important;
-  color: #82A6D7 !important;
-}
-
-:global(body.body--dark) .refresh-btn .q-icon,
-:global(body.body--dark) .dark-mode-btn .q-icon {
-  color: #82A6D7 !important;
-}
-
-:global(body.body--dark) .refresh-btn .q-btn__content,
-:global(body.body--dark) .dark-mode-btn .q-btn__content {
-  color: #82A6D7 !important;
+  background: transparent !important;
+  border: 1.5px solid #8fb4e3 !important;
+  color: #8fb4e3 !important;
 }
 
 :global(body.body--dark) .refresh-btn:hover,
 :global(body.body--dark) .dark-mode-btn:hover {
+  background: rgba(143, 180, 227, 0.16) !important;
+  color: #b9d4f3 !important;
+}
+
+:global(body.body--dark) .profile-btn {
   background: transparent !important;
+  border: 1.5px solid #fbbf24 !important;
+  color: #fbbf24 !important;
 }
 
-:global(body.body--dark) .refresh-btn:hover .q-icon,
-:global(body.body--dark) .dark-mode-btn:hover .q-icon {
-  color: white !important;
+:global(body.body--dark) .profile-btn:hover {
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #fcd34d !important;
 }
 
-:global(body.body--dark) .refresh-btn:hover .q-btn__content,
-:global(body.body--dark) .dark-mode-btn:hover .q-btn__content {
-  color: white !important;
+:global(body.body--dark) .signout-btn {
+  background: transparent !important;
+  border: 1.5px solid #f87171 !important;
+  color: #f87171 !important;
+}
+
+:global(body.body--dark) .signout-btn:hover {
+  background: rgba(248, 113, 113, 0.16) !important;
+  color: #fca5a5 !important;
 }
 
 :global(body.body--dark) .data-loading-overlay {

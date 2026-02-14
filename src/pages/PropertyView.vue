@@ -69,7 +69,7 @@
                 v-if="selectedProperty"
                 color="primary"
                 icon="folder"
-                label="Manage Documents"
+                label="Add Document"
                 @click="openPhotoManagementDialog"
                 class="action-btn"
                 no-caps
@@ -103,6 +103,14 @@
                 icon="home_work"
                 label="Create Lease"
                 @click="openCreateLeaseDialog"
+                class="action-btn"
+              />
+              <q-btn
+                v-if="selectedProperty"
+                color="primary"
+                icon="inventory_2"
+                label="Create Asset"
+                @click="openAssetRegistry"
                 class="action-btn"
               />
             </div>
@@ -702,6 +710,33 @@
       </q-card>
     </q-dialog>
 
+    <!-- Create Asset Dialog -->
+    <q-dialog v-model="showCreateAssetDialog" persistent>
+      <q-card style="min-width: 700px; max-width: 980px">
+        <q-card-section class="dialog-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6">Add Asset</div>
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              @click="closeCreateAssetDialog"
+              class="dialog-close-btn"
+            />
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <CreateAsset
+            :property-id="selectedProperty?.id"
+            :property-name="selectedProperty?.nickname || selectedProperty?.address"
+            @asset-created="onAssetCreated"
+            @cancel="closeCreateAssetDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Create Property Dialog -->
     <q-dialog v-model="showCreatePropertyDialog" persistent>
       <q-card style="min-width: 600px; max-width: 800px">
@@ -992,6 +1027,7 @@ import CreateMxRecord from '../components/CreateMxRecord.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
 import CreateProperty from '../components/CreateProperty.vue'
+import CreateAsset from '../components/CreateAsset.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1016,6 +1052,7 @@ const showCreatePropertyDialog = ref(false)
 const showCreateMxRecordDialog = ref(false)
 const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
+const showCreateAssetDialog = ref(false)
 
 // Photo management dialogs
 const showPhotoManagementDialog = ref(false)
@@ -1948,6 +1985,23 @@ const closeCreateLeaseDialog = () => {
   }
 }
 
+const openAssetRegistry = () => {
+  try {
+    if (!selectedProperty.value?.id) return
+    showCreateAssetDialog.value = true
+  } catch (error) {
+    console.warn('PropertyView - Error opening asset registry:', error)
+  }
+}
+
+const closeCreateAssetDialog = () => {
+  try {
+    showCreateAssetDialog.value = false
+  } catch (error) {
+    console.warn('PropertyView - Error closing create asset dialog:', error)
+  }
+}
+
 // Event handlers for form completion
 const onPropertyCreated = () => {
   try {
@@ -1982,6 +2036,20 @@ const onLeaseCreated = () => {
     refreshData()
   } catch (error) {
     console.warn('PropertyView - Error in onLeaseCreated:', error)
+  }
+}
+
+const onAssetCreated = () => {
+  try {
+    closeCreateAssetDialog()
+    refreshData()
+    Notify.create({
+      type: 'positive',
+      message: 'Asset created successfully.',
+      position: 'top',
+    })
+  } catch (error) {
+    console.warn('PropertyView - Error in onAssetCreated:', error)
   }
 }
 
@@ -2026,7 +2094,7 @@ const cancelEdit = () => {
 .property-view-container {
   display: grid;
   grid-template-columns: 300px 1fr;
-  gap: 24px;
+  gap: 14px;
   height: calc(100vh - 120px);
 }
 
@@ -2052,7 +2120,19 @@ const cancelEdit = () => {
 
 .action-btn {
   width: 100%;
+  min-height: 42px;
+}
+
+.action-btn :deep(.q-btn__content) {
   justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.action-btn :deep(.q-icon) {
+  width: 20px;
+  min-width: 20px;
+  text-align: center;
 }
 
 .property-list-item {
@@ -2078,7 +2158,7 @@ const cancelEdit = () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto auto auto;
-  gap: 24px;
+  gap: 12px;
   height: fit-content;
 }
 

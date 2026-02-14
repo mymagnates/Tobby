@@ -120,6 +120,32 @@
   --spacing-md: 12px;
   --spacing-lg: 16px;
   --spacing-xl: 24px;
+
+  // Typography
+  --font-title:
+    'Inter',
+    'Segoe UI Variable',
+    'Avenir Next',
+    'SF Pro Display',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  --font-field:
+    'Inter',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  --field-title-size: 0.82rem;
+  --field-title-weight: 700;
+  --field-title-letter-spacing: 0.02em;
+  --field-title-color: var(--neutral-700);
+  --field-content-size: 0.95rem;
+  --field-content-weight: 500;
+  --field-content-color: var(--neutral-900);
 }
 
 // Dark Mode Color Overrides - Modern & Accessible
@@ -187,6 +213,8 @@ body.body--dark {
 
   background-color: var(--bg-primary);
   color: var(--neutral-600); // Better contrast
+  --field-title-color: #9fb0c3;
+  --field-content-color: #e5edf7;
 }
 
 // Global Typography - Modern, Readable Font Stack
@@ -211,13 +239,48 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-// Heading Font - Pacifico for titles
+// Heading Font - modern, sleek, and readable title stack
 h1, h2, h3, h4, h5, h6,
 .text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
-  font-family: 'Pacifico', cursive;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  font-family: var(--font-title);
+  font-weight: 650;
+  letter-spacing: -0.01em;
   line-height: 1.3;
+}
+
+// Common title-like elements used across pages/components
+.q-toolbar__title,
+.section-title,
+.dialog-title,
+.nav-title,
+.property-title,
+.property-card__title,
+.record-title,
+.transaction-title,
+.description-title,
+.app-title,
+.success-title {
+  font-family: var(--font-title);
+  letter-spacing: -0.01em;
+}
+
+// Field typography hierarchy across pages/forms
+.detail-label,
+.field-label {
+  font-family: var(--font-field) !important;
+  font-size: var(--field-title-size) !important;
+  font-weight: var(--field-title-weight) !important;
+  letter-spacing: var(--field-title-letter-spacing) !important;
+  color: var(--field-title-color) !important;
+}
+
+.detail-value,
+.field-value {
+  font-family: var(--font-field) !important;
+  font-size: var(--field-content-size) !important;
+  font-weight: var(--field-content-weight) !important;
+  letter-spacing: 0 !important;
+  color: var(--field-content-color) !important;
 }
 
 // Dashboard-style cards (reference: clean, rounded, subtle shadow)
@@ -826,9 +889,11 @@ h1, h2, h3, h4, h5, h6,
   }
 
   .q-field__label {
-    color: var(--neutral-600);
-    font-weight: 500;
-    font-size: 0.875rem;
+    color: var(--field-title-color);
+    font-family: var(--font-field);
+    font-weight: var(--field-title-weight);
+    font-size: var(--field-title-size);
+    letter-spacing: var(--field-title-letter-spacing);
     transition: color 0.2s ease;
   }
 
@@ -838,10 +903,10 @@ h1, h2, h3, h4, h5, h6,
 
   .q-field__native,
   .q-field__input {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--neutral-800);
+    font-family: var(--font-field);
+    font-size: var(--field-content-size);
+    font-weight: var(--field-content-weight);
+    color: var(--field-content-color);
     letter-spacing: 0;
     line-height: 1.5;
     -webkit-appearance: none;
@@ -884,6 +949,19 @@ h1, h2, h3, h4, h5, h6,
     border: none !important;
     border-bottom: 2px solid var(--primary-color) !important;
   }
+
+  // Display selected value in title case for consistency across the app.
+  .q-field__native,
+  .q-field__input,
+  .q-chip__content {
+    text-transform: capitalize;
+  }
+}
+
+// Capitalize dropdown option labels rendered by q-select menus/dialogs.
+.q-select__dropdown-content .q-item__label,
+.q-dialog .q-select__dialog .q-item__label {
+  text-transform: capitalize;
 }
 
 // File Input - same underline style
@@ -987,6 +1065,138 @@ h1, h2, h3, h4, h5, h6,
     background: var(--info-color) !important;
     color: white !important;
   }
+}
+
+// Status chip design system (soft pills with high readability)
+.q-chip.status-chip,
+.q-chip[class*='status-chip'],
+.q-chip[class*='bg-green'],
+.q-chip[class*='bg-blue'],
+.q-chip[class*='bg-orange'],
+.q-chip[class*='bg-red'],
+.q-chip[class*='bg-purple'],
+.q-chip[class*='bg-grey'],
+.q-chip[class*='bg-deep-purple'],
+.q-chip[class*='bg-indigo'],
+.q-chip.bg-positive,
+.q-chip.bg-negative,
+.q-chip.bg-warning,
+.q-chip.bg-info {
+  border-radius: 999px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  padding: 0 10px;
+  font-family: var(--font-field);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.q-chip.status-chip .q-chip__content,
+.q-chip[class*='status-chip'] .q-chip__content,
+.q-chip[class*='bg-green'] .q-chip__content,
+.q-chip[class*='bg-blue'] .q-chip__content,
+.q-chip[class*='bg-orange'] .q-chip__content,
+.q-chip[class*='bg-red'] .q-chip__content,
+.q-chip[class*='bg-purple'] .q-chip__content,
+.q-chip[class*='bg-grey'] .q-chip__content,
+.q-chip[class*='bg-deep-purple'] .q-chip__content,
+.q-chip[class*='bg-indigo'] .q-chip__content,
+.q-chip.bg-positive .q-chip__content,
+.q-chip.bg-negative .q-chip__content,
+.q-chip.bg-warning .q-chip__content,
+.q-chip.bg-info .q-chip__content {
+  line-height: 26px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.q-chip.status-chip:hover,
+.q-chip[class*='status-chip']:hover,
+.q-chip[class*='bg-green']:hover,
+.q-chip[class*='bg-blue']:hover,
+.q-chip[class*='bg-orange']:hover,
+.q-chip[class*='bg-red']:hover,
+.q-chip[class*='bg-purple']:hover,
+.q-chip[class*='bg-grey']:hover,
+.q-chip[class*='bg-deep-purple']:hover,
+.q-chip[class*='bg-indigo']:hover,
+.q-chip.bg-positive:hover,
+.q-chip.bg-negative:hover,
+.q-chip.bg-warning:hover,
+.q-chip.bg-info:hover {
+  transform: none !important;
+}
+
+/* Success */
+.q-chip.status-chip.bg-green,
+.q-chip[class*='status-chip'][class*='bg-green'],
+.q-chip[class*='bg-green'],
+.q-chip.bg-positive,
+.q-chip.status-chip.bg-positive,
+.q-chip[class*='status-chip'].bg-positive {
+  background: #ecfdf3 !important;
+  color: #166534 !important;
+  border-color: #bbf7d0 !important;
+}
+
+/* Info */
+.q-chip.status-chip.bg-blue,
+.q-chip[class*='status-chip'][class*='bg-blue'],
+.q-chip[class*='bg-blue'],
+.q-chip.bg-info,
+.q-chip.status-chip.bg-info,
+.q-chip[class*='status-chip'].bg-info {
+  background: #eff6ff !important;
+  color: #1e40af !important;
+  border-color: #bfdbfe !important;
+}
+
+/* Warning */
+.q-chip.status-chip.bg-orange,
+.q-chip[class*='status-chip'][class*='bg-orange'],
+.q-chip[class*='bg-orange'],
+.q-chip.bg-warning,
+.q-chip.status-chip.bg-warning,
+.q-chip[class*='status-chip'].bg-warning {
+  background: #fffbeb !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+
+/* Danger */
+.q-chip.status-chip.bg-red,
+.q-chip[class*='status-chip'][class*='bg-red'],
+.q-chip[class*='bg-red'],
+.q-chip.bg-negative,
+.q-chip.status-chip.bg-negative,
+.q-chip[class*='status-chip'].bg-negative {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
+}
+
+/* Neutral */
+.q-chip.status-chip.bg-grey,
+.q-chip[class*='status-chip'][class*='bg-grey'],
+.q-chip[class*='bg-grey'] {
+  background: #f8fafc !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Special / terminated */
+.q-chip.status-chip.bg-purple,
+.q-chip[class*='status-chip'][class*='bg-purple'],
+.q-chip[class*='bg-purple'],
+.q-chip[class*='bg-deep-purple'],
+.q-chip[class*='bg-indigo'] {
+  background: #f5f3ff !important;
+  color: #5b21b6 !important;
+  border-color: #ddd6fe !important;
 }
 
 // Professional Badge Styles
@@ -2752,7 +2962,9 @@ h1, h2, h3, h4, h5, h6,
 // Standardized Field Labels inside forms
 .q-dialog .q-field {
   .q-field__label {
-    font-weight: 500;
+    font-weight: var(--field-title-weight);
+    font-size: var(--field-title-size);
+    letter-spacing: var(--field-title-letter-spacing);
   }
 }
 
@@ -2846,10 +3058,10 @@ body.body--dark {
   .q-field.q-field--focused .q-field__control {
     border-bottom-color: var(--primary-color) !important;
   }
-  .q-field__native, .q-field__input { color: #e0e0e0 !important; }
+  .q-field__native, .q-field__input { color: var(--field-content-color) !important; }
   .q-field__native::placeholder,
   .q-field__input::placeholder { color: #94a3b8 !important; }
-  .q-field__label { color: #a0a0a0 !important; }
+  .q-field__label { color: var(--field-title-color) !important; }
 
   // Tables
   .q-table { background: #242424 !important; }
@@ -2904,8 +3116,11 @@ body.body--dark {
     color: var(--error-color) !important;
   }
 
-  // Chips
-  .q-chip { background: #383838 !important; color: #e0e0e0 !important; }
+  // Chips (keep status-chip semantic colors from global system)
+  .q-chip:not(.status-chip):not([class*='status-chip']):not(.bg-green):not(.bg-blue):not(.bg-orange):not(.bg-red):not(.bg-purple):not(.bg-grey):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info) {
+    background: #383838 !important;
+    color: #e0e0e0 !important;
+  }
 
   // Banner
   .q-banner { background: #242424 !important; color: #e0e0e0 !important; }

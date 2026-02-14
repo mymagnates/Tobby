@@ -60,11 +60,15 @@
       <div class="col-12 col-md-3">
         <q-select
           v-model="selectedCategory"
-          :options="categoryOptions"
+          :options="categorySelectOptions"
+          option-label="label"
+          option-value="value"
           label="Filter by Category"
           clearable
           outlined
           dense
+          emit-value
+          map-options
         />
       </div>
       <div class="col-12 col-md-3">
@@ -250,10 +254,14 @@
               <div class="form-field">
                 <q-select
                   v-model="reminderForm.category"
-                  :options="categoryOptions"
+                  :options="categorySelectOptions"
+                  option-label="label"
+                  option-value="value"
                   label="Category *"
                   outlined
                   dense
+                  emit-value
+                  map-options
                   :rules="[(val) => !!val || 'Category is required']"
                 />
               </div>
@@ -274,10 +282,14 @@
               <div class="form-field">
                 <q-select
                   v-model="reminderForm.repeat_by"
-                  :options="repeatOptions"
+                  :options="repeatSelectOptions"
+                  option-label="label"
+                  option-value="value"
                   label="Repeat By"
                   outlined
                   dense
+                  emit-value
+                  map-options
                   clearable
                 />
               </div>
@@ -317,12 +329,6 @@
             <!-- Action Buttons -->
             <div class="form-actions">
               <q-btn flat label="Cancel" color="primary" v-close-popup />
-              <q-btn
-                flat
-                :label="showDebugInfo ? 'Hide Debug' : 'Show Debug'"
-                color="grey"
-                @click="showDebugInfo = !showDebugInfo"
-              />
               <q-btn
                 type="submit"
                 :label="editingReminder ? 'Update' : 'Create'"
@@ -481,7 +487,6 @@ const saving = ref(false)
 const reminders = ref([])
 const showCreateDialog = ref(false)
 const editingReminder = ref(null)
-const showDebugInfo = ref(false)
 
 // Renewal history dialog
 const showRenewalHistoryDialog = ref(false)
@@ -505,8 +510,21 @@ const reminderForm = ref({
 })
 
 // Options
-const categoryOptions = ['fee', 'rent', 'maintenance', 'labor', 'tax', 'other']
-const repeatOptions = ['daily', 'weekly', 'monthly', 'yearly', 'one-time']
+const categorySelectOptions = [
+  { label: 'Fee', value: 'fee' },
+  { label: 'Rent', value: 'rent' },
+  { label: 'Maintenance', value: 'maintenance' },
+  { label: 'Labor', value: 'labor' },
+  { label: 'Tax', value: 'tax' },
+  { label: 'Other', value: 'other' },
+]
+const repeatSelectOptions = [
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Yearly', value: 'yearly' },
+  { label: 'One-time', value: 'one-time' },
+]
 const statusOptions = [
   { label: 'Active', value: true },
   { label: 'Inactive', value: false },
@@ -1353,62 +1371,6 @@ onMounted(() => {
     padding-left: 16px;
     padding-right: 16px;
   }
-}
-
-/* Debug section styles */
-.debug-section {
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
-}
-
-.debug-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.debug-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.debug-item strong {
-  color: #1976d2;
-  font-size: 0.9rem;
-}
-
-.debug-json {
-  background-color: #2d3748;
-  color: #e2e8f0;
-  padding: 12px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-family: 'Courier New', monospace;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.debug-properties {
-  max-height: 120px;
-  overflow-y: auto;
-  background-color: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.debug-prop {
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.debug-prop:last-child {
-  border-bottom: none;
 }
 
 /* Reminder Actions Layout */

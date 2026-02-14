@@ -45,33 +45,6 @@
       </q-card-section>
     </q-card>
 
-    <!-- Debug Information -->
-    <q-card class="q-mb-md">
-      <q-card-section class="bg-warning text-white">
-        <div class="text-h6">Debug Information</div>
-      </q-card-section>
-      <q-card-section>
-        <div class="row q-gutter-md">
-          <div class="col-12 col-md-3">
-            <strong>Users:</strong> {{ users.length }} (Loading: {{ usersLoading }})
-          </div>
-          <div class="col-12 col-md-3">
-            <strong>Properties:</strong> {{ properties.length }} (Loading: {{ propertiesLoading }})
-          </div>
-          <div class="col-12 col-md-3">
-            <strong>Tasks:</strong> {{ mxrecords.length }} (Loading: {{ mxrecordsLoading }})
-          </div>
-          <div class="col-12 col-md-3">
-            <strong>Transactions:</strong> {{ transactions.length }} (Loading:
-            {{ transactionsLoading }})
-          </div>
-        </div>
-        <div class="q-mt-md">
-          <strong>Firebase Project:</strong> {{ db?.app?.options?.projectId || 'Not loaded' }}
-        </div>
-      </q-card-section>
-    </q-card>
-
     <!-- Users Collection -->
     <q-card class="q-mb-md">
       <q-card-section class="bg-deep-purple text-white">
