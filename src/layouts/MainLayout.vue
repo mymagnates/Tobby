@@ -201,6 +201,41 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Global Assistant Widget (bottom-right, available on all pages) -->
+    <div class="global-assistant-widget">
+      <q-btn
+        v-if="!showAssistantPanel"
+        round
+        color="primary"
+        icon="chat"
+        size="md"
+        class="assistant-fab"
+        @click="showAssistantPanel = true"
+      >
+        <q-tooltip>Assistant</q-tooltip>
+      </q-btn>
+
+      <transition name="assistant-slide">
+        <q-card v-if="showAssistantPanel" class="assistant-panel">
+          <q-card-section class="assistant-panel-header">
+            <div class="assistant-panel-title">
+              <q-icon name="smart_toy" size="20px" class="q-mr-sm" />
+              Assistant
+            </div>
+            <q-btn flat round dense icon="close" size="sm" @click="showAssistantPanel = false" />
+          </q-card-section>
+          <q-separator />
+          <q-card-section class="assistant-panel-body">
+            <div class="assistant-placeholder">
+              <q-icon name="construction" size="48px" color="grey-4" />
+              <div class="assistant-placeholder-text">Coming soon</div>
+              <div class="assistant-placeholder-sub">This space is reserved for the assistant feature.</div>
+            </div>
+          </q-card-section>
+        </q-card>
+      </transition>
+    </div>
   </q-layout>
 </template>
 
@@ -250,6 +285,7 @@ const { logout } = useFirebase()
 const isPmPo = computed(() => userDataStore.userCategory === 'PM/PO')
 const showGlobalCreateDialog = ref(false)
 const showGlobalContactsDialog = ref(false)
+const showAssistantPanel = ref(false)
 
 const globalCreateOptions = [
   { label: 'Create Property', icon: 'home_work', path: '/create-property' },
@@ -1278,5 +1314,94 @@ function openGlobalCreateOption(path) {
 
 :global(body.body--dark) .header-logo {
   background: transparent;
+}
+
+/* Global Assistant Widget — aligned with right rail (280px) */
+.global-assistant-widget {
+  position: fixed;
+  bottom: 10px;
+  right: 30px;
+  z-index: 6000;
+}
+
+.assistant-fab {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.assistant-panel {
+  width: 260px;
+  height: calc(100vh - 260px);
+  max-height: 560px;
+  min-height: 300px;
+  border-radius: var(--border-radius-card, 10px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--neutral-200, #e5e7eb);
+  background: var(--bg-surface, #fff);
+  overflow: hidden;
+}
+
+.assistant-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px !important;
+}
+
+.assistant-panel-title {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--neutral-800);
+}
+
+.assistant-panel-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px !important;
+}
+
+.assistant-placeholder {
+  text-align: center;
+}
+
+.assistant-placeholder-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--neutral-600);
+  margin-top: 12px;
+}
+
+.assistant-placeholder-sub {
+  font-size: 0.76rem;
+  color: var(--neutral-400);
+  margin-top: 4px;
+}
+
+.assistant-slide-enter-active,
+.assistant-slide-leave-active {
+  transition: all 0.25s ease;
+}
+
+.assistant-slide-enter-from,
+.assistant-slide-leave-to {
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+}
+
+@media (max-width: 768px) {
+  .global-assistant-widget {
+    right: 22px;
+    bottom: 12px;
+  }
+
+  .assistant-panel {
+    width: calc(100vw - 44px);
+    height: 55vh;
+  }
 }
 </style>
