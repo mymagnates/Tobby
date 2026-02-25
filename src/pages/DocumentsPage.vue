@@ -1,15 +1,5 @@
 <template>
   <q-page class="documents-page q-pa-md">
-    <!-- Page header -->
-    <div class="page-header row items-center justify-between q-mb-lg">
-      <div>
-        <h1 class="text-h4 text-weight-bold q-ma-none">Document Management</h1>
-        <p class="text-body2 text-grey-7 q-mt-xs q-mb-none">
-          Centralized view of all documents. Search and open the source record in a dialog.
-        </p>
-      </div>
-    </div>
-
     <!-- Search and filters -->
     <q-card flat bordered class="search-card q-mb-md">
       <q-card-section class="q-pa-md">
@@ -64,6 +54,15 @@
               icon="search"
               flat
               @click="applySearch"
+            />
+          </div>
+          <div class="col-12 col-sm-6 col-md-3 flex items-center justify-end">
+            <q-btn
+              color="primary"
+              unelevated
+              icon="add"
+              label="Create New Document"
+              @click="openCreateDialog"
             />
           </div>
         </div>
@@ -302,16 +301,90 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showCreateDialog">
+      <q-card style="min-width: 420px; max-width: 640px; width: 100%">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Create New Document</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-gutter-sm">
+          <q-select
+            v-model="createForm.source_type"
+            :options="sourceFilterOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            outlined
+            dense
+            label="Source Type"
+          />
+
+          <q-select
+            v-model="createForm.source_id"
+            :options="createTargetOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            outlined
+            dense
+            label="Source"
+          />
+
+          <q-input
+            v-model="createForm.name"
+            outlined
+            dense
+            label="Document Name (optional)"
+          />
+
+          <q-input
+            v-model="createForm.description"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="Description (optional)"
+          />
+
+          <q-file
+            v-model="createForm.file"
+            outlined
+            dense
+            clearable
+            label="Upload File"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            color="primary"
+            unelevated
+            label="Create"
+            :loading="creatingDocument"
+            @click="createNewDocument"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 
 const userDataStore = useUserDataStore()
-const { getAllDocuments } = useFirebase()
+const $q = useQuasar()
+const { getAllDocuments, createDocument, uploadFile } = useFirebase()
 
 const loading = ref(false)
 const allDocuments = ref([])
@@ -320,6 +393,15 @@ const sourceFilter = ref(null)
 const showViewDocument = ref(false)
 const showViewSourceRecord = ref(false)
 const selectedDocument = ref(null)
+const showCreateDialog = ref(false)
+const creatingDocument = ref(false)
+const createForm = ref({
+  source_type: 'property',
+  source_id: '',
+  name: '',
+  description: '',
+  file: null,
+})
 
 const pagination = ref({
   page: 1,
@@ -427,6 +509,32 @@ const sourceRecordSummary = computed(() => {
   return { label: doc.source_label }
 })
 
+const createTargetOptions = computed(() => {
+  if (createForm.value.source_type === 'lease') {
+    const leases = userDataStore.userAccessibleLeases || []
+    return leases.map((lease) => {
+      const propId = lease.property?.id || lease.property_id?.id || lease.property_id
+      return {
+        label: `Lease ${lease.lease_id || lease.id} (${userDataStore.getPropertyName(propId)})`,
+        value: lease.id,
+      }
+    })
+  }
+
+  const properties = userDataStore.userAccessibleProperties || []
+  return properties.map((prop) => ({
+    label: prop.nickname || prop.address || prop.id,
+    value: prop.id,
+  }))
+})
+
+watch(
+  () => createForm.value.source_type,
+  () => {
+    createForm.value.source_id = ''
+  },
+)
+
 async function loadAllDocuments() {
   loading.value = true
   const flat = []
@@ -500,6 +608,91 @@ function openViewDocument(doc) {
 function openViewSourceRecord(doc) {
   selectedDocument.value = doc
   showViewSourceRecord.value = true
+}
+
+function openCreateDialog() {
+  createForm.value = {
+    source_type: 'property',
+    source_id: '',
+    name: '',
+    description: '',
+    file: null,
+  }
+  showCreateDialog.value = true
+}
+
+const getFileExtension = (fileName = '') => {
+  const ext = fileName.split('.').pop()
+  return ext ? ext.toLowerCase() : ''
+}
+
+const getLeasePropertyId = (leaseId) => {
+  const lease = (userDataStore.userAccessibleLeases || []).find((item) => item.id === leaseId)
+  if (!lease) return null
+  return lease.property?.id || lease.property_id?.id || lease.property_id || null
+}
+
+async function createNewDocument() {
+  if (!createForm.value.source_id) {
+    $q.notify({ type: 'warning', message: 'Please select source.', position: 'top' })
+    return
+  }
+  if (!createForm.value.file) {
+    $q.notify({ type: 'warning', message: 'Please upload a file.', position: 'top' })
+    return
+  }
+
+  creatingDocument.value = true
+  try {
+    const now = new Date().toISOString()
+    const file = createForm.value.file
+    const extension = getFileExtension(file.name)
+    const safeName = (file.name || 'document').replace(/[^a-zA-Z0-9._-]/g, '_')
+
+    if (createForm.value.source_type === 'lease') {
+      const leaseId = createForm.value.source_id
+      const propertyId = getLeasePropertyId(leaseId)
+      if (!propertyId) {
+        throw new Error('Selected lease is invalid.')
+      }
+
+      const storagePath = `properties/${propertyId}/leases/${leaseId}/lease_docs/${Date.now()}_${safeName}`
+      const fileUrl = await uploadFile(storagePath, file)
+      await createDocument(`properties/${propertyId}/leases/${leaseId}/lease_docs`, {
+        name: createForm.value.name || file.name,
+        description: createForm.value.description || null,
+        file_url: fileUrl,
+        original_filename: file.name,
+        file_type: extension,
+        file_size: file.size,
+        upload_date: now,
+        created_datetime: now,
+      })
+    } else {
+      const propertyId = createForm.value.source_id
+      const storagePath = `properties/${propertyId}/property_photos/${Date.now()}_${safeName}`
+      const fileUrl = await uploadFile(storagePath, file)
+      await createDocument(`properties/${propertyId}/property_photos`, {
+        description: createForm.value.description || createForm.value.name || file.name,
+        image_url: fileUrl,
+        original_filename: file.name,
+        upload_date: now,
+        created_datetime: now,
+      })
+    }
+
+    $q.notify({ type: 'positive', message: 'Document created successfully.', position: 'top' })
+    showCreateDialog.value = false
+    await loadAllDocuments()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error?.message || 'Failed to create document.',
+      position: 'top',
+    })
+  } finally {
+    creatingDocument.value = false
+  }
 }
 
 onMounted(() => {

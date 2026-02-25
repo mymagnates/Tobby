@@ -1,46 +1,29 @@
 <template>
-  <q-page class="dashboard-page">
+  <q-page class="pm-po-feed-page q-pa-sm">
     <!-- Loading State -->
     <div v-if="!dataLoaded" class="data-loading-page">
       <div class="loading-content">
         <q-spinner size="4em" color="primary" />
         <div class="text-h4 q-mt-md">Loading Dashboard</div>
         <div class="text-h6 q-mt-sm text-grey-6">Please wait while we load your data...</div>
-
-        <!-- Loading Steps -->
         <div class="loading-steps q-mt-lg">
-          <div
-            class="loading-step"
-            :class="{ active: loadingStep >= 1, completed: loadingStep > 1 }"
-          >
+          <div class="loading-step" :class="{ active: loadingStep >= 1, completed: loadingStep > 1 }">
             <q-icon name="person" size="20px" />
             <span>Loading User Profile</span>
           </div>
-          <div
-            class="loading-step"
-            :class="{ active: loadingStep >= 2, completed: loadingStep > 2 }"
-          >
+          <div class="loading-step" :class="{ active: loadingStep >= 2, completed: loadingStep > 2 }">
             <q-icon name="home" size="20px" />
             <span>Loading Properties</span>
           </div>
-          <div
-            class="loading-step"
-            :class="{ active: loadingStep >= 3, completed: loadingStep > 3 }"
-          >
+          <div class="loading-step" :class="{ active: loadingStep >= 3, completed: loadingStep > 3 }">
             <q-icon name="receipt" size="20px" />
             <span>Loading Transactions</span>
           </div>
-          <div
-            class="loading-step"
-            :class="{ active: loadingStep >= 4, completed: loadingStep > 4 }"
-          >
+          <div class="loading-step" :class="{ active: loadingStep >= 4, completed: loadingStep > 4 }">
             <q-icon name="build" size="20px" />
             <span>Loading Tasks</span>
           </div>
-          <div
-            class="loading-step"
-            :class="{ active: loadingStep >= 5, completed: loadingStep > 5 }"
-          >
+          <div class="loading-step" :class="{ active: loadingStep >= 5, completed: loadingStep > 5 }">
             <q-icon name="assignment" size="20px" />
             <span>Loading Leases</span>
           </div>
@@ -48,397 +31,157 @@
       </div>
     </div>
 
-    <!-- Main Dashboard Content -->
-    <div v-else class="dashboard-content">
-      <!-- Page Header -->
-      <div class="page-header">
-        <div class="header-content">
-          <div class="header-title">
-            <h1 class="text-h4 text-weight-bold"></h1>
-            <p class="text-subtitle1 text-grey-6"></p>
-          </div>
-          <div class="header-actions">
-            <div class="row q-gutter-sm items-center">
-              <div class="col-auto">
-                <q-btn
-                  label="Create Property"
-                  color="primary"
-                  outline
-                  @click="showCreatePropertyDialog = true"
-                  icon="home_work"
-                  class="quick-action-btn"
-                />
+    <!-- PM/PO Feed Layout: 3-column (Reminders | Main Feed | Rail) -->
+    <div v-else class="feed-shell">
+      <aside class="feed-reminders">
+        <q-card class="rail-card">
+          <q-card-section class="q-pa-sm">
+            <div class="rail-title q-mb-sm">Reminders</div>
+            <q-btn flat dense color="primary" label="View All" class="q-mb-sm" @click="$router.push('/reminders')" />
+            <q-card v-if="!filteredReminderItems.length" flat bordered class="reminder-card feed-empty-card q-mb-sm">
+              <q-card-section class="q-pa-sm">
+                <div class="reminder-title q-mb-xs">No Reminders Yet</div>
+                <div class="reminder-brief">Reminder cards will appear here when due, updated, or created.</div>
+              </q-card-section>
+            </q-card>
+            <div v-else class="reminder-list">
+              <q-card
+                v-for="item in filteredReminderItems"
+                :key="item.id"
+                flat
+                bordered
+                class="reminder-card q-mb-sm"
+              >
+                <q-card-section class="q-pa-sm">
+                  <div class="reminder-title">{{ item.title }}</div>
+                  <div class="reminder-meta q-mb-xs">{{ item.meta }}</div>
+                  <div class="reminder-brief q-mb-sm">{{ item.brief }}</div>
+                  <q-btn flat no-caps color="primary" label="Open" @click="openReminderDetail(item)" />
+                </q-card-section>
+              </q-card>
+            </div>
+          </q-card-section>
+        </q-card>
+      </aside>
+
+      <div class="feed-main">
+        <!-- Stats row -->
+        <div class="feed-stats-row q-mb-md">
+          <q-card class="stat-card-mini income-card">
+            <q-card-section class="q-pa-sm">
+              <q-icon name="arrow_circle_up" size="20px" color="positive" />
+              <div class="stat-mini-value">${{ formatCurrency(monthlyIncome) }}</div>
+              <div class="stat-mini-label">Monthly Income</div>
+            </q-card-section>
+          </q-card>
+          <q-card class="stat-card-mini expense-card">
+            <q-card-section class="q-pa-sm">
+              <q-icon name="arrow_circle_down" size="20px" color="negative" />
+              <div class="stat-mini-value">${{ formatCurrency(monthlyExpense) }}</div>
+              <div class="stat-mini-label">Monthly Expense</div>
+            </q-card-section>
+          </q-card>
+          <q-card class="stat-card-mini tasks-card">
+            <q-card-section class="q-pa-sm">
+              <q-icon name="assignment" size="20px" color="warning" />
+              <div class="stat-mini-value">{{ openTasks }}</div>
+              <div class="stat-mini-label">Open Tasks</div>
+            </q-card-section>
+          </q-card>
+          <q-card class="stat-card-mini leases-card">
+            <q-card-section class="q-pa-sm">
+              <q-icon name="home_work" size="20px" color="info" />
+              <div class="stat-mini-value">{{ activeLeases }}</div>
+              <div class="stat-mini-label">Active Leases</div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="feed-list feed-grid">
+          <q-card v-if="isMainFeedEmpty" class="feed-post feed-empty-card q-mb-sm">
+            <q-card-section class="q-pa-md">
+              <div class="post-title q-mb-xs">No Events Yet</div>
+              <div class="post-body">
+                This area shows timeline updates from tasks, leases, transactions, and reminders.
+                Create or update records to populate this feed stream.
               </div>
-              <div class="col-auto">
-                <q-btn
-                  label="Create Lease"
-                  color="primary"
-                  outline
-                  @click="showCreateLeaseDialog = true"
-                  icon="assignment"
-                  class="quick-action-btn"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  label="Create Transaction"
-                  color="primary"
-                  outline
-                  @click="showCreateTransactionDialog = true"
-                  icon="receipt"
-                  class="quick-action-btn"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  label="Create Task"
-                  color="primary"
-                  outline
-                  @click="showCreateTaskDialog = true"
-                  icon="dns"
-                  class="quick-action-btn"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  label="Add Document"
-                  color="primary"
-                  outline
-                  @click="openDocumentsPage"
-                  icon="description"
-                  class="quick-action-btn"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  label="Add Asset"
-                  color="primary"
-                  outline
-                  @click="openAssetsPage"
-                  icon="inventory_2"
-                  class="quick-action-btn"
-                />
-              </div>
+            </q-card-section>
+          </q-card>
+
+          <div v-for="section in groupedFeedSections" :key="section.type" class="feed-type-section">
+            <div class="feed-type-title">{{ section.label }}</div>
+            <div class="feed-type-grid">
+              <q-card
+                v-for="post in section.items"
+                :key="post.eventId || post.id"
+                class="feed-post feed-post-clickable feed-mini-card"
+                clickable
+                @click="openDetail(post)"
+              >
+                <q-card-section class="feed-post-section">
+                  <div class="row items-center q-gutter-sm q-mb-xs">
+                    <q-avatar size="28px" :color="post.avatarColor" text-color="white">
+                      <q-icon :name="post.avatarIcon" size="14px" />
+                    </q-avatar>
+                    <div class="col">
+                      <div class="post-title">{{ post.title }}</div>
+                      <div class="post-meta">{{ post.meta }}</div>
+                      <div class="post-time">{{ formatEventTime(post) }}</div>
+                    </div>
+                  </div>
+                  <div class="post-body">{{ post.brief }}</div>
+                  <div class="post-open-hint">Tap card to open detail</div>
+                </q-card-section>
+              </q-card>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Quick Stats Cards -->
-      <div class="stats-section">
-        <div class="row q-col-gutter-sm">
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card class="stat-card income-card">
-              <q-card-section class="stat-card__content">
-                <div class="stat-card__icon">
-                  <q-icon name="arrow_circle_up" size="24px" color="positive" />
-                </div>
-                <div class="stat-card__info">
-                  <div class="stat-card__value">${{ formatCurrency(monthlyIncome) }}</div>
-                  <div class="stat-card__label">Monthly Income</div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
+      <aside class="feed-rail">
+        <q-card class="rail-card q-mb-sm">
+          <q-card-section class="q-pa-sm">
+            <div class="rail-title q-mb-sm">Quick Actions</div>
+            <q-btn outline color="primary" label="Create Task" class="full-width q-mb-xs" @click="showCreateTaskDialog = true" />
+            <q-btn outline color="primary" label="Create Transaction" class="full-width q-mb-xs" @click="showCreateTransactionDialog = true" />
+            <q-btn outline color="primary" label="Create Lease" class="full-width q-mb-xs" @click="showCreateLeaseDialog = true" />
+            <q-btn outline color="primary" label="Create Property" class="full-width" @click="showCreatePropertyDialog = true" />
+          </q-card-section>
+        </q-card>
+        <q-card class="rail-card">
+          <q-card-section class="q-pa-sm">
+            <div class="rail-title q-mb-sm">Contacts</div>
+            <q-btn outline color="primary" label="Open Contacts" class="full-width" @click="showContactsDialog = true" />
+          </q-card-section>
+        </q-card>
+      </aside>
+    </div>
 
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card class="stat-card expense-card">
-              <q-card-section class="stat-card__content">
-                <div class="stat-card__icon">
-                  <q-icon name="arrow_circle_down" size="24px" color="negative" />
-                </div>
-                <div class="stat-card__info">
-                  <div class="stat-card__value">${{ formatCurrency(monthlyExpense) }}</div>
-                  <div class="stat-card__label">Monthly Expense</div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
+    <!-- Contacts Dialog -->
+    <q-dialog v-model="showContactsDialog">
+      <q-card style="min-width: 420px">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Contacts</div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <q-list separator>
+            <q-item v-for="contact in contacts" :key="contact.id" clickable>
+              <q-item-section avatar>
+                <q-avatar color="blue-1" text-color="primary">{{ contact.initials }}</q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ contact.name }}</q-item-label>
+                <q-item-label caption>{{ contact.role }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card class="stat-card tasks-card">
-              <q-card-section class="stat-card__content">
-                <div class="stat-card__icon">
-                  <q-icon name="assignment" size="24px" color="warning" />
-                </div>
-                <div class="stat-card__info">
-                  <div class="stat-card__value">{{ openTasks }}</div>
-                  <div class="stat-card__label">Open Tasks</div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card class="stat-card leases-card">
-              <q-card-section class="stat-card__content">
-                <div class="stat-card__icon">
-                  <q-icon name="home_work" size="24px" color="info" />
-                </div>
-                <div class="stat-card__info">
-                  <div class="stat-card__value">{{ activeLeases }}</div>
-                  <div class="stat-card__label">Active Leases</div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reminders Section (moved to top) -->
-      <div class="reminders-section">
-        <div class="row q-col-gutter-sm">
-          <div class="col-12">
-            <q-card class="reminders-card">
-              <q-card-section>
-                <div class="section-header-inline">
-                  <div class="text-h6">
-                    <q-icon name="notifications" class="q-mr-sm" />
-                    Reminders
-                  </div>
-                  <q-btn
-                    v-if="reminders.length > 0"
-                    flat
-                    dense
-                    color="primary"
-                    label="View All"
-                    @click="$router.push('/reminders')"
-                  />
-                </div>
-
-                <!-- Reminders Carousel -->
-                <div
-                  v-if="reminders.length > 0"
-                  ref="remindersCarouselRef"
-                  class="reminders-carousel"
-                  @mouseenter="stopReminderAutoRotate"
-                  @mouseleave="startReminderAutoRotate"
-                >
-                  <q-card
-                    v-for="(reminder, index) in reminders"
-                    :key="reminder.id"
-                    class="reminder-card reminder-carousel-item"
-                    :class="{
-                      'reminder-overdue': isReminderOverdue(reminder),
-                      'is-active': activeReminderIndex === index,
-                    }"
-                  >
-                    <q-card-section class="reminder-card-content">
-                      <div class="reminder-header">
-                        <div class="reminder-title">{{ reminder.title }}</div>
-                        <div class="reminder-actions-header">
-                          <q-btn
-                            flat
-                            round
-                            dense
-                            icon="refresh"
-                            color="primary"
-                            size="sm"
-                            class="reminder-renew-btn"
-                            @click="renewReminder(reminder)"
-                          >
-                            <q-tooltip>Defer reminder</q-tooltip>
-                          </q-btn>
-                          <q-btn
-                            flat
-                            round
-                            dense
-                            icon="check_circle"
-                            color="primary"
-                            size="sm"
-                            class="reminder-complete-btn"
-                            @click="markReminderComplete(reminder)"
-                          >
-                            <q-tooltip>Mark as complete</q-tooltip>
-                          </q-btn>
-                        </div>
-                      </div>
-                      <div class="reminder-description">{{ reminder.description }}</div>
-                      <div class="reminder-footer">
-                        <div class="reminder-date">
-                          <q-icon name="event" size="12px" class="q-mr-xs" />
-                          <span>{{ formatReminderDate(reminder.due_date) }}</span>
-                          <q-badge
-                            v-if="reminder.renewals && reminder.renewals.length > 0"
-                            color="orange"
-                            :label="`${reminder.renewals.length}x`"
-                            class="q-ml-xs cursor-pointer"
-                            @click.stop="viewRenewalHistory(reminder)"
-                          >
-                            <q-tooltip>Click to view renewal history</q-tooltip>
-                          </q-badge>
-                        </div>
-                        <q-chip
-                          v-if="reminder.property_name"
-                          size="xs"
-                          color="primary"
-                          text-color="white"
-                        >
-                          {{ reminder.property_name }}
-                        </q-chip>
-                      </div>
-                    </q-card-section>
-                  </q-card>
-                </div>
-                <div v-if="reminders.length > 1" class="reminders-carousel-dots">
-                  <button
-                    v-for="(reminder, idx) in reminders"
-                    :key="`dot-${reminder.id}`"
-                    type="button"
-                    class="carousel-dot"
-                    :class="{ active: idx === activeReminderIndex }"
-                    @click="scrollToReminderIndex(idx)"
-                  />
-                </div>
-
-                <!-- Empty State -->
-                <div v-else class="empty-reminders text-center q-pa-lg">
-                  <q-icon name="notifications_off" size="48px" color="grey-4" />
-                  <div class="text-body2 text-grey-6 q-mt-sm">No reminders</div>
-                  <div class="text-caption text-grey-5">All caught up!</div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dashboard Sections -->
-      <div class="dashboard-sections">
-        <div class="row q-col-gutter-sm items-stretch">
-          <!-- Left Column -->
-          <div class="col-12 col-sm-6 col-lg-6">
-            <!-- Recent Tasks -->
-            <q-card class="dashboard-section">
-              <q-card-section class="section-header">
-                <div class="section-title">
-                  <q-icon name="build" size="24px" color="primary" />
-                  <span class="text-h6 q-ml-sm">Recent Tasks</span>
-                </div>
-              </q-card-section>
-
-              <q-card-section class="section-content">
-                <div v-if="recentMxRecords.length === 0" class="empty-state">
-                  <q-icon name="build" size="48px" color="grey-4" />
-                  <div class="text-h6 text-grey-6 q-mt-md">No Tasks</div>
-                  <div class="text-caption text-grey-5">Create your first maintenance task</div>
-                </div>
-
-                <div v-else class="records-list">
-                  <div
-                    v-for="record in recentMxRecords.slice(0, 3)"
-                    :key="record.id"
-                    class="record-item clickable"
-                    @click="viewMxRecordDetail(record)"
-                  >
-                    <div class="record-content">
-                      <div class="record-description">
-                        {{ record.description || 'No description available' }}
-                      </div>
-                      <div class="record-details">
-                        <q-chip
-                          :color="getStatusColor(record.status)"
-                          text-color="white"
-                          size="sm"
-                          dense
-                        >
-                          {{ record.status || 'Open' }}
-                        </q-chip>
-                        <span class="text-caption text-grey-6 q-mx-sm">
-                          {{ formatDate(record.report_date) }}
-                        </span>
-                        <span class="text-caption text-weight-bold text-primary">
-                          ${{ formatCurrency(record.amount || 0) }}
-                        </span>
-                        <q-icon name="chevron_right" size="16px" color="grey-5" class="q-ml-sm" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </q-card-section>
-              <q-card-actions align="center" class="q-pa-md">
-                <q-btn
-                  dense
-                  label="View All"
-                  color="primary"
-                  class="btn-primary"
-                  @click="$router.push('/mx-records')"
-                />
-              </q-card-actions>
-            </q-card>
-          </div>
-
-          <!-- Right Column -->
-          <div class="col-12 col-sm-6 col-lg-6">
-            <!-- Recent Transactions -->
-            <q-card class="dashboard-section">
-              <q-card-section class="section-header">
-                <div class="section-title">
-                  <q-icon name="receipt" size="24px" color="primary" />
-                  <span class="text-h6 q-ml-sm">Recent Transactions</span>
-                </div>
-              </q-card-section>
-
-              <q-card-section class="section-content">
-                <div v-if="recentTransactions.length === 0" class="empty-state">
-                  <q-icon name="receipt" size="48px" color="grey-4" />
-                  <div class="text-h6 text-grey-6 q-mt-md">No Transactions</div>
-                  <div class="text-caption text-grey-5">
-                    Your recent transactions will appear here
-                  </div>
-                </div>
-
-                <div v-else class="transactions-list">
-                  <div
-                    v-for="transaction in recentTransactions.slice(0, 3)"
-                    :key="transaction.id"
-                    class="transaction-item clickable"
-                    @click="viewTransactionDetail(transaction)"
-                  >
-                    <div class="transaction-content">
-                      <div class="transaction-details">
-                        <q-chip
-                          :color="getTransactionTypeColor(transaction.transac_type)"
-                          text-color="white"
-                          size="sm"
-                          dense
-                        >
-                          {{ transaction.transac_type || 'Payment' }}
-                        </q-chip>
-                        <span class="text-caption text-grey-6 q-mx-sm">
-                          {{ formatDate(transaction.transac_date) }}
-                        </span>
-                        <span class="text-caption text-grey-6 q-mx-sm">
-                          {{ transaction.transac_from || 'N/A' }} →
-                          {{ transaction.transac_to || 'N/A' }}
-                        </span>
-                        <span
-                          class="text-caption text-weight-bold"
-                          :class="getTransactionAmountColor(transaction.transac_type)"
-                        >
-                          ${{ formatCurrency(transaction.amount || 0) }}
-                        </span>
-                        <q-icon name="chevron_right" size="16px" color="grey-5" class="q-ml-sm" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </q-card-section>
-              <q-card-actions align="center" class="q-pa-md">
-                <q-btn
-                  dense
-                  label="View All"
-                  color="primary"
-                  class="btn-primary"
-                  @click="$router.push('/transactions')"
-                />
-              </q-card-actions>
-            </q-card>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Actions Dialog -->
+    <!-- Quick Actions Dialog -->
       <q-dialog v-model="showQuickActions" position="bottom">
         <q-card class="quick-actions-dialog">
           <q-card-section class="text-h6 text-center">Quick Actions</q-card-section>
@@ -926,14 +669,14 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
-    </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
+import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import CreateProperty from '../components/CreateProperty.vue'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
@@ -941,6 +684,7 @@ import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
 
 const router = useRouter()
+const { getCollectionData } = useFirebase()
 
 // Initialize userDataStore with error handling
 let userDataStore
@@ -973,14 +717,29 @@ const showMxRecordDetail = ref(false)
 const selectedMxRecord = ref(null)
 const showTransactionDetail = ref(false)
 const selectedTransaction = ref(null)
+const showContactsDialog = ref(false)
 
 // Reminders data
 const reminders = ref([])
+const propertyReminders = ref([])
 const dataLoaded = ref(false)
-const remindersCarouselRef = ref(null)
-const activeReminderIndex = ref(0)
 const showDueReminderAlert = ref(false)
-let reminderRotateTimer = null
+
+const loadingStep = computed(() => {
+  if (!userDataStore.isAuthenticated) return 0
+  if (userDataStore.profileLoading) return 1
+  if (userDataStore.propertiesLoading) return 2
+  if (userDataStore.transactionsLoading) return 3
+  if (userDataStore.mxRecordsLoading) return 4
+  if (userDataStore.leasesLoading) return 5
+  return 5
+})
+
+const contacts = [
+  { id: 'c1', name: 'AquaFix LLC', role: 'SP • Plumbing', initials: 'AF' },
+  { id: 'c2', name: 'Westlake Tenant', role: 'TT', initials: 'WT' },
+  { id: 'c3', name: 'Property Owner', role: 'PO', initials: 'PO' },
+]
 
 // Dialog states for create forms
 const showCreatePropertyDialog = ref(false)
@@ -993,36 +752,45 @@ const showRenewalHistoryDialog = ref(false)
 const selectedReminderForHistory = ref(null)
 
 // Quick stats computed properties
+const getTransactionDate = (t) => {
+  const d = t.transac_date || t.created_datetime || t.date
+  return d?.toDate ? d.toDate() : new Date(d)
+}
+const isIncomeType = (t) => {
+  if (t.type === 'income') return true
+  const tt = String(t.transac_type || '').toLowerCase()
+  return tt.includes('rent') || tt.includes('deposit') || tt.includes('refund')
+}
 const monthlyIncome = computed(() => {
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
-
   return userDataStore.userAccessibleTransactions
     .filter((t) => {
-      const transactionDate = new Date(t.date)
+      const transactionDate = getTransactionDate(t)
       return (
+        !Number.isNaN(transactionDate.getTime()) &&
         transactionDate.getMonth() === currentMonth &&
         transactionDate.getFullYear() === currentYear &&
-        t.type === 'income'
+        isIncomeType(t)
       )
     })
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
 })
 
 const monthlyExpense = computed(() => {
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
-
   return userDataStore.userAccessibleTransactions
     .filter((t) => {
-      const transactionDate = new Date(t.date)
+      const transactionDate = getTransactionDate(t)
       return (
+        !Number.isNaN(transactionDate.getTime()) &&
         transactionDate.getMonth() === currentMonth &&
         transactionDate.getFullYear() === currentYear &&
-        t.type === 'expense'
+        !isIncomeType(t)
       )
     })
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
 })
 
 const openTasks = computed(() => {
@@ -1036,6 +804,257 @@ const activeLeases = computed(() => {
   ).length
 })
 
+// Feed helpers (PM/PO design)
+const activePropertyLabel = computed(() => 'All Properties')
+const normalizeId = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue
+    const parsed = String(value).trim()
+    if (!parsed || parsed.toLowerCase() === 'undefined' || parsed.toLowerCase() === 'null') continue
+    return parsed
+  }
+  return ''
+}
+const makeEventId = (type, dataId) => `${type}-${dataId}`
+const toDateSafe = (value) => {
+  if (!value) return null
+  if (value?.toDate && typeof value.toDate === 'function') return value.toDate()
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+const getEventTimestamp = (item) => {
+  const date =
+    toDateSafe(item?.eventDate) ||
+    toDateSafe(item?.created_datetime) ||
+    toDateSafe(item?.created_date) ||
+    toDateSafe(item?.report_date) ||
+    toDateSafe(item?.transac_date) ||
+    toDateSafe(item?.lease_create_date) ||
+    toDateSafe(item?.start_date)
+  return date ? date.getTime() : 0
+}
+const getEventDate = (item) =>
+  toDateSafe(item?.eventDate) ||
+  toDateSafe(item?.created_datetime) ||
+  toDateSafe(item?.created_date) ||
+  toDateSafe(item?.report_date) ||
+  toDateSafe(item?.transac_date) ||
+  toDateSafe(item?.lease_create_date) ||
+  toDateSafe(item?.start_date)
+const formatEventTime = (item) => {
+  const eventDate = getEventDate(item)
+  if (!eventDate) return 'Created: N/A'
+  const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
+  const today = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+  const diffDays = Math.floor((today - eventDay) / (24 * 60 * 60 * 1000))
+  let relativeLabel = 'Today'
+  if (diffDays === 1) relativeLabel = '1 day ago'
+  if (diffDays > 1) relativeLabel = `${diffDays} days ago`
+  return `Created: ${eventDate.toLocaleDateString()} • ${relativeLabel}`
+}
+
+const taskFeedItems = computed(() =>
+  (userDataStore.userAccessibleMxRecords || [])
+    .map((task) => ({
+      eventId: makeEventId('task', normalizeId(task.id, task.mx_id)),
+      id: `task-${task.id}`,
+      type: 'task',
+      avatarColor: 'blue-2',
+      avatarIcon: 'build',
+      title: `Task ${task.mx_id || `#${task.id}`} updated`,
+      meta: `${activePropertyLabel.value} • PM`,
+      brief: task.description || 'Task has new updates.',
+      detailPath: '/mx-records',
+      dataType: 'task',
+      dataId: normalizeId(task.id, task.mx_id),
+      eventDate: task.updatedAt || task.createAt || task.report_date,
+    }))
+    .sort((a, b) => getEventTimestamp(b) - getEventTimestamp(a))
+    .slice(0, 5)
+)
+
+const transactionFeedItems = computed(() =>
+  (userDataStore.userAccessibleTransactions || [])
+    .map((transaction) => ({
+      eventId: makeEventId('transaction', normalizeId(transaction.id, transaction.transac_id)),
+      id: `txn-${transaction.id}`,
+      type: 'transaction',
+      avatarColor: 'green-2',
+      avatarIcon: 'receipt_long',
+      title: `${transaction.transac_type || 'Transaction'} submitted`,
+      meta: `${activePropertyLabel.value} • Finance`,
+      brief: transaction.note || transaction.description || 'Transaction record updated.',
+      detailPath: '/transactions',
+      dataType: 'transaction',
+      dataId: normalizeId(transaction.id, transaction.transac_id),
+      eventDate: transaction.created_datetime || transaction.transac_date || transaction.date,
+    }))
+    .sort((a, b) => getEventTimestamp(b) - getEventTimestamp(a))
+    .slice(0, 5)
+)
+
+const leaseFeedItems = computed(() =>
+  (userDataStore.userAccessibleLeases || [])
+    .map((lease) => ({
+      eventId: makeEventId('lease', normalizeId(lease.id, lease.lease_id, lease.LSID)),
+      id: `lease-${lease.id}`,
+      type: 'lease',
+      avatarColor: 'orange-2',
+      avatarIcon: 'event',
+      title: `Lease ${lease.LSID || `#${lease.id}`}`,
+      meta: `${activePropertyLabel.value} • Lease`,
+      brief: 'Lease details updated.',
+      detailPath: '/leases',
+      dataType: 'lease',
+      dataId: normalizeId(lease.id, lease.lease_id, lease.LSID),
+      eventDate: lease.updatedAt || lease.created_datetime || lease.lease_create_date,
+    }))
+    .sort((a, b) => getEventTimestamp(b) - getEventTimestamp(a))
+    .slice(0, 5)
+)
+
+const feedTypeLabels = { task: 'Tasks', transaction: 'Transactions', lease: 'Leases' }
+const feedTypeOrder = [
+  { type: 'task', items: taskFeedItems },
+  { type: 'transaction', items: transactionFeedItems },
+  { type: 'lease', items: leaseFeedItems },
+]
+const groupedFeedSections = computed(() =>
+  feedTypeOrder
+    .map((section) => ({
+      type: section.type,
+      label: feedTypeLabels[section.type] || section.type,
+      items: section.items.value,
+    }))
+    .filter((section) => section.items.length > 0)
+)
+const isMainFeedEmpty = computed(() => groupedFeedSections.value.length === 0)
+
+// Reminder items for left rail (mock + rent reminders)
+const toMidnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
+const getLastDayOfMonth = (year, month) => new Date(year, month + 1, 0).getDate()
+const getDueDayFromLease = (lease) => {
+  const explicitDueDay = Number(
+    lease?.rent_due_day || lease?.due_day || lease?.payment_due_day || lease?.rentDueDay || 0
+  )
+  if (explicitDueDay >= 1 && explicitDueDay <= 31) return explicitDueDay
+  const anchorDate =
+    toDateSafe(lease?.rent_due_date) ||
+    toDateSafe(lease?.next_rent_due_date) ||
+    toDateSafe(lease?.start_date) ||
+    toDateSafe(lease?.lease_create_date) ||
+    toDateSafe(lease?.move_in_date)
+  return anchorDate ? anchorDate.getDate() : null
+}
+
+const rentReminderItems = computed(() => {
+  const today = toMidnight(new Date())
+  const sourceLeases = userDataStore.userAccessibleLeases || []
+  return sourceLeases
+    .map((lease) => {
+      const dueDay = getDueDayFromLease(lease)
+      if (!dueDay) return null
+      const currentMonthMaxDay = getLastDayOfMonth(today.getFullYear(), today.getMonth())
+      const normalizedDueDay = Math.min(dueDay, currentMonthMaxDay)
+      const currentMonthDueDate = new Date(today.getFullYear(), today.getMonth(), normalizedDueDay)
+      const daysDiff = Math.floor((toMidnight(currentMonthDueDate) - today) / (24 * 60 * 60 * 1000))
+      const amount = Number(lease?.rate_amount || 0)
+      const leaseLabel = lease?.LSID || lease?.id || 'Lease'
+      const dueDateText = currentMonthDueDate.toLocaleDateString()
+      if (daysDiff < 0) {
+        return {
+          eventId: makeEventId('rent-overdue', normalizeId(lease?.id, lease?.lease_id, lease?.LSID)),
+          id: `rent-overdue-${lease.id || leaseLabel}`,
+          type: 'reminder',
+          avatarColor: 'red-2',
+          avatarIcon: 'warning',
+          title: 'Rent overdue',
+          meta: `${activePropertyLabel.value} • System`,
+          brief: `${leaseLabel}: Rent of $${amount.toFixed(2)} was due on ${dueDateText} (${Math.abs(daysDiff)} day(s) overdue).`,
+          detailPath: '/leases',
+          dataType: 'lease',
+          dataId: normalizeId(lease?.id, lease?.lease_id, lease?.LSID),
+          eventDate: currentMonthDueDate,
+        }
+      }
+      if (daysDiff <= 5) {
+        return {
+          eventId: makeEventId('rent-due', normalizeId(lease?.id, lease?.lease_id, lease?.LSID)),
+          id: `rent-due-${lease.id || leaseLabel}`,
+          type: 'reminder',
+          avatarColor: 'amber-2',
+          avatarIcon: 'schedule',
+          title: 'Rent due within 5 days',
+          meta: `${activePropertyLabel.value} • System`,
+          brief: `${leaseLabel}: Rent of $${amount.toFixed(2)} is due on ${dueDateText} (in ${daysDiff} day(s)).`,
+          detailPath: '/leases',
+          dataType: 'lease',
+          dataId: normalizeId(lease?.id, lease?.lease_id, lease?.LSID),
+          eventDate: currentMonthDueDate,
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+})
+
+const propertyReminderItems = computed(() =>
+  (propertyReminders.value || []).map((reminder) => ({
+    eventId: makeEventId('reminder', normalizeId(reminder.id, reminder.reminder_id)),
+    id: normalizeId(reminder.id, reminder.reminder_id),
+    type: 'reminder',
+    avatarColor: reminder.status ? 'purple-2' : 'grey-4',
+    avatarIcon: reminder.status ? 'notifications_active' : 'notifications_off',
+    title: `${String(reminder.category || 'Reminder').toUpperCase()} reminder`,
+    meta: `${activePropertyLabel.value} • ${reminder.status ? 'Active' : 'Inactive'}`,
+    brief:
+      reminder.note ||
+      `Start: ${reminder.start_date || 'N/A'} • Repeat: ${reminder.repeat_by || 'one-time'}`,
+    detailPath: '/reminders',
+    dataType: 'reminder',
+    dataId: normalizeId(reminder.id, reminder.reminder_id),
+    eventDate: reminder.created_date || reminder.start_date,
+  }))
+)
+
+const reminderItems = computed(() => [...rentReminderItems.value, ...propertyReminderItems.value])
+const filteredReminderItems = computed(() =>
+  reminderItems.value.filter((item) => normalizeId(item.dataId, item.targetId))
+)
+
+const openDetail = (post) => {
+  if (!post?.detailPath) return
+  const dataType = String(post?.dataType || post?.targetType || '').trim()
+  const dataId = normalizeId(post?.dataId, post?.targetId)
+  if (!dataType || !dataId) {
+    Notify.create({ type: 'warning', message: 'This feed item is not linked to a detail record yet.', position: 'top' })
+    return
+  }
+  if (dataType === 'task') {
+    const record = userDataStore.userAccessibleMxRecords.find((r) => r.id === dataId || r.mx_id === dataId)
+    if (record) {
+      selectedMxRecord.value = record
+      showMxRecordDetail.value = true
+      return
+    }
+  }
+  if (dataType === 'transaction') {
+    const txn = userDataStore.userAccessibleTransactions.find(
+      (t) => t.id === dataId || t.transac_id === dataId
+    )
+    if (txn) {
+      selectedTransaction.value = txn
+      showTransactionDetail.value = true
+      return
+    }
+  }
+  router.push({ path: post.detailPath, query: { openType: dataType, openId: dataId } })
+}
+
+const openReminderDetail = (item) => {
+  if (item?.detailPath) router.push(item.detailPath)
+}
+
 // Process dashboard data
 const processDashboardData = () => {
   console.log('Processing dashboard data...')
@@ -1046,8 +1065,12 @@ const processDashboardData = () => {
     .slice(0, 5)
 
   // Get recent transactions (last 5)
+  const getTxnDate = (t) => {
+    const d = t.transac_date || t.created_datetime || t.date
+    return d?.toDate ? d.toDate() : new Date(d)
+  }
   recentTransactions.value = userDataStore.userAccessibleTransactions
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => getTxnDate(b) - getTxnDate(a))
     .slice(0, 5)
 
   console.log('Dashboard data processed:', {
@@ -1111,11 +1134,6 @@ const dueSoonReminders = computed(() => {
 })
 
 // Renewal history functions
-const viewRenewalHistory = (reminder) => {
-  selectedReminderForHistory.value = reminder
-  showRenewalHistoryDialog.value = true
-}
-
 const closeRenewalHistoryDialog = () => {
   showRenewalHistoryDialog.value = false
   selectedReminderForHistory.value = null
@@ -1238,11 +1256,6 @@ const openAssetsPage = () => {
 }
 
 // Task functions
-const viewMxRecordDetail = (record) => {
-  selectedMxRecord.value = record
-  showMxRecordDetail.value = true
-}
-
 const addLogToMxRecord = (record) => {
   showMxRecordDetail.value = false
   // Navigate to tasks page with the specific record selected for adding a log
@@ -1250,11 +1263,6 @@ const addLogToMxRecord = (record) => {
 }
 
 // Transaction functions
-const viewTransactionDetail = (transaction) => {
-  selectedTransaction.value = transaction
-  showTransactionDetail.value = true
-}
-
 const getPropertyName = (propertyId) => {
   if (!propertyId) return 'Unknown Property'
   const property = userDataStore.userAccessibleProperties.find((prop) => prop.id === propertyId)
@@ -1303,43 +1311,10 @@ const loadReminders = () => {
         ], // Has been renewed once
       },
     ]
-    activeReminderIndex.value = 0
   } catch (error) {
     console.error('Error loading reminders:', error)
     reminders.value = []
   }
-}
-
-const scrollToReminderIndex = (index) => {
-  if (!remindersCarouselRef.value || !reminders.value.length) return
-  const safeIndex = Math.max(0, Math.min(index, reminders.value.length - 1))
-  const reminderNodes = remindersCarouselRef.value.querySelectorAll('.reminder-carousel-item')
-  const targetNode = reminderNodes[safeIndex]
-  if (!targetNode) return
-  targetNode.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
-  activeReminderIndex.value = safeIndex
-}
-
-const stopReminderAutoRotate = () => {
-  if (reminderRotateTimer) {
-    clearInterval(reminderRotateTimer)
-    reminderRotateTimer = null
-  }
-}
-
-const startReminderAutoRotate = () => {
-  stopReminderAutoRotate()
-  if (reminders.value.length <= 1) return
-  reminderRotateTimer = setInterval(() => {
-    const nextIndex = (activeReminderIndex.value + 1) % reminders.value.length
-    scrollToReminderIndex(nextIndex)
-  }, 4000)
-}
-
-const isReminderOverdue = (reminder) => {
-  const dueDate = new Date(reminder.due_date)
-  const now = new Date()
-  return dueDate < now
 }
 
 const formatReminderDate = (dateString) => {
@@ -1356,96 +1331,6 @@ const formatReminderDate = (dateString) => {
     return 'Tomorrow'
   } else {
     return `In ${diffDays} days`
-  }
-}
-
-const markReminderComplete = (reminder) => {
-  try {
-    // Remove reminder from the list
-    const index = reminders.value.findIndex((r) => r.id === reminder.id)
-    if (index !== -1) {
-      reminders.value.splice(index, 1)
-    }
-
-    Notify.create({
-      type: 'positive',
-      message: 'Reminder marked as complete!',
-      position: 'top',
-      timeout: 2000,
-    })
-  } catch (error) {
-    console.error('Error marking reminder complete:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to mark reminder as complete',
-      position: 'top',
-      timeout: 3000,
-    })
-  }
-}
-
-const renewReminder = (reminder) => {
-  try {
-    // Find the reminder in the list
-    const index = reminders.value.findIndex((r) => r.id === reminder.id)
-    if (index === -1) return
-
-    // Store the current due date as previous due date
-    const previousDueDate = reminder.due_date
-
-    // Set new due date to TODAY (clock restarts)
-    const today = new Date()
-    const newDueDate = today.toISOString()
-
-    // Create renewal record
-    const renewalRecord = {
-      renewed_at: new Date().toISOString(),
-      previous_due_date: previousDueDate,
-      new_due_date: newDueDate,
-    }
-
-    // Initialize renewals array if it doesn't exist
-    if (!reminder.renewals) {
-      reminder.renewals = []
-    }
-
-    // Add renewal record to the renewals array
-    reminder.renewals.push(renewalRecord)
-
-    // Update the due date to today
-    reminder.due_date = newDueDate
-
-    // Update status if it was overdue
-    if (reminder.status === 'overdue') {
-      reminder.status = 'pending'
-    }
-
-    // Update the reminder in the array
-    reminders.value[index] = { ...reminder }
-
-    Notify.create({
-      type: 'positive',
-      message: `Reminder renewed! Clock restarted from today.`,
-      position: 'top',
-      caption: `New due date: ${formatReminderDate(newDueDate)}`,
-      timeout: 3000,
-    })
-
-    console.log('Reminder renewed:', {
-      id: reminder.id,
-      previousDueDate: previousDueDate,
-      newDueDate: newDueDate,
-      renewalCount: reminder.renewals.length,
-      createdDate: reminder.created_date, // Original creation date (if exists)
-    })
-  } catch (error) {
-    console.error('Error renewing reminder:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to renew reminder',
-      position: 'top',
-      timeout: 3000,
-    })
   }
 }
 
@@ -1557,13 +1442,37 @@ watch(
   },
 )
 
+const loadPropertyReminders = async () => {
+  try {
+    const properties = userDataStore.userAccessibleProperties || []
+    if (!properties.length) {
+      propertyReminders.value = []
+      return
+    }
+    const reminderGroups = await Promise.all(
+      properties.map((property) => getCollectionData(`properties/${property.id}/reminders`))
+    )
+    propertyReminders.value = reminderGroups.flat().filter(Boolean)
+  } catch (error) {
+    console.error('Failed to load property reminders for feed:', error)
+    propertyReminders.value = []
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   console.log('IndexPage mounted')
 
-  // Check if user is authenticated and has data loaded
   if (userDataStore.isAuthenticated) {
-    // If no properties are loaded yet and not currently loading, redirect to loading page
+    const hasCoreFeedData =
+      (userDataStore.userAccessibleMxRecords || []).length > 0 ||
+      (userDataStore.userAccessibleTransactions || []).length > 0 ||
+      (userDataStore.userAccessibleLeases || []).length > 0
+
+    if (!hasCoreFeedData) {
+      await userDataStore.loadAllUserData()
+    }
+
     if (
       userDataStore.userAccessibleProperties.length === 0 &&
       !userDataStore.profileLoading &&
@@ -1575,50 +1484,241 @@ onMounted(async () => {
       return
     }
 
-    // Process existing data from store
     processDashboardData()
   }
 
-  // Load reminders
+  await loadPropertyReminders()
   loadReminders()
   maybeShowDueReminderAlert()
-  await nextTick()
-  startReminderAutoRotate()
 })
 
-onUnmounted(() => {
-  stopReminderAutoRotate()
-})
+onUnmounted(() => {})
 
 watch(
-  () => reminders.value.length,
-  async (length) => {
-    if (length === 0) {
-      stopReminderAutoRotate()
-      activeReminderIndex.value = 0
-      return
-    }
-    if (activeReminderIndex.value >= length) {
-      activeReminderIndex.value = 0
-    }
-    await nextTick()
-    scrollToReminderIndex(activeReminderIndex.value)
-    startReminderAutoRotate()
-    maybeShowDueReminderAlert()
-  },
+  () => userDataStore.userAccessibleProperties.length,
+  () => {
+    loadPropertyReminders()
+  }
 )
+
+watch(() => reminders.value.length, maybeShowDueReminderAlert)
 </script>
 
 <style scoped>
-.dashboard-page {
-  padding: 16px 20px;
+.pm-po-feed-page {
+  padding: 10px;
   background: var(--bg-secondary);
   min-height: 100vh;
 }
 
+.feed-shell {
+  max-width: 1580px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  gap: 12px;
+}
+
+.feed-reminders,
+.feed-main {
+  min-width: 0;
+}
+
+.feed-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.stat-card-mini {
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+
+.stat-card-mini:hover {
+  border-color: var(--neutral-400);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-mini-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  margin-top: 4px;
+}
+
+.stat-mini-label {
+  font-size: 0.7rem;
+  color: var(--neutral-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.feed-list.feed-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feed-type-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feed-type-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--neutral-700);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding-left: 2px;
+}
+
+.feed-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.feed-context,
+.feed-post,
+.rail-card {
+  border-radius: var(--border-radius-card);
+  border: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
+}
+
+.post-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-meta {
+  font-size: 0.72rem;
+  color: var(--neutral-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.post-time {
+  font-size: 0.7rem;
+  color: var(--neutral-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.post-body {
+  font-size: 0.8rem;
+  color: var(--neutral-800);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.28;
+}
+
+.feed-post-section {
+  padding: 8px 9px;
+}
+
+.feed-post-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
+}
+
+.feed-post-clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-color);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+.post-open-hint {
+  font-size: 0.7rem;
+  color: var(--neutral-500);
+  text-align: right;
+  margin-top: 1px;
+}
+
+.feed-mini-card {
+  border-radius: 12px;
+}
+
+.feed-empty-card {
+  border-style: dashed;
+}
+
+.rail-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--neutral-800);
+}
+
+.reminder-card {
+  border-radius: 10px;
+}
+
+.reminder-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.reminder-meta {
+  font-size: 0.75rem;
+  color: var(--neutral-600);
+}
+
+.reminder-brief {
+  font-size: 0.86rem;
+  color: var(--neutral-800);
+}
+
+@media (max-width: 1480px) {
+  .feed-shell {
+    grid-template-columns: 240px minmax(0, 1fr) 260px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .feed-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .feed-rail {
+    grid-column: 1 / -1;
+  }
+  .feed-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
-  .dashboard-page {
-    padding: 8px 12px;
+  .feed-shell {
+    grid-template-columns: 1fr;
+  }
+  .feed-reminders,
+  .feed-rail {
+    grid-column: auto;
+  }
+  .feed-list.feed-grid {
+    gap: 10px;
+  }
+  .feed-type-grid {
+    grid-template-columns: 1fr;
+  }
+  .feed-stats-row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1673,6 +1773,27 @@ watch(
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  padding: 8px 2px;
+}
+
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-grid__full {
+  width: 100%;
+}
+
+.dashboard-grid__row {
+  width: 100%;
+}
+
+.dashboard-grid__two-col {
+  width: 100%;
 }
 
 .page-header .header-title p {
@@ -1685,20 +1806,17 @@ watch(
 
 .header-content {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
 
-.header-actions {
+.quick-actions-bar {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
   align-items: center;
-}
-
-.header-actions .row {
-  justify-content: center;
-  margin: 0;
 }
 
 .quick-action-btn {
@@ -1726,16 +1844,16 @@ watch(
   height: 110px;
   min-height: 110px;
   border-radius: var(--border-radius-card);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--neutral-200);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--neutral-300);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--bg-surface);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border-color: var(--primary-color);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  border-color: var(--neutral-400);
 }
 
 .stat-card__content {
@@ -1753,7 +1871,7 @@ watch(
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(25, 118, 210, 0.1);
+  background: var(--primary-glow);
 }
 
 .income-card .stat-card__icon {
@@ -1801,17 +1919,17 @@ watch(
 
 .dashboard-section {
   border-radius: var(--border-radius-card);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   background: var(--bg-surface);
-  border: 1px solid var(--neutral-200);
+  border: 1px solid var(--neutral-300);
   transition: all 0.3s ease;
   overflow: hidden;
   height: 100%;
 }
 
 .dashboard-section:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border-color: var(--neutral-300);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  border-color: var(--neutral-400);
 }
 
 .section-header {
@@ -1867,7 +1985,7 @@ watch(
   padding: 10px 14px;
   background: var(--bg-surface);
   border-radius: 12px;
-  border: 1px solid var(--neutral-200);
+  border: 1px solid var(--neutral-300);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 4px;
 }
@@ -1886,8 +2004,8 @@ watch(
 }
 
 .record-item.clickable:hover {
-  background: rgba(25, 118, 210, 0.05);
-  border-color: #1976d2;
+  background: var(--accent-glow);
+  border-color: var(--accent-color);
   transform: translateY(-1px);
 }
 
@@ -1897,8 +2015,8 @@ watch(
 }
 
 .transaction-item.clickable:hover {
-  background: rgba(25, 118, 210, 0.05);
-  border-color: #1976d2;
+  background: var(--accent-glow);
+  border-color: var(--accent-color);
   transform: translateY(-1px);
 }
 
@@ -1970,7 +2088,7 @@ watch(
 }
 
 .quick-actions-fab {
-  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.3);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 .quick-actions-dialog {
@@ -1984,7 +2102,7 @@ watch(
 }
 
 .quick-actions-dialog .q-card-section:first-child {
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   background: #f8f9fa;
 }
 
@@ -1999,12 +2117,15 @@ watch(
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .dashboard-page {
-    padding: 12px;
+    padding: 10px;
   }
 
   .header-content {
-    flex-direction: column;
-    gap: 16px;
+    gap: 8px;
+  }
+
+  .quick-actions-bar {
+    gap: 8px;
   }
 
   .stat-card__value {
@@ -2060,7 +2181,7 @@ watch(
 /* Dialog Styles */
 .dialog-header {
   background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   padding: 16px 24px;
 }
 
@@ -2079,15 +2200,15 @@ watch(
 
 .reminders-card {
   border-radius: var(--border-radius-card);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--neutral-200);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--neutral-300);
   transition: all 0.3s ease;
   background: var(--bg-surface);
 }
 
 .reminders-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: var(--neutral-300);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  border-color: var(--neutral-400);
 }
 
 .reminders-carousel {
@@ -2140,7 +2261,7 @@ watch(
 .reminder-card {
   border-radius: var(--border-radius-card);
   border-left: 4px solid var(--primary-color);
-  border: 1px solid var(--neutral-200);
+  border: 1px solid var(--neutral-300);
   border-left-width: 4px;
   transition: all 0.2s ease;
   min-height: 140px;
@@ -2159,8 +2280,8 @@ watch(
 }
 
 .reminder-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  border-color: var(--neutral-400);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .reminder-card.reminder-overdue {
@@ -2189,25 +2310,6 @@ watch(
   font-size: 0.9375rem;
   line-height: 1.4;
   flex: 1;
-  margin-right: 8px;
-}
-
-.reminder-actions-header {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.reminder-renew-btn,
-.reminder-complete-btn {
-  flex-shrink: 0;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.reminder-renew-btn:hover,
-.reminder-complete-btn:hover {
-  opacity: 1;
 }
 
 .reminder-description {
@@ -2235,6 +2337,20 @@ watch(
   font-size: 0.75rem;
   color: var(--neutral-600);
   font-weight: 500;
+}
+
+.reminder-actions-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reminder-action-btn {
+  flex: 1;
+  border: 1px solid var(--neutral-200);
+  border-radius: 8px;
+  background: var(--bg-surface);
 }
 
 .empty-reminders {
@@ -2275,7 +2391,7 @@ watch(
   background: #f8f9fa;
   padding: 16px;
   border-radius: 8px;
-  border-left: 4px solid #1976d2;
+  border-left: 4px solid var(--accent-color);
 }
 
 .due-reminder-dialog {
@@ -2293,7 +2409,7 @@ watch(
   justify-content: space-between;
   align-items: center;
   padding: 6px 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .renewal-detail-item:last-child {
@@ -2325,7 +2441,7 @@ watch(
    DARK MODE STYLES
    ======================================== */
 
-:global(body.body--dark) .dashboard-page {
+:global(body.body--dark) .pm-po-feed-page {
   background: #121212 !important;
 }
 
@@ -2334,13 +2450,13 @@ watch(
 }
 
 :global(body.body--dark) .loading-step {
-  background: #2d2d2d !important;
+  background: var(--bg-tertiary) !important;
   color: white !important;
 }
 
 :global(body.body--dark) .loading-step.active {
-  background: rgba(66, 165, 245, 0.2) !important;
-  color: #42a5f5 !important;
+  background: var(--accent-glow) !important;
+  color: var(--accent-light) !important;
 }
 
 :global(body.body--dark) .loading-step.completed {
@@ -2353,8 +2469,8 @@ watch(
 }
 
 :global(body.body--dark) .stat-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .stat-card__value {
@@ -2362,21 +2478,21 @@ watch(
 }
 
 :global(body.body--dark) .stat-card__label {
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .stat-card__icon {
-  background: #2d2d2d !important;
+  background: var(--bg-tertiary) !important;
 }
 
 :global(body.body--dark) .dashboard-section {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .section-header {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .section-title {
@@ -2384,19 +2500,19 @@ watch(
 }
 
 :global(body.body--dark) .section-content {
-  background: #1e1e1e !important;
+  background: var(--bg-surface) !important;
 }
 
 :global(body.body--dark) .record-item,
 :global(body.body--dark) .transaction-item {
-  background: #2d2d2d !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .record-item:hover,
 :global(body.body--dark) .transaction-item:hover {
-  background: #3d3d3d !important;
-  border-color: #42a5f5 !important;
+  background: rgba(45, 212, 191, 0.16) !important;
+  border-color: var(--accent-color) !important;
 }
 
 :global(body.body--dark) .record-description,
@@ -2411,25 +2527,25 @@ watch(
 }
 
 :global(body.body--dark) .empty-state {
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .quick-actions-dialog {
-  background: #1e1e1e !important;
+  background: var(--bg-surface) !important;
 }
 
 :global(body.body--dark) .quick-actions-dialog .q-card-section {
-  background: #1e1e1e !important;
+  background: var(--bg-surface) !important;
 }
 
 :global(body.body--dark) .quick-actions-dialog .q-card-section:first-child {
-  background: #2d2d2d !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .dialog-header {
-  background: #2d2d2d !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .dialog-close-btn {
@@ -2437,13 +2553,13 @@ watch(
 }
 
 :global(body.body--dark) .reminders-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .reminder-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .reminder-card.reminder-overdue {
@@ -2455,11 +2571,11 @@ watch(
 }
 
 :global(body.body--dark) .reminder-description {
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .reminder-date {
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .carousel-dot {
@@ -2467,7 +2583,7 @@ watch(
 }
 
 :global(body.body--dark) .carousel-dot.active {
-  background: #42a5f5 !important;
+  background: var(--accent-color) !important;
 }
 
 :global(body.body--dark) .reminders-carousel::-webkit-scrollbar-thumb {
@@ -2476,23 +2592,23 @@ watch(
 
 :global(body.body--dark) .empty-reminders {
   background: transparent !important;
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .renewal-reminder-info {
-  background: #2d2d2d !important;
+  background: var(--bg-tertiary) !important;
 }
 
 :global(body.body--dark) .renewal-details {
-  background: #2d2d2d !important;
+  background: var(--bg-tertiary) !important;
 }
 
 :global(body.body--dark) .renewal-detail-item {
-  border-color: #3d3d3d !important;
+  border-color: var(--border-color) !important;
 }
 
 :global(body.body--dark) .detail-label {
-  color: #b0b0b0 !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .detail-value {

@@ -1,8 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Leases</div>
+    <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
         <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
       </div>
@@ -232,8 +230,13 @@
       </q-card>
     </div>
 
-    <!-- Lease Details Dialog -->
-    <q-dialog v-model="showLeaseDialog" maximized class="lease-dialog">
+    <!-- Lease Details Panel -->
+    <DetailShell
+      v-model="showLeaseDialog"
+      title="Lease Details"
+      :subtitle="selectedLease?.property_id?.address || ''"
+      @close="closeLeaseDialog"
+    >
       <q-card class="full-height">
         <!-- Dialog Header -->
         <q-card-section class="dialog-header">
@@ -362,14 +365,6 @@
               label="Shareable Link"
               @click="copyShareableLink(selectedLease.id)"
               class="header-action-btn header-share-fixed"
-            />
-            <q-btn
-              round
-              dense
-              unelevated
-              icon="close"
-              @click="closeLeaseDialog"
-              class="close-btn header-close-fixed"
             />
           </div>
         </q-card-section>
@@ -1240,7 +1235,7 @@
           </div>
         </q-card-section>
       </q-card>
-    </q-dialog>
+    </DetailShell>
 
     <!-- Inventory Dialog -->
     <q-dialog v-model="showInventoryDialog" maximized>
@@ -1291,10 +1286,11 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import CreateLease from '../components/CreateLease.vue'
+import DetailShell from '../components/details/DetailShell.vue'
 import InventoryList from '../components/InventoryList.vue'
 import LeaseDocuments from '../components/LeaseDocuments.vue'
 import { Notify } from 'quasar'
@@ -1303,6 +1299,7 @@ import { db } from '../boot/firebase'
 
 // Router
 const router = useRouter()
+const route = useRoute()
 
 // Store
 const userDataStore = useUserDataStore()
@@ -1317,6 +1314,7 @@ const isEditMode = ref(false)
 const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
 const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
+const deepLinkHandled = ref(false)
 
 // Inventory dialog states
 const showInventoryDialog = ref(false)
@@ -1610,6 +1608,26 @@ const viewLease = async (lease) => {
   await fetchLeaseApplications(lease.id)
 }
 
+const tryOpenDeepLinkedLease = async () => {
+  if (deepLinkHandled.value) return
+  const openType = String(route.query.openType || '').toLowerCase()
+  const openId = String(route.query.openId || '')
+  if (!openId || openType !== 'lease') return
+  if (!userAccessibleLeases.value.length) return
+
+  const normalizedOpenId = openId.toLowerCase()
+  const targetLease = userAccessibleLeases.value.find((lease) => {
+    const idCandidates = [lease.id, lease.lease_id, lease.LSID]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).toLowerCase())
+    return idCandidates.includes(normalizedOpenId)
+  })
+  if (!targetLease) return
+
+  deepLinkHandled.value = true
+  await viewLease(targetLease)
+}
+
 const closeLeaseDialog = async () => {
   showLeaseDialog.value = false
 
@@ -1896,6 +1914,7 @@ onMounted(async () => {
   if (userAccessibleLeases.value.length > 0) {
     await fetchAllLeaseTenants()
   }
+  await tryOpenDeepLinkedLease()
 })
 
 // Watch for changes in accessible leases
@@ -1909,9 +1928,18 @@ watch(
     // Fetch tenants for all rented leases
     if (newLeases.length > 0) {
       await fetchAllLeaseTenants()
+      await tryOpenDeepLinkedLease()
     }
   },
   { deep: true },
+)
+
+watch(
+  () => [route.query.openType, route.query.openId],
+  async () => {
+    deepLinkHandled.value = false
+    await tryOpenDeepLinkedLease()
+  }
 )
 </script>
 

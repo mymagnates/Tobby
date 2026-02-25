@@ -1,0 +1,15 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F6F8FB"/>
+  <text x="120" y="140" fill="#0E1A2B" font-size="36" font-family="Arial, sans-serif" font-weight="700">Concept 1 - Hand Pulse</text>
+  <g transform="translate(120 210)">
+    <rect x="0" y="0" width="960" height="430" rx="36" fill="white"/>
+    <path d="M190 255 C220 190, 280 165, 340 178 C375 186, 406 211, 425 243 C442 272, 474 294, 506 294 C557 294, 595 249, 585 199" stroke="#17B890" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="590" cy="196" r="21" fill="#17B890"/>
+    <path d="M197 256 C217 273, 250 282, 284 277" stroke="#0E1A2B" stroke-width="10" stroke-linecap="round" opacity="0.18"/>
+    <text x="640" y="238" fill="#0E1A2B" font-size="76" font-family="Arial, sans-serif" font-weight="700">handout</text>
+    <text x="640" y="286" fill="#4C5C72" font-size="26" font-family="Arial, sans-serif">Let renting run itself</text>
+  </g>
+  <g transform="translate(120 680)">
+    <text x="0" y="0" fill="#4C5C72" font-size="24" font-family="Arial, sans-serif">Tone: Friendly / flowing / human support</text>
+  </g>
+</svg>

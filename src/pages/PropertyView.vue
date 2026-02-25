@@ -1,9 +1,5 @@
 <template>
   <q-page class="q-pa-md" style="padding-right: 5px">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Property View</div>
-    </div>
-
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
       <div class="q-mt-sm">Loading your properties...</div>

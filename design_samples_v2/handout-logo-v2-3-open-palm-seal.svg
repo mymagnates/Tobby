@@ -1,0 +1,29 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g3" x1="220" y1="120" x2="620" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D3B66"/>
+      <stop offset="1" stop-color="#20A39E"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="#F8F6F1"/>
+  <text x="120" y="130" fill="#1D2939" font-size="38" font-family="Helvetica, Arial, sans-serif" font-weight="700">Concept C - Open Palm Seal</text>
+  <text x="120" y="172" fill="#475467" font-size="24" font-family="Helvetica, Arial, sans-serif">Meaning: trusted hand + verified operations (seal) for independent landlords.</text>
+
+  <rect x="100" y="210" width="1200" height="540" rx="36" fill="#FFFFFF"/>
+
+  <g transform="translate(170 260)">
+    <circle cx="300" cy="240" r="180" stroke="url(#g3)" stroke-width="22"/>
+    <path d="M190 300 C180 228 216 182 268 182 H336 C391 182 420 230 410 300" stroke="#0D3B66" stroke-width="24" stroke-linecap="round"/>
+    <path d="M220 183 V125" stroke="#20A39E" stroke-width="22" stroke-linecap="round"/>
+    <path d="M262 177 V108" stroke="#20A39E" stroke-width="22" stroke-linecap="round"/>
+    <path d="M304 176 V102" stroke="#20A39E" stroke-width="22" stroke-linecap="round"/>
+    <path d="M346 181 V114" stroke="#20A39E" stroke-width="22" stroke-linecap="round"/>
+    <path d="M388 190 V132" stroke="#20A39E" stroke-width="22" stroke-linecap="round"/>
+    <path d="M247 306 C273 323 327 323 353 306" stroke="#20A39E" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <text x="760" y="430" fill="#1D2939" font-size="88" font-family="Helvetica, Arial, sans-serif" font-weight="700">handout</text>
+  <text x="760" y="486" fill="#475467" font-size="30" font-family="Helvetica, Arial, sans-serif">Trusted management, without the overhead</text>
+
+  <text x="120" y="810" fill="#667085" font-size="24" font-family="Helvetica, Arial, sans-serif">Style: badge-like trust mark, clear supportive hand symbolism.</text>
+</svg>

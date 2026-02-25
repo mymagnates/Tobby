@@ -1,8 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Reminders</div>
+    <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
         <q-btn
           icon="add"
@@ -473,12 +471,14 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import UniversalPropertySelect from '../components/UniversalPropertySelect.vue'
 
 const userDataStore = useUserDataStore()
+const route = useRoute()
 const { createDocument, updateDocument, deleteDocument, getCollectionData, getDocument } =
   useFirebase()
 
@@ -498,6 +498,7 @@ const selectedProperty = ref(null)
 const selectedCategory = ref(null)
 const selectedStatus = ref(null)
 const searchText = ref('')
+const deepLinkHandled = ref(false)
 
 // Form data
 const reminderForm = ref({
@@ -615,6 +616,7 @@ const loadReminders = async () => {
     console.log('Total reminders loaded:', allReminders.length)
     console.log('=== END LOAD REMINDERS DEBUG ===')
     reminders.value = allReminders
+    tryOpenDeepLinkedReminder()
   } catch (error) {
     console.error('Error loading reminders:', error)
     Notify.create({
@@ -625,6 +627,26 @@ const loadReminders = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const tryOpenDeepLinkedReminder = () => {
+  if (deepLinkHandled.value) return
+  const openType = String(route.query.openType || '').toLowerCase()
+  const openId = String(route.query.openId || '')
+  if (!openId || openType !== 'reminder') return
+  if (!reminders.value.length) return
+
+  const normalizedOpenId = openId.toLowerCase()
+  const targetReminder = reminders.value.find((reminder) => {
+    const idCandidates = [reminder.id, reminder.reminder_id]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).toLowerCase())
+    return idCandidates.includes(normalizedOpenId)
+  })
+  if (!targetReminder) return
+
+  editReminder(targetReminder)
+  deepLinkHandled.value = true
 }
 
 // Debug function to test property ID matching
@@ -1277,6 +1299,22 @@ onMounted(() => {
     )
   }
 })
+
+watch(
+  () => reminders.value.length,
+  () => {
+    tryOpenDeepLinkedReminder()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [route.query.openType, route.query.openId],
+  () => {
+    deepLinkHandled.value = false
+    tryOpenDeepLinkedReminder()
+  }
+)
 </script>
 
 <style scoped>

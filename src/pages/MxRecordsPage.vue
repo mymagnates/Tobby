@@ -1,7 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Tasks</div>
+    <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
         <q-btn @click="openCreateMxRecordDialog" color="primary" icon="add" label="Create Task" />
       </div>
@@ -194,44 +193,36 @@
     </div>
   </q-page>
 
-  <!-- Task Details Dialog -->
-  <q-dialog v-model="showMxRecordDialog" maximized>
-    <q-card class="mxrecord-dialog">
-      <q-card-section class="dialog-header">
-        <div class="dialog-header-row">
-          <div class="text-h5 text-weight-bold">Task Details</div>
-          <div class="dialog-header-actions">
-            <q-btn
-              outline
-              color="primary"
-              icon="photo_camera"
-              label="Add Photos"
-              size="sm"
-              class="dialog-action-btn"
-              @click="addPhotosToMxRecord"
-            />
-            <q-btn
-              outline
-              color="primary"
-              label="Add Comment"
-              size="sm"
-              class="dialog-action-btn"
-              @click="addCommentFromDialog"
-            />
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeMxRecordDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </div>
-      </q-card-section>
+  <!-- Task Details Panel -->
+  <DetailShell
+    v-model="showMxRecordDialog"
+    title="Task Details"
+    :subtitle="selectedMxRecord?.description || ''"
+    @close="closeMxRecordDialog"
+  >
+    <template #actions>
+      <q-btn
+        outline
+        color="primary"
+        icon="photo_camera"
+        label="Add Photos"
+        size="sm"
+        class="dialog-action-btn"
+        @click="addPhotosToMxRecord"
+      />
+      <q-btn
+        outline
+        color="primary"
+        label="Add Comment"
+        size="sm"
+        class="dialog-action-btn"
+        @click="addCommentFromDialog"
+      />
+    </template>
 
-      <q-card-section class="dialog-content">
-        <div v-if="selectedMxRecord" class="mxrecord-details-full">
+    <div class="dialog-content">
+        <div v-if="selectedMxRecord" class="mxrecord-details-layout">
+          <div class="mxrecord-details-full">
           <!-- Basic Information -->
           <div class="details-section">
             <div class="section-title">Basic Information</div>
@@ -370,10 +361,104 @@
               </div>
             </div>
           </div>
+          </div>
+
+          <q-card class="sp-recommendations-panel" flat bordered>
+            <q-card-section>
+              <div class="sp-panel-header q-mb-sm">
+                <div>
+                  <div class="text-subtitle1 text-weight-bold">Recommended SP</div>
+                  <div class="text-caption text-grey-7">
+                    Primary decision surface for contact, quote, and assignment.
+                  </div>
+                </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  :icon="showRecommendedSp ? 'expand_less' : 'expand_more'"
+                  @click="showRecommendedSp = !showRecommendedSp"
+                />
+              </div>
+
+              <div v-show="showRecommendedSp">
+                <div v-if="loadingRecommendedSps" class="text-center q-pa-md">
+                  <q-spinner-dots size="28px" color="primary" />
+                </div>
+                <div v-else-if="recommendedSps.length === 0" class="text-grey-6 text-caption">
+                  No recommendations available for this task yet.
+                </div>
+                <div v-else class="sp-recommendation-list">
+                  <q-card
+                    v-for="sp in recommendedSps"
+                    :key="sp.sp_id"
+                    class="sp-recommendation-card"
+                    flat
+                    bordered
+                  >
+                    <q-card-section class="q-pa-sm">
+                      <div class="text-body1 text-weight-bold">{{ sp.sp_name || sp.display_name }}</div>
+                      <div class="text-caption text-grey-7">{{ sp.service_area || 'N/A' }}</div>
+                      <div class="q-mt-xs">
+                        <q-chip size="sm" color="teal" text-color="white">
+                          Rating: {{ sp.rating || sp.rating_avg || 'N/A' }}
+                        </q-chip>
+                      </div>
+
+                      <div class="row q-gutter-xs q-mt-sm">
+                        <q-btn
+                          dense
+                          flat
+                          color="primary"
+                          icon="chat"
+                          label="Contact"
+                          :disable="isSpActionDisabled(sp)"
+                          @click="contactRecommendedSp(sp)"
+                        />
+                        <q-btn
+                          dense
+                          flat
+                          color="secondary"
+                          icon="request_quote"
+                          label="Request Quote"
+                          :disable="isSpActionDisabled(sp)"
+                          @click="requestQuoteFromSp(sp)"
+                        />
+                        <q-btn
+                          dense
+                          flat
+                          color="positive"
+                          icon="check_circle"
+                          label="Assign"
+                          :disable="isSpActionDisabled(sp)"
+                          @click="assignRecommendedSp(sp)"
+                        />
+                        <q-btn
+                          dense
+                          flat
+                          color="accent"
+                          icon="bookmark_add"
+                          label="Save Biz Card"
+                          @click="saveSpCard(sp)"
+                        />
+                      </div>
+
+                      <q-banner
+                        v-if="assignedSpId && assignedSpId !== sp.sp_id"
+                        class="bg-grey-2 text-grey-8 q-mt-sm"
+                        rounded
+                      >
+                        Closed for this task after assignment.
+                      </q-banner>
+                    </q-card-section>
+                  </q-card>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
         </div>
-      </q-card-section>
-    </q-card>
-  </q-dialog>
+    </div>
+  </DetailShell>
 
   <!-- Add Comment Dialog -->
   <q-dialog v-model="showCommentDialog" persistent>
@@ -796,13 +881,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
+import DetailShell from '../components/details/DetailShell.vue'
+import { Notify } from 'quasar'
+import { marketplaceApi, spCardsApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, uploadImages } = useFirebase()
+const route = useRoute()
 const searchQuery = ref('')
 const activeFilter = ref('all') // 'all', 'pending', 'resolved'
 const selectedProperty = ref(null)
@@ -826,6 +916,9 @@ const propertyFilterOptions = computed(() => {
 })
 const showMxRecordDialog = ref(false)
 const selectedMxRecord = ref(null)
+const recommendedSps = ref([])
+const loadingRecommendedSps = ref(false)
+const assignedSpId = ref(null)
 const showCreateMxRecordDialog = ref(false)
 const showCommentDialog = ref(false)
 const submittingComment = ref(false)
@@ -851,6 +944,8 @@ const uploadingCommentPhotos = ref(false)
 const selectedCommentLog = ref(null)
 const commentAdditionalSelectedFiles = ref([])
 const commentAdditionalImagePreviews = ref([])
+const deepLinkHandled = ref(false)
+const showRecommendedSp = ref(true)
 
 const actionTypeOptions = [
   { label: 'Update', value: 'update' },
@@ -1002,6 +1097,7 @@ onMounted(async () => {
       await userDataStore.loadMxRecords()
     }
   }
+  tryOpenDeepLinkedMxRecord()
 })
 
 const getPropertyName = (propertyId) => {
@@ -1024,12 +1120,128 @@ const formatDate = (timestamp) => {
 
 const viewMxRecord = (mxRecord) => {
   selectedMxRecord.value = mxRecord
+  assignedSpId.value = mxRecord.assigned_sp_id || null
   showMxRecordDialog.value = true
+  loadRecommendedSps(mxRecord)
 }
+
+const tryOpenDeepLinkedMxRecord = () => {
+  if (deepLinkHandled.value) return
+  const openType = String(route.query.openType || '').toLowerCase()
+  const openId = String(route.query.openId || '')
+  if (!openId || !['task', 'mxrecord'].includes(openType)) return
+  if (!userAccessibleMxRecords.value.length) return
+
+  const normalizedOpenId = openId.toLowerCase()
+  const targetRecord = userAccessibleMxRecords.value.find((record) => {
+    const idCandidates = [record.id, record.mx_id]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).toLowerCase())
+    return idCandidates.includes(normalizedOpenId)
+  })
+  if (!targetRecord) return
+
+  viewMxRecord(targetRecord)
+  deepLinkHandled.value = true
+}
+
+watch(
+  () => userAccessibleMxRecords.value.length,
+  () => {
+    tryOpenDeepLinkedMxRecord()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [route.query.openType, route.query.openId],
+  () => {
+    deepLinkHandled.value = false
+    tryOpenDeepLinkedMxRecord()
+  }
+)
 
 const closeMxRecordDialog = () => {
   showMxRecordDialog.value = false
   selectedMxRecord.value = null
+  recommendedSps.value = []
+  assignedSpId.value = null
+}
+
+async function loadRecommendedSps(mxRecord) {
+  loadingRecommendedSps.value = true
+  try {
+    const rows = await marketplaceApi.getRecommendedSps(mxRecord.id)
+    recommendedSps.value = rows.map((row, index) => ({
+      sp_id: row.sp_id || `mock-sp-${index + 1}`,
+      sp_name: row.sp_name || row.display_name || `Service Provider ${index + 1}`,
+      rating: row.rating || row.rating_avg || 'N/A',
+      service_area: row.service_area || 'Unknown',
+      provider_type: row.provider_type || 'individual',
+    }))
+    if (!recommendedSps.value.length) {
+      recommendedSps.value = [
+        { sp_id: 'sp-demo-1', sp_name: 'BlueFix Services', rating: 4.7, service_area: 'Local' },
+        { sp_id: 'sp-demo-2', sp_name: 'Prime Repair Co', rating: 4.5, service_area: 'Regional' },
+      ]
+    }
+  } catch (error) {
+    console.error('Failed loading recommended SPs:', error)
+  } finally {
+    loadingRecommendedSps.value = false
+  }
+}
+
+const isSpActionDisabled = (sp) => Boolean(assignedSpId.value && assignedSpId.value !== sp.sp_id)
+
+const contactRecommendedSp = async (sp) => {
+  if (!selectedMxRecord.value) return
+  try {
+    await marketplaceApi.contactSp(selectedMxRecord.value.id, { sp_id: sp.sp_id })
+    Notify.create({ type: 'positive', message: `Contact initiated: ${sp.sp_name}`, position: 'top' })
+  } catch (error) {
+    Notify.create({ type: 'warning', message: error.message || 'Contact action failed', position: 'top' })
+  }
+}
+
+const requestQuoteFromSp = async (sp) => {
+  if (!selectedMxRecord.value) return
+  try {
+    await marketplaceApi.requestQuote(selectedMxRecord.value.id, { sp_id: sp.sp_id })
+    Notify.create({ type: 'positive', message: `Quote requested from ${sp.sp_name}`, position: 'top' })
+  } catch (error) {
+    Notify.create({ type: 'warning', message: error.message || 'Quote request failed', position: 'top' })
+  }
+}
+
+const assignRecommendedSp = async (sp) => {
+  if (!selectedMxRecord.value) return
+  try {
+    await marketplaceApi.assignSp(selectedMxRecord.value.id, { sp_id: sp.sp_id })
+    assignedSpId.value = sp.sp_id
+    selectedMxRecord.value.assigned_sp_id = sp.sp_id
+    Notify.create({ type: 'positive', message: `${sp.sp_name} assigned`, position: 'top' })
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.message || 'Assign failed', position: 'top' })
+  }
+}
+
+const saveSpCard = async (sp) => {
+  try {
+    await spCardsApi.saveCard({
+      owner_id: userDataStore.userId,
+      sp_id: sp.sp_id,
+      sp_name: sp.sp_name,
+      display_name: sp.sp_name,
+      service_area: sp.service_area,
+      rating_avg: sp.rating,
+      provider_type: sp.provider_type || 'individual',
+      owner_note: '',
+    })
+    Notify.create({ type: 'positive', message: `${sp.sp_name} biz card saved`, position: 'top' })
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.message || 'Save card failed', position: 'top' })
+  }
 }
 
 const addComment = (mxRecord) => {
@@ -2123,14 +2335,42 @@ const refreshData = async () => {
 }
 
 .dialog-content {
-  padding: 16px;
+  padding: 10px 8px;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
 }
 
+.mxrecord-details-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
+  align-items: start;
+}
+
 .mxrecord-details-full {
-  max-width: 800px;
-  margin: 0 auto;
+  min-width: 0;
+}
+
+.sp-recommendations-panel {
+  position: sticky;
+  top: 8px;
+}
+
+.sp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sp-recommendation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sp-recommendation-card {
+  border-radius: 8px;
 }
 
 .details-section {
@@ -2221,6 +2461,21 @@ const refreshData = async () => {
 }
 
 /* Responsive Dialog */
+@media (max-width: 1024px) {
+  .mxrecord-details-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-recommendations-panel {
+    position: static;
+    order: 2;
+  }
+
+  .sp-recommendation-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .dialog-header {
     padding: 12px 16px;

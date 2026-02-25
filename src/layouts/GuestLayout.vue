@@ -4,7 +4,7 @@
     <q-header elevated class="guest-header">
       <q-toolbar class="q-px-md">
         <q-toolbar-title class="row items-center">
-          <div class="logo-container">
+          <div class="logo-container" @click="goHome">
             <span class="app-title">Handout</span>
           </div>
         </q-toolbar-title>
@@ -71,6 +71,10 @@ const currentYear = computed(() => {
 // Navigate to login
 const goToLogin = () => {
   router.push('/public/login')
+}
+
+const goHome = () => {
+  router.push('/')
 }
 </script>
 

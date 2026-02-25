@@ -7,6 +7,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "favicons": "node generate-favicons.js",
+    "prebuild": "npm run favicons",
+    "predev": "npm run favicons",
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "vitest",
@@ -14,6 +17,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "dev": "quasar dev",
+    "api:dev": "node backend/server.js",
     "build": "quasar build",
     "postinstall": "quasar prepare"
   },

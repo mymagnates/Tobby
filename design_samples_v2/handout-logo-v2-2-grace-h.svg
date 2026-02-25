@@ -1,0 +1,25 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g2" x1="230" y1="170" x2="560" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F2B6C"/>
+      <stop offset="1" stop-color="#0EA5A0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="#F5F7FA"/>
+  <text x="120" y="130" fill="#101828" font-size="38" font-family="Helvetica, Arial, sans-serif" font-weight="700">Concept B - Grace H</text>
+  <text x="120" y="172" fill="#475467" font-size="24" font-family="Helvetica, Arial, sans-serif">Meaning: one elegant H built from two supportive strokes (people + process).</text>
+
+  <rect x="100" y="210" width="1200" height="540" rx="36" fill="#FFFFFF"/>
+
+  <g transform="translate(180 275)">
+    <path d="M120 320 C120 160 185 80 265 80 C344 80 409 160 409 320" stroke="url(#g2)" stroke-width="30" stroke-linecap="round"/>
+    <path d="M409 320 C409 160 474 80 554 80 C633 80 698 160 698 320" stroke="url(#g2)" stroke-width="30" stroke-linecap="round"/>
+    <path d="M295 220 C347 188 462 188 514 220" stroke="#0F2B6C" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="404" cy="220" r="11" fill="#0EA5A0"/>
+  </g>
+
+  <text x="770" y="430" fill="#101828" font-size="88" font-family="Helvetica, Arial, sans-serif" font-weight="700">handout</text>
+  <text x="770" y="486" fill="#475467" font-size="30" font-family="Helvetica, Arial, sans-serif">Small portfolio, pro-level control</text>
+
+  <text x="120" y="810" fill="#667085" font-size="24" font-family="Helvetica, Arial, sans-serif">Style: premium geometry, stable structure, strong app-icon potential.</text>
+</svg>

@@ -1,0 +1,622 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6F3573032F44CB83001F61DD /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6F3573022F44CB83001F61DD /* GoogleService-Info.plist */; };
+		B1F0A0011000000000000001 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = B1F0A1011000000000000001 /* FirebaseAuth */; };
+		B1F0A0011000000000000002 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = B1F0A1011000000000000002 /* FirebaseCore */; };
+		B1F0A0011000000000000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = B1F0A1011000000000000003 /* FirebaseFirestore */; };
+		A1B2C3010000000000000001 /* HandoutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000001 /* HandoutApp.swift */; };
+		A1B2C3010000000000000002 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000002 /* SessionManager.swift */; };
+		A1B2C3010000000000000003 /* TenantTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000003 /* TenantTask.swift */; };
+		A1B2C3010000000000000004 /* TenantTaskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000004 /* TenantTaskService.swift */; };
+		A1B2C3010000000000000005 /* TenantTabRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000005 /* TenantTabRootView.swift */; };
+		A1B2C3010000000000000006 /* TenantDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000006 /* TenantDashboardView.swift */; };
+		A1B2C3010000000000000007 /* TenantCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000007 /* TenantCreateView.swift */; };
+		A1B2C3010000000000000008 /* CreateTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000008 /* CreateTaskView.swift */; };
+		A1B2C3010000000000000009 /* TenantInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000009 /* TenantInboxView.swift */; };
+		A1B2C301000000000000000A /* TenantRecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000A /* TenantRecordsView.swift */; };
+		A1B2C301000000000000000B /* TenantProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000B /* TenantProfileView.swift */; };
+		A1B2C301000000000000000C /* FirebaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000C /* FirebaseManager.swift */; };
+		A1B2C301000000000000000D /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000D /* AuthService.swift */; };
+		A1B2C301000000000000000E /* FirestorePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000E /* FirestorePaths.swift */; };
+		A1B2C301000000000000000F /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000000F /* LoginView.swift */; };
+		A1B2C3010000000000000010 /* TenantDashboardSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000010 /* TenantDashboardSnapshot.swift */; };
+		A1B2C3010000000000000011 /* TenantInboxMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000011 /* TenantInboxMessage.swift */; };
+		A1B2C3010000000000000012 /* TenantRecordItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000012 /* TenantRecordItem.swift */; };
+		A1B2C3010000000000000013 /* FirestoreValueDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000013 /* FirestoreValueDecoder.swift */; };
+		A1B2C3010000000000000014 /* TenantDashboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000014 /* TenantDashboardService.swift */; };
+		A1B2C3010000000000000015 /* TenantInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000015 /* TenantInboxService.swift */; };
+		A1B2C3010000000000000016 /* TenantRecordsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000016 /* TenantRecordsService.swift */; };
+		A1B2C3010000000000000017 /* ImageCompressionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000017 /* ImageCompressionService.swift */; };
+		A1B2C3010000000000000018 /* TenantInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000018 /* TenantInventory.swift */; };
+		A1B2C3010000000000000019 /* TenantInventoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C2010000000000000019 /* TenantInventoryService.swift */; };
+		A1B2C301000000000000001A /* TenantInventoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001A /* TenantInventoryDetailView.swift */; };
+		A1B2C301000000000000001B /* FirestoreQueryHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001B /* FirestoreQueryHelper.swift */; };
+		A1B2C301000000000000001C /* FirestoreSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001C /* FirestoreSchema.swift */; };
+		A1B2C301000000000000001D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001D /* Assets.xcassets */; };
+		A1B2C301000000000000001E /* String+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001E /* String+Display.swift */; };
+		A1B2C301000000000000001F /* BrandLogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C201000000000000001F /* BrandLogoView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		6F3573022F44CB83001F61DD /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Sources/App/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		A1B2C1010000000000000001 /* Handout.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Handout.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C2010000000000000001 /* HandoutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoutApp.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000002 /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManager.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000003 /* TenantTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantTask.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000004 /* TenantTaskService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantTaskService.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000005 /* TenantTabRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantTabRootView.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000006 /* TenantDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantDashboardView.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000007 /* TenantCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantCreateView.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000008 /* CreateTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateTaskView.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000009 /* TenantInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInboxView.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000A /* TenantRecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantRecordsView.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000B /* TenantProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantProfileView.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000C /* FirebaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseManager.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000D /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000E /* FirestorePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestorePaths.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000000F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000010 /* TenantDashboardSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantDashboardSnapshot.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000011 /* TenantInboxMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInboxMessage.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000012 /* TenantRecordItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantRecordItem.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000013 /* FirestoreValueDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreValueDecoder.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000014 /* TenantDashboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantDashboardService.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000015 /* TenantInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInboxService.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000016 /* TenantRecordsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantRecordsService.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000017 /* ImageCompressionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCompressionService.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000018 /* TenantInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInventory.swift; sourceTree = "<group>"; };
+		A1B2C2010000000000000019 /* TenantInventoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInventoryService.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000001A /* TenantInventoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantInventoryDetailView.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000001B /* FirestoreQueryHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreQueryHelper.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000001C /* FirestoreSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreSchema.swift; sourceTree = "<group>"; };
+		A1B2C201000000000000001D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C201000000000000001E /* String+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Display.swift"; sourceTree = "<group>"; };
+		A1B2C201000000000000001F /* BrandLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandLogoView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1B2C4010000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1F0A0011000000000000001 /* FirebaseAuth in Frameworks */,
+				B1F0A0011000000000000002 /* FirebaseCore in Frameworks */,
+				B1F0A0011000000000000003 /* FirebaseFirestore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A1B2C5010000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				6F3573022F44CB83001F61DD /* GoogleService-Info.plist */,
+				A1B2C5010000000000000002 /* Sources */,
+				A1B2C5010000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000002 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C5010000000000000004 /* App */,
+				A1B2C5010000000000000005 /* Core */,
+				A1B2C5010000000000000006 /* Features */,
+				A1B2C5010000000000000012 /* Shared */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C1010000000000000001 /* Handout.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000001 /* HandoutApp.swift */,
+				A1B2C201000000000000001D /* Assets.xcassets */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000005 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C5010000000000000010 /* Firebase */,
+				A1B2C5010000000000000007 /* Models */,
+				A1B2C5010000000000000008 /* Services */,
+				A1B2C5010000000000000009 /* Session */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000006 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C5010000000000000011 /* Auth */,
+				A1B2C501000000000000000A /* Main */,
+				A1B2C501000000000000000B /* Dashboard */,
+				A1B2C501000000000000000C /* Create */,
+				A1B2C501000000000000000D /* Inbox */,
+				A1B2C501000000000000000E /* Records */,
+				A1B2C501000000000000000F /* Profile */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000007 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000003 /* TenantTask.swift */,
+				A1B2C2010000000000000010 /* TenantDashboardSnapshot.swift */,
+				A1B2C2010000000000000011 /* TenantInboxMessage.swift */,
+				A1B2C2010000000000000012 /* TenantRecordItem.swift */,
+				A1B2C2010000000000000018 /* TenantInventory.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000008 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000004 /* TenantTaskService.swift */,
+				A1B2C2010000000000000013 /* FirestoreValueDecoder.swift */,
+				A1B2C2010000000000000014 /* TenantDashboardService.swift */,
+				A1B2C2010000000000000015 /* TenantInboxService.swift */,
+				A1B2C2010000000000000016 /* TenantRecordsService.swift */,
+				A1B2C2010000000000000017 /* ImageCompressionService.swift */,
+				A1B2C2010000000000000019 /* TenantInventoryService.swift */,
+				A1B2C201000000000000001B /* FirestoreQueryHelper.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000009 /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000002 /* SessionManager.swift */,
+			);
+			path = Session;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000A /* Main */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000005 /* TenantTabRootView.swift */,
+			);
+			path = Main;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000B /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000006 /* TenantDashboardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000C /* Create */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000007 /* TenantCreateView.swift */,
+				A1B2C2010000000000000008 /* CreateTaskView.swift */,
+			);
+			path = Create;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000D /* Inbox */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C2010000000000000009 /* TenantInboxView.swift */,
+			);
+			path = Inbox;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000E /* Records */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000000A /* TenantRecordsView.swift */,
+				A1B2C201000000000000001A /* TenantInventoryDetailView.swift */,
+			);
+			path = Records;
+			sourceTree = "<group>";
+		};
+		A1B2C501000000000000000F /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000000B /* TenantProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000010 /* Firebase */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000000C /* FirebaseManager.swift */,
+				A1B2C201000000000000000D /* AuthService.swift */,
+				A1B2C201000000000000000E /* FirestorePaths.swift */,
+				A1B2C201000000000000001C /* FirestoreSchema.swift */,
+			);
+			path = Firebase;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000011 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000000F /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000012 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C5010000000000000014 /* Components */,
+				A1B2C5010000000000000013 /* Extensions */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000013 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000001E /* String+Display.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		A1B2C5010000000000000014 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C201000000000000001F /* BrandLogoView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1B2C6010000000000000001 /* Handout */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C8010000000000000001 /* Build configuration list for PBXNativeTarget "Handout" */;
+			buildPhases = (
+				A1B2C7010000000000000001 /* Sources */,
+				A1B2C4010000000000000001 /* Frameworks */,
+				A1B2C4010000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Handout;
+			packageProductDependencies = (
+				B1F0A1011000000000000001 /* FirebaseAuth */,
+				B1F0A1011000000000000002 /* FirebaseCore */,
+				B1F0A1011000000000000003 /* FirebaseFirestore */,
+			);
+			productName = Handout;
+			productReference = A1B2C1010000000000000001 /* Handout.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A1B2C9010000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A1B2C6010000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A1B2C8010000000000000002 /* Build configuration list for PBXProject "Handout" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A1B2C5010000000000000001;
+			packageReferences = (
+				6F3573042F44CBBB001F61DD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
+			productRefGroup = A1B2C5010000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1B2C6010000000000000001 /* Handout */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1B2C4010000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C301000000000000001D /* Assets.xcassets in Resources */,
+				6F3573032F44CB83001F61DD /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1B2C7010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3010000000000000001 /* HandoutApp.swift in Sources */,
+				A1B2C3010000000000000002 /* SessionManager.swift in Sources */,
+				A1B2C3010000000000000003 /* TenantTask.swift in Sources */,
+				A1B2C3010000000000000004 /* TenantTaskService.swift in Sources */,
+				A1B2C3010000000000000005 /* TenantTabRootView.swift in Sources */,
+				A1B2C3010000000000000006 /* TenantDashboardView.swift in Sources */,
+				A1B2C3010000000000000007 /* TenantCreateView.swift in Sources */,
+				A1B2C3010000000000000008 /* CreateTaskView.swift in Sources */,
+				A1B2C3010000000000000009 /* TenantInboxView.swift in Sources */,
+				A1B2C301000000000000000A /* TenantRecordsView.swift in Sources */,
+				A1B2C301000000000000000B /* TenantProfileView.swift in Sources */,
+				A1B2C301000000000000000C /* FirebaseManager.swift in Sources */,
+				A1B2C301000000000000000D /* AuthService.swift in Sources */,
+				A1B2C301000000000000000E /* FirestorePaths.swift in Sources */,
+				A1B2C301000000000000000F /* LoginView.swift in Sources */,
+				A1B2C3010000000000000010 /* TenantDashboardSnapshot.swift in Sources */,
+				A1B2C3010000000000000011 /* TenantInboxMessage.swift in Sources */,
+				A1B2C3010000000000000012 /* TenantRecordItem.swift in Sources */,
+				A1B2C3010000000000000013 /* FirestoreValueDecoder.swift in Sources */,
+				A1B2C3010000000000000014 /* TenantDashboardService.swift in Sources */,
+				A1B2C3010000000000000015 /* TenantInboxService.swift in Sources */,
+				A1B2C3010000000000000016 /* TenantRecordsService.swift in Sources */,
+				A1B2C3010000000000000017 /* ImageCompressionService.swift in Sources */,
+				A1B2C3010000000000000018 /* TenantInventory.swift in Sources */,
+				A1B2C3010000000000000019 /* TenantInventoryService.swift in Sources */,
+				A1B2C301000000000000001A /* TenantInventoryDetailView.swift in Sources */,
+				A1B2C301000000000000001B /* FirestoreQueryHelper.swift in Sources */,
+				A1B2C301000000000000001C /* FirestoreSchema.swift in Sources */,
+				A1B2C301000000000000001E /* String+Display.swift in Sources */,
+				A1B2C301000000000000001F /* BrandLogoView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1B2C8010000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1B2C8010000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A1B2C8010000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XVMQDH7589;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Handout;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.magnates.handout;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1B2C8010000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XVMQDH7589;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Handout;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.magnates.handout;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1B2C8010000000000000001 /* Build configuration list for PBXNativeTarget "Handout" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C8010000000000000005 /* Debug */,
+				A1B2C8010000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C8010000000000000002 /* Build configuration list for PBXProject "Handout" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C8010000000000000003 /* Debug */,
+				A1B2C8010000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B1F0A1011000000000000001 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6F3573042F44CBBB001F61DD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		B1F0A1011000000000000002 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6F3573042F44CBBB001F61DD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		B1F0A1011000000000000003 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6F3573042F44CBBB001F61DD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6F3573042F44CBBB001F61DD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+	};
+	rootObject = A1B2C9010000000000000001 /* Project object */;
+}

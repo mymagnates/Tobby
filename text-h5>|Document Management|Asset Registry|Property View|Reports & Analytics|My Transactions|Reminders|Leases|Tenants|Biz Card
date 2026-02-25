@@ -1,0 +1,9 @@
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/RemindersPage.vue:19:          <div class="text-h4 text-primary">{{ reminders.length }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/RemindersPage.vue:26:          <div class="text-h4 text-primary">{{ activeReminders }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/RemindersPage.vue:33:          <div class="text-h4 text-orange">{{ recurringReminders }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/RemindersPage.vue:40:          <div class="text-h4 text-primary">{{ oneTimeReminders }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/LeasesPage.vue:18:          <div class="text-h4 text-primary">{{ userAccessibleLeases.length }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/LeasesPage.vue:30:          <div class="text-h4 text-green">{{ availableCount }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/LeasesPage.vue:42:          <div class="text-h4 text-blue">{{ rentedCount }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/LeasesPage.vue:54:          <div class="text-h4 text-orange">{{ pendingCount }}</div>
+/Users/MacAirEZ/Desktop/projectTobby/src/pages/LeasesPage.vue:66:          <div class="text-h4 text-red">{{ expiredCount }}</div>

@@ -1,16 +1,5 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Reports & Analytics</div>
-      <div class="row q-gutter-sm">
-
-      </div>
-    </div>
-
-    <!-- End of Selection -->
-
-
     <!-- Role Filter -->
     <div class="row q-mb-md q-padding-sm">
       <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
@@ -220,7 +209,23 @@
           <q-icon name="workspace_premium" class="q-mr-sm" />
           Premium Charts
         </div>
-        <q-chip color="warning" text-color="black" size="sm" class="q-ml-sm">Future Paid</q-chip>
+        <q-chip
+          :color="canAccessAdvancedReports ? 'positive' : 'warning'"
+          text-color="black"
+          size="sm"
+          class="q-ml-sm"
+        >
+          {{ canAccessAdvancedReports ? 'Enabled' : 'Plan Required' }}
+        </q-chip>
+        <q-btn
+          v-if="!canAccessAdvancedReports"
+          flat
+          color="primary"
+          size="sm"
+          label="Upgrade"
+          class="q-ml-sm"
+          @click="upgradeForReports"
+        />
       </div>
       <div class="premium-grid">
         <q-card class="premium-card">
@@ -257,6 +262,81 @@
           </q-card-section>
         </q-card>
       </div>
+    </div>
+
+    <div class="q-mb-lg">
+      <q-card class="table-card">
+        <q-card-section>
+          <div class="text-h6 q-mb-sm">
+            <q-icon name="receipt_long" class="q-mr-sm" />
+            Annual Tax Finance Report (Web)
+          </div>
+
+          <div class="row q-col-gutter-sm q-mb-sm">
+            <div class="col-12 col-md-3">
+              <q-input v-model.number="taxYear" type="number" label="Tax Year" outlined dense />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select v-model="taxRoleView" :options="taxRoleOptions" label="Role View" outlined dense />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="taxPropertyIds"
+                :options="propertyOptions"
+                label="Properties"
+                outlined
+                dense
+                multiple
+                option-label="label"
+                option-value="value"
+                emit-value
+                map-options
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-input
+                v-model="taxCategory"
+                label="Transaction Category (Optional)"
+                outlined
+                dense
+              />
+            </div>
+          </div>
+
+          <div class="row q-gutter-sm q-mb-md">
+            <q-btn color="primary" unelevated label="Generate" :loading="taxLoading" @click="generateTaxReport" />
+            <q-btn flat color="primary" label="Export CSV" @click="exportTaxCsv" />
+            <q-btn flat color="secondary" label="Export PDF" @click="exportTaxPdf" />
+          </div>
+
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-4">
+              <q-card bordered flat>
+                <q-card-section class="text-center">
+                  <div class="text-caption">Income Total</div>
+                  <div class="text-h6 text-positive">${{ taxReport.incomeTotal }}</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-md-4">
+              <q-card bordered flat>
+                <q-card-section class="text-center">
+                  <div class="text-caption">Expense Total</div>
+                  <div class="text-h6 text-negative">${{ taxReport.expenseTotal }}</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-md-4">
+              <q-card bordered flat>
+                <q-card-section class="text-center">
+                  <div class="text-caption">Net Total</div>
+                  <div class="text-h6">${{ taxReport.netTotal }}</div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
     </div>
 
     <!-- Financial Transactions Table -->
@@ -429,6 +509,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
+import { billingApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
 
@@ -440,6 +521,20 @@ const selectedProperties = ref([])
 const dateRange = ref('Last 6 Months')
 const showImageViewer = ref(false)
 const currentImageUrl = ref('')
+const billingSummary = ref({})
+const canAccessAdvancedReports = ref(false)
+const taxYear = ref(new Date().getFullYear())
+const taxRoleView = ref('PM')
+const taxRoleOptions = ['PM', 'PO']
+const taxPropertyIds = ref([])
+const taxCategory = ref('')
+const taxLoading = ref(false)
+const taxReport = ref({
+  incomeTotal: '0.00',
+  expenseTotal: '0.00',
+  netTotal: '0.00',
+  transactions: [],
+})
 
 // Chart references
 const coreCashFlowChartCanvas = ref(null)
@@ -785,6 +880,116 @@ const getRoleColor = (role) => {
 
 const getAmountClass = (type) => {
   return type === 'income' ? 'text-positive text-bold' : 'text-negative text-bold'
+}
+
+const loadBillingSummary = async () => {
+  try {
+    billingSummary.value = await billingApi.getProfileSummary()
+    const plan = String(billingSummary.value.plan_name || 'free').toLowerCase()
+    canAccessAdvancedReports.value = !['free', 'starter', 'trial'].includes(plan)
+  } catch {
+    canAccessAdvancedReports.value = false
+  }
+}
+
+const upgradeForReports = async () => {
+  try {
+    await billingApi.upgrade({ target_plan: 'pro' })
+    Notify.create({
+      type: 'positive',
+      message: 'Upgrade request submitted.',
+      position: 'top',
+    })
+    await loadBillingSummary()
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Upgrade failed.',
+      caption: error.upgrade_hint || '',
+      position: 'top',
+    })
+  }
+}
+
+const classifyFlowForTax = (transaction, role) => {
+  if (transaction.transac_to === role) return 'income'
+  if (transaction.transac_from === role) return 'expense'
+  return 'ignore'
+}
+
+const generateTaxReport = () => {
+  taxLoading.value = true
+  try {
+    const year = Number(taxYear.value)
+    const role = taxRoleView.value
+    const tx = userDataStore.userAccessibleTransactions.filter((t) => {
+      const date = new Date(t.transac_date)
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== year) return false
+      if (taxPropertyIds.value.length && !taxPropertyIds.value.includes(t.property_id)) return false
+      if (taxCategory.value && !String(t.transac_type || '').toLowerCase().includes(taxCategory.value.toLowerCase())) return false
+      return true
+    })
+
+    let income = 0
+    let expense = 0
+    tx.forEach((t) => {
+      const flow = classifyFlowForTax(t, role)
+      const amount = Number(t.amount || 0)
+      if (flow === 'income') income += amount
+      if (flow === 'expense') expense += amount
+    })
+
+    taxReport.value = {
+      incomeTotal: formatAmount(income),
+      expenseTotal: formatAmount(expense),
+      netTotal: formatAmount(income - expense),
+      transactions: tx,
+    }
+  } finally {
+    taxLoading.value = false
+  }
+}
+
+const exportTaxCsv = () => {
+  const role = String(taxRoleView.value || 'PM').toLowerCase()
+  const rows = taxReport.value.transactions.map((t) => [
+    formatDate(t.transac_date),
+    getPropertyName(t.property_id),
+    t.transac_type || '',
+    t.transac_from || '',
+    t.transac_to || '',
+    t.amount || 0,
+    classifyFlowForTax(t, taxRoleView.value),
+  ])
+  let csv = ''
+  csv += 'Tax Year,Role View,Income Total,Expense Total,Net Total\n'
+  csv += `${taxYear.value},${taxRoleView.value},${taxReport.value.incomeTotal},${taxReport.value.expenseTotal},${taxReport.value.netTotal}\n\n`
+  csv += 'Date,Property,Category,From,To,Amount,Flow\n'
+  rows.forEach((row) => {
+    csv += row.map((cell) => `"${cell}"`).join(',') + '\n'
+  })
+  downloadCSV(csv, `annual-tax-report-${role}-${taxYear.value}`)
+}
+
+const exportTaxPdf = () => {
+  const filename = `annual-tax-report-${String(taxRoleView.value || 'pm').toLowerCase()}-${taxYear.value}.pdf`
+  const html = `
+    <html><head><title>${filename}</title></head><body>
+    <h2>Annual Tax Finance Report</h2>
+    <p>Tax Year: ${taxYear.value}</p>
+    <p>Role View: ${taxRoleView.value}</p>
+    <p>Income: $${taxReport.value.incomeTotal}</p>
+    <p>Expense: $${taxReport.value.expenseTotal}</p>
+    <p>Net: $${taxReport.value.netTotal}</p>
+    <p>Use browser Print to save as PDF.</p>
+    </body></html>
+  `
+  const win = window.open('', '_blank')
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
 }
 
 // Chart functions
@@ -1534,6 +1739,8 @@ onMounted(async () => {
   console.log('ReportsPage mounted')
 
   try {
+    await loadBillingSummary()
+
     // Load data if not already loaded
     if (userDataStore.isAuthenticated) {
       loading.value = true
@@ -1564,6 +1771,7 @@ onMounted(async () => {
       setTimeout(() => {
         initializeCharts()
       }, 100)
+      generateTaxReport()
 
       Notify.create({
         type: 'positive',
@@ -1603,6 +1811,10 @@ watch(
   },
   { deep: true },
 )
+
+watch([taxYear, taxRoleView, taxPropertyIds, taxCategory], () => {
+  generateTaxReport()
+})
 
 onUnmounted(() => {
   // Clean up charts

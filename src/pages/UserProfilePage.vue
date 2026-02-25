@@ -1,255 +1,307 @@
 <template>
-  <q-page class="q-pa-sm">
-    <div class="user-profile-container">
-      <!-- User Profile Header -->
-      <q-card class="profile-header q-mb-sm">
-        <q-card-section class="q-pa-sm">
-          <div class="row items-center q-gutter-sm">
-            <div class="col-auto">
-              <q-avatar size="60px" color="primary" text-color="white">
-                <q-icon name="person" size="30px" />
-              </q-avatar>
+  <q-page class="profile-page q-pa-sm">
+    <div class="profile-container">
+      <q-card class="profile-hero q-mb-sm">
+        <q-card-section class="q-pa-md">
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-h5 text-weight-bold text-white">Profile</div>
+              <div class="text-body2 hero-subtitle">Account, role context, plan, and billing controls</div>
             </div>
-            <div class="col">
-              <div class="text-h6 q-mb-xs">{{ userProfile?.user_name || 'Loading...' }}</div>
-              <div class="text-body2 text-white-7 q-mb-xs">
-                <q-icon name="email" size="14px" class="q-mr-xs" />
-                {{ userProfile?.email || 'No email' }}
-              </div>
-              <div class="text-body2 text-grey-7 q-mb-xs" v-if="userProfile?.cellphone">
-                <q-icon name="phone" size="14px" class="q-mr-xs" />
-                {{ userProfile.cellphone }}
-              </div>
-
-            </div>
+            <q-chip dense color="white" text-color="primary">
+              {{ accountTypeLabel }}
+            </q-chip>
           </div>
         </q-card-section>
       </q-card>
 
-      <!-- User Details -->
-      <q-card class="user-details q-mb-sm">
-        <q-card-section class="q-pa-sm">
-          <div class="text-subtitle1 q-mb-sm">Personal Information</div>
+      <div class="row q-col-gutter-sm">
+        <div class="col-12 col-xl-4">
+          <q-card class="section-card q-mb-sm">
+            <q-card-section class="q-pa-md">
+              <div class="text-h6 q-mb-md">Account</div>
+              <div class="row items-center q-col-gutter-sm q-mb-md">
+                <div class="col-auto">
+                  <q-avatar size="56px" color="primary" text-color="white">
+                    <q-icon name="person" size="30px" />
+                  </q-avatar>
+                </div>
+                <div class="col">
+                  <div class="text-subtitle1 text-weight-medium">{{ displayName }}</div>
+                  <div class="text-body2 text-grey-7">{{ userProfile?.email || 'No email' }}</div>
+                </div>
+              </div>
 
-          <!-- Name Fields in Same Row -->
-          <div class="row q-mb-md" style="padding: 5px">
-            <div class="col-12 col-md-4" style="padding: 5px">
-              <q-input
-                :model-value="userProfile?.first_name || ''"
-                label="First Name"
+              <div class="info-row">
+                <span>Account Type</span>
+                <strong>{{ accountTypeLabel }}</strong>
+              </div>
+              <div class="info-row">
+                <span>Primary Role</span>
+                <strong>{{ primaryRoleLabel }}</strong>
+              </div>
+              <div class="info-row">
+                <span>Phone</span>
+                <strong>{{ userProfile?.mobile_phone || userProfile?.cellphone || 'Not set' }}</strong>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card class="section-card q-mb-sm">
+            <q-card-section class="q-pa-md">
+              <div class="text-h6 q-mb-md">Role Context</div>
+              <q-select
+                v-if="propertyContextOptions.length"
+                v-model="activePropertyId"
+                :options="propertyContextOptions"
+                option-label="label"
+                option-value="value"
+                emit-value
+                map-options
                 outlined
-                readonly
                 dense
+                label="Active Property"
+                class="q-mb-md"
               />
-            </div>
-            <div class="col-12 col-md-3" style="padding: 5px">
-              <q-input
-                :model-value="userProfile?.middle_name || ''"
-                label="Middle Name"
-                outlined
-                readonly
-                dense
-              />
-            </div>
-            <div class="col-12 col-md-4" style="padding: 5px">
-              <q-input
-                :model-value="userProfile?.last_name || ''"
-                label="Last Name"
-                outlined
-                readonly
-                dense
-              />
-            </div>
-          </div>
+              <q-banner v-else dense rounded class="bg-blue-1 text-primary q-mb-md">
+                No property role assignments found.
+              </q-banner>
 
-          <!-- Additional Contact Information -->
-          <div class="row q-gutter-sm">
-            <div class="col-12 col-md-4">
-              <q-input
-                :model-value="userProfile?.mobile_phone || ''"
-                label="Mobile Phone Number"
-                outlined
-                readonly
-                dense
-              />
-            </div>
-            <div class="col-12 col-md-5">
-              <q-input
-                :model-value="userProfile?.email || ''"
-                label="Email"
-                outlined
-                readonly
-                dense
-                font-color="white"
-              />
-            </div>
-          </div>
+              <div class="row q-gutter-sm q-mb-md">
+                <q-chip
+                  v-if="selectedRoleEntry"
+                  color="primary"
+                  text-color="white"
+                  :label="selectedRoleEntry.roleCode"
+                />
+                <q-chip v-if="selectedRoleEntry" color="blue-1" text-color="primary">
+                  {{ selectedRoleEntry.propertyName }}
+                </q-chip>
+              </div>
 
-          <div class="row q-gutter-sm q-mt-sm">
-            <div class="col-12 col-md-6">
-              <q-input
-                :model-value="userProfile?.company_name || ''"
-                label="Company Name"
-                outlined
-                readonly
-                dense
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <q-input
-                :model-value="userProfile?.mailing_address || ''"
-                label="Mailing Address"
-                outlined
-                readonly
-                dense
-              />
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
+              <div class="text-caption text-grey-7">
+                Permissions are evaluated by current active property and property role.
+              </div>
+            </q-card-section>
+          </q-card>
 
-      <!-- User Roles Section -->
-      <q-card>
-        <q-card-section class="q-pa-sm">
-          <div class="text-subtitle1 q-mb-sm">
-            My Roles
-            <q-badge color="primary" class="q-ml-sm">{{ userRoles.length }}</q-badge>
-            <q-btn
-              color="primary"
-              icon="add"
-              label="Assign Role"
-              size="sm"
-              unelevated
-              class="q-ml-sm"
-              @click="showAssignRoleDialog = true"
-            />
-          </div>
+          <q-card class="section-card">
+            <q-card-section class="q-pa-md">
+              <div class="text-h6 q-mb-md">Settings</div>
+              <q-list bordered separator class="rounded-borders">
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>Language</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label caption>EN</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>Notification</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label caption>Basic</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item clickable @click="openDataRequest">
+                  <q-item-section>
+                    <q-item-label>Privacy / Data Request</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-icon name="open_in_new" size="18px" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
 
-          <div v-if="rolesLoading" class="text-center q-pa-md">
-            <q-spinner-dots size="40px" color="primary" />
-            <div class="text-grey-6 q-mt-sm">Loading roles...</div>
-          </div>
+              <div class="row q-col-gutter-sm q-mt-md">
+                <div class="col-6">
+                  <q-btn
+                    class="full-width"
+                    outline
+                    color="primary"
+                    label="Support"
+                    @click="openSupport"
+                  />
+                </div>
+                <div class="col-6">
+                  <q-btn
+                    class="full-width"
+                    outline
+                    color="negative"
+                    label="Sign Out"
+                    :loading="logoutLoading"
+                    @click="handleSignOut"
+                  />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
 
-          <div v-else-if="userRoles.length === 0" class="text-center q-pa-md">
-            <q-icon name="work_off" size="50px" color="grey-4" />
-            <div class="text-subtitle1 text-grey-6 q-mt-sm">No Roles Assigned</div>
-            <div class="text-grey-6">You haven't been assigned any property roles yet.</div>
-          </div>
+        <div class="col-12 col-xl-8">
+          <q-card class="section-card q-mb-sm">
+            <q-card-section class="q-pa-md">
+              <div class="row items-start justify-between">
+                <div>
+                  <div class="text-h6">Plan</div>
+                  <div class="text-caption text-grey-7">Server-enforced feature gates and usage quotas</div>
+                </div>
+                <div class="plan-status">
+                  <q-badge :color="subscriptionStatusColor" class="q-mr-xs">
+                    {{ subscriptionStatusLabel }}
+                  </q-badge>
+                </div>
+              </div>
 
-          <div v-else class="row q-gutter-sm">
-            <div v-for="role in userRoles" :key="role.id" class="col-12 col-sm-6 col-md-4 col-lg-3">
-              <q-card class="role-card" flat bordered>
-                <q-card-section class="q-pa-sm">
-                  <div class="text-subtitle1 q-mb-xs">{{ getPropertyName(role.property_id) }}</div>
+              <div v-if="billingLoading" class="text-center q-py-lg">
+                <q-spinner-dots size="36px" color="primary" />
+              </div>
 
-                  <div class="q-mb-sm">
-                    <q-chip
-                      :color="getRoleColor(role.role)"
-                      text-color="white"
-                      size="sm"
-                      class="q-mb-xs"
-                    >
-                      {{ role.role }}
-                    </q-chip>
+              <div v-else class="row q-col-gutter-md q-mt-sm">
+                <div class="col-12 col-lg-7">
+                  <div class="plan-name">{{ currentPlanName }}</div>
+                  <div class="text-body2 text-grey-7 q-mb-md">
+                    Renews on {{ formatDate(billingSummary.next_renewal_date) }}
+                  </div>
+                </div>
+                <div class="col-12 col-lg-5">
+                  <q-btn
+                    class="full-width q-mb-sm"
+                    color="primary"
+                    unelevated
+                    label="Upgrade Plan"
+                    @click="upgradePlan"
+                  />
+                  <q-btn
+                    class="full-width"
+                    outline
+                    color="primary"
+                    label="Compare Plans"
+                    @click="comparePlans"
+                  />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <div class="row q-col-gutter-sm q-mb-sm">
+            <div class="col-12 col-lg-8">
+              <q-card class="section-card fill-height">
+                <q-card-section class="q-pa-md">
+                  <div class="text-h6 q-mb-md">Usage Quotas</div>
+
+                  <div class="quota-card q-mb-md">
+                    <div class="row items-center justify-between q-mb-xs">
+                      <div class="text-subtitle2">Properties</div>
+                      <div class="text-caption text-grey-7">{{ propertyUsed }} / {{ propertyLimit }}</div>
+                    </div>
+                    <q-linear-progress rounded size="10px" :value="propertyRatio" :color="ratioColor(propertyRatio)" />
+                    <div class="row items-center justify-between q-mt-sm">
+                      <div class="text-caption text-grey-7">{{ Math.round(propertyRatio * 100) }}% used</div>
+                      <q-btn outline color="primary" size="sm" label="+10" @click="buyAddon('extra_properties')" />
+                    </div>
                   </div>
 
-                  <div class="text-caption text-grey-6 q-mb-xs">
-                    <q-icon name="calendar_today" size="14px" class="q-mr-xs" />
-                    <strong>Started:</strong> {{ formatDate(role.role_date) }}
+                  <div class="quota-card q-mb-md">
+                    <div class="row items-center justify-between q-mb-xs">
+                      <div class="text-subtitle2">Voice Fill</div>
+                      <div class="text-caption text-grey-7">{{ voiceUsed }} / {{ voiceLimit }}</div>
+                    </div>
+                    <q-linear-progress rounded size="10px" :value="voiceRatio" :color="ratioColor(voiceRatio)" />
+                    <div class="row items-center justify-between q-mt-sm">
+                      <div class="text-caption text-grey-7">{{ voiceRemaining }} left this month</div>
+                      <q-btn outline color="primary" size="sm" label="Buy Pack" @click="buyAddon('voice_pack_50')" />
+                    </div>
                   </div>
 
-                  <div class="text-caption text-grey-6 q-mb-xs" v-if="role.expire_date">
-                    <q-icon name="event_busy" size="14px" class="q-mr-xs" />
-                    <strong>Expires:</strong> {{ formatDate(role.expire_date) }}
-                  </div>
-
-                  <div class="text-caption text-grey-6 q-mb-xs" v-if="role.role_grant_by">
-                    <q-icon name="verified_user" size="14px" class="q-mr-xs" />
-                    <strong>Granted by:</strong> {{ role.role_grant_by }}
-                  </div>
-
-                  <div class="text-caption text-grey-6">
-                    <q-icon name="access_time" size="14px" class="q-mr-xs" />
-                    <strong>Created:</strong> {{ formatDate(role.createdAt) }}
+                  <div class="quota-card">
+                    <div class="row items-center justify-between q-mb-xs">
+                      <div class="text-subtitle2">Storage</div>
+                      <div class="text-caption text-grey-7">{{ storageUsedGb }} / {{ storageLimitGb }} GB</div>
+                    </div>
+                    <q-linear-progress rounded size="10px" :value="storageRatio" :color="ratioColor(storageRatio)" />
+                    <div class="row items-center justify-between q-mt-sm">
+                      <div class="text-caption text-grey-7">{{ Math.round(storageRatio * 100) }}% used</div>
+                      <q-btn outline color="primary" size="sm" label="Buy +20GB" @click="buyAddon('storage_20gb')" />
+                    </div>
                   </div>
                 </q-card-section>
+              </q-card>
+            </div>
 
-                <q-card-actions align="right">
-                  <q-btn
-                    flat
-                    color="primary"
-                    size="sm"
-                    label="View Property"
-                    @click="viewProperty(role.property_id)"
-                  />
-                </q-card-actions>
+            <div class="col-12 col-lg-4">
+              <q-card class="wallet-card fill-height">
+                <q-card-section class="q-pa-md">
+                  <div class="text-h6 text-white">Credit Wallet</div>
+                  <div class="text-caption wallet-subtitle">Available credits</div>
+                  <div class="wallet-balance">{{ creditBalance }}</div>
+
+                  <q-list dense class="wallet-activity q-mt-sm">
+                    <q-item v-for="item in recentBillingActivity" :key="item.id" class="q-pa-none q-mb-xs">
+                      <q-item-section>
+                        <q-item-label class="text-white text-caption">{{ item.label }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+
+                  <div class="row q-col-gutter-sm q-mt-md">
+                    <div class="col-6">
+                      <q-btn class="full-width wallet-btn" label="Top Up" @click="topUpCredits" />
+                    </div>
+                    <div class="col-6">
+                      <q-btn class="full-width wallet-btn-outline" outline label="History" @click="openBillingHistory" />
+                    </div>
+                  </div>
+                </q-card-section>
               </q-card>
             </div>
           </div>
-        </q-card-section>
-      </q-card>
 
- 
+          <q-card class="section-card">
+            <q-card-section class="q-pa-md">
+              <div class="text-h6 q-mb-md">Billing Actions</div>
+              <div class="row q-col-gutter-sm">
+                <div class="col-12 col-md-4">
+                  <q-btn class="full-width" outline color="primary" label="Billing History" @click="openBillingHistory" />
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-btn class="full-width" outline color="primary" label="Invoices" @click="openInvoices" />
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-btn class="full-width" outline color="primary" label="Payment Method" @click="openPaymentMethod" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
     </div>
 
-    <!-- Assign Role Dialog -->
-    <q-dialog v-model="showAssignRoleDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Assign Role to Property</div>
+    <q-dialog v-model="showBillingHistoryDialog">
+      <q-card style="min-width: 680px; max-width: 90vw">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Billing History</div>
+          <q-btn icon="close" flat round dense color="primary" v-close-popup />
         </q-card-section>
-
+        <q-separator />
         <q-card-section>
-          <q-form @submit="assignRole" class="q-gutter-md">
-            <q-select
-              v-model="newRole.property_id"
-              :options="availableProperties"
-              option-label="nickname"
-              option-value="id"
-              label="Select Property"
-              outlined
-              :rules="[(val) => !!val || 'Property is required']"
-              emit-value
-              map-options
-            />
-
-            <q-select
-              v-model="newRole.role"
-              :options="roleOptions"
-              label="Select Role"
-              outlined
-              :rules="[(val) => !!val || 'Role is required']"
-            />
-
-            <q-input
-              v-model="newRole.role_date"
-              label="Role Start Date"
-              type="date"
-              outlined
-              :rules="[(val) => !!val || 'Date is required']"
-              :model-value="newRole.role_date"
-            />
-
-            <q-input
-              v-model="newRole.expire_date"
-              label="Role Expiry Date (Optional)"
-              type="date"
-              outlined
-              :model-value="newRole.expire_date"
-            />
-          </q-form>
+          <div v-if="!billingHistoryRows.length" class="text-center q-pa-md text-grey-7">
+            No billing history available yet.
+          </div>
+          <q-list v-else separator>
+            <q-item v-for="row in billingHistoryRows" :key="row.id">
+              <q-item-section>
+                <q-item-label>{{ row.description }}</q-item-label>
+                <q-item-label caption>{{ row.date }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-item-label :class="row.amountClass">{{ row.amount }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
         </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="primary" @click="showAssignRoleDialog = false" />
-          <q-btn
-            unelevated
-            label="Assign Role"
-            color="primary"
-            @click="assignRole"
-            :loading="assigningRole"
-          />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -260,228 +312,373 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useQuasar } from 'quasar'
+import { billingApi } from '../services/webApiClient'
+import { useFirebase } from '../composables/useFirebase'
 
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
+const { logout, loading: firebaseLoading } = useFirebase()
 
-// Computed properties
-const userProfile = computed(() => userDataStore.userProfile)
-const userRoles = computed(() => userDataStore.userRoles)
-const rolesLoading = computed(() => userDataStore.rolesLoading)
+const userProfile = computed(() => userDataStore.userProfile || {})
+const userRoles = computed(() => userDataStore.userRoles || [])
 
-// Assign role dialog
-const showAssignRoleDialog = ref(false)
-const assigningRole = ref(false)
-const newRole = ref({
-  property_id: '',
-  role: '',
-  role_date: '',
-  expire_date: '',
-})
-
-const roleOptions = ['Property Owner', 'Property Manager', 'Tenant', 'Contractor', 'Other']
-
-// Available properties (properties that the user doesn't already have a role for)
-const availableProperties = computed(() => {
-  if (!userDataStore.properties.length) return []
-
-  const userPropertyIds = userRoles.value.map((role) => role.property_id)
-  return userDataStore.properties.filter((property) => !userPropertyIds.includes(property.id))
-})
-
-onMounted(() => {
-  console.log('UserProfilePage mounted')
-  console.log('User Data Store State:', {
-    user: userDataStore.user,
-    userProfile: userDataStore.userProfile,
-    userRoles: userDataStore.userRoles,
-    properties: userDataStore.properties,
-    rolesLoading: userDataStore.rolesLoading,
-    propertiesLoading: userDataStore.propertiesLoading,
-  })
-
-  // Check if user is authenticated
-  if (!userDataStore.isAuthenticated) {
-    console.log('User not authenticated, redirecting to login')
-    router.push('/')
-    return
-  }
-
-  console.log('User is authenticated, UID:', userDataStore.userId)
-  // Data is automatically loaded by the store when user is authenticated
-})
-
-// Watch for changes in user roles and properties
-watch(
-  userRoles,
-  (newRoles) => {
-    console.log('User roles changed:', newRoles)
-  },
-  { immediate: true },
+const accountTypeRaw = computed(() => String(userProfile.value.account_type || '').toUpperCase())
+const accountTypeLabel = computed(() => accountTypeRaw.value || 'UNSET')
+const primaryRoleLabel = computed(() => userProfile.value.primary_role || userProfile.value.user_category || 'N/A')
+const displayName = computed(
+  () =>
+    userProfile.value.user_name ||
+    [userProfile.value.first_name, userProfile.value.last_name].filter(Boolean).join(' ') ||
+    userDataStore.user?.displayName ||
+    'User'
 )
 
-watch(
-  userDataStore.properties,
-  (newProperties) => {
-    console.log('Properties changed:', newProperties)
-  },
-  { immediate: true },
-)
-
-// Watch for dialog state to reset form
-watch(showAssignRoleDialog, (isOpen) => {
-  if (isOpen) {
-    // Set default date to today
-    const today = new Date()
-    const dateString = today.toISOString().split('T')[0]
-    newRole.value = {
-      property_id: '',
-      role: '',
-      role_date: dateString,
-      expire_date: '',
-    }
-  }
+const mergedPropertyRoles = computed(() => {
+  const profileRoles = Array.isArray(userProfile.value.property_roles) ? userProfile.value.property_roles : []
+  if (profileRoles.length) return profileRoles
+  return userRoles.value
 })
 
-// Helper functions
-const getPropertyName = (propertyId) => {
-  const property = userDataStore.getPropertyById(propertyId)
-  return property ? property.nickname || property.address || 'Unknown Property' : 'Unknown Property'
+const normalizeRoleCode = (role) => {
+  const value = String(role || '').toUpperCase().trim()
+  if (value === 'PROPERTY OWNER' || value === 'OWNER' || value === 'PO') return 'PO'
+  if (value === 'PROPERTY MANAGER' || value === 'MANAGER' || value === 'PM') return 'PM'
+  return value || 'N/A'
 }
 
-const getRoleColor = (role) => {
-  const colors = {
-    'Property Owner': 'primary',
-    'Property Manager': 'accent',
-    Tenant: 'positive',
-    Contractor: 'warning',
-    Other: 'secondary',
+const propertyContextOptions = computed(() =>
+  mergedPropertyRoles.value
+    .map((entry) => {
+      const propertyId = entry.property_id || entry.propertyId || entry.id
+      if (!propertyId) return null
+      const property = userDataStore.getPropertyById(propertyId)
+      const propertyName = property?.nickname || property?.address || 'Unknown Property'
+      const roleCode = normalizeRoleCode(entry.role)
+      return {
+        value: String(propertyId),
+        label: `${propertyName} • ${roleCode}`,
+        roleCode,
+        propertyName,
+        raw: entry,
+      }
+    })
+    .filter(Boolean)
+)
+
+const activePropertyId = ref('')
+const syncingActiveProperty = ref(false)
+const selectedRoleEntry = computed(
+  () => propertyContextOptions.value.find((item) => item.value === activePropertyId.value) || null
+)
+
+watch(
+  propertyContextOptions,
+  (options) => {
+    if (!options.length) {
+      activePropertyId.value = ''
+      return
+    }
+    const preferred = String(userProfile.value.active_property_id || '')
+    const hasPreferred = preferred && options.some((item) => item.value === preferred)
+    activePropertyId.value = hasPreferred ? preferred : options[0].value
+  },
+  { immediate: true }
+)
+
+watch(activePropertyId, async (value, previous) => {
+  if (!value || value === previous || syncingActiveProperty.value) return
+  const current = String(userProfile.value.active_property_id || '')
+  if (current === value) return
+  try {
+    syncingActiveProperty.value = true
+    await userDataStore.updateUserProfile({ active_property_id: value })
+  } catch (error) {
+    console.error('Failed to persist active property context:', error)
+    $q.notify({
+      type: 'warning',
+      message: 'Unable to save active property context.',
+      position: 'top',
+    })
+  } finally {
+    syncingActiveProperty.value = false
   }
-  return colors[role] || 'grey'
+})
+
+const billingLoading = ref(false)
+const billingSummary = ref({})
+const billingUsage = ref({})
+const billingCredits = ref({})
+const billingHistory = ref([])
+
+const currentPlanName = computed(() => billingSummary.value.plan_name || 'Free')
+const subscriptionStatusLabel = computed(() => (billingSummary.value.subscription_status || 'inactive').toUpperCase())
+const subscriptionStatusColor = computed(() => {
+  const status = String(billingSummary.value.subscription_status || 'inactive').toLowerCase()
+  if (status === 'active') return 'positive'
+  if (status === 'trialing') return 'warning'
+  return 'grey'
+})
+
+const propertyUsed = computed(() => Number(billingUsage.value.properties_used || 0))
+const propertyLimit = computed(() => Math.max(1, Number(billingUsage.value.properties_limit || 0)))
+const propertyRatio = computed(() => Math.min(1, propertyUsed.value / propertyLimit.value))
+
+const voiceUsed = computed(() => Number(billingUsage.value.voice_used || 0))
+const voiceLimit = computed(() => Math.max(1, Number(billingUsage.value.voice_limit || 0)))
+const voiceRatio = computed(() => Math.min(1, voiceUsed.value / voiceLimit.value))
+const voiceRemaining = computed(() => Math.max(0, voiceLimit.value - voiceUsed.value))
+
+const storageUsedMb = computed(() => Number(billingUsage.value.storage_used_mb || 0))
+const storageLimitMb = computed(() => Math.max(1, Number(billingUsage.value.storage_limit_mb || 0)))
+const storageRatio = computed(() => Math.min(1, storageUsedMb.value / storageLimitMb.value))
+const storageUsedGb = computed(() => (storageUsedMb.value / 1024).toFixed(1))
+const storageLimitGb = computed(() => (storageLimitMb.value / 1024).toFixed(1))
+
+const creditBalance = computed(() => Number(billingCredits.value.balance || 0).toLocaleString())
+const recentBillingActivity = computed(() => {
+  if (!billingHistory.value.length) {
+    return [
+      { id: 'placeholder-1', label: 'No recent billing activity' },
+      { id: 'placeholder-2', label: 'Credits and purchases will appear here' },
+    ]
+  }
+  return billingHistory.value.slice(0, 3).map((item, index) => ({
+    id: item.id || `history-${index}`,
+    label: item.description || item.type || 'Billing record',
+  }))
+})
+const billingHistoryRows = computed(() =>
+  (billingHistory.value || []).map((item, index) => {
+    const amountNum = Number(item.amount || 0)
+    const signed = amountNum >= 0 ? `+${amountNum}` : `${amountNum}`
+    return {
+      id: item.id || `history-row-${index}`,
+      description: item.description || item.type || 'Billing record',
+      date: formatDate(item.created_at || item.date || item.timestamp),
+      amount: item.amount !== undefined && item.amount !== null ? signed : '-',
+      amountClass: amountNum > 0 ? 'text-positive' : amountNum < 0 ? 'text-negative' : 'text-grey-7',
+    }
+  })
+)
+
+const showBillingHistoryDialog = ref(false)
+
+const logoutLoading = computed(() => Boolean(firebaseLoading.value))
+
+const ratioColor = (ratio) => {
+  if (ratio >= 1) return 'negative'
+  if (ratio >= 0.8) return 'warning'
+  return 'primary'
 }
 
 const formatDate = (date) => {
   if (!date) return 'Not set'
-  if (typeof date === 'string') return date
-  if (date instanceof Date) {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-  return 'Invalid date'
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return String(date)
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const viewProperty = (propertyId) => {
-  // Navigate to property details page
-  // TODO: In the future, this could navigate to a specific property detail page
-  console.log('Viewing property:', propertyId)
-  router.push(`/my-properties`)
-}
-
-const assignRole = async () => {
-  if (!newRole.value.property_id || !newRole.value.role || !newRole.value.role_date) {
-    console.error('Missing required fields')
-    return
-  }
-
+const loadBillingData = async () => {
+  billingLoading.value = true
   try {
-    assigningRole.value = true
-
-    // Create the role document in the user's roles subcollection
-    const roleData = {
-      property_id: newRole.value.property_id,
-      user_id: userDataStore.userId,
-      role: newRole.value.role,
-      role_date: newRole.value.role_date,
-      expire_date: newRole.value.expire_date || '',
-      role_grant_by: 'Self-Assigned',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    // Use the userDataStore to create the role
-    await userDataStore.createUserRole(roleData)
-
-    // Reset form and close dialog
-    newRole.value = {
-      property_id: '',
-      role: '',
-      role_date: '',
-      expire_date: '',
-    }
-    showAssignRoleDialog.value = false
-
-    // Show success message
-    $q.notify({
-      type: 'positive',
-      message: 'Role assigned successfully!',
-      position: 'top',
-    })
+    const [summary, usage, credits, history] = await Promise.all([
+      billingApi.getProfileSummary(),
+      billingApi.getUsage(),
+      billingApi.getCredits(),
+      billingApi.getHistory(),
+    ])
+    billingSummary.value = summary || {}
+    billingUsage.value = usage || {}
+    billingCredits.value = credits || {}
+    billingHistory.value = history?.items || []
   } catch (error) {
-    console.error('Error assigning role:', error)
+    console.error('Failed to load billing data:', error)
     $q.notify({
-      type: 'negative',
-      message: 'Failed to assign role. Please try again.',
+      type: 'warning',
+      message: 'Billing data unavailable. Using fallback values.',
       position: 'top',
     })
   } finally {
-    assigningRole.value = false
+    billingLoading.value = false
   }
 }
+
+const notifyApiError = (error, fallbackMessage) => {
+  $q.notify({
+    type: 'negative',
+    message: error?.message || fallbackMessage,
+    caption: error?.upgrade_hint || '',
+    position: 'top',
+  })
+}
+
+const upgradePlan = async () => {
+  try {
+    await billingApi.upgrade({ target_plan: 'pro' })
+    $q.notify({ type: 'positive', message: 'Upgrade request submitted.', position: 'top' })
+    await loadBillingData()
+  } catch (error) {
+    notifyApiError(error, 'Unable to upgrade plan.')
+  }
+}
+
+const buyAddon = async (addonCode = 'extra_properties') => {
+  try {
+    await billingApi.purchaseAddon({ addon_code: addonCode })
+    $q.notify({ type: 'positive', message: 'Add-on purchase submitted.', position: 'top' })
+    await loadBillingData()
+  } catch (error) {
+    notifyApiError(error, 'Unable to purchase add-on.')
+  }
+}
+
+const comparePlans = () => {
+  $q.notify({ type: 'info', message: 'Plan comparison modal can be added here.', position: 'top' })
+}
+
+const topUpCredits = () => {
+  $q.notify({ type: 'info', message: 'Credit top-up flow can be connected here.', position: 'top' })
+}
+
+const openBillingHistory = () => {
+  showBillingHistoryDialog.value = true
+}
+
+const openInvoices = () => {
+  router.push('/sp-invoices')
+}
+
+const openPaymentMethod = () => {
+  $q.notify({ type: 'info', message: 'Payment method setup is reserved for a later phase.', position: 'top' })
+}
+
+const openSupport = () => {
+  router.push('/public/contact-support')
+}
+
+const openDataRequest = () => {
+  router.push('/public/privacy')
+}
+
+const handleSignOut = async () => {
+  try {
+    await logout()
+    router.push('/public/login')
+  } catch (error) {
+    notifyApiError(error, 'Unable to sign out.')
+  }
+}
+
+onMounted(async () => {
+  if (!userDataStore.isAuthenticated) {
+    router.push('/public/login')
+    return
+  }
+  await loadBillingData()
+})
 </script>
 
 <style scoped>
-.user-profile-container {
-  max-width: 1200px;
+.profile-container {
+  max-width: 1640px;
   margin: 0 auto;
 }
 
-.profile-header {
+.profile-hero {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  color: white;
-  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
+  border-radius: 12px;
 }
 
-.profile-header .q-card-section {
+.hero-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.section-card {
+  border-radius: 12px;
+  border: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
+}
+
+.fill-height {
+  height: 100%;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--neutral-100);
+  font-size: 0.95rem;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.plan-name {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 2.4rem;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.quota-card {
+  border: 1px solid var(--neutral-200);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--bg-secondary);
+}
+
+.wallet-card {
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: white;
 }
 
-.user-details,
-.role-card {
-  border-radius: var(--border-radius-card);
+.wallet-subtitle {
+  color: rgba(255, 255, 255, 0.78);
 }
 
-.role-card {
-  transition: all 0.2s ease;
-  height: 100%;
-  border-radius: var(--border-radius-card);
+.wallet-balance {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 700;
+  margin: 12px 0 8px;
 }
 
-.role-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--primary-glow);
-  border-color: var(--primary-color);
+.wallet-activity {
+  min-height: 90px;
 }
 
-/* Dark mode */
-:global(body.body--dark) .profile-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+.wallet-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+}
+
+.wallet-btn-outline {
+  color: #bfdbfe;
+  border-color: #bfdbfe;
+}
+
+code {
+  background: var(--neutral-100);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+:global(body.body--dark) .section-card {
+  border-color: var(--neutral-300) !important;
+}
+
+:global(body.body--dark) .quota-card {
   border-color: var(--neutral-300);
+  background: var(--bg-tertiary);
 }
-
-:global(body.body--dark) .user-details,
-:global(body.body--dark) .role-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
-}
-
-:global(body.body--dark) .role-card:hover {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 4px 12px var(--primary-glow);
-}
-
 </style>

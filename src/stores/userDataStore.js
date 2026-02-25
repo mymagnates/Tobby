@@ -964,6 +964,29 @@ export const useUserDataStore = defineStore('userData', () => {
     }
   }
 
+  const updateUserProfile = async (updateData) => {
+    if (!user.value) throw new Error('No user authenticated')
+
+    try {
+      const userRef = doc(db, 'users', user.value.uid)
+      const payload = {
+        ...updateData,
+        updatedAt: new Date(),
+      }
+      await updateDoc(userRef, payload)
+
+      userProfile.value = {
+        ...(userProfile.value || {}),
+        ...updateData,
+      }
+      saveToStorage()
+      return true
+    } catch (error) {
+      console.error('UserDataStore - Error updating user profile:', error)
+      throw error
+    }
+  }
+
   const updateProperty = async (propertyId, updateData) => {
     try {
       const propertyRef = doc(db, 'properties', propertyId)
@@ -1130,6 +1153,7 @@ export const useUserDataStore = defineStore('userData', () => {
     loadLeases,
     refreshLeases,
     createUserProfile,
+    updateUserProfile,
     createUserRole,
     updateProperty,
     getPropertyById,

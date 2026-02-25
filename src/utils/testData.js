@@ -399,3 +399,289 @@ export const generateTestUserProfiles = () => {
     },
   ]
 }
+
+export const generateTestLeases = () => {
+  return [
+    {
+      lease_id: 'lease-1',
+      property_id: 'property1',
+      property_string_id: 'property1',
+      tenant_id: 'user1',
+      created_by: 'user2',
+      rate_amount: 2400,
+      rate_type: 'month',
+      lease_term: 12,
+      lease_start_date: '2024-01-01',
+      lease_end_date: '2024-12-31',
+      deposit: 2400,
+      status: 'Active',
+      furnished: 'No',
+      pet_fee: 0,
+      application_fee_per_person: 50,
+      created_at: new Date('2023-12-15'),
+      updated_at: new Date('2023-12-15'),
+    },
+    {
+      lease_id: 'lease-2',
+      property_id: 'property2',
+      property_string_id: 'property2',
+      tenant_id: 'user3',
+      created_by: 'user2',
+      rate_amount: 3200,
+      rate_type: 'month',
+      lease_term: 24,
+      lease_start_date: '2024-02-01',
+      lease_end_date: '2026-01-31',
+      deposit: 3200,
+      status: 'Active',
+      furnished: 'Yes',
+      pet_fee: 350,
+      application_fee_per_person: 75,
+      created_at: new Date('2024-01-20'),
+      updated_at: new Date('2024-01-20'),
+    },
+  ]
+}
+
+export const generateTestTransactions = () => {
+  return [
+    {
+      transac_id: 'txn-1',
+      property_id: 'property1',
+      lease_id: 'lease-1',
+      transac_type: 'Rent',
+      amount: 2400,
+      transac_date: '2024-01-05',
+      transac_from: 'Tenant',
+      transac_to: 'Property Owner',
+      role: 'Landlord',
+      created_by: 'user2',
+      created_datetime: new Date('2024-01-05T10:00:00'),
+    },
+    {
+      transac_id: 'txn-2',
+      property_id: 'property1',
+      lease_id: '',
+      transac_type: 'HOA Fee',
+      amount: 500,
+      transac_date: '2024-01-15',
+      transac_from: 'Property Owner',
+      transac_to: 'HOA',
+      role: 'Landlord',
+      created_by: 'user2',
+      created_datetime: new Date('2024-01-15T09:00:00'),
+    },
+    {
+      transac_id: 'txn-3',
+      property_id: 'property1',
+      lease_id: 'lease-1',
+      transac_type: 'Maintenance',
+      amount: -350,
+      transac_date: '2024-01-20',
+      transac_from: 'Property Owner',
+      transac_to: 'Vendor',
+      role: 'Landlord',
+      created_by: 'user2',
+      created_datetime: new Date('2024-01-20T14:30:00'),
+    },
+  ]
+}
+
+export const generateTestReminders = () => {
+  return [
+    {
+      reminder_id: 'rem-1',
+      property_id: 'property1',
+      category: 'fee',
+      note: 'HOA payment due',
+      amount: 500,
+      start_date: '2024-02-01',
+      repeat_by: 'monthly',
+      status: true,
+      created_by: 'user2',
+      created_date: new Date('2024-01-15'),
+    },
+    {
+      reminder_id: 'rem-2',
+      property_id: 'property1',
+      category: 'lease',
+      note: 'Lease renewal discussion',
+      amount: 0,
+      start_date: '2024-11-01',
+      repeat_by: 'once',
+      status: true,
+      created_by: 'user2',
+      created_date: new Date('2024-01-15'),
+    },
+    {
+      reminder_id: 'rem-3',
+      property_id: 'property2',
+      category: 'maintenance',
+      note: 'HVAC filter replacement',
+      amount: 0,
+      start_date: '2024-03-01',
+      repeat_by: 'quarterly',
+      status: true,
+      created_by: 'user2',
+      created_date: new Date('2024-02-01'),
+    },
+  ]
+}
+
+export const generateTestInboxMessages = () => {
+  return [
+    {
+      message_id: 'msg-1',
+      message_type: 'task_update',
+      message_title: 'Task status updated',
+      message_body: 'Your maintenance request has been assigned to a technician.',
+      linked_task_id: 'mx_1705276800000',
+      created_at: new Date('2024-01-16T09:00:00'),
+      is_read: false,
+      user_id: 'user1',
+    },
+    {
+      message_id: 'msg-2',
+      message_type: 'reminder',
+      message_title: 'Rent due soon',
+      message_body: 'Rent payment of $2,400 is due in 5 days.',
+      linked_task_id: null,
+      created_at: new Date('2024-01-26T08:00:00'),
+      is_read: true,
+      user_id: 'user1',
+    },
+    {
+      message_id: 'msg-3',
+      message_type: 'comment',
+      message_title: 'New comment on task',
+      message_body: 'Mike Tech: Parts have been ordered, ETA 2 days.',
+      linked_task_id: 'mx_1708454400000',
+      created_at: new Date('2024-02-21T10:00:00'),
+      is_read: false,
+      user_id: 'user2',
+    },
+    {
+      message_id: 'msg-4',
+      message_type: 'system',
+      message_title: 'Lease document ready',
+      message_body: 'Your signed lease is available in Documents.',
+      linked_task_id: null,
+      created_at: new Date('2024-01-02T12:00:00'),
+      is_read: true,
+      user_id: 'user1',
+    },
+  ]
+}
+
+export const generateTestInventoryLists = () => {
+  return [
+    {
+      inventory_id: 'inv-list-1',
+      property_id: 'property1',
+      unit_id: 'unit-101',
+      lease_id: 'lease-1',
+      items: [
+        { name: 'Refrigerator', condition: 'Good', notes: '' },
+        { name: 'Stove', condition: 'Excellent', notes: 'Gas range' },
+        { name: 'Dishwasher', condition: 'Good', notes: '' },
+      ],
+      created_at: new Date('2024-01-01'),
+      updated_at: new Date('2024-01-01'),
+    },
+    {
+      inventory_id: 'inv-list-2',
+      property_id: 'property2',
+      unit_id: 'unit-201',
+      lease_id: 'lease-2',
+      items: [
+        { name: 'Refrigerator', condition: 'Good', notes: 'French door' },
+        { name: 'Washer', condition: 'Fair', notes: 'Needs service soon' },
+        { name: 'Dryer', condition: 'Good', notes: '' },
+      ],
+      created_at: new Date('2024-02-01'),
+      updated_at: new Date('2024-02-01'),
+    },
+  ]
+}
+
+export const generateTestTasks = (options = {}) => {
+  const { status = 'open', priority = 'medium', propertyId = 'property1' } = options
+  return [
+    {
+      task_id: 'task-open-1',
+      property_id: propertyId,
+      title: 'Leaking faucet',
+      description: 'Kitchen sink drips constantly',
+      status: status,
+      priority: priority,
+      task_category: 'plumbing',
+      created_by: 'user1',
+      created_at: new Date('2024-01-15'),
+      updated_at: new Date('2024-01-15'),
+    },
+    {
+      task_id: 'task-progress-1',
+      property_id: propertyId,
+      title: 'AC not cooling',
+      description: 'Living room stays warm',
+      status: 'in_progress',
+      priority: 'high',
+      task_category: 'hvac',
+      created_by: 'user1',
+      created_at: new Date('2024-01-20'),
+      updated_at: new Date('2024-01-22'),
+    },
+    {
+      task_id: 'task-resolved-1',
+      property_id: propertyId,
+      title: 'Broken light fixture',
+      description: 'Bathroom light not working',
+      status: 'resolved',
+      priority: 'low',
+      task_category: 'electrical',
+      created_by: 'user1',
+      created_at: new Date('2024-01-10'),
+      updated_at: new Date('2024-01-12'),
+    },
+  ]
+}
+
+export const generateTestSpCards = () => {
+  return [
+    {
+      sp_card_id: 'spc-1',
+      owner_id: 'user2',
+      sp_id: 'sp-101',
+      sp_name_snapshot: 'FixFast Plumbing',
+      owner_note: 'Used for 5 jobs, always on time',
+      tags: ['plumbing', 'emergency'],
+      created_at: new Date('2024-01-01'),
+      updated_at: new Date('2024-01-01'),
+    },
+    {
+      sp_card_id: 'spc-2',
+      owner_id: 'user2',
+      sp_id: 'sp-102',
+      sp_name_snapshot: 'Prime Electric',
+      owner_note: 'Licensed, good for complex work',
+      tags: ['electrical'],
+      created_at: new Date('2024-01-15'),
+      updated_at: new Date('2024-01-15'),
+    },
+  ]
+}
+
+/** Aggregates all test data for full fixture generation */
+export const generateAllTestData = () => ({
+  properties: generateTestProperties(),
+  mxRecords: generateTestMxRecords(),
+  userRoles: generateTestUserRoles(),
+  userProfiles: generateTestUserProfiles(),
+  leases: generateTestLeases(),
+  transactions: generateTestTransactions(),
+  reminders: generateTestReminders(),
+  inboxMessages: generateTestInboxMessages(),
+  inventoryLists: generateTestInventoryLists(),
+  tasks: generateTestTasks(),
+  spCards: generateTestSpCards(),
+})

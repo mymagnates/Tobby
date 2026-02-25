@@ -1,7 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">My Transactions</div>
+    <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
         <q-btn
           @click="openCreateTransactionDialog"
@@ -191,17 +190,14 @@
       </q-card>
     </div>
 
-    <!-- Transaction Details Dialog -->
-    <q-dialog v-model="showTransactionDialog" maximized>
-      <q-card class="transaction-dialog">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h5 text-weight-bold">Transaction Details</div>
-            <q-btn flat round icon="close" @click="closeTransactionDialog" class="close-btn" />
-          </div>
-        </q-card-section>
-
-        <q-card-section class="dialog-content">
+    <!-- Transaction Details Panel -->
+    <DetailShell
+      v-model="showTransactionDialog"
+      title="Transaction Details"
+      :subtitle="selectedTransaction?.transac_type || ''"
+      @close="closeTransactionDialog"
+    >
+      <div class="dialog-content">
           <div v-if="selectedTransaction" class="transaction-details-full">
             <!-- Basic Information -->
             <div class="details-section">
@@ -385,9 +381,8 @@
               </div>
             </div>
           </div>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+      </div>
+    </DetailShell>
 
     <!-- Fullscreen Image Viewer -->
     <q-dialog v-model="showImageViewer" maximized>
@@ -516,15 +511,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import CreateTransaction from '../components/CreateTransaction.vue'
+import DetailShell from '../components/details/DetailShell.vue'
 import { extractPropertyId } from '../utils/propertyIdUtils'
 import { Notify } from 'quasar'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, uploadImages } = useFirebase()
+const route = useRoute()
 
 // Dialog states
 const showTransactionDialog = ref(false)
@@ -545,6 +543,7 @@ const searchQuery = ref('')
 const activeTypeFilter = ref('all')
 const selectedProperty = ref(null)
 const dateFilter = ref(null)
+const deepLinkHandled = ref(false)
 
 // Filter options
 const dateFilterOptions = [
@@ -768,6 +767,26 @@ const viewTransaction = (transaction) => {
   showTransactionDialog.value = true
 }
 
+const tryOpenDeepLinkedTransaction = () => {
+  if (deepLinkHandled.value) return
+  const openType = String(route.query.openType || '').toLowerCase()
+  const openId = String(route.query.openId || '')
+  if (!openId || openType !== 'transaction') return
+  if (!userAccessibleTransactions.value.length) return
+
+  const normalizedOpenId = openId.toLowerCase()
+  const targetTransaction = userAccessibleTransactions.value.find((transaction) => {
+    const idCandidates = [transaction.id, transaction.transac_id]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).toLowerCase())
+    return idCandidates.includes(normalizedOpenId)
+  })
+  if (!targetTransaction) return
+
+  viewTransaction(targetTransaction)
+  deepLinkHandled.value = true
+}
+
 const closeTransactionDialog = () => {
   showTransactionDialog.value = false
   selectedTransaction.value = null
@@ -917,7 +936,24 @@ onMounted(async () => {
       await userDataStore.loadTransactions()
     }
   }
+  tryOpenDeepLinkedTransaction()
 })
+
+watch(
+  () => userAccessibleTransactions.value.length,
+  () => {
+    tryOpenDeepLinkedTransaction()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [route.query.openType, route.query.openId],
+  () => {
+    deepLinkHandled.value = false
+    tryOpenDeepLinkedTransaction()
+  }
+)
 </script>
 
 <style scoped>

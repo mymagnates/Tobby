@@ -12,19 +12,23 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-// Modern & Bright Color Strategy - Clean, Vibrant, Accessible
-$primary: #82A6D7; // Primary - Soft blue
-$secondary: #64748b; // Slate gray (secondary/links) - Better contrast
-$accent: #1d4ed8; // Blue (accent/highlights, reference style)
+// Charcoal + Mint Color Strategy
+$primary: #334155; // Charcoal (primary actions/brand)
+$secondary: #64748b; // Slate (secondary/links)
+$accent: #14b8a6; // Mint (highlights/interactive emphasis)
 
 $dark: #0f172a; // Slate 900 (darker for better contrast)
 $dark-page: #0f172a; // Slate 900
 
 $positive: #10b981; // Emerald green - WCAG AA compliant
 $negative: #ef4444; // Bright red - WCAG AA compliant
-$info: #8b5cf6; // Purple - WCAG AA compliant
+$info: #0f766e; // Teal info tone aligned with accent family
 $warning: #f59e0b; // Bright amber - WCAG AA compliant
 
 // Additional colors for consistency
 $surface: #ffffff; // Pure white for cards/surfaces
 $background: #ffffff; // Pure white main background
+
+// Match button border radius to cards (10px)
+$generic-border-radius: 10px;
+$button-border-radius: 10px;

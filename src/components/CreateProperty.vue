@@ -285,10 +285,19 @@
           </q-select>
 
           <div class="row q-gutter-sm q-mt-md">
+            <q-banner
+              v-if="gateBlockMessage"
+              class="col-12 bg-orange-1 text-orange-10 q-mb-sm"
+              rounded
+            >
+              <q-icon name="lock" class="q-mr-xs" />
+              {{ gateBlockMessage }}
+            </q-banner>
             <q-btn
               type="submit"
               color="primary"
               :loading="loading"
+              :disable="Boolean(gateBlockMessage)"
               label="Create Property"
               class="col-12 col-md-6"
               size="md"
@@ -306,14 +315,20 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
+import { useUserDataStore } from '../stores/userDataStore'
+import { billingApi } from '../services/webApiClient'
 
 const emit = defineEmits(['property-created', 'cancel'])
 const router = useRouter()
+const $q = useQuasar()
+const userDataStore = useUserDataStore()
 
 const { createDocument, loading, userId } = useFirebase()
+const gateBlockMessage = ref('')
 
 const propertyData = reactive({
   address: '',
@@ -355,8 +370,39 @@ const specTypes = [
 
 const userRoles = ['Property Owner', 'Property Manager']
 
+const refreshPropertyGate = async () => {
+  gateBlockMessage.value = ''
+  try {
+    const usage = await billingApi.getUsage()
+    const used = Math.max(
+      Number(usage.properties_used || 0),
+      Number(userDataStore.userAccessibleProperties.length || 0)
+    )
+    const limit = Number(usage.properties_limit || 0)
+    if (limit > 0 && used >= limit) {
+      gateBlockMessage.value = `Property limit reached (${used}/${limit}). Upgrade plan or buy add-on to create another property.`
+    }
+  } catch (error) {
+    console.error('Failed to evaluate property gate:', error)
+  }
+}
+
+onMounted(() => {
+  refreshPropertyGate()
+})
+
 const onSubmit = async () => {
   try {
+    await refreshPropertyGate()
+    if (gateBlockMessage.value) {
+      $q.notify({
+        type: 'warning',
+        message: gateBlockMessage.value,
+        position: 'top',
+      })
+      return
+    }
+
     const propertyId = await createDocument('properties', {
       address: propertyData.address,
       nickname: propertyData.nickname,
@@ -413,6 +459,13 @@ const onSubmit = async () => {
     router.push('/my-properties')
   } catch (error) {
     console.error('Error creating property:', error)
+    const message = error?.message || 'Error creating property'
+    $q.notify({
+      type: 'negative',
+      message,
+      caption: error?.upgrade_hint || '',
+      position: 'top',
+    })
   }
 }
 </script>

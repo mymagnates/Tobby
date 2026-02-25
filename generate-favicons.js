@@ -16,39 +16,17 @@ const sizes = [
   { file: 'android-chrome-512x512.png', size: 512 },
 ]
 
+// V3 Soft design from design_samples_v4 - icon-only h-block for favicon
 function buildSvg(size) {
-  const radius = Math.round(size * 0.24)
-  const stroke = Math.max(2, Math.round(size * 0.045))
-  const fontSize = Math.round(size * 0.56)
-  const shadowY = Math.max(1, Math.round(size * 0.03))
+  const radius = Math.round(size * (72 / 280))
+  const fontSize = Math.round(size * (220 / 280))
+  const x = Math.round(size * (83 / 280))
+  const y = Math.round(size * (206 / 280))
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#82A6D7"/>
-      <stop offset="100%" stop-color="#5D8BC4"/>
-    </linearGradient>
-    <linearGradient id="stroke" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#DCE8F8"/>
-      <stop offset="100%" stop-color="#FFFFFF"/>
-    </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="${shadowY}" stdDeviation="${Math.max(1, Math.round(size * 0.03))}" flood-color="#1E3A5C" flood-opacity="0.25"/>
-    </filter>
-  </defs>
-  <rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" fill="url(#bg)"/>
-  <text x="50%" y="54%"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        font-family="Pacifico, Brush Script MT, Segoe Script, cursive"
-        font-size="${fontSize}"
-        font-weight="700"
-        fill="#FFFFFF"
-        stroke="url(#stroke)"
-        stroke-width="${stroke}"
-        paint-order="stroke fill"
-        filter="url(#softShadow)">H</text>
+  <rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" fill="#1E3A5F"/>
+  <text x="${x}" y="${y}" font-family="Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="#F8FAFC">h</text>
 </svg>`
 }
 
@@ -73,7 +51,7 @@ async function run() {
   const svgLogo = buildSvg(200)
   await fs.writeFile(path.join(publicDir, 'logo.svg'), svgLogo, 'utf8')
 
-  console.log('Favicons generated from Handout text logo.')
+  console.log('Favicons generated from Handout h-block logo.')
 }
 
 run().catch((err) => {

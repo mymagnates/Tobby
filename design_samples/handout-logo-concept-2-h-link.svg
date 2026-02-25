@@ -1,0 +1,17 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F5F7FA"/>
+  <text x="120" y="140" fill="#0F1728" font-size="36" font-family="Arial, sans-serif" font-weight="700">Concept 2 - H Link</text>
+  <g transform="translate(120 210)">
+    <rect x="0" y="0" width="960" height="430" rx="36" fill="white"/>
+    <rect x="180" y="126" width="92" height="184" rx="26" fill="#1E3A8A"/>
+    <rect x="368" y="126" width="92" height="184" rx="26" fill="#1E3A8A"/>
+    <rect x="252" y="188" width="136" height="60" rx="20" fill="#14B8A6"/>
+    <circle cx="226" cy="110" r="10" fill="#14B8A6" opacity="0.6"/>
+    <circle cx="414" cy="110" r="10" fill="#14B8A6" opacity="0.6"/>
+    <text x="540" y="238" fill="#0F1728" font-size="76" font-family="Arial, sans-serif" font-weight="700">handout</text>
+    <text x="540" y="286" fill="#5B677A" font-size="26" font-family="Arial, sans-serif">Clarity for every unit</text>
+  </g>
+  <g transform="translate(120 680)">
+    <text x="0" y="0" fill="#4B5568" font-size="24" font-family="Arial, sans-serif">Tone: Structured / reliable / product-first</text>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="900" fill="#F5F5F5"/>
+  <text x="120" y="130" fill="#111111" font-size="38" font-family="Helvetica, Arial, sans-serif" font-weight="700">handout - LinkedIn-inspired wordmark (Black/White)</text>
+  <rect x="100" y="200" width="1200" height="560" rx="36" fill="#FFFFFF"/>
+
+  <g transform="translate(220 360)">
+    <text x="0" y="124" fill="#111111" font-size="170" font-family="Helvetica, Arial, sans-serif" font-weight="700" letter-spacing="-3">hand</text>
+
+    <rect x="450" y="0" width="350" height="170" rx="34" fill="#111111"/>
+    <text x="500" y="124" fill="#FFFFFF" font-size="170" font-family="Helvetica, Arial, sans-serif" font-weight="700" letter-spacing="-3">out</text>
+  </g>
+
+  <text x="120" y="820" fill="#444444" font-size="26" font-family="Helvetica, Arial, sans-serif">Single-ink safe version for print, stamp, and legal docs.</text>
+</svg>

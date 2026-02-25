@@ -1,21 +1,14 @@
 <template>
   <q-page padding>
     <div class="page-container">
-      <!-- Page Header -->
-      <div class="page-header q-mb-lg">
-        <div class="row items-center justify-between">
-          <div>
-            <h4 class="text-h4 q-ma-none">Tenants</h4>
-            <p class="text-subtitle1 text-grey-7 q-mt-sm">Manage all current tenants across your properties</p>
-          </div>
-          <div>
-            <q-btn
-              color="primary"
-              icon="person_add"
-              label="Create Tenant"
-              @click="navigateToCreateTenant"
-            />
-          </div>
+      <div class="row justify-end q-mb-lg">
+        <div>
+          <q-btn
+            color="primary"
+            icon="person_add"
+            label="Create Tenant"
+            @click="navigateToCreateTenant"
+          />
         </div>
       </div>
 

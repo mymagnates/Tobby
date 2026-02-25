@@ -1,12 +1,6 @@
 <template>
   <q-page class="q-pa-md assets-page">
-    <div class="row items-center justify-between q-mb-md">
-      <div>
-        <div class="text-h4">Asset Registry</div>
-        <div class="text-caption text-grey-7">
-          Track appliances, systems, and equipment by property.
-        </div>
-      </div>
+    <div class="row justify-end q-mb-md">
       <q-btn color="primary" icon="add" label="Add Asset" @click="openCreateDialog" />
     </div>
 

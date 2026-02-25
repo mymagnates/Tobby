@@ -35,7 +35,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   })
 
   // Navigation guard for authentication and role-based access control
-  Router.beforeEach((to, from, next) => {
+  Router.beforeEach(async (to, from, next) => {
     const userDataStore = useUserDataStore()
     const userCategory = userDataStore.userCategory
     const isAuthenticated = !!userDataStore.user
@@ -105,6 +105,33 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     }
 
     // ============================================
+    // 2.1 ONE-TIME ACCOUNT TYPE SETUP
+    // ============================================
+    if (isAuthenticated && to.path !== '/account-type-setup') {
+      if (!userDataStore.userProfile && !userDataStore.profileLoading) {
+        await userDataStore.loadUserProfile()
+      }
+      const profile = userDataStore.userProfile || {}
+      const hasAccountType = Boolean(profile.account_type || profile.user_category)
+      if (!hasAccountType) {
+        next('/account-type-setup')
+        return
+      }
+    }
+
+    if (isAuthenticated && to.path === '/account-type-setup') {
+      if (!userDataStore.userProfile && !userDataStore.profileLoading) {
+        await userDataStore.loadUserProfile()
+      }
+      const profile = userDataStore.userProfile || {}
+      const hasAccountType = Boolean(profile.account_type || profile.user_category)
+      if (hasAccountType) {
+        next('/')
+        return
+      }
+    }
+
+    // ============================================
     // 3. ROLE-BASED ACCESS CONTROL
     // ============================================
     
@@ -126,7 +153,36 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       return
     }
 
-    // PM/PO and other roles have full access (no restrictions)
+    // Service provider allowed routes
+    const spAllowedRoutes = [
+      '/',
+      '/sp-dashboard',
+      '/sp-leads',
+      '/sp-bids',
+      '/sp-documents',
+      '/sp-messages',
+      '/sp-projects',
+      '/sp-invoices',
+      '/user-profile',
+    ]
+    const isServiceProvider = ['contractor', 'SP', 'sp'].includes(userCategory)
+    if (isServiceProvider) {
+      if (to.path === '/') {
+        next('/sp-dashboard')
+        return
+      }
+      const isSpAllowed = spAllowedRoutes.some((route) =>
+        route === '/' ? to.path === '/' : to.path.startsWith(route),
+      )
+      if (!isSpAllowed) {
+        console.log('Router Guard - SP attempting to access restricted route:', to.path)
+        console.log('Router Guard - Redirecting to /sp-leads')
+        next('/sp-leads')
+        return
+      }
+    }
+
+    // PM/PO and other roles have full access (except tenant-only pages)
     const isPropertyManager =
       ['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)
     

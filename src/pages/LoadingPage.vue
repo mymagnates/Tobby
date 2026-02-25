@@ -72,6 +72,22 @@ const isDataReady = computed(() => {
   )
 })
 
+const needsAccountTypeSelection = computed(() => {
+  const profile = userDataStore.userProfile || {}
+  if (!userDataStore.isAuthenticated) return false
+  return !profile.account_type && !profile.user_category
+})
+
+const isSpAccount = computed(() => {
+  const profile = userDataStore.userProfile || {}
+  return (
+    profile.account_type === 'SP' ||
+    profile.user_category === 'contractor' ||
+    profile.user_category === 'SP' ||
+    profile.user_category === 'sp'
+  )
+})
+
 /**
  * Perform redirect to destination
  */
@@ -81,6 +97,14 @@ const performRedirect = () => {
   hasRedirected.value = true
   
   try {
+    if (needsAccountTypeSelection.value) {
+      router.push('/account-type-setup')
+      return
+    }
+    if (isSpAccount.value && !redirectUrl) {
+      router.push('/sp-dashboard')
+      return
+    }
     if (redirectUrl) {
       router.push(redirectUrl)
     } else {
@@ -118,8 +142,12 @@ const retryLoading = async () => {
     if (isDataReady.value) {
       performRedirect()
     } else {
-      hasError.value = true
-      errorMessage.value = 'No properties found. Please contact your administrator.'
+      if (!needsAccountTypeSelection.value && !isSpAccount.value) {
+        hasError.value = true
+        errorMessage.value = 'No properties found. Please contact your administrator.'
+      } else {
+        performRedirect()
+      }
     }
   } catch (error) {
     console.error('LoadingPage - Error loading data:', error)
@@ -183,9 +211,14 @@ onMounted(async () => {
       if (isDataReady.value) {
         performRedirect()
       } else {
-        // No properties found - might be normal for new users
-        hasError.value = true
-        errorMessage.value = 'No properties found. Please contact your administrator to get access.'
+        if (!needsAccountTypeSelection.value && !isSpAccount.value) {
+          // No properties found - might be normal for new users
+          hasError.value = true
+          errorMessage.value =
+            'No properties found. Please contact your administrator to get access.'
+        } else {
+          performRedirect()
+        }
       }
     } catch (error) {
       console.error('LoadingPage - Error initializing:', error)

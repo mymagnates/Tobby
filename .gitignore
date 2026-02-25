@@ -36,3 +36,10 @@ yarn-error.log*
 coverage/
 .nyc_output/
 *.lcov
+
+# iOS / Xcode
+.xcode-derived/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/

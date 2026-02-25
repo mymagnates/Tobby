@@ -1,0 +1,19 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hb" x1="0" y1="0" x2="280" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A66C2"/>
+      <stop offset="1" stop-color="#0B4F96"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="#F4F7FB"/>
+  <text x="120" y="130" fill="#0F172A" font-size="38" font-family="Helvetica, Arial, sans-serif" font-weight="700">V2 Modern - subtle gradient block + white h</text>
+  <rect x="100" y="190" width="1200" height="580" rx="36" fill="#FFFFFF"/>
+
+  <g transform="translate(220 300)">
+    <rect x="0" y="0" width="280" height="280" rx="64" fill="url(#hb)"/>
+    <text x="83" y="206" fill="#FFFFFF" font-size="220" font-family="Helvetica, Arial, sans-serif" font-weight="700">h</text>
+    <text x="340" y="196" fill="#0F172A" font-size="172" font-family="Helvetica, Arial, sans-serif" font-weight="700" letter-spacing="-2">andout</text>
+  </g>
+
+  <text x="120" y="820" fill="#475467" font-size="26" font-family="Helvetica, Arial, sans-serif">Slight depth while keeping a clean enterprise look.</text>
+</svg>

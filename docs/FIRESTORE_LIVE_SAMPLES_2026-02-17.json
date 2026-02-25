@@ -1,0 +1,156 @@
+{
+  "fetched_at": "2026-02-17",
+  "project_id": "tobbythebutler",
+  "samples": {
+    "property": {
+      "path": "properties/5f6glCe2OYjwxJz6ftHq",
+      "data": {
+        "address": "2345 Maize Dr Plano TX 75093",
+        "createdAt": "2025-08-13T03:49:07.516Z",
+        "type": "Residential",
+        "nickname": "Maize",
+        "updatedAt": "2025-08-13T03:49:07.516Z",
+        "spec": {
+          "full_bathroom": 2,
+          "story": 1,
+          "type": "Single Family",
+          "bedroom": 3,
+          "size": 1500,
+          "kitchen": 1,
+          "office": 0,
+          "meeting_room": 0,
+          "half_bathroom": 1,
+          "hoa_name": "",
+          "lot_size": 5000,
+          "hoa_contact": "",
+          "garage": 2
+        },
+        "status": "Available",
+        "equipments": []
+      }
+    },
+    "lease": {
+      "path": "leases/UuMz2JzLgTIJkXhnUDcs",
+      "data": {
+        "utilities_included": [],
+        "property_id": {
+          "spec": {
+            "half_bathroom": 1,
+            "hoa_name": "",
+            "size": 1500,
+            "meeting_room": 0,
+            "full_bathroom": 2,
+            "type": "Single Family",
+            "office": 0,
+            "garage": 2,
+            "story": 1,
+            "bedroom": 3,
+            "hoa_contact": "",
+            "lot_size": 5000,
+            "kitchen": 1
+          },
+          "nickname": "oasis12",
+          "type": "Mixed Use",
+          "createdAt": "2025-08-12T02:17:06.929Z",
+          "id": "AOtC3Mo6kKAW2D6suFlW",
+          "status": "Available",
+          "name": "Oasis",
+          "updatedAt": "2025-08-13T04:44:46.288Z",
+          "address": "123 Oasis Dr Dallas, TX 75252"
+        },
+        "deposit": 2000,
+        "updated_at": "2025-10-28T17:07:09.269Z",
+        "created_at": "2025-10-28T17:07:09.269Z",
+        "application_fee_per_person": 50,
+        "special_terms": "",
+        "lease_create_date": "2025-10-28",
+        "pet_fee": 350,
+        "lease_term": 24,
+        "rate_type": "month",
+        "property_string_id": "AOtC3Mo6kKAW2D6suFlW",
+        "rate_amount": 2400,
+        "created_datetime": "2025-10-28T17:07:09.269Z",
+        "created_by": "aAP8Dlf6aDOmqt1q3cCKOZRcjrp1",
+        "LSID": "oasis12202510120709",
+        "status": "Available",
+        "additional_notes": "",
+        "furnished": "No"
+      }
+    },
+    "task": {
+      "path": "properties/5f6glCe2OYjwxJz6ftHq/mxrecords/EQPW90957aphXET5iJAf",
+      "data": {
+        "create_id": "aAP8Dlf6aDOmqt1q3cCKOZRcjrp1",
+        "createAt": "2025-08-14T19:06:12.007Z",
+        "report_date": "2025-08-14",
+        "description": "fridge not working",
+        "logs": [
+          {
+            "log_timestamp": "2025-08-14T19:06:12.007Z",
+            "comment": "Initial report submitted",
+            "user_id": "aAP8Dlf6aDOmqt1q3cCKOZRcjrp1",
+            "user_name": "Kp",
+            "user_role": "Landlord"
+          }
+        ],
+        "mx_id": "mx_1755198372007",
+        "property_id": "5f6glCe2OYjwxJz6ftHq",
+        "reported_by": "Kp",
+        "reported_role": "Landlord",
+        "resolution": "",
+        "resolv_by": "",
+        "resolv_date": null,
+        "updatedAt": "2025-08-14T19:06:12.007Z"
+      }
+    },
+    "transaction": {
+      "path": "properties/5f6glCe2OYjwxJz6ftHq/transactions/2nOiaM4092jNBBcXhnck",
+      "data": {
+        "transac_id": "txn_1756268722454",
+        "property_id": "5f6glCe2OYjwxJz6ftHq",
+        "lease_id": "",
+        "role": "Landlord",
+        "transac_to": "HOA",
+        "amount": 500,
+        "transac_date": "2025-08-27",
+        "transac_type": "HOA Fee",
+        "created_by": "aAP8Dlf6aDOmqt1q3cCKOZRcjrp1",
+        "created_datetime": "2025-08-27T04:25:22.454Z",
+        "transac_from": "Property Owner"
+      }
+    },
+    "reminder": {
+      "path": "properties/AOtC3Mo6kKAW2D6suFlW/reminders/pbAru2tL5WGpPMo40p9F",
+      "data": {
+        "category": "fee",
+        "start_date": "2026-02-14",
+        "repeat_by": "monthly",
+        "amount": 100,
+        "note": "Internet Verizon fiber",
+        "status": true,
+        "created_date": "2026-02-14T21:24:09.389Z",
+        "created_by": "aAP8Dlf6aDOmqt1q3cCKOZRcjrp1"
+      }
+    },
+    "document": {
+      "path": "properties/g1p5WEwFK7aFPC8gI71P/property_photos/GAks7n0nri5ss0Je9nGk",
+      "data": {
+        "property_id": "g1p5WEwFK7aFPC8gI71P",
+        "image_url": "https://firebasestorage.googleapis.com/v0/b/tobbythebutler.firebasestorage.app/o/images%2Fproperty_photos%2Fg1p5WEwFK7aFPC8gI71P%2Fcentral-park_2026-02-03_23-05-08-641Z_7496_1.pdf?alt=media&token=619fe22a-3bb4-4622-903a-81f054ad0c51",
+        "storage_path": "images/property_photos/g1p5WEwFK7aFPC8gI71P/central-park_2026-02-03_23-05-08-641Z_7496_1.pdf",
+        "description": "",
+        "upload_date": "2026-02-03T23:05:10.004Z",
+        "created_datetime": "2026-02-03T23:05:10.004Z",
+        "original_filename": "TDP-1.pdf"
+      }
+    },
+    "asset": null,
+    "inventory": null
+  },
+  "notes": [
+    "No readable sample found for collection-group assets.",
+    "No readable sample found for collection-group inventories.",
+    "No readable sample found for properties/{id}/documents or leases/{id}/lease_docs in scanned subset.",
+    "Used property_photos as nearest live document sample."
+  ]
+}

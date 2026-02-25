@@ -3,48 +3,98 @@
     <!-- Dark Left Sidebar -->
     <q-drawer
       v-model="leftDrawerOpen"
-      show-if-above
       side="left"
       :width="240"
       class="dark-drawer"
       :breakpoint="1024"
+      overlay
+      bordered
     >
       <!-- Logo Text - Click to collapse menu -->
-      <div class="drawer-logo-icon" @click="toggleLeftDrawer">
+      <div class="drawer-logo-icon" @click="goHome">
         <span class="sidebar-app-title">Handout</span>
       </div>
 
       <!-- Navigation Links -->
       <q-list class="nav-list">
-        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" class="nav-link" />
+        <template v-for="(section, sectionIndex) in navSections" :key="section.key">
+          <div class="nav-group">
+            <EssentialLink
+              v-for="link in section.links"
+              :key="`${section.key}-${link.link}`"
+              v-bind="link"
+              class="nav-child-link"
+            />
+          </div>
+          <div v-if="sectionIndex < navSections.length - 1" class="nav-group-gap" />
+        </template>
       </q-list>
 
     </q-drawer>
 
     <!-- Top Header -->
-    <q-header class="dashboard-header">
+    <q-header class="dashboard-header" :class="{ 'drawer-minimized': !leftDrawerOpen }">
       <q-toolbar class="header-toolbar q-px-lg">
-        <!-- Handout Logo - Shows when sidebar is closed -->
-        <div v-if="!leftDrawerOpen" class="header-handout-logo" @click="toggleLeftDrawer">
+        <!-- Left: Logo -->
+        <div class="header-handout-logo" @click="goHome">
           <span class="header-app-title">Handout</span>
         </div>
-
         <q-space />
+
+        <!-- Center: Page title aligned with content -->
+        <div class="header-center-title">{{ headerPageTitle }}</div>
+        <q-space />
+
+        <!-- Right: Actions -->
 
 
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
-          <!-- Refresh -->
           <q-btn
             flat
             round
             dense
-            icon="refresh"
-            @click="refreshAllData"
-            class="header-action-btn refresh-btn"
+            icon="apps"
+            class="header-action-btn"
+            @click="toggleLeftDrawer"
           >
-            <q-tooltip>Refresh data</q-tooltip>
+            <q-tooltip>Navigation Menu</q-tooltip>
           </q-btn>
+
+          <template v-if="isPmPo">
+            <q-btn
+              flat
+              round
+              dense
+              icon="search"
+              class="header-action-btn"
+              @click="goToUniversalSearch"
+            >
+              <q-tooltip>Universal Search</q-tooltip>
+            </q-btn>
+
+            <q-btn
+              flat
+              round
+              dense
+              icon="forum"
+              class="header-action-btn"
+              @click="showGlobalContactsDialog = true"
+            >
+              <q-tooltip>Contacts</q-tooltip>
+            </q-btn>
+
+            <q-btn
+              flat
+              round
+              dense
+              icon="add_circle"
+              class="header-action-btn"
+              @click="showGlobalCreateDialog = true"
+            >
+              <q-tooltip>Create</q-tooltip>
+            </q-btn>
+          </template>
 
           <!-- Language Switcher -->
           <q-btn
@@ -69,32 +119,35 @@
             <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
           </q-btn>
 
-          <q-btn
+          <q-btn-dropdown
             flat
-            round
             dense
             icon="manage_accounts"
             class="header-action-btn profile-btn"
-            @click="goToProfile"
+            dropdown-icon="expand_more"
+            no-icon-animation
           >
-            <q-tooltip>User Profile</q-tooltip>
-          </q-btn>
-
-          <q-btn
-            flat
-            round
-            dense
-            icon="logout"
-            class="header-action-btn signout-btn"
-            @click="handleSignOut"
-          >
-            <q-tooltip>{{ t('signOut') }}</q-tooltip>
-          </q-btn>
+            <q-list style="min-width: 180px">
+              <q-item clickable v-close-popup @click="goToProfile">
+                <q-item-section avatar>
+                  <q-icon name="manage_accounts" />
+                </q-item-section>
+                <q-item-section>User Profile</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item clickable v-close-popup @click="handleSignOut">
+                <q-item-section avatar>
+                  <q-icon name="logout" color="negative" />
+                </q-item-section>
+                <q-item-section class="text-negative">{{ t('signOut') }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
         </div>
       </q-toolbar>
     </q-header>
 
-    <q-page-container class="page-container">
+    <q-page-container class="page-container" :class="{ 'drawer-open': leftDrawerOpen }">
       <!-- Loading indicator for data loading -->
       <div v-if="dataLoading" class="data-loading-overlay">
         <q-spinner-dots size="40px" color="primary" />
@@ -103,12 +156,57 @@
 
       <router-view />
     </q-page-container>
+
+    <q-dialog v-model="showGlobalCreateDialog">
+      <q-card style="min-width: 420px">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Create</div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-gutter-sm">
+          <q-btn
+            v-for="option in globalCreateOptions"
+            :key="option.label"
+            outline
+            color="primary"
+            class="full-width justify-start"
+            :icon="option.icon"
+            :label="option.label"
+            @click="openGlobalCreateOption(option.path)"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="showGlobalContactsDialog">
+      <q-card style="min-width: 420px">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Contacts</div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <q-list separator>
+            <q-item v-for="contact in globalContacts" :key="contact.id" clickable>
+              <q-item-section avatar>
+                <q-avatar color="blue-1" text-color="primary">{{ contact.initials }}</q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ contact.name }}</q-item-label>
+                <q-item-label caption>{{ contact.role }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useUserDataStore } from '../stores/userDataStore'
@@ -117,9 +215,57 @@ import EssentialLink from 'components/EssentialLink.vue'
 
 const $q = useQuasar()
 const router = useRouter()
+const route = useRoute()
 const { locale, t } = useI18n()
+
+// Page title for header center (layout only; no color change)
+const PAGE_TITLES = {
+  '/': 'Dashboard',
+  '/pm-po-feed': 'PM/PO Feed',
+  '/universal-search': 'Universal Search',
+  '/my-properties': 'My Properties',
+  '/property-view': 'Property View',
+  '/transactions': 'Transactions',
+  '/leases': 'Leases',
+  '/tenants': 'Tenants',
+  '/mx-records': 'Tasks',
+  '/reminders': 'Reminders',
+  '/reports': 'Reports',
+  '/documents': 'Documents',
+  '/user-profile': 'User Profile',
+  '/tenant-home': 'Tenant Home',
+  '/create-tenant': 'Create Tenant'
+}
+
+const headerPageTitle = computed(() =>
+  PAGE_TITLES[route.path] ??
+  (route.path.startsWith('/assets') ? 'Assets' : null) ??
+  (route.path.startsWith('/edit-property') ? 'Edit Property' : null) ??
+  (route.path.startsWith('/application-detail') ? 'Application' : null) ??
+  (route.name ? String(route.name).replace(/([A-Z])/g, ' $1').trim() : null) ??
+  'Dashboard'
+)
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
+const isPmPo = computed(() => userDataStore.userCategory === 'PM/PO')
+const showGlobalCreateDialog = ref(false)
+const showGlobalContactsDialog = ref(false)
+
+const globalCreateOptions = [
+  { label: 'Create Property', icon: 'home_work', path: '/create-property' },
+  { label: 'Create Task', icon: 'build', path: '/create-mxrecord' },
+  { label: 'Create Transaction', icon: 'receipt_long', path: '/create-transaction' },
+  { label: 'Create Lease', icon: 'description', path: '/create-lease' },
+  { label: 'Create Reminder', icon: 'notifications', path: '/reminders' },
+  { label: 'Create Document', icon: 'folder', path: '/documents' },
+  { label: 'Create Asset', icon: 'inventory_2', path: '/assets' },
+]
+
+const globalContacts = [
+  { id: 'c1', name: 'AquaFix LLC', role: 'SP • Plumbing', initials: 'AF' },
+  { id: 'c2', name: 'Westlake Tenant', role: 'TT', initials: 'WT' },
+  { id: 'c3', name: 'Property Owner', role: 'PO', initials: 'PO' },
+]
 
 // Dark mode state
 const isDarkMode = ref(false)
@@ -183,6 +329,20 @@ const allLinksList = computed(() => [
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
   {
+    title: 'PM/PO Feed',
+    caption: 'Social feed prototype',
+    icon: 'dynamic_feed',
+    link: '/pm-po-feed',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: t('dashboard'),
+    caption: 'SP workspace',
+    icon: 'dashboard',
+    link: '/sp-dashboard',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
     title: t('Properties'),
     caption: t('viewYourProperties'),
     icon: 'home',
@@ -194,6 +354,13 @@ const allLinksList = computed(() => [
     caption: t('viewAllTasks'),
     icon: 'dns',
     link: '/mx-records',
+    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: 'Biz Card',
+    caption: 'Saved business cards',
+    icon: 'badge',
+    link: '/sp-cards',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
@@ -252,6 +419,48 @@ const allLinksList = computed(() => [
     link: '/reports',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
+  {
+    title: 'Leads',
+    caption: 'Open opportunities',
+    icon: 'ads_click',
+    link: '/sp-leads',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
+    title: 'Bids',
+    caption: 'My submitted bids',
+    icon: 'gavel',
+    link: '/sp-bids',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
+    title: 'Documents',
+    caption: 'Project documents',
+    icon: 'folder',
+    link: '/sp-documents',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
+    title: 'Messages',
+    caption: 'Reserved module',
+    icon: 'chat_bubble_outline',
+    link: '/sp-messages',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
+    title: 'Projects',
+    caption: 'Accepted work',
+    icon: 'work_outline',
+    link: '/sp-projects',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
+  {
+    title: 'Invoices',
+    caption: 'Create and submit',
+    icon: 'request_quote',
+    link: '/sp-invoices',
+    allowedFor: ['contractor', 'SP', 'sp'],
+  },
 
 ])
 
@@ -282,6 +491,40 @@ const linksList = computed(() => {
     filtered.map((l) => l.title),
   )
   return filtered
+})
+
+const getSectionKey = (link) => {
+  const path = link?.link || ''
+  if (['/', '/pm-po-feed', '/sp-dashboard'].includes(path)) return 'dashboard'
+  if (['/my-properties', '/assets', '/documents'].includes(path)) return 'propertyAssetDocuments'
+  if (['/mx-records', '/transactions', '/reminders', '/leases', '/tenants'].includes(path))
+    return 'taskTransactionReminderLeaseTenants'
+  if (['/reports', '/sp-cards'].includes(path)) return 'reportBizCard'
+  if (
+    ['/sp-leads', '/sp-bids', '/sp-documents', '/sp-messages', '/sp-projects', '/sp-invoices'].includes(
+      path,
+    )
+  )
+    return 'spPortal'
+  if (['/tenant-home'].includes(path)) return 'tenant'
+  return 'other'
+}
+
+const NAV_SECTION_ORDER = ['dashboard', 'propertyAssetDocuments', 'taskTransactionReminderLeaseTenants', 'reportBizCard', 'spPortal', 'tenant', 'other']
+
+const navSections = computed(() => {
+  const grouped = linksList.value.reduce((acc, link) => {
+    const key = getSectionKey(link)
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    acc[key].push(link)
+    return acc
+  }, {})
+
+  return NAV_SECTION_ORDER
+    .filter((key) => Array.isArray(grouped[key]) && grouped[key].length > 0)
+    .map((key) => ({ key, links: grouped[key] }))
 })
 
 const leftDrawerOpen = ref(false)
@@ -342,22 +585,16 @@ watch(
       if (isPageRefresh) {
         console.log('MainLayout - Page refresh detected')
 
-        // 1. User is authenticated (already checked above)
-        // 2. Redirect to index page if not already there
-        if (currentPath !== '/' && !isOnLoadingPage) {
-          console.log('MainLayout - Redirecting to index page')
-          router.push('/')
-        }
-
-        // 3. Check if data is already loaded
+        // Keep current route on refresh. Do not force redirect to index.
+        // Check if data is already loaded
         const hasData = userDataStore.userAccessibleProperties.length > 0
 
-        // 4. If not loaded -> Load data immediately
+        // If not loaded -> Load data immediately
         if (!hasData && !userDataStore.profileLoading) {
           console.log('MainLayout - Loading data')
           loadAllUserData()
         } else {
-          // 5. If loaded -> Do nothing
+          // If loaded -> Do nothing
           console.log('MainLayout - Data already loaded')
         }
         return
@@ -422,6 +659,10 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
+function goHome() {
+  router.push('/')
+}
+
 async function handleSignOut() {
   try {
     console.log('MainLayout - Starting sign out process...')
@@ -456,24 +697,13 @@ function goToProfile() {
   router.push('/user-profile')
 }
 
-// Refresh all data
-async function refreshAllData() {
-  if (!userDataStore.isAuthenticated) {
-    return
-  }
+function goToUniversalSearch() {
+  router.push('/universal-search')
+}
 
-  console.log('MainLayout - Refreshing all data...')
-  await loadAllUserData()
-
-  // Show success notification
-  import('quasar').then(({ Notify }) => {
-    Notify.create({
-      type: 'positive',
-      message: 'Data refreshed successfully',
-      position: 'top',
-      timeout: 2000,
-    })
-  })
+function openGlobalCreateOption(path) {
+  showGlobalCreateDialog.value = false
+  router.push(path)
 }
 </script>
 
@@ -488,7 +718,7 @@ async function refreshAllData() {
 /* Text Gray: #6B7280 */
 
 .dashboard-layout {
-  background: #f5f7fa;
+  background: var(--bg-primary);
 }
 
 /* Hide scrollbars globally while maintaining scroll functionality */
@@ -506,8 +736,8 @@ async function refreshAllData() {
    ======================================== */
 
 .dark-drawer {
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
   box-shadow: none;
   display: flex;
   flex-direction: column;
@@ -547,8 +777,23 @@ async function refreshAllData() {
 }
 
 .nav-list {
-  padding: 20px 16px;
+  padding: 14px 12px;
   flex: 1;
+}
+
+.nav-child-link {
+  margin: 0 0 3px;
+}
+
+.nav-group {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-drawer);
+  background: var(--bg-surface);
+  padding: 5px;
+}
+
+.nav-group-gap {
+  height: 6px;
 }
 
 /* ========================================
@@ -556,17 +801,44 @@ async function refreshAllData() {
    ======================================== */
 
 .dashboard-header {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: transparent;
+  border-bottom: none;
   box-shadow: none;
   min-height: 56px;
-  padding-top: max(10px, env(safe-area-inset-top, 10px));
+  padding: max(10px, env(safe-area-inset-top, 10px)) 20px 0;
+}
+
+.dashboard-header .header-toolbar {
+  max-width: none;
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-drawer);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  min-height: 56px;
+  padding-left: 5px;
+  padding-right: 10px;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.dashboard-header .header-toolbar:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  border-color: var(--neutral-400, var(--border-color));
 }
 
 .header-toolbar {
   display: flex;
   align-items: center;
   min-height: 56px;
+}
+
+.header-center-title {
+  flex: 1;
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--neutral-900);
+  pointer-events: none;
 }
 
 /* Header Handout Logo - Shows when sidebar is closed */
@@ -616,7 +888,7 @@ async function refreshAllData() {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 8px;
   margin-left: 12px;
 }
 
@@ -627,12 +899,12 @@ async function refreshAllData() {
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 !important;
-  color: #82A6D7 !important;
-  background: transparent !important;
-  border: 1.5px solid #82A6D7 !important;
-  border-radius: 2px !important;
+  color: var(--primary-color) !important;
+  background: var(--bg-surface) !important;
+  border: 1.5px solid var(--border-strong) !important;
+  border-radius: var(--border-radius-card) !important;
   transition: all 0.2s ease;
-  margin: 0 4px;
+  margin: 0;
 }
 
 .header-action-btn :deep(.q-icon) {
@@ -647,9 +919,11 @@ async function refreshAllData() {
 }
 
 .header-action-btn:hover {
-  background: rgba(130, 166, 215, 0.12) !important;
+  background: var(--accent-glow) !important;
+  border-color: var(--accent-color) !important;
+  color: var(--accent-dark) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(93, 139, 196, 0.18);
+  box-shadow: 0 4px 10px rgba(20, 184, 166, 0.2);
 }
 
 /* Language switcher: same 40x40, label centered, text only */
@@ -657,7 +931,7 @@ async function refreshAllData() {
   font-weight: 600 !important;
   font-size: 0.875rem !important;
   background: transparent !important;
-  color: #82A6D7 !important;
+  color: var(--primary-color) !important;
 }
 
 .language-switcher :deep(.q-btn__content) {
@@ -665,32 +939,38 @@ async function refreshAllData() {
 }
 
 .language-switcher:hover {
-  background: rgba(130, 166, 215, 0.12) !important;
+  background: var(--accent-glow) !important;
 }
 
 /* Refresh and Dark Mode buttons: primary background with white icon */
 .refresh-btn,
 .dark-mode-btn {
   background: transparent !important;
-  border: 1.5px solid #82A6D7 !important;
-  color: #82A6D7 !important;
+  border: 1.5px solid var(--border-strong) !important;
+  color: var(--primary-color) !important;
 }
 
 .refresh-btn:hover,
 .dark-mode-btn:hover {
-  background: rgba(130, 166, 215, 0.12) !important;
+  background: var(--accent-glow) !important;
 }
 
 .profile-btn {
-  margin-left: 8px;
-  background: transparent !important;
-  border: 1.5px solid #f59e0b !important;
-  color: #f59e0b !important;
+  min-width: 56px !important;
+  width: auto !important;
+  padding: 0 8px !important;
+  background: rgba(20, 184, 166, 0.08) !important;
+  border: 1.5px solid var(--accent-color) !important;
+  color: var(--accent-dark) !important;
 }
 
 .profile-btn:hover {
-  background: rgba(245, 158, 11, 0.14) !important;
-  color: #d97706 !important;
+  background: rgba(20, 184, 166, 0.18) !important;
+  color: var(--accent-dark) !important;
+}
+
+.profile-btn :deep(.q-btn__content) {
+  gap: 2px;
 }
 
 .signout-btn {
@@ -715,18 +995,25 @@ async function refreshAllData() {
 /* Navigation Links (Dark Theme) */
 .nav-link {
   margin: 4px 0;
-  border-radius: 10px;
+  border-radius: var(--border-radius-drawer);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Page Container */
+/* Page Container - horizontal padding aligns content with banner left/right */
 .page-container {
-  background: #f5f7fa;
+  background: var(--bg-primary);
   min-height: 100vh;
   position: relative;
   overflow-y: auto; /* Allow scrolling */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* When side menu is active, extra left padding so content aligns with banner */
+.page-container.drawer-open {
+  padding-left: 24px;
 }
 
 .page-container::-webkit-scrollbar {
@@ -763,7 +1050,21 @@ async function refreshAllData() {
 @media (max-width: 768px) {
   .dashboard-header {
     min-height: 48px;
-    padding-top: min(12px, env(safe-area-inset-top, 10px));
+    padding: min(12px, env(safe-area-inset-top, 10px)) 12px 0;
+  }
+
+  .dashboard-header .header-toolbar {
+    padding-left: 2px;
+    padding-right: 16px;
+  }
+
+  .page-container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .page-container.drawer-open {
+    padding-left: 16px;
   }
 
   .header-toolbar {
@@ -827,7 +1128,7 @@ async function refreshAllData() {
    ======================================== */
 
 .action-btn:focus {
-  outline: 2px solid #1976d2;
+  outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
 
@@ -851,19 +1152,27 @@ async function refreshAllData() {
    ======================================== */
 
 :global(body.body--dark) .dashboard-layout {
-  background: #121212;
+  background: var(--bg-primary);
 }
 
 :global(body.body--dark) .dark-drawer {
-  background: #1a1a1a;
-  border-right-color: #3d3d3d;
+  background: var(--bg-surface);
+  border-right-color: var(--border-color);
   color: white;
 }
 
 :global(body.body--dark) .dashboard-header {
-  background: #1a1a1a;
-  border-bottom-color: #3d3d3d;
+  background: transparent;
   color: white;
+}
+
+:global(body.body--dark) .dashboard-header .header-toolbar {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+}
+
+:global(body.body--dark) .header-center-title {
+  color: var(--primary-color);
 }
 
 :global(body.body--dark) .sidebar-app-title {
@@ -883,7 +1192,7 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .page-container {
-  background: #121212;
+  background: var(--bg-primary);
   color: white;
 }
 
@@ -897,14 +1206,15 @@ async function refreshAllData() {
 
 /* Dark mode: keep action buttons visible with strong contrast */
 :global(body.body--dark) .header-action-btn {
-  color: #8fb4e3 !important;
-  background: transparent !important;
-  border: 1.5px solid #8fb4e3 !important;
+  color: var(--primary-color) !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+  border: 1.5px solid var(--border-strong) !important;
 }
 
 :global(body.body--dark) .header-action-btn:hover {
-  background: rgba(143, 180, 227, 0.16) !important;
-  color: #b9d4f3 !important;
+  background: rgba(45, 212, 191, 0.2) !important;
+  border-color: var(--accent-color) !important;
+  color: #99f6e4 !important;
 }
 
 :global(body.body--dark) .language-switcher {
@@ -912,31 +1222,31 @@ async function refreshAllData() {
 }
 
 :global(body.body--dark) .language-switcher:hover {
-  background: rgba(143, 180, 227, 0.16) !important;
+  background: rgba(45, 212, 191, 0.2) !important;
 }
 
 :global(body.body--dark) .refresh-btn,
 :global(body.body--dark) .dark-mode-btn {
   background: transparent !important;
-  border: 1.5px solid #8fb4e3 !important;
-  color: #8fb4e3 !important;
+  border: 1.5px solid var(--border-strong) !important;
+  color: var(--primary-color) !important;
 }
 
 :global(body.body--dark) .refresh-btn:hover,
 :global(body.body--dark) .dark-mode-btn:hover {
-  background: rgba(143, 180, 227, 0.16) !important;
-  color: #b9d4f3 !important;
+  background: rgba(45, 212, 191, 0.2) !important;
+  color: #99f6e4 !important;
 }
 
 :global(body.body--dark) .profile-btn {
-  background: transparent !important;
-  border: 1.5px solid #fbbf24 !important;
-  color: #fbbf24 !important;
+  background: rgba(45, 212, 191, 0.16) !important;
+  border: 1.5px solid var(--accent-color) !important;
+  color: #99f6e4 !important;
 }
 
 :global(body.body--dark) .profile-btn:hover {
-  background: rgba(251, 191, 36, 0.16) !important;
-  color: #fcd34d !important;
+  background: rgba(45, 212, 191, 0.24) !important;
+  color: #ccfbf1 !important;
 }
 
 :global(body.body--dark) .signout-btn {

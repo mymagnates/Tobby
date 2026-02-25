@@ -1,0 +1,30 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="330" y1="190" x2="760" y2="510" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B3A8A"/>
+      <stop offset="1" stop-color="#12B3A7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="#F4F7FB"/>
+  <text x="120" y="130" fill="#101828" font-size="38" font-family="Helvetica, Arial, sans-serif" font-weight="700">Concept A - Handoff Loop</text>
+  <text x="120" y="172" fill="#475467" font-size="24" font-family="Helvetica, Arial, sans-serif">Meaning: owner hands over tasks, system keeps operations moving in a reliable loop.</text>
+
+  <rect x="100" y="210" width="1200" height="540" rx="36" fill="#FFFFFF"/>
+
+  <g transform="translate(170 285)">
+    <!-- left hand (giver) -->
+    <path d="M130 250 C130 206 159 176 201 176 H259 C290 176 312 155 312 124 C312 93 289 70 258 70 H205 C136 70 82 124 82 193 V252" stroke="url(#g1)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- right hand (receiver) -->
+    <path d="M480 140 C480 183 452 214 410 214 H352 C322 214 300 236 300 266 C300 298 323 321 355 321 H407 C476 321 530 267 530 198 V140" stroke="url(#g1)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- loop connector -->
+    <path d="M248 145 C292 111 363 111 408 145" stroke="#0B3A8A" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="328" cy="145" r="13" fill="#12B3A7"/>
+  </g>
+
+  <text x="740" y="430" fill="#101828" font-size="88" font-family="Helvetica, Arial, sans-serif" font-weight="700">handout</text>
+  <text x="740" y="486" fill="#475467" font-size="30" font-family="Helvetica, Arial, sans-serif">Hand over the busywork</text>
+
+  <text x="120" y="810" fill="#667085" font-size="24" font-family="Helvetica, Arial, sans-serif">Style: smooth curves, high legibility, direct handoff metaphor.</text>
+</svg>
