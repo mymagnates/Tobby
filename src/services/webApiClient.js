@@ -1,4 +1,9 @@
-const API_BASE_URL = ((import.meta?.env?.VITE_API_BASE_URL || '') + '').replace(/\/$/, '')
+const RAW_API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+const isUnsafeLocalApiBase =
+  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(RAW_API_BASE_URL) &&
+  typeof window !== 'undefined' &&
+  !['localhost', '127.0.0.1'].includes(window.location.hostname)
+const API_BASE_URL = (isUnsafeLocalApiBase ? '/api' : RAW_API_BASE_URL).replace(/\/$/, '')
 
 const STORAGE_KEYS = {
   SP_CARDS: 'web_sp_cards_snapshot_v1',
@@ -10,6 +15,21 @@ const STORAGE_KEYS = {
 }
 
 const toUrl = (path) => `${API_BASE_URL}${path}`
+
+const normalizeApiRole = (role) => {
+  const next = `${role || ''}`.trim().toLowerCase()
+  if (next === 'pm' || next === 'po' || next === 'pm_po') return 'pm_po'
+  if (next === 'sp') return 'sp'
+  if (next === 'tt') return 'tt'
+  if (next === 'admin') return 'admin'
+  return null
+}
+
+const normalizeLeadRow = (row) => {
+  const id = row?.id || row?.lead_id
+  const leadId = row?.lead_id || id
+  return { ...row, id, lead_id: leadId, lead_doc_id: id }
+}
 
 const parseJsonSafely = async (response) => {
   const text = await response.text()
@@ -32,15 +52,12 @@ const normalizeApiError = (payload, fallbackMessage) => {
   return error
 }
 
-const request = async (path, { method = 'GET', body } = {}) => {
-  if (!API_BASE_URL) {
-    throw normalizeApiError({ error_code: 'API_BASE_URL_MISSING', message: 'API base URL missing' })
-  }
-
+const request = async (path, { method = 'GET', body, headers = {} } = {}) => {
   const response = await fetch(toUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
   })
@@ -66,37 +83,16 @@ const saveJsonArray = (key, rows) => {
   localStorage.setItem(key, JSON.stringify(rows))
 }
 
-const seedSpLeads = (spId) => [
-  {
-    lead_id: `lead-${spId}-1`,
-    task_id: 'task-1001',
-    title: 'Emergency plumbing leak',
-    location: 'San Jose, CA',
-    budget_range: '$250-$600',
-    due_date: '2026-02-20',
-    status: 'open',
-    created_at: '2026-02-16T09:00:00.000Z',
-  },
-  {
-    lead_id: `lead-${spId}-2`,
-    task_id: 'task-1002',
-    title: 'HVAC seasonal maintenance',
-    location: 'Sunnyvale, CA',
-    budget_range: '$180-$350',
-    due_date: '2026-02-22',
-    status: 'open',
-    created_at: '2026-02-16T11:30:00.000Z',
-  },
-]
-
 const seedSpBids = (spId) => [
   {
     bid_id: `bid-${spId}-1`,
     sp_id: spId,
     lead_id: `lead-${spId}-0`,
+    lead_title: 'Water heater replacement',
     task_id: 'task-0891',
     title: 'Water heater replacement',
     amount: 780,
+    note: 'Includes 50-gal tank, installation, and old unit disposal. 1-year labor warranty.',
     status: 'selected',
     created_at: '2025-11-18T10:00:00.000Z',
   },
@@ -104,9 +100,11 @@ const seedSpBids = (spId) => [
     bid_id: `bid-${spId}-2`,
     sp_id: spId,
     lead_id: `lead-${spId}-1`,
+    lead_title: 'Drain cleaning',
     task_id: 'task-0954',
     title: 'Drain cleaning',
     amount: 210,
+    note: 'Snake and hydro-jet main kitchen line. Includes camera inspection.',
     status: 'rejected',
     created_at: '2025-12-09T12:30:00.000Z',
   },
@@ -114,11 +112,164 @@ const seedSpBids = (spId) => [
     bid_id: `bid-${spId}-3`,
     sp_id: spId,
     lead_id: `lead-${spId}-2`,
+    lead_title: 'HVAC seasonal maintenance',
     task_id: 'task-1002',
     title: 'HVAC seasonal maintenance',
     amount: 300,
+    note: 'Full tune-up for both units. Filter + coil cleaning included.',
     status: 'submitted',
     created_at: '2026-02-16T12:00:00.000Z',
+  },
+  {
+    bid_id: `bid-${spId}-4`,
+    sp_id: spId,
+    lead_id: `lead-${spId}-4`,
+    lead_title: 'Broken garage door spring',
+    task_id: 'task-1004',
+    title: 'Garage door spring repair',
+    amount: 195,
+    note: 'Replace both torsion springs for balanced operation. Same-day service.',
+    status: 'submitted',
+    created_at: '2026-02-17T16:00:00.000Z',
+  },
+]
+
+const seedSpProjects = (spId) => [
+  {
+    project_id: `project-${spId}-1`,
+    task_id: 'task-0901',
+    task_title: 'Roof repair — Building B',
+    title: 'Roof repair — Building B',
+    address: '460 Oak Grove Ave, Building B',
+    location: 'Palo Alto, CA',
+    status: 'in_progress',
+    accepted_at: '2026-02-14T10:00:00.000Z',
+    sp_id: spId,
+    phases: {
+      plan: { done: true, completed_at: '2026-02-14T14:00:00.000Z' },
+      execution: { done: false, completed_at: null },
+      payment: { done: false, completed_at: null },
+      close: { done: false, completed_at: null },
+    },
+    comments: [
+      { text: 'Materials ordered — shingles and underlayment arriving Feb 16.', created_at: '2026-02-14T15:30:00.000Z', author: spId },
+      { text: 'Weather delay — rain expected Wed/Thu. Rescheduling to Friday.', created_at: '2026-02-17T09:00:00.000Z', author: spId },
+    ],
+  },
+  {
+    project_id: `project-${spId}-2`,
+    task_id: 'task-0750',
+    task_title: 'Electrical panel upgrade',
+    title: 'Electrical panel upgrade',
+    address: '1521 Shoreline Blvd, Unit 4',
+    location: 'Mountain View, CA',
+    status: 'completed',
+    accepted_at: '2025-12-21T10:00:00.000Z',
+    sp_id: spId,
+    phases: {
+      plan: { done: true, completed_at: '2025-12-21T12:00:00.000Z' },
+      execution: { done: true, completed_at: '2025-12-28T17:00:00.000Z' },
+      payment: { done: true, completed_at: '2026-01-05T10:00:00.000Z' },
+      close: { done: true, completed_at: '2026-01-06T09:00:00.000Z' },
+    },
+    comments: [
+      { text: 'Panel upgraded from 100A to 200A. All circuits re-labeled.', created_at: '2025-12-28T17:30:00.000Z', author: spId },
+      { text: 'Inspection passed. Final invoice sent to PM.', created_at: '2026-01-06T09:00:00.000Z', author: spId },
+    ],
+  },
+  {
+    project_id: `project-${spId}-3`,
+    task_id: 'task-0631',
+    task_title: 'Garage door sensor replacement',
+    title: 'Garage door sensor replacement',
+    address: '320 El Camino Real, Garage #7',
+    location: 'Santa Clara, CA',
+    status: 'completed',
+    accepted_at: '2025-10-12T09:00:00.000Z',
+    sp_id: spId,
+    phases: {
+      plan: { done: true, completed_at: '2025-10-12T10:00:00.000Z' },
+      execution: { done: true, completed_at: '2025-10-13T14:00:00.000Z' },
+      payment: { done: true, completed_at: '2025-10-20T11:00:00.000Z' },
+      close: { done: true, completed_at: '2025-10-20T11:30:00.000Z' },
+    },
+    comments: [
+      { text: 'Both sensors replaced and aligned. Door tested 10+ cycles.', created_at: '2025-10-13T14:30:00.000Z', author: spId },
+    ],
+  },
+  {
+    project_id: `project-${spId}-4`,
+    task_id: 'task-0891',
+    task_title: 'Water heater replacement',
+    title: 'Water heater replacement',
+    address: '742 Evergreen Terrace, Unit 1A',
+    location: 'San Jose, CA',
+    status: 'active',
+    accepted_at: '2026-02-10T08:00:00.000Z',
+    sp_id: spId,
+    phases: {
+      plan: { done: true, completed_at: '2026-02-10T10:00:00.000Z' },
+      execution: { done: true, completed_at: '2026-02-12T16:00:00.000Z' },
+      payment: { done: false, completed_at: null },
+      close: { done: false, completed_at: null },
+    },
+    comments: [
+      { text: 'Old 40-gal tank removed. New 50-gal Rheem installed and tested.', created_at: '2026-02-12T16:30:00.000Z', author: spId },
+      { text: 'Awaiting payment confirmation from property manager.', created_at: '2026-02-15T09:00:00.000Z', author: spId },
+    ],
+  },
+]
+
+const seedSpInvoices = (spId) => [
+  {
+    invoice_id: `inv-${spId}-1`,
+    sp_id: spId,
+    project_id: `project-${spId}-2`,
+    title: 'Electrical panel upgrade — final',
+    amount: 2450,
+    status: 'paid',
+    issued_date: '2026-01-06T09:00:00.000Z',
+    due_date: '2026-01-20T00:00:00.000Z',
+    paid_date: '2026-01-18T14:00:00.000Z',
+    notes: 'Panel upgrade 100A→200A, labor + materials. Permit fee included.',
+    created_at: '2026-01-06T09:00:00.000Z',
+  },
+  {
+    invoice_id: `inv-${spId}-2`,
+    sp_id: spId,
+    project_id: `project-${spId}-3`,
+    title: 'Garage door sensor replacement',
+    amount: 185,
+    status: 'paid',
+    issued_date: '2025-10-20T11:00:00.000Z',
+    due_date: '2025-11-03T00:00:00.000Z',
+    paid_date: '2025-10-28T10:00:00.000Z',
+    notes: 'Two photo-eye sensors replaced. Parts + 1 hr labor.',
+    created_at: '2025-10-20T11:00:00.000Z',
+  },
+  {
+    invoice_id: `inv-${spId}-3`,
+    sp_id: spId,
+    project_id: `project-${spId}-4`,
+    title: 'Water heater replacement — pending',
+    amount: 780,
+    status: 'submitted',
+    issued_date: '2026-02-15T09:00:00.000Z',
+    due_date: '2026-03-01T00:00:00.000Z',
+    notes: '50-gal Rheem tank, installation, haul-away of old unit. 1-yr warranty.',
+    created_at: '2026-02-15T09:00:00.000Z',
+  },
+  {
+    invoice_id: `inv-${spId}-4`,
+    sp_id: spId,
+    project_id: `project-${spId}-1`,
+    title: 'Roof repair — Building B (deposit)',
+    amount: 1200,
+    status: 'draft',
+    issued_date: null,
+    due_date: null,
+    notes: '50% deposit for materials. Remainder due on completion.',
+    created_at: '2026-02-17T11:00:00.000Z',
   },
 ]
 
@@ -204,10 +355,110 @@ export const reportApi = {
 }
 
 export const marketplaceApi = {
+  async publishLeadFromTask(payload) {
+    const role = normalizeApiRole(payload?.actor_role)
+    const actorId = payload?.actor_id ? String(payload.actor_id) : null
+
+    try {
+      const res = await request('/leads/from-task', {
+        method: 'POST',
+        headers: {
+          ...(actorId ? { 'X-User-Id': actorId } : {}),
+          ...(role ? { 'X-User-Role': role } : {}),
+        },
+        body: payload,
+      })
+      return normalizeLeadRow(res?.lead || {})
+    } catch {
+      // Fallback for local dev when backend is unavailable.
+    }
+
+    const rows = loadJsonArray(STORAGE_KEYS.SP_LEADS)
+    const mxId = payload?.mx_id || payload?.task_id || `mx-${Date.now()}`
+    const taskDocId = payload?.task_doc_id || payload?.system_task_id || null
+    const next = normalizeLeadRow({
+      lead_id: payload?.lead_id || `lead-${Date.now()}`,
+      mx_id: mxId,
+      task_id: mxId,
+      task_doc_id: taskDocId,
+      title: payload?.title || 'New Task Lead',
+      description: payload?.description || '',
+      scope: payload?.scope || payload?.description || '',
+      location: payload?.location || '',
+      address: payload?.address || '',
+      budget_range: payload?.budget_range || '',
+      due_date: payload?.due_date || null,
+      status: 'open',
+      created_at: payload?.created_at || nowIso(),
+      source: 'task-bridge',
+      property_id: payload?.property_id || null,
+    })
+    const exists = rows.some(
+      (row) =>
+        String(row.mx_id || '') === String(next.mx_id || '') ||
+        String(row.task_id || '') === String(next.task_id || '') ||
+        (next.task_doc_id && String(row.task_doc_id || '') === String(next.task_doc_id))
+    )
+    if (!exists) {
+      rows.unshift(next)
+      saveJsonArray(STORAGE_KEYS.SP_LEADS, rows)
+    }
+    return next
+  },
+
+  async syncLeadWithTaskStatus(payload) {
+    const role = normalizeApiRole(payload?.actor_role)
+    const actorId = payload?.actor_id ? String(payload.actor_id) : null
+    const body = {
+      mx_id: payload?.mx_id || payload?.task_id,
+      task_doc_id: payload?.task_doc_id || payload?.system_task_id || null,
+      task_status: payload?.task_status,
+      task_updated_at: payload?.task_updated_at || nowIso(),
+    }
+    return request('/leads/sync-task-status', {
+      method: 'POST',
+      headers: {
+        ...(actorId ? { 'X-User-Id': actorId } : {}),
+        ...(role ? { 'X-User-Role': role } : {}),
+      },
+      body,
+    })
+  },
+
   async getRecommendedSps(taskId) {
     try {
       const res = await request(`/tasks/${taskId}/recommended-sps`)
       return res.items || []
+    } catch {
+      return []
+    }
+  },
+
+  async getTaskBids(taskRef, actor = {}) {
+    const actorId = actor?.actor_id ? String(actor.actor_id) : null
+    const role = normalizeApiRole(actor?.actor_role)
+    const headers = {
+      ...(actorId ? { 'X-User-Id': actorId } : {}),
+      ...(role ? { 'X-User-Role': role } : {}),
+    }
+
+    try {
+      const leadsRes = await request('/leads', { headers })
+      const leads = (leadsRes.items || []).map((row) => normalizeLeadRow(row))
+      const ref = String(taskRef || '')
+      const matchedLead = leads.find((row) => {
+        const candidates = [row.mx_id, row.task_id, row.task_doc_id]
+          .filter((value) => value !== null && value !== undefined)
+          .map((value) => String(value))
+        return candidates.includes(ref)
+      })
+      const leadDocId = matchedLead?.id || matchedLead?.lead_id
+      if (!leadDocId) return []
+
+      const bidsRes = await request(`/leads/${encodeURIComponent(leadDocId)}/bids`, {
+        headers,
+      })
+      return bidsRes.items || []
     } catch {
       return []
     }
@@ -278,16 +529,29 @@ export const spCardsApi = {
 export const spPortalApi = {
   async listLeads(spId) {
     try {
-      const res = await request('/sp/leads')
-      return res.items || []
+      const res = await request('/leads', {
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
+      return (res.items || []).map((row) => normalizeLeadRow(row))
     } catch {
-      return ensureSeeded(STORAGE_KEYS.SP_LEADS, seedSpLeads(spId)).filter((row) => row.status === 'open')
+      // No dummy seed fallback: only return locally stored leads (e.g., task bridge records)
+      return loadJsonArray(STORAGE_KEYS.SP_LEADS)
+        .filter((row) => row.status === 'open')
+        .map((row) => normalizeLeadRow(row))
     }
   },
 
   async listBids(spId) {
     try {
-      const res = await request('/sp/bids')
+      const res = await request('/sp/bids', {
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
       return res.items || []
     } catch {
       return ensureSeeded(STORAGE_KEYS.SP_BIDS, seedSpBids(spId)).filter((row) => row.sp_id === spId)
@@ -295,15 +559,35 @@ export const spPortalApi = {
   },
 
   async createBid(payload) {
+    const normalizedAmount = Number(payload?.amount)
+    const normalizedPayload = {
+      ...payload,
+      sp_id: payload?.sp_id ? String(payload.sp_id) : '',
+      lead_id: payload?.lead_id || payload?.id || '',
+      amount: Number.isFinite(normalizedAmount) ? normalizedAmount : 0,
+      note: payload?.note ?? payload?.notes ?? '',
+    }
+    if (!normalizedPayload.lead_id) {
+      throw new Error('Lead ID is required to submit bid.')
+    }
+
     try {
-      return await request('/sp/bids', { method: 'POST', body: payload })
+      const spId = normalizedPayload.sp_id
+      return await request('/sp/bids', {
+        method: 'POST',
+        headers: {
+          ...(spId ? { 'X-User-Id': spId } : {}),
+          'X-User-Role': 'sp',
+        },
+        body: normalizedPayload,
+      })
     } catch {
       const rows = loadJsonArray(STORAGE_KEYS.SP_BIDS)
       const next = {
         bid_id: `bid-${Date.now()}`,
         status: 'submitted',
         created_at: nowIso(),
-        ...payload,
+        ...normalizedPayload,
       }
       rows.unshift(next)
       saveJsonArray(STORAGE_KEYS.SP_BIDS, rows)
@@ -316,36 +600,20 @@ export const spPortalApi = {
       const res = await request('/sp/projects')
       return res.items || []
     } catch {
-      const seeded = ensureSeeded(STORAGE_KEYS.SP_PROJECTS, [
-        {
-          project_id: `project-${spId}-1`,
-          task_id: 'task-0901',
-          title: 'Roof repair - Building B',
-          location: 'Palo Alto, CA',
-          status: 'active',
-          accepted_at: '2026-02-14T10:00:00.000Z',
-          sp_id: spId,
-        },
-        {
-          project_id: `project-${spId}-2`,
-          task_id: 'task-0750',
-          title: 'Electrical panel inspection',
-          location: 'Mountain View, CA',
-          status: 'completed',
-          accepted_at: '2025-12-21T10:00:00.000Z',
-          sp_id: spId,
-        },
-        {
-          project_id: `project-${spId}-3`,
-          task_id: 'task-0631',
-          title: 'Garage door sensor replacement',
-          location: 'Santa Clara, CA',
-          status: 'completed',
-          accepted_at: '2025-10-12T09:00:00.000Z',
-          sp_id: spId,
-        },
-      ])
-      return seeded.filter((row) => row.sp_id === spId)
+      return ensureSeeded(STORAGE_KEYS.SP_PROJECTS, seedSpProjects(spId)).filter((row) => row.sp_id === spId)
+    }
+  },
+
+  async updateProject(projectId, updates) {
+    try {
+      return await request(`/sp/projects/${projectId}`, { method: 'PATCH', body: updates })
+    } catch {
+      const rows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS)
+      const index = rows.findIndex((row) => row.project_id === projectId)
+      if (index < 0) throw new Error('Project not found')
+      rows[index] = { ...rows[index], ...updates, updated_at: nowIso() }
+      saveJsonArray(STORAGE_KEYS.SP_PROJECTS, rows)
+      return rows[index]
     }
   },
 
@@ -354,7 +622,7 @@ export const spPortalApi = {
       const res = await request('/sp/invoices')
       return res.items || []
     } catch {
-      return loadJsonArray(STORAGE_KEYS.SP_INVOICES).filter((row) => row.sp_id === spId)
+      return ensureSeeded(STORAGE_KEYS.SP_INVOICES, seedSpInvoices(spId)).filter((row) => row.sp_id === spId)
     }
   },
 
@@ -420,4 +688,5 @@ export const spPortalApi = {
       return next
     }
   },
+
 }

@@ -86,10 +86,13 @@
 
 ## 6) Task Collaboration Guardrails
 - Task remains in core domain (`tasks`).
-- Marketplace writes by reference (`task_id`), no deep nesting in task payload.
+- Marketplace writes by reference (`mx_id` canonical; `task_doc_id` redundant), no deep nesting in task payload.
 - Allowed SP task state progression (if assigned active):
   - `assigned -> in_progress -> resolved`
 - Final `closed` by PM/PO or TT confirmation rules.
+
+ID field contract for implementation details:
+- `docs/MARKETPLACE_ID_CONTRACT_V01.md`
 
 ## 7) Event Contract (MVP)
 - `opportunity.created`

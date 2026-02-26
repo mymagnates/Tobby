@@ -55,7 +55,7 @@
 
               <div class="auth-signup-row">
                 <span>Don't have an account?</span>
-                <q-btn flat dense no-caps color="primary" label="Sign up" @click="showSignUp = true" />
+                <q-btn flat dense no-caps color="primary" label="Register" @click="router.push('/public/register')" />
               </div>
             </q-form>
           </div>

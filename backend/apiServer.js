@@ -1,13 +1,24 @@
 import http from 'node:http'
 import { randomUUID } from 'node:crypto'
+import { getApps, initializeApp } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
 import { createInMemoryStore } from './store.js'
+import {
+  transitionLead,
+  transitionBid,
+  transitionAssignment,
+  extractSemanticTags,
+  matchLeadToSps,
+  isSpEligibleForLead,
+  selectBidAndAssign,
+} from './marketplace.js'
 
 const json = (res, statusCode, payload) => {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-User-Role, Idempotency-Key',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
   })
   res.end(JSON.stringify(payload))
 }
@@ -68,11 +79,28 @@ const getPermissions = (role) => {
         'sp:card:write',
         'invoice:review',
         'reports:all',
+        'lead:create',
+        'lead:manage',
+        'bid:review',
+        'bid:select',
+        'conversation:create',
+        'conversation:read',
+        'message:send',
       ]
     case 'tt':
       return ['task:create', 'task:comment', 'inventory:draft:update', 'inventory:submit']
     case 'sp':
-      return ['task:comment', 'invoice:create', 'invoice:submit']
+      return [
+        'task:comment',
+        'invoice:create',
+        'invoice:submit',
+        'lead:view',
+        'bid:create',
+        'bid:withdraw',
+        'conversation:read',
+        'message:send',
+        'assignment:respond',
+      ]
     case 'admin':
       return ['reports:all', 'billing:read']
     default:
@@ -107,6 +135,52 @@ const findFirst = (collection, predicate) => {
   return null
 }
 
+const LEADS_COLLECTION = 'marketplace_leads'
+const LEAD_BIDS_SUBCOLLECTION = 'bids'
+let firestoreDb = null
+
+const getDb = () => {
+  if (firestoreDb) return firestoreDb
+  if (!getApps().length) initializeApp()
+  firestoreDb = getFirestore()
+  return firestoreDb
+}
+
+const normalizeRole = (role) => {
+  const next = String(role || '').trim().toLowerCase()
+  if (next === 'pm' || next === 'po' || next === 'pm_po') return 'pm_po'
+  if (next === 'sp') return 'sp'
+  if (next === 'tt') return 'tt'
+  if (next === 'admin') return 'admin'
+  return null
+}
+
+const normalizeLead = (lead) => {
+  if (!lead) return null
+  const id = lead.id || lead.lead_id
+  return { ...lead, id, lead_id: lead.lead_id || id }
+}
+
+const normalizeBid = (bid) => {
+  if (!bid) return null
+  const id = bid.id || bid.bid_id
+  return { ...bid, id, bid_id: bid.bid_id || id }
+}
+
+const normalizeTaskStatus = (status) => String(status || '').trim().toLowerCase()
+
+const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
+  const normalized = normalizeTaskStatus(taskStatus)
+  if (!normalized) return null
+
+  if (['closed', 'complete', 'completed', 'resolved'].includes(normalized)) return 'closed'
+  if (['cancel', 'cancelled', 'canceled'].includes(normalized)) return 'cancelled'
+  if (['open', 'new', 'pending', 'in_progress', 'reopened'].includes(normalized)) {
+    return currentLeadStatus === 'assigned' ? 'assigned' : 'open'
+  }
+  return null
+}
+
 const withIdempotency = ({ store, key, resolver }) => {
   if (!key) return resolver()
   if (store.idempotency.has(key)) return store.idempotency.get(key)
@@ -118,6 +192,172 @@ const withIdempotency = ({ store, key, resolver }) => {
 export const createApiServer = ({ store = createInMemoryStore() } = {}) => {
   const routes = []
   const route = (method, pattern, handler) => routes.push({ method, pattern, handler })
+  const listFirestoreLeads = async ({ actor }) => {
+    try {
+      const db = getDb()
+      let query = db.collection(LEADS_COLLECTION)
+      if (actor.role === 'sp') query = query.where('status', '==', 'open')
+      if (actor.role === 'pm_po') query = query.where('creator_id', '==', actor.id)
+      const snap = await query.get()
+      return snap.docs
+        .map((doc) => normalizeLead({ id: doc.id, ...(doc.data() || {}) }))
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    } catch {
+      return []
+    }
+  }
+
+  const getFirestoreLeadById = async (id) => {
+    try {
+      const db = getDb()
+      const doc = await db.collection(LEADS_COLLECTION).doc(id).get()
+      if (!doc.exists) return null
+      return normalizeLead({ id: doc.id, ...(doc.data() || {}) })
+    } catch {
+      return null
+    }
+  }
+
+  const getFirestoreLeadByTaskRef = async (taskRef) => {
+    const ref = String(taskRef || '').trim()
+    if (!ref) return null
+    try {
+      const db = getDb()
+      const fields = ['mx_id', 'task_id', 'task_doc_id']
+      for (const field of fields) {
+        const snap = await db.collection(LEADS_COLLECTION).where(field, '==', ref).limit(1).get()
+        const doc = snap.docs[0]
+        if (doc) return normalizeLead({ id: doc.id, ...(doc.data() || {}) })
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const saveFirestoreLead = async (lead) => {
+    const db = getDb()
+    const normalized = normalizeLead(lead)
+    await db.collection(LEADS_COLLECTION).doc(normalized.id).set(normalized, { merge: true })
+    return normalized
+  }
+
+  const getLeadFromAnyStore = async (leadId) => {
+    const firestoreLead = await getFirestoreLeadById(leadId)
+    if (firestoreLead) return { lead: firestoreLead, source: 'firestore' }
+    const memoryLead = store.leads.get(leadId)
+    if (memoryLead) return { lead: normalizeLead(memoryLead), source: 'memory' }
+    return { lead: null, source: null }
+  }
+
+  const listFirestoreLeadBids = async (leadId) => {
+    try {
+      const db = getDb()
+      const snap = await db
+        .collection(LEADS_COLLECTION)
+        .doc(leadId)
+        .collection(LEAD_BIDS_SUBCOLLECTION)
+        .get()
+      return snap.docs
+        .map((doc) => normalizeBid({ id: doc.id, ...(doc.data() || {}) }))
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    } catch {
+      return []
+    }
+  }
+
+  const listFirestoreSpBids = async (spId) => {
+    try {
+      const db = getDb()
+      const snap = await db
+        .collectionGroup(LEAD_BIDS_SUBCOLLECTION)
+        .where('sp_id', '==', spId)
+        .get()
+      return snap.docs
+        .map((doc) => normalizeBid({ id: doc.id, ...(doc.data() || {}) }))
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    } catch {
+      return []
+    }
+  }
+
+  const createBidForLead = async ({ actor, leadId, body }) => {
+    const found = await getLeadFromAnyStore(leadId)
+    const lead = found.lead
+    if (!lead) return { ok: false, status: 404, code: 'LEAD_NOT_FOUND', message: 'Lead not found' }
+    if (lead.status !== 'open') {
+      return { ok: false, status: 400, code: 'LEAD_NOT_OPEN', message: 'Lead is not accepting bids' }
+    }
+
+    const spProfile = store.spProfiles.get(actor.id)
+    if (!spProfile) {
+      return { ok: false, status: 404, code: 'SP_PROFILE_NOT_FOUND', message: 'SP profile not found' }
+    }
+    if (!isSpEligibleForLead(lead, spProfile)) {
+      return { ok: false, status: 403, code: 'NOT_ELIGIBLE', message: 'You are not eligible to bid on this lead' }
+    }
+    if (!body?.amount || Number(body.amount) <= 0) {
+      return { ok: false, status: 400, code: 'INVALID_AMOUNT', message: 'Bid amount must be a positive number' }
+    }
+
+    if (found.source === 'firestore') {
+      const db = getDb()
+      const bidsRef = db.collection(LEADS_COLLECTION).doc(leadId).collection(LEAD_BIDS_SUBCOLLECTION)
+      const existingSnap = await bidsRef.where('sp_id', '==', actor.id).get()
+      const hasActive = existingSnap.docs.some((doc) => {
+        const row = doc.data() || {}
+        return row.status !== 'withdrawn'
+      })
+      if (hasActive) {
+        return {
+          ok: false,
+          status: 409,
+          code: 'DUPLICATE_BID',
+          message: 'You already have an active bid on this lead',
+        }
+      }
+
+      const id = `bid-${randomUUID()}`
+      const now = new Date().toISOString()
+      const bid = normalizeBid({
+        id,
+        lead_id: leadId,
+        mx_id: lead.mx_id || body?.mx_id || lead.task_id || body?.task_id || null,
+        task_id: lead.task_id || body?.task_id || null,
+        task_doc_id: lead.task_doc_id || body?.task_doc_id || null,
+        sp_id: actor.id,
+        amount: Number(body.amount),
+        currency: body?.currency || 'USD',
+        note: body?.note || '',
+        estimated_duration: body?.estimated_duration || '',
+        availability_date: body?.availability_date || null,
+        status: 'submitted',
+        status_changed_by: null,
+        created_at: now,
+        updated_at: now,
+      })
+
+      await bidsRef.doc(id).set(bid, { merge: true })
+      store.bids.set(bid.id, bid)
+      return { ok: true, bid }
+    }
+
+    const existingBid = findFirst(
+      store.bids,
+      (b) => b.lead_id === lead.id && b.sp_id === actor.id && b.status !== 'withdrawn'
+    )
+    if (existingBid) {
+      return {
+        ok: false,
+        status: 409,
+        code: 'DUPLICATE_BID',
+        message: 'You already have an active bid on this lead',
+      }
+    }
+
+    const bid = store.createBid({ actor, lead, body })
+    return { ok: true, bid: normalizeBid(bid) }
+  }
 
   route('GET', '/auth/me', async ({ actor, res, requestId }) => {
     ok(res, requestId, {
@@ -161,6 +401,22 @@ export const createApiServer = ({ store = createInMemoryStore() } = {}) => {
     }
     task.status = String(body?.status || task.status)
     task.updated_at = new Date().toISOString()
+
+    // Task lifecycle drives lead lifecycle when a linked lead exists.
+    const mappedLeadStatus = mapTaskStatusToLeadStatus(task.status)
+    const linkedLead = task.lead_id ? store.leads.get(task.lead_id) : null
+    if (linkedLead) {
+      linkedLead.task_status = task.status
+      linkedLead.task_updated_at = task.updated_at
+      if (mappedLeadStatus) linkedLead.status = mappedLeadStatus
+      linkedLead.updated_at = task.updated_at
+      try {
+        await saveFirestoreLead(normalizeLead(linkedLead))
+      } catch {
+        // Keep in-memory lead updated even if Firestore write fails.
+      }
+    }
+
     return ok(res, requestId, { gate_status: 'ok', task })
   })
 
@@ -288,6 +544,663 @@ export const createApiServer = ({ store = createInMemoryStore() } = {}) => {
     const items = [...store.spCards.values()].filter((row) => row.owner_id === ownerId)
     ok(res, requestId, { items })
   })
+
+  // -----------------------------------------------------------------------
+  // Lead endpoints
+  // -----------------------------------------------------------------------
+
+  route('POST', '/leads/from-task', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po', 'tt'], res, requestId })) return
+
+    const mxId = String(body?.mx_id || body?.task_id || '').trim()
+    const taskDocId = String(body?.task_doc_id || body?.system_task_id || '').trim()
+    if (!mxId) return sendError(res, requestId, 400, 'MISSING_MX_ID', 'mx_id is required')
+
+    const existing = (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
+    if (existing) return ok(res, requestId, { lead: existing, created: false, storage: 'firestore' })
+
+    const now = new Date().toISOString()
+    const lead = normalizeLead({
+      id: `lead-${randomUUID()}`,
+      mx_id: mxId,
+      task_id: mxId,
+      task_doc_id: taskDocId || null,
+      property_id: body?.property_id || null,
+      lease_id: body?.lease_id || null,
+      creator_id: actor.id,
+      creator_role: actor.role,
+      title: String(body?.title || 'New Task Lead'),
+      description: String(body?.description || ''),
+      scope: String(body?.scope || body?.description || ''),
+      location: String(body?.location || ''),
+      address: String(body?.address || ''),
+      budget_range: String(body?.budget_range || ''),
+      urgency: String(body?.urgency || 'normal'),
+      due_date: body?.due_date || null,
+      semantic_tags: extractSemanticTags(
+        `${body?.title || ''} ${body?.description || ''} ${body?.scope || ''}`
+      ),
+      status: 'open',
+      visibility_mode: 'public',
+      bid_deadline: body?.bid_deadline || null,
+      bid_count: 0,
+      assigned_sp_id: null,
+      assigned_bid_id: null,
+      source: 'task-bridge',
+      created_at: body?.created_at || now,
+      updated_at: now,
+    })
+
+    try {
+      const saved = await saveFirestoreLead(lead)
+      store.leads.set(saved.id, saved)
+      return ok(res, requestId, { lead: saved, created: true, storage: 'firestore' })
+    } catch {
+      store.leads.set(lead.id, lead)
+      return ok(res, requestId, { lead, created: true, storage: 'memory' })
+    }
+  })
+
+  route('POST', '/leads/sync-task-status', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po', 'tt'], res, requestId })) return
+
+    const mxId = String(body?.mx_id || body?.task_id || '').trim()
+    const taskDocId = String(body?.task_doc_id || body?.system_task_id || '').trim()
+    const taskStatus = String(body?.task_status || '').trim()
+    if (!mxId || !taskStatus) {
+      return sendError(res, requestId, 400, 'MISSING_FIELDS', 'mx_id and task_status are required')
+    }
+
+    const now = new Date().toISOString()
+    const taskUpdatedAt = body?.task_updated_at || now
+    const directLeadStatus = mapTaskStatusToLeadStatus(taskStatus)
+
+    const firestoreLead = (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
+    if (firestoreLead) {
+      const nextStatus = directLeadStatus || firestoreLead.status || 'open'
+      const updated = normalizeLead({
+        ...firestoreLead,
+        task_status: taskStatus,
+        task_updated_at: taskUpdatedAt,
+        status: nextStatus,
+        updated_at: now,
+      })
+      try {
+        await saveFirestoreLead(updated)
+      } catch {
+        // Keep returning in-memory updated record if Firestore write fails.
+      }
+      store.leads.set(updated.id, updated)
+      return ok(res, requestId, { lead: updated, updated: true, storage: 'firestore' })
+    }
+
+    const memoryLead = findFirst(
+      store.leads,
+      (lead) =>
+        String(lead.mx_id || '') === mxId ||
+        String(lead.task_id || '') === mxId ||
+        (taskDocId && String(lead.task_doc_id || '') === taskDocId)
+    )
+    if (!memoryLead) {
+      return ok(res, requestId, { updated: false, reason: 'LEAD_NOT_FOUND', mx_id: mxId })
+    }
+
+    const nextStatus = directLeadStatus || memoryLead.status || 'open'
+    memoryLead.task_status = taskStatus
+    memoryLead.task_updated_at = taskUpdatedAt
+    memoryLead.status = nextStatus
+    memoryLead.updated_at = now
+    return ok(res, requestId, { lead: normalizeLead(memoryLead), updated: true, storage: 'memory' })
+  })
+
+  route('POST', '/leads', async ({ actor, body, req, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const taskId = body?.task_id
+    if (!taskId) return sendError(res, requestId, 400, 'MISSING_TASK_ID', 'task_id is required')
+    const task = store.tasks.get(taskId)
+    if (!task) return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task not found')
+    if (task.creator_user_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only task creator can publish a lead')
+    }
+    if (task.lead_id) {
+      return sendError(res, requestId, 409, 'LEAD_ALREADY_EXISTS', 'Task already has a lead published')
+    }
+
+    const semanticTags = extractSemanticTags(`${task.title} ${task.description} ${body?.scope || ''}`)
+    const leadBody = { ...body, semantic_tags: semanticTags }
+
+    const idempotencyKey = String(req.headers['idempotency-key'] || '')
+    const lead = withIdempotency({
+      store,
+      key: idempotencyKey,
+      resolver: () => store.createLead({ actor, task, body: leadBody }),
+    })
+
+    try {
+      await saveFirestoreLead(normalizeLead(lead))
+    } catch {
+      // Keep marketplace operational with in-memory fallback.
+    }
+
+    const matchedSps = matchLeadToSps(lead, store.spProfiles)
+    ok(res, requestId, { lead, matched_sp_count: matchedSps.length })
+  })
+
+  route('GET', '/leads', async ({ actor, query, res, requestId }) => {
+    const firestoreItems = await listFirestoreLeads({ actor })
+    if (firestoreItems.length) {
+      return ok(res, requestId, { items: firestoreItems })
+    }
+
+    const items = []
+
+    if (actor.role === 'sp') {
+      const spProfile = store.spProfiles.get(actor.id)
+      if (!spProfile) return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
+      for (const lead of store.leads.values()) {
+        if (isSpEligibleForLead(lead, spProfile)) {
+          items.push(lead)
+        }
+      }
+    } else if (actor.role === 'pm_po') {
+      const creatorFilter = query.get('creator_id') || actor.id
+      for (const lead of store.leads.values()) {
+        if (lead.creator_id === creatorFilter) items.push(lead)
+      }
+    } else {
+      for (const lead of store.leads.values()) items.push(lead)
+    }
+
+    items.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    ok(res, requestId, { items: items.map((lead) => normalizeLead(lead)) })
+  })
+
+  route('GET', '/leads/:id', async ({ actor, params, res, requestId }) => {
+    let lead = await getFirestoreLeadById(params.id)
+    if (!lead) lead = store.leads.get(params.id)
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+
+    if (actor.role === 'sp') {
+      const spProfile = store.spProfiles.get(actor.id)
+      if (!spProfile || !isSpEligibleForLead(lead, spProfile)) {
+        return sendError(res, requestId, 403, 'LEAD_NOT_VISIBLE', 'This lead is not available to you')
+      }
+    }
+
+    ok(res, requestId, { lead: normalizeLead(lead) })
+  })
+
+  route('PATCH', '/leads/:id/status', async ({ actor, params, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const lead = store.leads.get(params.id)
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+    if (lead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can change status')
+    }
+    const nextStatus = String(body?.status || '')
+    const result = transitionLead(lead, nextStatus, actor.id)
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+    ok(res, requestId, { lead: result.lead })
+  })
+
+  route('GET', '/leads/:id/matched-sps', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const lead = store.leads.get(params.id)
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+    const matched = matchLeadToSps(lead, store.spProfiles)
+    ok(res, requestId, { items: matched })
+  })
+
+  // -----------------------------------------------------------------------
+  // Bid endpoints
+  // -----------------------------------------------------------------------
+
+  route('POST', '/leads/:id/bids', async ({ actor, params, body, req, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const idempotencyKey = String(req.headers['idempotency-key'] || '')
+    const result = withIdempotency({
+      store,
+      key: idempotencyKey,
+      resolver: () => createBidForLead({ actor, leadId: params.id, body }),
+    })
+    const resolved = await Promise.resolve(result)
+    if (!resolved.ok) {
+      return sendError(res, requestId, resolved.status || 400, resolved.code, resolved.message)
+    }
+    ok(res, requestId, { bid: normalizeBid(resolved.bid) })
+  })
+
+  route('GET', '/leads/:id/bids', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const found = await getLeadFromAnyStore(params.id)
+    const lead = found.lead
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+    if (lead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can view all bids')
+    }
+
+    let items = []
+    if (found.source === 'firestore') {
+      items = await listFirestoreLeadBids(params.id)
+    } else {
+      items = [...store.bids.values()]
+        .filter((b) => b.lead_id === params.id)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    }
+
+    const enriched = items.map((bid) => {
+      const sp = store.spProfiles.get(bid.sp_id)
+      return {
+        ...bid,
+        sp_business_name: sp?.business_name || null,
+        sp_rating_avg: sp?.rating_avg || null,
+        sp_total_jobs: sp?.total_jobs_completed || 0,
+      }
+    })
+
+    ok(res, requestId, { items: enriched })
+  })
+
+  route('GET', '/bids', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const spId = query.get('sp_id') || actor.id
+    if (spId !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only view your own bids')
+    }
+    const firestoreItems = await listFirestoreSpBids(spId)
+    if (firestoreItems.length) return ok(res, requestId, { items: firestoreItems })
+    const items = [...store.bids.values()]
+      .filter((b) => b.sp_id === spId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    ok(res, requestId, { items: items.map((row) => normalizeBid(row)) })
+  })
+
+  // Alias for frontend compatibility: SP bid list
+  route('GET', '/sp/bids', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const spId = query.get('sp_id') || actor.id
+    if (spId !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only view your own bids')
+    }
+    const firestoreItems = await listFirestoreSpBids(spId)
+    if (firestoreItems.length) return ok(res, requestId, { items: firestoreItems })
+    const items = [...store.bids.values()]
+      .filter((b) => b.sp_id === spId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    ok(res, requestId, { items: items.map((row) => normalizeBid(row)) })
+  })
+
+  // Alias for frontend compatibility: SP create bid from lead_id in body
+  route('POST', '/sp/bids', async ({ actor, body, req, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const leadId = String(body?.lead_id || '').trim()
+    if (!leadId) return sendError(res, requestId, 400, 'MISSING_LEAD_ID', 'lead_id is required')
+    const idempotencyKey = String(req.headers['idempotency-key'] || '')
+    const result = withIdempotency({
+      store,
+      key: idempotencyKey,
+      resolver: () => createBidForLead({ actor, leadId, body }),
+    })
+    const resolved = await Promise.resolve(result)
+    if (!resolved.ok) {
+      return sendError(res, requestId, resolved.status || 400, resolved.code, resolved.message)
+    }
+    ok(res, requestId, { bid: normalizeBid(resolved.bid) })
+  })
+
+  route('PATCH', '/bids/:id/withdraw', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const bid = store.bids.get(params.id)
+    if (!bid) return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
+    if (bid.sp_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only bid owner can withdraw')
+    }
+    const result = transitionBid(bid, 'withdrawn', actor.id)
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+    const lead = store.leads.get(bid.lead_id)
+    if (lead) {
+      lead.bid_count = Math.max(0, (lead.bid_count || 1) - 1)
+      lead.updated_at = new Date().toISOString()
+    }
+
+    ok(res, requestId, { bid: result.bid })
+  })
+
+  route('PATCH', '/bids/:id/shortlist', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const bid = store.bids.get(params.id)
+    if (!bid) return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
+    const lead = store.leads.get(bid.lead_id)
+    if (!lead || lead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can shortlist bids')
+    }
+    const result = transitionBid(bid, 'shortlisted', actor.id)
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+    ok(res, requestId, { bid: result.bid })
+  })
+
+  route('POST', '/bids/:id/select', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const bid = store.bids.get(params.id)
+    if (!bid) return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
+    const lead = store.leads.get(bid.lead_id)
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+    if (lead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can select a bid')
+    }
+
+    const result = selectBidAndAssign({ store, lead, winningBid: bid, actorId: actor.id })
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+    ok(res, requestId, {
+      bid: result.bid,
+      lead: result.lead,
+      assignment: result.assignment,
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Conversation & messaging endpoints
+  // -----------------------------------------------------------------------
+
+  route('POST', '/conversations', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const leadId = body?.lead_id
+    const spId = body?.sp_id
+    if (!leadId || !spId) {
+      return sendError(res, requestId, 400, 'MISSING_FIELDS', 'lead_id and sp_id are required')
+    }
+    const lead = store.leads.get(leadId)
+    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+    if (lead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can start conversations')
+    }
+
+    const existing = findFirst(
+      store.conversations,
+      (c) => c.lead_id === leadId && c.pm_id === actor.id && c.sp_id === spId
+    )
+    if (existing) {
+      return ok(res, requestId, { conversation: existing, created: false })
+    }
+
+    const conversation = store.createConversation({ actor, lead, spId })
+    ok(res, requestId, { conversation, created: true })
+  })
+
+  route('GET', '/conversations', async ({ actor, query, res, requestId }) => {
+    const leadId = query.get('lead_id')
+    const items = [...store.conversations.values()].filter((c) => {
+      if (!c.participants.includes(actor.id)) return false
+      if (leadId && c.lead_id !== leadId) return false
+      return true
+    })
+    items.sort((a, b) => (b.last_message_at || b.created_at).localeCompare(a.last_message_at || a.created_at))
+
+    const enriched = items.map((conv) => {
+      const sp = store.spProfiles.get(conv.sp_id)
+      const pmUser = store.users.get(conv.pm_id)
+      return {
+        ...conv,
+        sp_business_name: sp?.business_name || null,
+        pm_display: pmUser?.id || null,
+      }
+    })
+
+    ok(res, requestId, { items: enriched })
+  })
+
+  route('POST', '/conversations/:id/messages', async ({ actor, params, body, res, requestId }) => {
+    const conversation = store.conversations.get(params.id)
+    if (!conversation) return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
+    if (!conversation.participants.includes(actor.id)) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Not a participant in this conversation')
+    }
+    if (conversation.status !== 'active') {
+      return sendError(res, requestId, 400, 'CONVERSATION_ARCHIVED', 'Conversation is archived')
+    }
+    if (!body?.body && body?.message_type !== 'system') {
+      return sendError(res, requestId, 400, 'EMPTY_MESSAGE', 'Message body is required')
+    }
+
+    const message = store.createMessage({ actor, conversation, body })
+    ok(res, requestId, { message })
+  })
+
+  route('GET', '/conversations/:id/messages', async ({ actor, params, res, requestId }) => {
+    const conversation = store.conversations.get(params.id)
+    if (!conversation) return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
+    if (!conversation.participants.includes(actor.id)) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Not a participant in this conversation')
+    }
+
+    const allMessages = store.messages.get(conversation.id) || []
+    const isPm = actor.id === conversation.pm_id
+
+    const visible = allMessages.filter((msg) => {
+      if (msg.visibility === 'all') return true
+      if (msg.visibility === 'pm_only' && isPm) return true
+      return false
+    })
+
+    ok(res, requestId, { items: visible })
+  })
+
+  // -----------------------------------------------------------------------
+  // Assignment endpoints
+  // -----------------------------------------------------------------------
+
+  route('GET', '/assignments', async ({ actor, query, res, requestId }) => {
+    const items = [...store.assignments.values()].filter((a) => {
+      if (actor.role === 'sp') return a.sp_id === actor.id
+      if (actor.role === 'pm_po') return a.pm_id === actor.id
+      return false
+    })
+    items.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    ok(res, requestId, { items })
+  })
+
+  route('POST', '/assignments/:id/accept', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const assignment = store.assignments.get(params.id)
+    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (assignment.sp_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can accept')
+    }
+    const result = transitionAssignment(assignment, 'active')
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+    ok(res, requestId, { assignment: result.assignment })
+  })
+
+  route('POST', '/assignments/:id/decline', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const assignment = store.assignments.get(params.id)
+    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (assignment.sp_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can decline')
+    }
+    const result = transitionAssignment(assignment, 'declined')
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+    // Re-open the lead so PM/PO can select another SP
+    const lead = store.leads.get(assignment.lead_id)
+    if (lead && lead.status === 'assigned') {
+      lead.status = 'open'
+      lead.assigned_sp_id = null
+      lead.assigned_bid_id = null
+      lead.updated_at = new Date().toISOString()
+    }
+
+    ok(res, requestId, { assignment: result.assignment })
+  })
+
+  route('POST', '/assignments/:id/revoke', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const assignment = store.assignments.get(params.id)
+    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (assignment.pm_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only the PM/PO who created this lead can revoke')
+    }
+    const result = transitionAssignment(assignment, 'revoked')
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+    const lead = store.leads.get(assignment.lead_id)
+    if (lead && lead.status === 'assigned') {
+      lead.status = 'open'
+      lead.assigned_sp_id = null
+      lead.assigned_bid_id = null
+      lead.updated_at = new Date().toISOString()
+    }
+
+    ok(res, requestId, { assignment: result.assignment })
+  })
+
+  route('POST', '/assignments/:id/complete', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+    const assignment = store.assignments.get(params.id)
+    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (assignment.pm_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only the lead PM/PO can mark complete')
+    }
+    const result = transitionAssignment(assignment, 'completed')
+    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+    const lead = store.leads.get(assignment.lead_id)
+    if (lead) transitionLead(lead, 'closed', actor.id)
+
+    ok(res, requestId, { assignment: result.assignment })
+  })
+
+  // -----------------------------------------------------------------------
+  // SP profile endpoints
+  // -----------------------------------------------------------------------
+
+  route('GET', '/sp/services/profile', async ({ actor, query, res, requestId }) => {
+    const requestedSpId = String(query.get('sp_id') || actor.id || '').trim()
+    if (!requestedSpId) {
+      return sendError(res, requestId, 400, 'MISSING_SP_ID', 'sp_id is required')
+    }
+    if (actor.role === 'sp' && actor.id !== requestedSpId) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only read your own service profile')
+    }
+
+    try {
+      const db = getDb()
+      const doc = await db.collection('users').doc(requestedSpId).get()
+      const userData = doc.exists ? (doc.data() || {}) : {}
+      const nested = userData?.sp_service_profile || null
+      if (!nested) {
+        return ok(res, requestId, {
+          item: {
+            sp_id: requestedSpId,
+            service_descriptions: [],
+            service_zip_codes: [],
+            service_area_shape: null,
+            service_map_view: null,
+          },
+        })
+      }
+      return ok(res, requestId, { item: { sp_id: requestedSpId, ...nested } })
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SP_SERVICE_PROFILE_READ_FAILED',
+        'Failed to read service profile from Firestore.',
+        true
+      )
+    }
+  })
+
+  route('PUT', '/sp/services/profile', async ({ actor, body, res, requestId }) => {
+    const requestedSpId = String(body?.sp_id || actor.id || '').trim()
+    if (!requestedSpId) {
+      return sendError(res, requestId, 400, 'MISSING_SP_ID', 'sp_id is required')
+    }
+    if (actor.role === 'sp' && actor.id !== requestedSpId) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only update your own service profile')
+    }
+
+    const descriptions = Array.isArray(body?.service_descriptions)
+      ? body.service_descriptions
+          .map((item) => String(item || '').trim().replace(/\s+/g, ' '))
+          .filter((item) => item.length > 0)
+      : []
+
+    const zipCodes = Array.isArray(body?.service_zip_codes)
+      ? [...new Set(body.service_zip_codes.map((zip) => String(zip || '').trim()))].filter((zip) =>
+          /^\d{5}$/.test(zip)
+        )
+      : []
+
+    const payload = {
+      sp_id: requestedSpId,
+      service_descriptions: descriptions,
+      service_zip_codes: zipCodes,
+      service_area_shape: body?.service_area_shape || null,
+      service_map_view: body?.service_map_view || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    try {
+      const db = getDb()
+      const ref = db.collection('users').doc(requestedSpId)
+      const existing = await ref.get()
+      const existingProfile = existing.exists ? existing.data()?.sp_service_profile : null
+      payload.created_at = existingProfile?.created_at || new Date().toISOString()
+      await ref.set({ sp_service_profile: payload }, { merge: true })
+      return ok(res, requestId, payload)
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SP_SERVICE_PROFILE_WRITE_FAILED',
+        'Failed to write service profile to Firestore.',
+        true
+      )
+    }
+  })
+
+  route('GET', '/sp/profile', async ({ actor, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const profile = store.spProfiles.get(actor.id)
+    if (!profile) return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
+    ok(res, requestId, { profile })
+  })
+
+  route('PATCH', '/sp/profile', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    let profile = store.spProfiles.get(actor.id)
+    if (!profile) {
+      return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found. Complete signup first.')
+    }
+
+    const updatableFields = [
+      'business_name', 'service_categories', 'service_area',
+      'service_area_radius_km', 'license_number', 'budget_band',
+      'urgency_capability',
+    ]
+    for (const field of updatableFields) {
+      if (body?.[field] !== undefined) profile[field] = body[field]
+    }
+    if (body?.match_preferences) {
+      profile.match_preferences = { ...profile.match_preferences, ...body.match_preferences }
+    }
+
+    // Re-extract semantic tags when description-relevant fields change
+    const descText = `${profile.business_name} ${(profile.service_categories || []).join(' ')}`
+    profile.semantic_tags = extractSemanticTags(descText)
+    profile.updated_at = new Date().toISOString()
+
+    ok(res, requestId, { profile })
+  })
+
+  // -----------------------------------------------------------------------
+  // Existing invoice endpoints (unchanged)
+  // -----------------------------------------------------------------------
 
   route('POST', '/invoices', async ({ actor, body, req, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
@@ -453,9 +1366,11 @@ export const createApiServer = ({ store = createInMemoryStore() } = {}) => {
     const requestId = withRequestId(req)
     if (req.method === 'OPTIONS') return json(res, 204, { request_id: requestId })
     try {
-      const url = new URL(req.url || '/', 'http://localhost')
+      const rawUrl = (req.url || '/').replace(/^\/api/, '') || '/'
+      const url = new URL(rawUrl, 'http://localhost')
       const actorId = String(req.headers['x-user-id'] || 'u-tt-1')
-      const actor = store.ensureUser(actorId)
+      const actorRole = normalizeRole(req.headers['x-user-role'])
+      const actor = store.ensureUser(actorId, actorRole)
       const body = ['POST', 'PATCH'].includes(req.method || '') ? await readBody(req) : {}
       for (const row of routes) {
         if (row.method !== req.method) continue
@@ -473,5 +1388,5 @@ export const createApiServer = ({ store = createInMemoryStore() } = {}) => {
   }
 
   const server = http.createServer(handler)
-  return { server, store }
+  return { server, handler, store }
 }

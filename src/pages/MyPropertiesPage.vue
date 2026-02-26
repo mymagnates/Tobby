@@ -544,7 +544,7 @@
           <CreateMxRecord
             :property-id="selectedPropertyForDialog?.id"
             :property-name="selectedPropertyForDialog?.nickname"
-            @mx-record-created="onMxRecordCreated"
+            @mxrecord-created="onMxRecordCreated"
             @cancel="closeCreateMxRecordDialog"
           />
         </q-card-section>

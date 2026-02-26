@@ -13,7 +13,7 @@
           dense
           :rows="rows"
           :columns="columns"
-          row-key="lead_id"
+          row-key="id"
           :loading="loading"
           :pagination="{ rowsPerPage: 8 }"
         >
@@ -52,8 +52,10 @@ import { onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spPortalApi } from 'src/services/webApiClient'
+import { useFirebase } from 'src/composables/useFirebase'
 
 const userStore = useUserDataStore()
+const { createDocument } = useFirebase()
 const loading = ref(false)
 const rows = ref([])
 const bidDialog = ref(false)
@@ -90,24 +92,69 @@ const openBidDialog = (lead) => {
   bidDialog.value = true
 }
 
+const getSpBidCore = () => {
+  const profile = userStore.userProfile || {}
+  const spName =
+    profile.sp_business_name ||
+    profile.business_name ||
+    profile.display_name ||
+    profile.full_name ||
+    userStore.user?.displayName ||
+    userStore.user?.email ||
+    'Service Provider'
+
+  const spContact = {
+    email: profile.email || userStore.user?.email || '',
+    phone: profile.phone || profile.contact_phone || '',
+    contact_name: profile.contact_name || profile.full_name || userStore.user?.displayName || spName,
+  }
+
+  return {
+    sp_id: String(userStore.userId || ''),
+    sp_name: spName,
+    sp_contact: spContact,
+  }
+}
+
 const submitBid = async () => {
-  if (!selectedLead.value || !bidForm.value.amount) {
+  const leadDocId = selectedLead.value?.id || selectedLead.value?.lead_doc_id || selectedLead.value?.lead_id
+  const leadPublicId = selectedLead.value?.lead_id || leadDocId
+  const amount = Number(bidForm.value.amount)
+  if (!selectedLead.value || !leadDocId || !Number.isFinite(amount) || amount <= 0) {
     Notify.create({ type: 'warning', message: 'Bid amount is required.', position: 'top' })
     return
   }
 
   submitting.value = true
   try {
-    await spPortalApi.createBid({
-      sp_id: userStore.userId,
-      lead_id: selectedLead.value.lead_id,
-      task_id: selectedLead.value.task_id,
-      title: selectedLead.value.title,
-      amount: bidForm.value.amount,
-      notes: bidForm.value.notes,
-    })
+    const bidId = `bid-${Date.now()}`
+    await createDocument(
+      `marketplace_leads/${leadDocId}/bids`,
+      {
+        id: bidId,
+        bid_id: bidId,
+        ...getSpBidCore(),
+        lead_id: leadPublicId,
+        lead_doc_id: leadDocId,
+        mx_id: selectedLead.value.mx_id || selectedLead.value.task_id || null,
+        task_id: selectedLead.value.task_id || selectedLead.value.mx_id || null,
+        task_doc_id: selectedLead.value.task_doc_id || null,
+        title: selectedLead.value.title || '',
+        amount,
+        note: bidForm.value.notes || '',
+        status: 'submitted',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      bidId
+    )
+
+    rows.value = rows.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
+    selectedLead.value = null
+    bidForm.value = { amount: null, notes: '' }
     bidDialog.value = false
-    Notify.create({ type: 'positive', message: 'Bid submitted.', position: 'top' })
+
+    Notify.create({ type: 'positive', message: 'Bid saved to Firebase.', position: 'top' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.message || 'Submit failed.', position: 'top' })
   } finally {

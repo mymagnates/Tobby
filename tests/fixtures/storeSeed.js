@@ -17,8 +17,10 @@ export const createSeededStore = () => {
     status: 'open',
     creator_user_id: 'u-tt-1',
     lease_id: 'lease-1',
+    property_id: 'prop-1',
     comments: [],
     assigned_sp_id: null,
+    lead_id: null,
     created_at: nowIso(),
     updated_at: nowIso(),
   }
@@ -29,8 +31,10 @@ export const createSeededStore = () => {
     status: 'in_progress',
     creator_user_id: 'u-pm-1',
     lease_id: 'lease-1',
+    property_id: 'prop-1',
     comments: [{ id: 'cmt-1', task_id: 'task-2', author_id: 'u-sp-1', body: 'Parts ordered', created_at: nowIso() }],
     assigned_sp_id: 'sp-101',
+    lead_id: null,
     created_at: nowIso(),
     updated_at: nowIso(),
   }

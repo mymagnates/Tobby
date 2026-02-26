@@ -1,20 +1,26 @@
 <template>
   <div class="create-mxrecord animate-fade-in">
     <q-card class="elevated">
-      <q-card-section class="q-pa-md">
+      <q-card-section class="q-pa-md composer-head">
         <div class="text-h6 text-weight-bold text-primary q-mb-sm">
           <q-icon name="dns" class="q-mr-sm" />
           Create New Task
         </div>
-        <div v-if="propertyId" class="text-caption text-grey-6 q-mb-xs">
-          Property: {{ propertyName }}
+        <div class="text-caption text-grey-7 q-mb-sm">
+          Capture task details and optional evidence photos in one step.
         </div>
+        <div v-if="hasMatchedFixedProperty" class="text-caption text-grey-6 q-mb-xs">
+          Property: {{ resolvedFixedPropertyName }}
+        </div>
+        <div v-else class="section-label q-mb-xs">Property Context</div>
         <q-select
-          v-else
+          v-if="!hasMatchedFixedProperty"
           v-model="selectedPropertyId"
-          :options="availableProperties"
-          option-label="nickname"
-          option-value="id"
+          :options="propertyOptions"
+          option-label="label"
+          option-value="value"
+          emit-value
+          map-options
           label="Select Property"
           outlined
           dense
@@ -28,9 +34,12 @@
             <q-icon name="home" color="primary" />
           </template>
         </q-select>
-        <div v-if="!propertyId" class="text-caption text-grey-6 q-mb-xs">
+        <div v-if="!hasMatchedFixedProperty" class="text-caption text-grey-6 q-mb-xs">
+          <div v-if="fixedPropertyId && !hasMatchedFixedProperty" class="text-warning q-mb-xs">
+            Fixed property context is invalid, please choose from your accessible properties.
+          </div>
           <div v-if="propertiesLoading" class="text-primary">Loading properties...</div>
-          <div v-if="!propertiesLoading && availableProperties.length === 0" class="text-primary">
+          <div v-if="!propertiesLoading && propertyOptions.length === 0" class="text-primary">
             No properties found. Check console for details.
           </div>
         </div>
@@ -38,23 +47,20 @@
 
       <q-card-section class="q-pt-none">
         <q-form @submit="onSubmit" class="q-gutter-sm">
+          <div class="section-label q-mb-xs">Task Details</div>
           <div class="row q-gutter-sm">
             <q-input
               v-model="mxRecordData.description"
-              label="Description"
+              label="Task Description"
               outlined
-              dense
+              autogrow
               required
-              :rules="[(val) => !!val || 'Description is required']"
+              :rules="[(val) => !!String(val || '').trim() || 'Description is required']"
               type="textarea"
-              rows="4"
+              :input-style="{ minHeight: '110px' }"
               class="col-12"
               bg-color="grey-1"
-            >
-              <template v-slot:prepend>
-                <q-icon name="description" color="primary" />
-              </template>
-            </q-input>
+            />
           </div>
 
           <div class="row q-gutter-sm">
@@ -173,15 +179,20 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref, onMounted } from 'vue'
+import { reactive, computed, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
+import { Notify } from 'quasar'
 
 const props = defineProps({
   propertyId: {
     type: String,
     required: false,
+  },
+  propertyName: {
+    type: String,
+    default: '',
   },
 })
 
@@ -190,17 +201,39 @@ const propertyId = computed(() => {
   return props.propertyId || route.params.propertyId
 })
 const propertyName = computed(() => {
-  return route.query.propertyName || 'Unknown Property'
+  return props.propertyName || route.query.propertyName || 'Unknown Property'
 })
 
 const emit = defineEmits(['mxrecord-created', 'cancel'])
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { createDocument, uploadImages } = useFirebase()
+const loading = ref(false)
 
-const availableProperties = computed(() => userDataStore.userAccessibleProperties)
+const availableProperties = computed(() => userDataStore.userAccessibleProperties || [])
+const propertyOptions = computed(() =>
+  availableProperties.value.map((property) => ({
+    label: property.nickname || property.displayName || property.address || property.id,
+    value: property.id || property.property_id,
+  })),
+)
 const selectedPropertyId = ref('')
 const propertiesLoading = computed(() => userDataStore.propertiesLoading)
+const fixedPropertyId = computed(() => String(propertyId.value || '').trim())
+const matchedFixedProperty = computed(() =>
+  availableProperties.value.find(
+    (property) => String(property.id || property.property_id || '').trim() === fixedPropertyId.value,
+  ) || null,
+)
+const hasMatchedFixedProperty = computed(() => Boolean(matchedFixedProperty.value))
+const resolvedFixedPropertyName = computed(() =>
+  matchedFixedProperty.value
+    ? matchedFixedProperty.value.nickname ||
+      matchedFixedProperty.value.displayName ||
+      matchedFixedProperty.value.address ||
+      propertyName.value
+    : propertyName.value,
+)
 
 const mxRecordData = reactive({
   description: '',
@@ -255,10 +288,32 @@ onMounted(() => {
   // Data is automatically loaded by the store when user is authenticated
 })
 
+const resolvePropertyId = () => {
+  const fromProp = hasMatchedFixedProperty.value ? fixedPropertyId.value : ''
+  const fromSelect = selectedPropertyId.value
+  const raw =
+    (typeof fromProp === 'object' ? fromProp?.id || fromProp?.property_id : fromProp) ||
+    (typeof fromSelect === 'object'
+      ? fromSelect?.id || fromSelect?.value || fromSelect?.property_id
+      : fromSelect)
+  return String(raw || '').trim()
+}
+
+watch(
+  propertyOptions,
+  (options) => {
+    if (!hasMatchedFixedProperty.value && !selectedPropertyId.value && options.length > 0) {
+      selectedPropertyId.value = options[0].value
+    }
+  },
+  { immediate: true },
+)
+
 const onSubmit = async () => {
+  loading.value = true
   try {
     console.log('=== Task Creation Started ===')
-    const finalPropertyId = propertyId.value || selectedPropertyId.value
+    const finalPropertyId = resolvePropertyId()
     console.log('CreateMxRecord onSubmit - propertyId.value:', propertyId.value)
     console.log('CreateMxRecord onSubmit - selectedPropertyId.value:', selectedPropertyId.value)
     console.log('CreateMxRecord onSubmit - finalPropertyId:', finalPropertyId)
@@ -267,6 +322,23 @@ const onSubmit = async () => {
 
     if (!finalPropertyId) {
       console.error('No property selected')
+      Notify.create({
+        type: 'warning',
+        message: 'Please select a valid property before creating a task.',
+        position: 'top',
+      })
+      return
+    }
+
+    const matchedProperty = availableProperties.value.find(
+      (property) => String(property.id || property.property_id || '').trim() === finalPropertyId,
+    )
+    if (!matchedProperty) {
+      Notify.create({
+        type: 'negative',
+        message: 'Selected property does not match your accessible properties. Please reselect and try again.',
+        position: 'top',
+      })
       return
     }
 
@@ -331,6 +403,11 @@ const onSubmit = async () => {
     console.log('CreateMxRecord onSubmit - mxRecordId created:', mxRecordId)
     console.log('=== Task Creation Completed Successfully ===')
 
+    const createdRecordPayload = { id: mxRecordId, ...mxRecordDataToSave }
+
+    // Notify parent pages to refresh list data
+    emit('mxrecord-created', createdRecordPayload)
+
     // Reset form
     mxRecordData.description = ''
     mxRecordData.report_date = new Date().toISOString().split('T')[0]
@@ -339,8 +416,6 @@ const onSubmit = async () => {
 
     // Reset image upload fields
     removeAllImages()
-
-    emit('mxrecord-created', { id: mxRecordId, ...mxRecordData })
 
     // Navigate back to tasks page
     router.push('/mx-records')
@@ -352,31 +427,38 @@ const onSubmit = async () => {
       code: error.code,
       stack: error.stack,
     })
-    // You might want to show a user-friendly error message here
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to create task. Please try again.',
+      position: 'top',
+    })
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
 <style scoped>
 .create-mxrecord {
-  max-width: 600px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
-.q-input {
-  transition: var(--transition);
+.elevated {
+  border-radius: 14px;
+  border: 1px solid var(--neutral-200);
 }
 
-.q-input:hover {
-  transform: translateY(-1px);
+.composer-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
 
-.q-select {
-  transition: var(--transition);
-}
-
-.q-select:hover {
-  transform: translateY(-1px);
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-600);
 }
 
 .q-btn {
@@ -390,9 +472,9 @@ const onSubmit = async () => {
 .picture-upload-section {
   margin: 16px 0;
   padding: 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background-color: #fafafa;
+  border: 1px solid var(--neutral-200);
+  border-radius: 10px;
+  background-color: #fafcff;
 }
 
 .image-previews {

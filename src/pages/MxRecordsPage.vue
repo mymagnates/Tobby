@@ -6,6 +6,13 @@
       </div>
     </div>
 
+    <TaskComposerFeedCard
+      v-if="showCreateMxRecordComposer"
+      class="q-mb-md"
+      @created="onMxRecordCreated"
+      @close="closeCreateMxRecordDialog"
+    />
+
     <!-- Filters Row -->
     <div class="row q-gutter-sm q-mb-md">
       <div class="col-12 col-md-4">
@@ -223,6 +230,41 @@
     <div class="dialog-content">
         <div v-if="selectedMxRecord" class="mxrecord-details-layout">
           <div class="mxrecord-details-full">
+          <q-banner
+            v-if="selectedMxRecord.assigned_sp"
+            rounded
+            class="assigned-sp-banner q-mb-md"
+          >
+            <div class="assigned-sp-row">
+              <div class="assigned-sp-main">
+                <div class="assigned-sp-title">Assigned SP</div>
+                <div class="assigned-sp-name">{{ selectedMxRecord.assigned_sp.sp_name || selectedMxRecord.assigned_sp.sp_id }}</div>
+                <div class="assigned-sp-meta">
+                  <span>Bid: ${{ Number(selectedMxRecord.assigned_sp.bid_amount || 0).toLocaleString() }}</span>
+                  <span>Assigned: {{ formatDate(selectedMxRecord.assigned_sp.assigned_at) }}</span>
+                </div>
+              </div>
+              <div class="assigned-sp-actions">
+                <q-btn
+                  dense
+                  flat
+                  color="primary"
+                  icon="person"
+                  label="View"
+                  @click="openAssignedSpDetailDialog"
+                />
+                <q-btn
+                  dense
+                  flat
+                  color="negative"
+                  icon="close"
+                  label="Unassign"
+                  @click="clearAssignedSp"
+                />
+              </div>
+            </div>
+          </q-banner>
+
           <!-- Basic Information -->
           <div class="details-section">
             <div class="section-title">Basic Information</div>
@@ -369,7 +411,7 @@
                 <div>
                   <div class="text-subtitle1 text-weight-bold">Recommended SP</div>
                   <div class="text-caption text-grey-7">
-                    Primary decision surface for contact, quote, and assignment.
+                    Primary decision surface for contact and quote.
                   </div>
                 </div>
                 <q-btn
@@ -396,23 +438,37 @@
                     flat
                     bordered
                   >
-                    <q-card-section class="q-pa-sm">
-                      <div class="text-body1 text-weight-bold">{{ sp.sp_name || sp.display_name }}</div>
-                      <div class="text-caption text-grey-7">{{ sp.service_area || 'N/A' }}</div>
+                    <q-card-section class="sp-recommendation-content">
+                      <div class="sp-row-top">
+                        <div class="sp-row-title-wrap">
+                          <div class="sp-row-title">{{ sp.sp_name || sp.display_name }}</div>
+                          <div class="sp-row-subtitle">{{ sp.service_area || 'N/A' }}</div>
+                        </div>
+                        <q-btn
+                          dense
+                          flat
+                          round
+                          color="accent"
+                          icon="bookmark_add"
+                          size="sm"
+                          @click="saveSpCard(sp)"
+                        >
+                          <q-tooltip>Save Biz Card</q-tooltip>
+                        </q-btn>
+                      </div>
                       <div class="q-mt-xs">
-                        <q-chip size="sm" color="teal" text-color="white">
+                        <q-chip size="sm" color="teal" text-color="white" class="sp-rating-chip">
                           Rating: {{ sp.rating || sp.rating_avg || 'N/A' }}
                         </q-chip>
                       </div>
 
-                      <div class="row q-gutter-xs q-mt-sm">
+                      <div class="sp-row-actions">
                         <q-btn
                           dense
                           flat
                           color="primary"
                           icon="chat"
                           label="Contact"
-                          :disable="isSpActionDisabled(sp)"
                           @click="contactRecommendedSp(sp)"
                         />
                         <q-btn
@@ -421,37 +477,93 @@
                           color="secondary"
                           icon="request_quote"
                           label="Request Quote"
-                          :disable="isSpActionDisabled(sp)"
                           @click="requestQuoteFromSp(sp)"
                         />
-                        <q-btn
-                          dense
-                          flat
-                          color="positive"
-                          icon="check_circle"
-                          label="Assign"
-                          :disable="isSpActionDisabled(sp)"
-                          @click="assignRecommendedSp(sp)"
-                        />
-                        <q-btn
-                          dense
-                          flat
-                          color="accent"
-                          icon="bookmark_add"
-                          label="Save Biz Card"
-                          @click="saveSpCard(sp)"
-                        />
                       </div>
-
-                      <q-banner
-                        v-if="assignedSpId && assignedSpId !== sp.sp_id"
-                        class="bg-grey-2 text-grey-8 q-mt-sm"
-                        rounded
-                      >
-                        Closed for this task after assignment.
-                      </q-banner>
                     </q-card-section>
                   </q-card>
+                </div>
+              </div>
+
+              <q-separator class="q-my-sm" />
+
+              <div class="sp-panel-header q-mb-xs">
+                <div>
+                  <div class="text-subtitle2 text-weight-bold">Bids</div>
+                  <div class="text-caption text-grey-7">All bids for this task</div>
+                </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  :icon="showTaskBids ? 'expand_less' : 'expand_more'"
+                  @click="showTaskBids = !showTaskBids"
+                />
+              </div>
+
+              <div v-show="showTaskBids" class="task-bids-section">
+                <div v-if="loadingTaskBids" class="text-center q-pa-sm">
+                  <q-spinner-dots size="22px" color="primary" />
+                </div>
+                <div v-else-if="taskBids.length === 0" class="text-caption text-grey-6">
+                  No bids yet.
+                </div>
+                <div v-else class="task-bid-rows">
+                  <div
+                    v-for="bid in taskBids"
+                    :key="bid.id || bid.bid_id"
+                    class="task-bid-row"
+                    :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
+                  >
+                    <div class="task-bid-main">
+                      <div class="task-bid-sp-wrap">
+                        <q-btn
+                          flat
+                          dense
+                          no-caps
+                          class="task-bid-sp-link"
+                          :label="getBidSpName(bid)"
+                          @click="openBidSpDetailDialog(bid)"
+                        />
+                        <q-chip
+                          dense
+                          size="sm"
+                          color="teal"
+                          text-color="white"
+                          class="task-bid-rating-chip"
+                        >
+                          {{ getBidSpRatingLabel(bid) }}
+                        </q-chip>
+                      </div>
+                      <span class="task-bid-amount"
+                        >${{ Number(bid.amount || 0).toLocaleString() }}</span
+                      >
+                    </div>
+                    <div class="task-bid-meta">
+                      <span>{{ bid.status || 'submitted' }}</span>
+                      <span>{{ formatDate(bid.created_at) }}</span>
+                    </div>
+                    <div class="task-bid-actions">
+                      <q-btn
+                        dense
+                        flat
+                        size="sm"
+                        color="primary"
+                        icon="chat"
+                        label="Chat"
+                        @click="openBidConversation(bid)"
+                      />
+                      <q-btn
+                        dense
+                        flat
+                        size="sm"
+                        :color="getBidAssignBtnColor(bid)"
+                        :icon="getBidAssignBtnIcon(bid)"
+                        :label="getBidAssignBtnLabel(bid)"
+                        @click="assignTaskToBidSp(bid)"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </q-card-section>
@@ -854,30 +966,38 @@
     </q-card>
   </q-dialog>
 
-  <!-- Create Task Dialog -->
-  <q-dialog v-model="showCreateMxRecordDialog" persistent>
-    <q-card style="min-width: 600px; max-width: 800px">
-      <q-card-section class="dialog-header">
-        <div class="row items-center justify-between">
-          <div class="text-h6">Create Task</div>
-          <q-btn
-            flat
-            round
-            dense
-            icon="close"
-            @click="closeCreateMxRecordDialog"
-            class="dialog-close-btn"
-          />
-        </div>
+  <q-dialog v-model="showBidSpDetailDialog">
+    <q-card style="min-width: 380px; max-width: 520px">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">SP Detail</div>
+        <q-btn flat round dense icon="close" v-close-popup />
       </q-card-section>
-      <q-card-section>
-        <CreateMxRecord
-          @mx-record-created="onMxRecordCreated"
-          @cancel="closeCreateMxRecordDialog"
-        />
+      <q-separator />
+      <q-card-section v-if="selectedBidSpDetail">
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Name</div>
+          <div class="detail-value">{{ selectedBidSpDetail.name }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Rating</div>
+          <div class="detail-value">{{ selectedBidSpDetail.rating || 'N/A' }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Email</div>
+          <div class="detail-value">{{ selectedBidSpDetail.contact?.email || 'N/A' }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Phone</div>
+          <div class="detail-value">{{ selectedBidSpDetail.contact?.phone || 'N/A' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Contact Name</div>
+          <div class="detail-value">{{ selectedBidSpDetail.contact?.contact_name || 'N/A' }}</div>
+        </div>
       </q-card-section>
     </q-card>
   </q-dialog>
+
 </template>
 
 <script setup>
@@ -885,13 +1005,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
-import CreateMxRecord from '../components/CreateMxRecord.vue'
+import TaskComposerFeedCard from '../components/TaskComposerFeedCard.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import { Notify } from 'quasar'
 import { marketplaceApi, spCardsApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
-const { updateDocument, uploadImages } = useFirebase()
+const { updateDocument, uploadImages, getCollectionData } = useFirebase()
 const route = useRoute()
 const searchQuery = ref('')
 const activeFilter = ref('all') // 'all', 'pending', 'resolved'
@@ -918,8 +1038,11 @@ const showMxRecordDialog = ref(false)
 const selectedMxRecord = ref(null)
 const recommendedSps = ref([])
 const loadingRecommendedSps = ref(false)
-const assignedSpId = ref(null)
-const showCreateMxRecordDialog = ref(false)
+const taskBids = ref([])
+const loadingTaskBids = ref(false)
+const showBidSpDetailDialog = ref(false)
+const selectedBidSpDetail = ref(null)
+const showCreateMxRecordComposer = ref(false)
 const showCommentDialog = ref(false)
 const submittingComment = ref(false)
 const newComment = ref({
@@ -946,6 +1069,7 @@ const commentAdditionalSelectedFiles = ref([])
 const commentAdditionalImagePreviews = ref([])
 const deepLinkHandled = ref(false)
 const showRecommendedSp = ref(true)
+const showTaskBids = ref(true)
 
 const actionTypeOptions = [
   { label: 'Update', value: 'update' },
@@ -1120,9 +1244,9 @@ const formatDate = (timestamp) => {
 
 const viewMxRecord = (mxRecord) => {
   selectedMxRecord.value = mxRecord
-  assignedSpId.value = mxRecord.assigned_sp_id || null
   showMxRecordDialog.value = true
   loadRecommendedSps(mxRecord)
+  loadTaskBids(mxRecord)
 }
 
 const tryOpenDeepLinkedMxRecord = () => {
@@ -1165,7 +1289,7 @@ const closeMxRecordDialog = () => {
   showMxRecordDialog.value = false
   selectedMxRecord.value = null
   recommendedSps.value = []
-  assignedSpId.value = null
+  taskBids.value = []
 }
 
 async function loadRecommendedSps(mxRecord) {
@@ -1192,7 +1316,67 @@ async function loadRecommendedSps(mxRecord) {
   }
 }
 
-const isSpActionDisabled = (sp) => Boolean(assignedSpId.value && assignedSpId.value !== sp.sp_id)
+async function loadTaskBids(mxRecord) {
+  loadingTaskBids.value = true
+  try {
+    const actorRole = userDataStore.getUserRoleForProperty(mxRecord.property_id)?.role || 'pm_po'
+    const taskIdCandidates = [...new Set([
+      mxRecord?.mx_id,
+      mxRecord?.task_id,
+      mxRecord?.id,
+    ].filter((item) => item !== null && item !== undefined && String(item).trim().length).map((item) => String(item)))]
+
+    let rows = []
+
+    // Prefer API first, but try all likely task identifiers.
+    for (const taskId of taskIdCandidates) {
+      const nextRows = await marketplaceApi.getTaskBids(taskId, {
+        actor_id: userDataStore.userId,
+        actor_role: actorRole,
+      })
+      if (Array.isArray(nextRows) && nextRows.length) {
+        rows = nextRows
+        break
+      }
+    }
+
+    // Fallback: read directly from Firebase lead/bids subcollections.
+    if (!rows.length) {
+      const leadRows = await getCollectionData('marketplace_leads')
+      const matchedLeads = leadRows.filter((lead) => {
+        const leadRefs = [lead?.mx_id, lead?.task_id, lead?.task_doc_id]
+          .filter((value) => value !== null && value !== undefined && String(value).trim().length)
+          .map((value) => String(value))
+        return leadRefs.some((value) => taskIdCandidates.includes(value))
+      })
+
+      const bidGroups = await Promise.all(
+        matchedLeads.map((lead) => {
+          const leadId = String(lead?.id || lead?.lead_id || '')
+          if (!leadId) return Promise.resolve([])
+          return getCollectionData(`marketplace_leads/${leadId}/bids`)
+        })
+      )
+
+      rows = bidGroups
+        .flat()
+        .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')))
+    }
+
+    const seen = new Set()
+    taskBids.value = rows.filter((bid) => {
+      const key = String(bid?.id || bid?.bid_id || '')
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  } catch (error) {
+    console.error('Failed loading task bids:', error)
+    taskBids.value = []
+  } finally {
+    loadingTaskBids.value = false
+  }
+}
 
 const contactRecommendedSp = async (sp) => {
   if (!selectedMxRecord.value) return
@@ -1214,15 +1398,183 @@ const requestQuoteFromSp = async (sp) => {
   }
 }
 
-const assignRecommendedSp = async (sp) => {
+const getBidSpName = (bid) => {
+  const directName = bid?.sp_business_name || bid?.sp_name || bid?.sp_display_name
+  if (directName) return directName
+  const spId = String(bid?.sp_id || '')
+  if (!spId) return 'SP'
+  const matched = recommendedSps.value.find((row) => String(row?.sp_id || '') === spId)
+  return matched?.sp_name || matched?.display_name || spId
+}
+
+const getBidSpContact = (bid) => {
+  const direct = bid?.sp_contact
+  if (direct && typeof direct === 'object') return direct
+  return {
+    email: bid?.sp_email || '',
+    phone: bid?.sp_phone || '',
+    contact_name: bid?.sp_contact_name || '',
+  }
+}
+
+const getBidSpRating = (bid) => {
+  const directRating = bid?.rating ?? bid?.rating_avg ?? bid?.sp_rating
+  if (directRating !== null && directRating !== undefined && String(directRating).trim() !== '') {
+    return directRating
+  }
+  const spId = String(bid?.sp_id || '')
+  if (!spId) return null
+  const matched = recommendedSps.value.find((row) => String(row?.sp_id || '') === spId)
+  return matched?.rating ?? matched?.rating_avg ?? null
+}
+
+const getBidSpRatingLabel = (bid) => {
+  const rating = getBidSpRating(bid)
+  return rating ? `Rating: ${rating}` : 'Rating: N/A'
+}
+
+const getAssignedSpId = () => {
+  return String(selectedMxRecord.value?.assigned_sp?.sp_id || selectedMxRecord.value?.assigned_sp_id || '')
+}
+
+const isBidAssigned = (bid) => {
+  const spId = String(bid?.sp_id || '')
+  return Boolean(spId) && spId === getAssignedSpId()
+}
+
+const hasAssignedBidSp = () => Boolean(getAssignedSpId())
+
+const getBidAssignBtnLabel = (bid) => {
+  if (isBidAssigned(bid)) return 'Assigned'
+  if (hasAssignedBidSp()) return 'Reassign'
+  return 'Assign'
+}
+
+const getBidAssignBtnIcon = (bid) => {
+  if (isBidAssigned(bid)) return 'check_circle'
+  if (hasAssignedBidSp()) return 'swap_horiz'
+  return 'person_add'
+}
+
+const getBidAssignBtnColor = (bid) => {
+  if (isBidAssigned(bid)) return 'positive'
+  if (hasAssignedBidSp()) return 'warning'
+  return 'primary'
+}
+
+const openBidSpDetailDialog = (bid) => {
+  selectedBidSpDetail.value = {
+    sp_id: String(bid?.sp_id || ''),
+    name: getBidSpName(bid),
+    rating: getBidSpRating(bid),
+    contact: getBidSpContact(bid),
+  }
+  showBidSpDetailDialog.value = true
+}
+
+const openAssignedSpDetailDialog = () => {
+  if (!selectedMxRecord.value?.assigned_sp) return
+  const assigned = selectedMxRecord.value.assigned_sp
+  selectedBidSpDetail.value = {
+    sp_id: String(assigned.sp_id || ''),
+    name: assigned.sp_name || assigned.sp_id || 'SP',
+    rating: assigned.sp_rating || null,
+    contact: assigned.sp_contact || {},
+  }
+  showBidSpDetailDialog.value = true
+}
+
+const openBidConversation = async (bid) => {
   if (!selectedMxRecord.value) return
+  const spId = bid?.sp_id
+  if (!spId) {
+    Notify.create({ type: 'warning', message: 'SP information missing for this bid.', position: 'top' })
+    return
+  }
   try {
-    await marketplaceApi.assignSp(selectedMxRecord.value.id, { sp_id: sp.sp_id })
-    assignedSpId.value = sp.sp_id
-    selectedMxRecord.value.assigned_sp_id = sp.sp_id
-    Notify.create({ type: 'positive', message: `${sp.sp_name} assigned`, position: 'top' })
+    await marketplaceApi.contactSp(selectedMxRecord.value.id, { sp_id: spId })
+    Notify.create({
+      type: 'positive',
+      message: `Conversation started with ${getBidSpName(bid)}`,
+      position: 'top',
+    })
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Assign failed', position: 'top' })
+    Notify.create({
+      type: 'warning',
+      message: error.message || 'Failed to start conversation.',
+      position: 'top',
+    })
+  }
+}
+
+const assignTaskToBidSp = async (bid) => {
+  if (!selectedMxRecord.value) return
+  const spId = String(bid?.sp_id || '')
+  if (!spId) {
+    Notify.create({ type: 'warning', message: 'SP ID missing for this bid.', position: 'top' })
+    return
+  }
+
+  const propertyId = selectedMxRecord.value.property_id
+  const mxRecordId = selectedMxRecord.value.id
+  if (!propertyId || !mxRecordId) {
+    Notify.create({ type: 'negative', message: 'Task reference missing.', position: 'top' })
+    return
+  }
+
+  const assignedSp = {
+    sp_id: spId,
+    sp_name: getBidSpName(bid),
+    sp_contact: getBidSpContact(bid),
+    sp_rating: getBidSpRating(bid),
+    bid_id: String(bid?.bid_id || bid?.id || ''),
+    bid_amount: Number(bid?.amount || 0),
+    assigned_at: new Date().toISOString(),
+    assigned_by: String(userDataStore.userId || ''),
+  }
+
+  try {
+    await updateDocument(`properties/${String(propertyId)}/mxrecords`, String(mxRecordId), {
+      assigned_sp: assignedSp,
+      assigned_sp_id: spId,
+      updatedAt: new Date(),
+    })
+    selectedMxRecord.value.assigned_sp = assignedSp
+    selectedMxRecord.value.assigned_sp_id = spId
+    Notify.create({
+      type: 'positive',
+      message: `Task assigned to ${assignedSp.sp_name}`,
+      position: 'top',
+    })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to assign task.',
+      position: 'top',
+    })
+  }
+}
+
+const clearAssignedSp = async () => {
+  if (!selectedMxRecord.value) return
+  const propertyId = selectedMxRecord.value.property_id
+  const mxRecordId = selectedMxRecord.value.id
+  if (!propertyId || !mxRecordId) return
+  try {
+    await updateDocument(`properties/${String(propertyId)}/mxrecords`, String(mxRecordId), {
+      assigned_sp: null,
+      assigned_sp_id: null,
+      updatedAt: new Date(),
+    })
+    selectedMxRecord.value.assigned_sp = null
+    selectedMxRecord.value.assigned_sp_id = null
+    Notify.create({ type: 'positive', message: 'Task unassigned.', position: 'top' })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to unassign task.',
+      position: 'top',
+    })
   }
 }
 
@@ -1836,11 +2188,11 @@ const submitComment = async () => {
 
 // Create task dialog functions
 const openCreateMxRecordDialog = () => {
-  showCreateMxRecordDialog.value = true
+  showCreateMxRecordComposer.value = true
 }
 
 const closeCreateMxRecordDialog = () => {
-  showCreateMxRecordDialog.value = false
+  showCreateMxRecordComposer.value = false
 }
 
 const onMxRecordCreated = () => {
@@ -2356,6 +2708,50 @@ const refreshData = async () => {
   top: 8px;
 }
 
+.assigned-sp-banner {
+  border: 1px solid var(--border-color);
+  background: var(--status-info-bg);
+}
+
+.assigned-sp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.assigned-sp-main {
+  min-width: 0;
+}
+
+.assigned-sp-title {
+  font-size: 0.72rem;
+  color: var(--neutral-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.assigned-sp-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.assigned-sp-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--neutral-600);
+}
+
+.assigned-sp-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .sp-panel-header {
   display: flex;
   align-items: center;
@@ -2365,12 +2761,152 @@ const refreshData = async () => {
 
 .sp-recommendation-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .sp-recommendation-card {
   border-radius: 8px;
+}
+
+.sp-recommendation-content {
+  padding: 8px !important;
+}
+
+.sp-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sp-row-title-wrap {
+  min-width: 0;
+}
+
+.sp-row-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--neutral-900);
+  word-break: break-word;
+}
+
+.sp-row-subtitle {
+  margin-top: 2px;
+  font-size: 0.73rem;
+  color: var(--neutral-600);
+}
+
+.sp-rating-chip {
+  height: 20px;
+  min-height: 20px;
+  font-size: 0.68rem;
+}
+
+.sp-row-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sp-row-actions :deep(.q-btn) {
+  min-height: 24px !important;
+  padding: 2px 6px !important;
+  font-size: 0.72rem !important;
+}
+
+.task-bids-section {
+  margin-top: 4px;
+}
+
+.task-bid-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-bid-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.task-bid-row--assigned {
+  border-color: color-mix(in srgb, var(--primary-color) 45%, #dbeafe 55%);
+  background: color-mix(in srgb, var(--primary-color) 6%, #ffffff 94%);
+}
+
+.task-bid-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.task-bid-sp-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-bid-sp-link {
+  padding: 0 !important;
+  min-height: auto !important;
+  color: var(--primary-color) !important;
+  text-decoration: underline;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.task-bid-sp-link :deep(.q-btn__content) {
+  justify-content: flex-start !important;
+}
+
+.task-bid-sp {
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-bid-rating-chip {
+  height: 18px;
+  min-height: 18px;
+  font-size: 0.62rem;
+}
+
+.task-bid-amount {
+  font-weight: 700;
+  color: #0f766e;
+  white-space: nowrap;
+}
+
+.task-bid-meta {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.task-bid-actions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.task-bid-actions :deep(.q-btn) {
+  min-height: 24px !important;
+  padding: 2px 8px !important;
+  font-size: 0.72rem !important;
 }
 
 .details-section {

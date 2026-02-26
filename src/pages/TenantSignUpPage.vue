@@ -11,6 +11,13 @@
             <p class="property-subtitle">Tenant Registration</p>
           </div>
         </div>
+        <div v-else-if="isSelfRegister" class="property-info self-register-info">
+          <q-icon name="person_add" size="24px" color="primary" />
+          <div class="property-details">
+            <p class="property-name">Tenant Registration</p>
+            <p class="property-subtitle">Your property manager can link you to a property later</p>
+          </div>
+        </div>
         <div v-else-if="!propertyLoading" class="property-error">
           <q-icon name="error" color="negative" size="32px" />
           <p>Property not found</p>
@@ -27,8 +34,8 @@
         </p>
       </div>
 
-      <!-- Auth Forms -->
-      <div v-else-if="!isAuthenticated && property" class="auth-section">
+      <!-- Auth Forms (show when property loaded OR self-register) -->
+      <div v-else-if="!isAuthenticated && (property || isSelfRegister)" class="auth-section">
         <!-- Toggle between Sign Up and Login -->
         <q-tabs
           v-model="activeTab"
@@ -162,7 +169,7 @@
       </div>
 
       <!-- Already authenticated message -->
-      <div v-else-if="isAuthenticated && property" class="already-authenticated">
+      <div v-else-if="isAuthenticated && (property || isSelfRegister)" class="already-authenticated">
         <q-icon name="check_circle" color="positive" size="64px" />
         <p class="success-message">You are already logged in!</p>
         <p class="success-detail">Redirecting to your tenant dashboard...</p>
@@ -176,6 +183,10 @@
           </template>
           {{ errorMessage }}
         </q-banner>
+      </div>
+
+      <div v-if="isSelfRegister" class="signup-back">
+        <q-btn flat dense no-caps color="grey-7" icon="arrow_back" label="Back to role selection" @click="router.push('/public/register')" />
       </div>
     </div>
   </div>
@@ -221,13 +232,11 @@ const loginForm = ref({
 // Computed
 const isAuthenticated = computed(() => userDataStore.isAuthenticated)
 const propertyId = computed(() => route.params.propertyId)
+const isSelfRegister = computed(() => !propertyId.value)
 
 // Methods
 const loadProperty = async () => {
-  if (!propertyId.value) {
-    errorMessage.value = 'No property specified'
-    return
-  }
+  if (!propertyId.value) return
 
   try {
     propertyLoading.value = true
@@ -254,34 +263,32 @@ const loadProperty = async () => {
 
 const createTenantProfile = async (userId, userData) => {
   try {
-    console.log('Creating tenant profile for user:', userId)
-
-    // Create user profile in users collection
     const userProfileData = {
       user_id: userId,
       email: userData.email,
       full_name: userData.fullName,
       phone: userData.phone || '',
       user_type: 'tenant',
-      user_category: 'tenant', // Important: Used for role-based access control
+      user_category: 'tenant',
+      account_type: 'TENANT',
+      account_type_locked: true,
+      account_type_selected_at: new Date(),
       created_at: new Date(),
       updated_at: new Date(),
     }
 
     await createDocument('users', userProfileData, userId)
-    console.log('User profile created successfully')
 
-    // Create tenant role in users/{userId}/roles subcollection
-    const roleData = {
-      property_id: propertyId.value,
-      role: 'tenant',
-      role_date: new Date(),
-      status: 'active',
-      created_at: new Date(),
+    if (propertyId.value) {
+      const roleData = {
+        property_id: propertyId.value,
+        role: 'tenant',
+        role_date: new Date(),
+        status: 'active',
+        created_at: new Date(),
+      }
+      await createDocument(`users/${userId}/roles`, roleData)
     }
-
-    await createDocument(`users/${userId}/roles`, roleData)
-    console.log('Tenant role created successfully')
 
     return true
   } catch (error) {
@@ -504,8 +511,17 @@ onMounted(async () => {
   margin: 0;
 }
 
+.self-register-info {
+  background: #e8f5e9;
+}
+
 .error-section {
   margin-top: 24px;
+}
+
+.signup-back {
+  text-align: center;
+  margin-top: 12px;
 }
 
 /* Responsive Design */

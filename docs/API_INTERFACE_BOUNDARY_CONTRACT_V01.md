@@ -53,6 +53,11 @@ Date: 2026-02-16
 - `PATCH /sp-cards/:id/note`
 - `GET /sp-cards`
 
+Marketplace ID constraints (mandatory):
+- Lead payload must include `mx_id` (canonical linkage).
+- Lead payload should include `task_doc_id` (redundant system reference).
+- Bid payload must include `lead_doc_id` for subcollection path correctness.
+
 ### Invoice
 - `POST /invoices`
 - `POST /invoices/:id/submit`

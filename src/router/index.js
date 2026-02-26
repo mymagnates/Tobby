@@ -140,6 +140,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       '/tenant-home',
       '/user-profile',
       '/application-detail',
+      '/documents',
     ]
 
     // Check if route path matches tenant-allowed routes
@@ -163,6 +164,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       '/sp-messages',
       '/sp-projects',
       '/sp-invoices',
+      '/sp-services',
       '/user-profile',
     ]
     const isServiceProvider = ['contractor', 'SP', 'sp'].includes(userCategory)
@@ -182,19 +184,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       }
     }
 
-    // PM/PO and other roles have full access (except tenant-only pages)
-    const isPropertyManager =
-      ['PM', 'PO', 'PM/PO', 'owner', 'manager', 'admin'].includes(userCategory)
-    
-    if (isPropertyManager) {
-      // Block PM/PO from accessing tenant-only pages
-      if (to.path === '/tenant-home') {
-        console.log('Router Guard - PM/PO attempting to access tenant-only page')
-        console.log('Router Guard - Redirecting to /')
-        next('/')
-        return
-      }
-    }
+    // NOTE: PM/PO tenant-home block removed for cross-role testing
 
     // Allow navigation
     next()

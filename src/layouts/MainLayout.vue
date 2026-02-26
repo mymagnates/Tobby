@@ -51,6 +51,7 @@
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
           <q-btn
+            v-if="isPmPo"
             flat
             round
             dense
@@ -269,7 +270,8 @@ const PAGE_TITLES = {
   '/documents': 'Documents',
   '/user-profile': 'User Profile',
   '/tenant-home': 'Tenant Home',
-  '/create-tenant': 'Create Tenant'
+  '/create-tenant': 'Create Tenant',
+  '/sp-profile': 'SP Profile'
 }
 
 const headerPageTitle = computed(() =>
@@ -365,17 +367,24 @@ const allLinksList = computed(() => [
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
   },
   {
-    title: 'PM/PO Feed',
-    caption: 'Social feed prototype',
-    icon: 'dynamic_feed',
-    link: '/pm-po-feed',
+    title: t('reports'),
+    caption: t('viewReportsAnalytics'),
+    icon: 'assessment',
+    link: '/reports',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
   {
-    title: t('dashboard'),
+    title: 'SP Dashboard',
     caption: 'SP workspace',
-    icon: 'dashboard',
+    icon: 'handyman',
     link: '/sp-dashboard',
+    allowedFor: ['contractor', 'SP', 'sp', 'owner', 'manager', 'admin', 'PM', 'PO'],
+  },
+  {
+    title: 'SP Profile',
+    caption: 'Manage SP info',
+    icon: 'badge',
+    link: '/sp-profile',
     allowedFor: ['contractor', 'SP', 'sp'],
   },
   {
@@ -392,13 +401,7 @@ const allLinksList = computed(() => [
     link: '/mx-records',
     allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
   },
-  {
-    title: 'Biz Card',
-    caption: 'Saved business cards',
-    icon: 'badge',
-    link: '/sp-cards',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
+
   {
     title: t('transactions'),
     caption: t('viewAllTransactions'),
@@ -446,57 +449,9 @@ const allLinksList = computed(() => [
     caption: t('tenantHomePage'),
     icon: 'home_work',
     link: '/tenant-home',
-    allowedFor: ['tenant'], // Only for tenants
+    allowedFor: ['tenant', 'owner', 'manager', 'admin', 'PM', 'PO'],
   },
-  {
-    title: t('reports'),
-    caption: t('viewReportsAnalytics'),
-    icon: 'assessment',
-    link: '/reports',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-  {
-    title: 'Leads',
-    caption: 'Open opportunities',
-    icon: 'ads_click',
-    link: '/sp-leads',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
-  {
-    title: 'Bids',
-    caption: 'My submitted bids',
-    icon: 'gavel',
-    link: '/sp-bids',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
-  {
-    title: 'Documents',
-    caption: 'Project documents',
-    icon: 'folder',
-    link: '/sp-documents',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
-  {
-    title: 'Messages',
-    caption: 'Reserved module',
-    icon: 'chat_bubble_outline',
-    link: '/sp-messages',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
-  {
-    title: 'Projects',
-    caption: 'Accepted work',
-    icon: 'work_outline',
-    link: '/sp-projects',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
-  {
-    title: 'Invoices',
-    caption: 'Create and submit',
-    icon: 'request_quote',
-    link: '/sp-invoices',
-    allowedFor: ['contractor', 'SP', 'sp'],
-  },
+
 
 ])
 
@@ -531,17 +486,12 @@ const linksList = computed(() => {
 
 const getSectionKey = (link) => {
   const path = link?.link || ''
-  if (['/', '/pm-po-feed', '/sp-dashboard'].includes(path)) return 'dashboard'
+  if (['/', '/reports'].includes(path)) return 'dashboard'
   if (['/my-properties', '/assets', '/documents'].includes(path)) return 'propertyAssetDocuments'
   if (['/mx-records', '/transactions', '/reminders', '/leases', '/tenants'].includes(path))
     return 'taskTransactionReminderLeaseTenants'
-  if (['/reports', '/sp-cards'].includes(path)) return 'reportBizCard'
-  if (
-    ['/sp-leads', '/sp-bids', '/sp-documents', '/sp-messages', '/sp-projects', '/sp-invoices'].includes(
-      path,
-    )
-  )
-    return 'spPortal'
+  if (['/sp-cards'].includes(path)) return 'reportBizCard'
+  if (['/sp-dashboard'].includes(path)) return 'spPortal'
   if (['/tenant-home'].includes(path)) return 'tenant'
   return 'other'
 }

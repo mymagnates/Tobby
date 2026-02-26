@@ -81,6 +81,7 @@
       </aside>
 
       <div class="feed-main">
+        <template v-if="isIndexHome">
         <!-- Stats row -->
         <div class="feed-stats-row q-mb-md">
           <q-card class="stat-card-mini income-card">
@@ -118,7 +119,7 @@
           <q-card-section class="create-new-section">
 
             <div class="create-new-actions">
-              <q-btn flat dense no-caps icon="dns" label="Task" @click="showCreateTaskDialog = true" />
+              <q-btn flat dense no-caps icon="dns" label="Task" @click="openCreateTaskDialog" />
               <q-btn flat dense no-caps icon="receipt_long" label="Transaction" @click="showCreateTransactionDialog = true" />
               <q-btn flat dense no-caps icon="event" label="Lease" @click="showCreateLeaseDialog = true" />
               <q-btn flat dense no-caps icon="home" label="Property" @click="showCreatePropertyDialog = true" />
@@ -153,6 +154,13 @@
             </div>
           </q-card-section>
         </q-card>
+
+        <TaskComposerFeedCard
+          v-if="showTaskComposer"
+          class="q-mb-md"
+          @created="onTaskCreated"
+          @close="showTaskComposer = false"
+        />
 
         <!-- Feed -->
         <div class="feed-list">
@@ -196,6 +204,12 @@
             </q-card-section>
           </q-card>
         </div>
+        </template>
+        <template v-else>
+          <div class="feed-main-router">
+            <router-view />
+          </div>
+        </template>
       </div>
 
       <aside class="feed-rail">
@@ -468,32 +482,6 @@
         </q-card>
       </q-dialog>
 
-      <!-- Create Task Dialog -->
-      <q-dialog v-model="showCreateTaskDialog" persistent>
-        <q-card style="min-width: 600px; max-width: 800px">
-          <q-card-section class="dialog-header">
-            <div class="row items-center justify-between">
-              <div class="text-h6">Create Task</div>
-              <q-btn
-                flat
-                round
-                dense
-                icon="close"
-                color="primary"
-                @click="showCreateTaskDialog = false"
-                class="dialog-close-btn"
-              />
-            </div>
-          </q-card-section>
-          <q-card-section>
-            <CreateMxRecord
-              @mxrecord-created="onTaskCreated"
-              @cancel="showCreateTaskDialog = false"
-            />
-          </q-card-section>
-        </q-card>
-      </q-dialog>
-
       <!-- Create Transaction Dialog -->
       <q-dialog v-model="showCreateTransactionDialog" persistent>
         <q-card style="min-width: 600px; max-width: 800px">
@@ -725,17 +713,19 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import CreateProperty from '../components/CreateProperty.vue'
-import CreateMxRecord from '../components/CreateMxRecord.vue'
+import TaskComposerFeedCard from '../components/TaskComposerFeedCard.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { getCollectionData } = useFirebase()
+const isIndexHome = computed(() => route.path === '/' || route.path === '/pm-po-feed')
 
 // Initialize userDataStore with error handling
 let userDataStore
@@ -810,7 +800,7 @@ const contacts = [
 
 // Dialog states for create forms
 const showCreatePropertyDialog = ref(false)
-const showCreateTaskDialog = ref(false)
+const showTaskComposer = ref(false)
 const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
 
@@ -1282,7 +1272,7 @@ const openCreateTransactionDialog = () => {
 }
 
 const openCreateTaskDialog = () => {
-  showCreateTaskDialog.value = true
+  showTaskComposer.value = true
   showQuickActions.value = false
 }
 
@@ -1386,8 +1376,9 @@ const onPropertyCreated = () => {
   })
 }
 
-const onTaskCreated = () => {
-  showCreateTaskDialog.value = false
+const onTaskCreated = async () => {
+  showTaskComposer.value = false
+  await userDataStore.loadAllUserData()
   Notify.create({
     type: 'positive',
     message: 'Task created successfully!',
@@ -1565,6 +1556,16 @@ watch(() => reminders.value.length, maybeShowDueReminderAlert)
 .feed-reminders,
 .feed-main {
   min-width: 0;
+}
+
+.feed-main-router {
+  width: 100%;
+}
+
+.feed-main-router :deep(.q-page) {
+  padding: 0 !important;
+  min-height: auto !important;
+  background: transparent !important;
 }
 
 .feed-stats-row {

@@ -88,6 +88,14 @@ const isSpAccount = computed(() => {
   )
 })
 
+const isTenantAccount = computed(() => {
+  const profile = userDataStore.userProfile || {}
+  return (
+    profile.account_type === 'TENANT' ||
+    profile.user_category === 'tenant'
+  )
+})
+
 /**
  * Perform redirect to destination
  */
@@ -103,6 +111,10 @@ const performRedirect = () => {
     }
     if (isSpAccount.value && !redirectUrl) {
       router.push('/sp-dashboard')
+      return
+    }
+    if (isTenantAccount.value && !redirectUrl) {
+      router.push('/tenant-home')
       return
     }
     if (redirectUrl) {
@@ -142,7 +154,7 @@ const retryLoading = async () => {
     if (isDataReady.value) {
       performRedirect()
     } else {
-      if (!needsAccountTypeSelection.value && !isSpAccount.value) {
+      if (!needsAccountTypeSelection.value && !isSpAccount.value && !isTenantAccount.value) {
         hasError.value = true
         errorMessage.value = 'No properties found. Please contact your administrator.'
       } else {
@@ -211,8 +223,7 @@ onMounted(async () => {
       if (isDataReady.value) {
         performRedirect()
       } else {
-        if (!needsAccountTypeSelection.value && !isSpAccount.value) {
-          // No properties found - might be normal for new users
+        if (!needsAccountTypeSelection.value && !isSpAccount.value && !isTenantAccount.value) {
           hasError.value = true
           errorMessage.value =
             'No properties found. Please contact your administrator to get access.'

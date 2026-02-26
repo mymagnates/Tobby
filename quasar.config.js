@@ -47,7 +47,9 @@ export default defineConfig((ctx) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+      env: {
+        VITE_GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY,
+      },
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
@@ -92,6 +94,13 @@ export default defineConfig((ctx) => {
     devServer: {
       // https: true,
       open: true, // opens browser window automatically
+      proxy: {
+        '/api': {
+          target: 'https://mkpl-e6jd52xojq-uc.a.run.app',
+          changeOrigin: true,
+          secure: true,
+        },
+      },
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
