@@ -88,6 +88,13 @@ const isSpAccount = computed(() => {
   )
 })
 
+const spHasServiceArea = computed(() => {
+  const profile = userDataStore.userProfile || {}
+  const spProfile = profile.sp_service_profile || {}
+  const zipCodes = Array.isArray(spProfile.service_zip_codes) ? spProfile.service_zip_codes : []
+  return zipCodes.length > 0 || Boolean(spProfile.service_area_shape)
+})
+
 const isTenantAccount = computed(() => {
   const profile = userDataStore.userProfile || {}
   return (
@@ -110,6 +117,10 @@ const performRedirect = () => {
       return
     }
     if (isSpAccount.value && !redirectUrl) {
+      if (!spHasServiceArea.value) {
+        router.push('/sp-services')
+        return
+      }
       router.push('/sp-dashboard')
       return
     }

@@ -311,76 +311,6 @@
         </q-card>
       </q-dialog>
 
-      <!-- Task Detail Dialog -->
-      <q-dialog v-model="showMxRecordDetail" position="standard">
-        <q-card class="mx-record-detail-dialog" style="min-width: 500px; max-width: 800px">
-          <q-card-section class="row items-center q-pb-none">
-            <div class="text-h6">Task Details</div>
-            <q-space />
-            <q-btn icon="close" flat round dense color="primary" v-close-popup />
-          </q-card-section>
-
-          <q-card-section v-if="selectedMxRecord" class="q-pt-none">
-            <div class="row q-gutter-md">
-              <div class="col-12">
-                <q-chip
-                  :color="getStatusColor(selectedMxRecord.status)"
-                  text-color="white"
-                  size="md"
-                  class="q-mb-md"
-                >
-                  {{ selectedMxRecord.status || 'Open' }}
-                </q-chip>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <div class="text-caption text-grey-6">Property</div>
-                <div class="text-body1">{{ getPropertyName(selectedMxRecord.property_id) }}</div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <div class="text-caption text-grey-6">Amount</div>
-                <div class="text-body1 text-weight-bold">
-                  ${{ formatCurrency(selectedMxRecord.amount || 0) }}
-                </div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <div class="text-caption text-grey-6">Report Date</div>
-                <div class="text-body1">{{ formatDate(selectedMxRecord.report_date) }}</div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <div class="text-caption text-grey-6">Priority</div>
-                <div class="text-body1">{{ selectedMxRecord.priority || 'Medium' }}</div>
-              </div>
-
-              <div class="col-12" v-if="selectedMxRecord.description">
-                <div class="text-caption text-grey-6">Description</div>
-                <div class="text-body1">{{ selectedMxRecord.description }}</div>
-              </div>
-
-              <div class="col-12" v-if="selectedMxRecord.notes">
-                <div class="text-caption text-grey-6">Notes</div>
-                <div class="text-body1">{{ selectedMxRecord.notes }}</div>
-              </div>
-            </div>
-          </q-card-section>
-
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn flat label="Close" color="primary" v-close-popup />
-            <q-btn
-              label="Add Log"
-              color="primary"
-              text-color="white"
-              class="btn-primary"
-              icon="add_comment"
-              @click="addLogToMxRecord(selectedMxRecord)"
-            />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
-
       <!-- Transaction Detail Dialog -->
       <q-dialog v-model="showTransactionDetail" position="standard">
         <q-card class="transaction-detail-dialog" style="min-width: 500px; max-width: 800px">
@@ -754,8 +684,6 @@ try {
 const recentMxRecords = ref([])
 const recentTransactions = ref([])
 const showQuickActions = ref(false)
-const showMxRecordDetail = ref(false)
-const selectedMxRecord = ref(null)
 const showTransactionDetail = ref(false)
 const selectedTransaction = ref(null)
 const showContactsDialog = ref(false)
@@ -1063,14 +991,6 @@ const openDetail = (post) => {
     Notify.create({ type: 'warning', message: 'This feed item is not linked to a detail record yet.', position: 'top' })
     return
   }
-  if (dataType === 'task') {
-    const record = userDataStore.userAccessibleMxRecords.find((r) => r.id === dataId || r.mx_id === dataId)
-    if (record) {
-      selectedMxRecord.value = record
-      showMxRecordDetail.value = true
-      return
-    }
-  }
   if (dataType === 'transaction') {
     const txn = userDataStore.userAccessibleTransactions.find(
       (t) => t.id === dataId || t.transac_id === dataId
@@ -1208,19 +1128,6 @@ const closeDueReminderAlert = () => {
   sessionStorage.setItem(getDueAlertSessionKey(), 'true')
 }
 
-const getStatusColor = (status) => {
-  switch (status?.toLowerCase()) {
-    case 'completed':
-      return 'positive'
-    case 'in_progress':
-      return 'warning'
-    case 'pending':
-      return 'info'
-    default:
-      return 'grey'
-  }
-}
-
 // Transaction utility functions
 const getTransactionTypeColor = (transacType) => {
   switch (transacType?.toLowerCase()) {
@@ -1284,13 +1191,6 @@ const openDocumentsPage = () => {
 const openAssetsPage = () => {
   router.push('/assets')
   showQuickActions.value = false
-}
-
-// Task functions
-const addLogToMxRecord = (record) => {
-  showMxRecordDetail.value = false
-  // Navigate to tasks page with the specific record selected for adding a log
-  router.push(`/mx-records?recordId=${record.id}&action=addLog`)
 }
 
 // Transaction functions

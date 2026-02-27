@@ -560,6 +560,7 @@
                         :color="getBidAssignBtnColor(bid)"
                         :icon="getBidAssignBtnIcon(bid)"
                         :label="getBidAssignBtnLabel(bid)"
+                        :disable="isBidAssigned(bid)"
                         @click="assignTaskToBidSp(bid)"
                       />
                     </div>

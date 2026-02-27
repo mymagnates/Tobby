@@ -531,9 +531,13 @@ const loadProfile = async () => {
     if (!spId) return
     const userProfile = await getDocument(`users/${spId}`)
     const profile = userProfile?.sp_service_profile || {}
-    serviceDescriptions.value = Array.isArray(profile?.service_descriptions)
-      ? profile.service_descriptions.filter((item) => wordCount(item) <= 20)
+    const fallbackCategories = Array.isArray(userProfile?.service_categories)
+      ? userProfile.service_categories
       : []
+    const seededDescriptions = Array.isArray(profile?.service_descriptions) && profile.service_descriptions.length
+      ? profile.service_descriptions
+      : fallbackCategories
+    serviceDescriptions.value = seededDescriptions.filter((item) => wordCount(item) <= 20)
     serviceZipCodes.value = Array.isArray(profile?.service_zip_codes)
       ? profile.service_zip_codes.filter((item) => /^\d{5}$/.test(String(item)))
       : []
@@ -595,6 +599,7 @@ const saveProfile = async () => {
     serviceZipCodes.value = sanitizedZipCodes
     savedMapView.value = captureCurrentMapView() || savedMapView.value
     saveLocalMapSnapshot()
+    await userStore.loadUserProfile()
     Notify.create({ type: 'positive', message: 'Service scope saved.', position: 'top' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.message || 'Failed to save services profile.', position: 'top' })

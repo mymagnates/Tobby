@@ -81,12 +81,9 @@
         >
           <template v-slot:prepend><q-icon name="build" /></template>
         </q-select>
-
-        <q-input v-model="form.serviceArea" label="Service Area / Location *" outlined
-          :rules="[(val) => !!val || 'Service area is required']"
-        >
-          <template v-slot:prepend><q-icon name="location_on" /></template>
-        </q-input>
+        <div class="text-caption text-grey-7 q-mt-xs">
+          Service area is configured after signup in `Services` using the map.
+        </div>
 
         <q-input
           v-model="form.registeredBusinessAddress"
@@ -173,7 +170,6 @@ const form = ref({
   fullName: '',
   businessName: '',
   serviceCategories: [],
-  serviceArea: '',
   registeredBusinessAddress: '',
   licenseNumber: '',
   phone: '',
@@ -191,6 +187,10 @@ const handleSignUp = async () => {
   try {
     const result = await signUp(form.value.email, form.value.password, form.value.fullName)
     const userId = result.user.uid
+    const now = new Date()
+    const seededDescriptions = (Array.isArray(form.value.serviceCategories) ? form.value.serviceCategories : [])
+      .map((item) => String(item || '').trim())
+      .filter((item) => item.length > 0)
 
     isCreatingProfile.value = true
     await createDocument('users', {
@@ -201,15 +201,23 @@ const handleSignUp = async () => {
       phone: form.value.phone,
       business_name: form.value.businessName,
       service_categories: form.value.serviceCategories,
-      service_area: form.value.serviceArea,
+      sp_service_profile: {
+        sp_id: userId,
+        service_descriptions: seededDescriptions,
+        service_zip_codes: [],
+        service_area_shape: null,
+        service_map_view: null,
+        created_at: now,
+        updated_at: now,
+      },
       registered_business_address: registeredAddress,
       license_number: form.value.licenseNumber || '',
       account_type: 'SP',
       account_type_locked: true,
-      account_type_selected_at: new Date(),
+      account_type_selected_at: now,
       user_category: 'SP',
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_at: now,
+      updated_at: now,
     }, userId)
 
     await userDataStore.loadUserProfile()

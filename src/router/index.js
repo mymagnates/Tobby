@@ -39,6 +39,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const userDataStore = useUserDataStore()
     const userCategory = userDataStore.userCategory
     const isAuthenticated = !!userDataStore.user
+    const hasSpServiceAreaConfigured = () => {
+      const profile = userDataStore.userProfile || {}
+      const spProfile = profile.sp_service_profile || {}
+      const zipCodes = Array.isArray(spProfile.service_zip_codes) ? spProfile.service_zip_codes : []
+      return zipCodes.length > 0 || Boolean(spProfile.service_area_shape)
+    }
 
     console.log('Router Guard - Navigation to:', to.path)
     console.log('Router Guard - From:', from.path)
@@ -170,6 +176,10 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const isServiceProvider = ['contractor', 'SP', 'sp'].includes(userCategory)
     if (isServiceProvider) {
       if (to.path === '/') {
+        if (!hasSpServiceAreaConfigured()) {
+          next('/sp-services')
+          return
+        }
         next('/sp-dashboard')
         return
       }
