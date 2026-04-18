@@ -595,11 +595,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useFirebase } from '../composables/useFirebase'
 import {
   collection,
-  onSnapshot,
   query,
   orderBy,
   doc,
@@ -684,120 +683,88 @@ const userOptions = computed(() => {
   }))
 })
 
-// Real-time listeners
-let usersUnsubscribe = null
-let propertiesUnsubscribe = null
-let mxrecordsUnsubscribe = null
-let transactionsUnsubscribe = null
+const loadUsers = async () => {
+  const usersQuery = query(collection(db, 'users'), orderBy('displayName'))
+  const snapshot = await getDocs(usersQuery)
+  users.value = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    roles: [],
+    rolesLoading: true,
+  }))
+  await Promise.all(users.value.map(loadUserRoles))
+  usersLoading.value = false
+}
 
-// Initialize real-time listeners
-onMounted(() => {
+const loadPropertiesData = async () => {
+  const propertiesQuery = query(collection(db, 'properties'), orderBy('name'))
+  const snapshot = await getDocs(propertiesQuery)
+  properties.value = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    mxrecords: [],
+    transactions: [],
+    mxrecordsLoading: true,
+    transactionsLoading: true,
+  }))
+  await Promise.all(properties.value.map(loadPropertySubcollections))
+  propertiesLoading.value = false
+}
+
+const loadMxRecordsData = async () => {
+  const mxrecordsQuery = query(collection(db, 'mxrecords'), orderBy('name'))
+  const snapshot = await getDocs(mxrecordsQuery)
+  mxrecords.value = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }))
+  mxrecordsLoading.value = false
+}
+
+const loadTransactionsData = async () => {
+  const transactionsQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'))
+  const snapshot = await getDocs(transactionsQuery)
+  transactions.value = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }))
+  transactionsLoading.value = false
+}
+
+// Initialize data
+onMounted(async () => {
   console.log('🔥 Firebase Test Page: onMounted called')
   console.log('🔥 Firebase DB instance:', db)
   console.log('🔥 Firebase Project ID:', db.app.options.projectId)
-
-  // Users collection listener
-  const usersQuery = query(collection(db, 'users'), orderBy('displayName'))
-  console.log('🔥 Setting up users listener...')
-  usersUnsubscribe = onSnapshot(
-    usersQuery,
-    (snapshot) => {
-      console.log('🔥 Users snapshot received:', snapshot.docs.length, 'documents')
-      users.value = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        roles: [],
-        rolesLoading: true,
-      }))
-      usersLoading.value = false
-
-      // Load roles subcollection for each user
-      users.value.forEach(loadUserRoles)
-    },
-    (error) => {
-      console.error('🔥 Users listener error:', error)
-      usersLoading.value = false
-    },
-  )
-
-  // Properties collection listener
-  const propertiesQuery = query(collection(db, 'properties'), orderBy('name'))
-  console.log('🔥 Setting up properties listener...')
-  propertiesUnsubscribe = onSnapshot(
-    propertiesQuery,
-    (snapshot) => {
-      console.log('🔥 Properties snapshot received:', snapshot.docs.length, 'documents')
-      properties.value = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        mxrecords: [],
-        transactions: [],
-        mxrecordsLoading: true,
-        transactionsLoading: true,
-      }))
-      propertiesLoading.value = false
-
-      // Load subcollections for each property
-      properties.value.forEach(loadPropertySubcollections)
-    },
-    (error) => {
-      console.error('🔥 Properties listener error:', error)
-      propertiesLoading.value = false
-    },
-  )
-
-  // Tasks collection listener
-  const mxrecordsQuery = query(collection(db, 'mxrecords'), orderBy('name'))
-  console.log('🔥 Setting up mxrecords listener...')
-  mxrecordsUnsubscribe = onSnapshot(
-    mxrecordsQuery,
-    (snapshot) => {
-      console.log('🔥 Tasks snapshot received:', snapshot.docs.length, 'documents')
-      mxrecords.value = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      mxrecordsLoading.value = false
-    },
-    (error) => {
-      console.error('🔥 Tasks listener error:', error)
-      mxrecordsLoading.value = false
-    },
-  )
-
-  // Transactions collection listener
-  const transactionsQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'))
-  console.log('🔥 Setting up transactions listener...')
-  transactionsUnsubscribe = onSnapshot(
-    transactionsQuery,
-    (snapshot) => {
-      console.log('🔥 Transactions snapshot received:', snapshot.docs.length, 'documents')
-      transactions.value = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      transactionsLoading.value = false
-    },
-    (error) => {
-      console.error('🔥 Transactions listener error:', error)
-      transactionsLoading.value = false
-    },
-  )
+  try {
+    await Promise.all([
+      loadUsers(),
+      loadPropertiesData(),
+      loadMxRecordsData(),
+      loadTransactionsData(),
+    ])
+  } catch (error) {
+    console.error('🔥 Firebase Test Page load error:', error)
+    usersLoading.value = false
+    propertiesLoading.value = false
+    mxrecordsLoading.value = false
+    transactionsLoading.value = false
+  }
 })
 
 // Load roles subcollection for a user
 const loadUserRoles = async (user) => {
   try {
     const rolesQuery = query(collection(db, 'users', user.id, 'roles'))
-    onSnapshot(rolesQuery, (snapshot) => {
-      user.roles = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      user.rolesLoading = false
-    })
+    const snapshot = await getDocs(rolesQuery)
+    user.roles = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    user.rolesLoading = false
   } catch (error) {
     console.error('Error loading user roles:', error)
+    user.rolesLoading = false
   }
 }
 
@@ -806,35 +773,27 @@ const loadPropertySubcollections = async (property) => {
   try {
     // Load tasks subcollection
     const mxrecordsQuery = query(collection(db, 'properties', property.id, 'mxrecords'))
-    onSnapshot(mxrecordsQuery, (snapshot) => {
-      property.mxrecords = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      property.mxrecordsLoading = false
-    })
+    const mxrecordsSnapshot = await getDocs(mxrecordsQuery)
+    property.mxrecords = mxrecordsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    property.mxrecordsLoading = false
 
     // Load transactions subcollection
     const transactionsQuery = query(collection(db, 'properties', property.id, 'transactions'))
-    onSnapshot(transactionsQuery, (snapshot) => {
-      property.transactions = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      property.transactionsLoading = false
-    })
+    const transactionsSnapshot = await getDocs(transactionsQuery)
+    property.transactions = transactionsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    property.transactionsLoading = false
   } catch (error) {
     console.error('Error loading subcollections:', error)
+    property.mxrecordsLoading = false
+    property.transactionsLoading = false
   }
 }
-
-// Cleanup listeners
-onUnmounted(() => {
-  if (propertiesUnsubscribe) propertiesUnsubscribe()
-  if (mxrecordsUnsubscribe) mxrecordsUnsubscribe()
-  if (transactionsUnsubscribe) transactionsUnsubscribe()
-  if (usersUnsubscribe) usersUnsubscribe()
-})
 
 // Create sample data for testing
 const createSampleData = async () => {
@@ -870,7 +829,8 @@ const createSampleData = async () => {
           bedroom: 3,
           full_bathroom: 2,
           kitchen: 1,
-          meeting_room: 0,
+          living_room: 0,
+          dinning_area: 0,
           office: 1,
           half_bathroom: 1,
           garage: 2,
@@ -907,7 +867,8 @@ const createSampleData = async () => {
           bedroom: 0,
           full_bathroom: 4,
           kitchen: 1,
-          meeting_room: 6,
+          living_room: 6,
+          dinning_area: 0,
           office: 12,
           half_bathroom: 2,
           garage: 20,

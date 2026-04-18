@@ -5,66 +5,51 @@
         <q-btn
           @click="openCreateTransactionDialog"
           color="primary"
+          text-color="white"
+          unelevated
           icon="add"
           label="Create Transaction"
         />
       </div>
     </div>
 
-    <!-- Filters Row -->
-    <div class="row q-gutter-sm q-mb-md">
-      <div class="col-12 col-md-4">
-        <q-input
-          v-model="searchQuery"
-          outlined
-          dense
-          placeholder="Search transactions..."
-          clearable
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="selectedProperty"
-          :options="propertyFilterOptions"
-          label="Filter by Property"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-          option-label="label"
-          option-value="value"
-          emit-value
-          map-options
-        >
-          <template v-slot:prepend>
-            <q-icon name="home" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="dateFilter"
-          :options="dateFilterOptions"
-          label="Filter by Time"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="date_range" />
-          </template>
-        </q-select>
-      </div>
-    </div>
+    <div class="page-with-sidebar">
+      <div class="page-main-column">
+        <!-- Filters Row -->
+        <div class="row q-gutter-sm q-mb-md">
+          <div class="col-12 col-md-6">
+            <q-input
+              v-model="searchQuery"
+              outlined
+              dense
+              placeholder="Search transactions..."
+              clearable
+              bg-color="grey-1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+          </div>
+          <div class="col-12 col-md-6">
+            <q-select
+              v-model="dateFilter"
+              :options="dateFilterOptions"
+              label="Filter by Time"
+              outlined
+              dense
+              clearable
+              bg-color="grey-1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="date_range" />
+              </template>
+            </q-select>
+          </div>
+        </div>
 
-    <!-- Summary Stats -->
-    <div class="row q-gutter-md q-mb-md">
+        <!-- Summary Stats -->
+        <div class="row q-gutter-md q-mb-md">
       <q-card
         class="summary-card cursor-pointer"
         :class="{ 'filter-active': activeTypeFilter === 'all' }"
@@ -89,10 +74,10 @@
           <div class="text-caption">{{ type }}</div>
         </q-card-section>
       </q-card>
-    </div>
+        </div>
 
-    <!-- Active Filter Display -->
-    <div v-if="activeTypeFilter !== 'all'" class="q-mb-md">
+        <!-- Active Filter Display -->
+        <div v-if="activeTypeFilter !== 'all'" class="q-mb-md">
       <q-chip
         :color="getTransactionTypeColor(activeTypeFilter)"
         text-color="white"
@@ -105,16 +90,16 @@
           {{ getTypeCount(activeTypeFilter) }}
         </q-badge>
       </q-chip>
-    </div>
+        </div>
 
-    <!-- Loading State -->
-    <div v-if="userDataStore.transactionsLoading" class="text-center q-pa-lg">
+        <!-- Loading State -->
+        <div v-if="userDataStore.transactionsLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
       <div class="q-mt-sm">Loading transactions...</div>
-    </div>
+        </div>
 
-    <!-- Empty State -->
-    <div v-else-if="filteredTransactions.length === 0" class="text-center q-pa-lg">
+        <!-- Empty State -->
+        <div v-else-if="filteredTransactions.length === 0" class="text-center q-pa-lg">
       <q-icon name="receipt" size="100px" color="grey-4" />
       <div class="text-h6 q-mt-md text-grey-6">
         {{
@@ -130,10 +115,10 @@
             : "You don't have any transactions for your properties yet."
         }}
       </div>
-    </div>
+        </div>
 
-    <!-- Transactions List -->
-    <div v-else class="transactions-list">
+        <!-- Transactions List -->
+        <div v-else class="transactions-list">
       <q-card
         v-for="transaction in filteredTransactions"
         :key="transaction.id"
@@ -188,6 +173,8 @@
           </div>
         </q-card-section>
       </q-card>
+        </div>
+      </div>
     </div>
 
     <!-- Transaction Details Panel -->
@@ -281,6 +268,7 @@
                 <q-icon name="photo" class="q-mr-sm" />
                 Transaction Image
                 <q-btn
+                  v-if="canEditSelectedTransaction"
                   flat
                   dense
                   :icon="selectedTransaction.picture_url ? 'edit' : 'add_photo_alternate'"
@@ -330,7 +318,9 @@
                 <div class="text-body2 text-grey-6 q-mt-sm">
                   No image attached to this transaction
                 </div>
-                <div class="text-caption text-grey-5">Click "Add Picture" to attach an image</div>
+                <div class="text-caption text-grey-5">
+                  {{ canEditSelectedTransaction ? 'Click \"Add Picture\" to attach an image' : 'Only the creator can attach an image.' }}
+                </div>
               </div>
             </div>
 
@@ -340,7 +330,9 @@
               <div class="details-grid user-info-grid">
                 <div class="detail-item">
                   <div class="detail-label">Role</div>
-                  <div class="detail-value">{{ selectedTransaction.role || 'Unknown' }}</div>
+                  <div class="detail-value">
+                    {{ roleLabel(selectedTransaction.role || 'Unknown') }}
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Created By</div>
@@ -483,28 +475,20 @@
       </q-card>
     </q-dialog>
 
-    <!-- Create Transaction Dialog -->
-    <q-dialog v-model="showCreateTransactionDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Transaction</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreateTransactionDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
+    <q-dialog
+      v-model="showCreateTransactionDialog"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <div class="create-transaction-dialog-scroll">
           <CreateTransaction
             @transaction-created="onTransactionCreated"
             @cancel="closeCreateTransactionDialog"
           />
-        </q-card-section>
+        </div>
       </q-card>
     </q-dialog>
   </q-page>
@@ -519,6 +503,7 @@ import CreateTransaction from '../components/CreateTransaction.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import { extractPropertyId } from '../utils/propertyIdUtils'
 import { Notify } from 'quasar'
+import { roleLabel } from '../utils/roleUtils'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, uploadImages } = useFirebase()
@@ -555,13 +540,6 @@ const dateFilterOptions = [
   'All Time',
 ]
 
-const propertyFilterOptions = computed(() => {
-  return userDataStore.userAccessibleProperties.map((p) => ({
-    label: p.nickname || p.address,
-    value: p.id,
-  }))
-})
-
 // Get all unique transaction types from available transactions
 const transactionTypes = computed(() => {
   const types = new Set()
@@ -575,6 +553,16 @@ const transactionTypes = computed(() => {
 
 // Get transactions the user has access to
 const userAccessibleTransactions = computed(() => userDataStore.userAccessibleTransactions)
+const isPoUser = computed(() => {
+  return !!userDataStore.hasPoMembership && !userDataStore.hasPmMembership
+})
+const canEditSelectedTransaction = computed(() => {
+  if (!selectedTransaction.value) return false
+  if (!isPoUser.value) return true
+  const creator =
+    selectedTransaction.value.created_by_user_id || selectedTransaction.value.created_by
+  return creator === userDataStore.userId
+})
 
 // Filter transactions based on search query, type filter, property filter, and date filter
 const filteredTransactions = computed(() => {
@@ -805,6 +793,14 @@ const closeImageViewer = () => {
 
 // Picture upload functions
 const openPictureUploadDialog = () => {
+  if (!canEditSelectedTransaction.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'Only the creator can update this transaction.',
+      position: 'top',
+    })
+    return
+  }
   showPictureUploadDialog.value = true
 }
 
@@ -953,6 +949,15 @@ watch(
     deepLinkHandled.value = false
     tryOpenDeepLinkedTransaction()
   }
+)
+
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    selectedProperty.value = value || null
+  },
+  { immediate: true },
 )
 </script>
 
@@ -1110,6 +1115,29 @@ watch(
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
   padding: 16px 24px;
+}
+
+.create-fullscreen-card {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+  position: relative;
+}
+
+.create-transaction-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .close-btn {
@@ -1540,5 +1568,21 @@ watch(
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.page-with-sidebar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.property-sidebar-column {
+  align-self: start;
+}
+
+@media (max-width: 1024px) {
+  .page-with-sidebar {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

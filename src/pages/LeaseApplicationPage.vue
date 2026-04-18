@@ -387,7 +387,7 @@
                 <div class="col-12 col-md-6">
                   <q-input
                     v-model="applicationForm.applicant.current_address.landlord_name"
-                    label="Current Landlord Name"
+                    label="Current Property Owner Name"
                     outlined
                     dense
                   />
@@ -396,7 +396,7 @@
                 <div class="col-12 col-md-6">
                   <q-input
                     v-model="applicationForm.applicant.current_address.landlord_phone"
-                    label="Current Landlord Phone"
+                    label="Current Property Owner Phone"
                     outlined
                     dense
                     mask="(###) ###-####"

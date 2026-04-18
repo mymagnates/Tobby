@@ -17,101 +17,90 @@
       </div>
       <div class="q-mt-md">
         <q-btn
-          to="/create-property"
+          v-if="canManageRecords"
           color="primary"
+          text-color="white"
+          unelevated
           label="Create Your First Property"
           class="q-mr-sm"
+          @click="openCreatePropertyDialog"
         />
         <q-btn to="/user-profile" color="secondary" label="Assign Roles to Properties" flat />
       </div>
     </div>
 
-    <div v-else class="property-view-container">
-      <!-- Left Sidebar - Property Selection -->
-      <div class="property-sidebar">
-        <q-card class="property-list-card">
-          <q-card-section class="q-pa-sm">
-            <div class="text-subtitle1 q-mb-sm">Select Property</div>
-            <q-list dense>
-              <q-item
-                v-for="property in userProperties"
-                :key="property.id"
-                clickable
-                v-ripple
-                :active="selectedProperty?.id === property.id"
-                @click="selectProperty(property)"
-                class="property-list-item"
-              >
-                <q-item-section>
-                  <q-item-label>{{ property.nickname || property.address }}</q-item-label>
-                  <q-item-label caption>{{ property.address }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-chip :color="getStatusColor(property.status)" text-color="white" size="sm">
-                    {{ property.status }}
-                  </q-chip>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card-section>
-        </q-card>
+    <div v-else>
+      <div class="row justify-end q-mb-md">
+        <q-btn
+          v-if="canManageRecords"
+          color="primary"
+          text-color="white"
+          unelevated
+          icon="add"
+          label="Create Property"
+          @click="openCreatePropertyDialog"
+        />
+      </div>
 
-        <!-- Action Buttons Card -->
-        <q-card class="action-buttons-card">
-          <q-card-section class="q-pa-sm">
-            <div class="text-subtitle1 q-mb-sm">Actions</div>
-            <div class="action-buttons">
-              <q-btn
-                v-if="selectedProperty"
-                color="primary"
-                icon="folder"
-                label="Add Document"
-                @click="openPhotoManagementDialog"
-                class="action-btn"
-                no-caps
-              />
-              <q-btn
-                color="primary"
-                icon="add"
-                label="Create Property"
-                @click="openCreatePropertyDialog"
-                class="action-btn"
-              />
-              <q-btn
-                v-if="selectedProperty"
-                color="primary"
-                icon="dns"
-                label="Create Task"
-                @click="openCreateMxRecordDialog"
-                class="action-btn"
-              />
-              <q-btn
-                v-if="selectedProperty"
-                color="primary"
-                icon="receipt_long"
-                label="Create Transaction"
-                @click="openCreateTransactionDialog"
-                class="action-btn"
-              />
-              <q-btn
-                v-if="selectedProperty"
-                color="primary"
-                icon="home_work"
-                label="Create Lease"
-                @click="openCreateLeaseDialog"
-                class="action-btn"
-              />
-              <q-btn
-                v-if="selectedProperty"
-                color="primary"
-                icon="inventory_2"
-                label="Create Asset"
-                @click="openAssetRegistry"
-                class="action-btn"
-              />
+      <div class="property-view-container">
+        <!-- Left Sidebar - Property Selection -->
+        <div class="property-sidebar">
+
+
+        <PropertySidebarPicker
+          class="property-list-card"
+          :model-value="selectedPropertyId"
+          :properties="userProperties"
+          :include-all="false"
+          @update:model-value="handleSidebarPropertySelect"
+        />
+
+        <q-card v-if="getCurrentLease()" class="lease-status-card q-mt-sm">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">
+              <q-icon name="home_work" class="q-mr-sm" />
+              Current Lease Status
+            </div>
+
+            <div class="lease-info">
+              <div class="lease-item">
+                <div class="lease-label">Tenant</div>
+                <div class="lease-value">{{ getLeaseDisplayTenantName(getCurrentLease()) }}</div>
+              </div>
+              <div class="lease-item">
+                <div class="lease-label">Rent Amount</div>
+                <div class="lease-value">
+                  ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
+                    getCurrentLease().rate_type || 'month'
+                  }}
+                </div>
+              </div>
+              <div class="lease-item">
+                <div class="lease-label">Lease Start</div>
+                <div class="lease-value">
+                  {{ formatDate(getCurrentLease().lease_start_date || getCurrentLease().start_date || getCurrentLease().move_in_date) }}
+                </div>
+              </div>
+              <div class="lease-item">
+                <div class="lease-label">Lease End</div>
+                <div class="lease-value">{{ formatDate(getCurrentLease().lease_end_date || getCurrentLease().end_date) }}</div>
+              </div>
+              <div class="lease-item">
+                <div class="lease-label">Status</div>
+                <div class="lease-value">
+                  <q-chip
+                    :color="getLeaseStatusColor(getCurrentLease().status)"
+                    text-color="white"
+                    size="sm"
+                  >
+                    {{ getCurrentLease().status }}
+                  </q-chip>
+                </div>
+              </div>
             </div>
           </q-card-section>
         </q-card>
+
       </div>
 
       <!-- Right Content - Property Details -->
@@ -128,13 +117,17 @@
           <!-- Property Image Card -->
           <q-card class="property-image-card" clickable @click="viewProperty(selectedProperty.id)">
             <q-img
-              :src="selectedProperty.image_url || '/placeholder-property.jpg'"
+              :src="getPropertyPreviewImageUrl(selectedProperty)"
               :alt="selectedProperty.nickname"
               class="property-main-image"
-              fit="cover"
+              fit="contain"
             >
             </q-img>
           </q-card>
+
+          <!-- Current Lease (moved to left sidebar) -->
+
+
 
           <!-- Basic Information Card -->
           <q-card class="property-info-card" clickable @click="viewProperty(selectedProperty.id)">
@@ -142,6 +135,16 @@
               <div class="text-h6 q-mb-md">
                 <q-icon name="info" class="q-mr-sm" />
                 Basic Information
+              </div>
+              <div class="row justify-end q-mb-md">
+                <q-btn
+                  v-if="canInviteOwner(selectedProperty)"
+                  color="primary"
+                  text-color="white"
+                  unelevated
+                  label="Invite Owner / Co-Owner To This Property"
+                  @click.stop="promptOwnerInvite(selectedProperty)"
+                />
               </div>
 
               <div class="info-grid">
@@ -193,7 +196,7 @@
                       text-color="white"
                       size="sm"
                     >
-                      {{ selectedProperty.userRole }}
+                      {{ getRoleLabel(selectedProperty.userRole) }}
                     </q-chip>
                   </div>
                 </div>
@@ -201,8 +204,192 @@
             </q-card-section>
           </q-card>
 
+        <q-card class="property-services-card">
+          <q-expansion-item
+            icon="handyman"
+            label="Services"
+            :caption="`${displayedPropertyServices.length} services`"
+            default-opened
+            header-class="text-subtitle1"
+            expand-separator
+          >
+            <q-card-section>
+                <div class="row items-center justify-end q-mb-sm">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    size="sm"
+                    color="primary"
+                    icon="open_in_new"
+                    @click="router.push({ path: '/property-services', query: { propertyId: selectedProperty?.id } })"
+                  >
+                    <q-tooltip>Manage services</q-tooltip>
+                  </q-btn>
+                </div>
+                <div v-if="displayedPropertyServices.length > 0" class="services-list">
+                  <q-list separator dense>
+                    <q-item
+                      v-for="service in displayedPropertyServices"
+                      :key="service.id || `${service.service_type}-${service.company_name}`"
+                      clickable
+                      class="service-list-item"
+                      @click="router.push({ path: '/property-services', query: { propertyId: selectedProperty?.id } })"
+                    >
+                      <q-item-section avatar>
+                        <q-icon name="handyman" color="primary" size="18px" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ formatServiceType(service.service_type) }}</q-item-label>
+                        <q-item-label caption>
+                          {{ service.company_name || 'Unknown Company' }}
+                          <span v-if="service.agent?.name"> · {{ service.agent.name }}</span>
+                          <span v-if="service.service_start_date"> · {{ formatDate(service.service_start_date) }}</span>
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+                <div v-else class="no-services">
+                  <q-icon name="handyman" size="32px" color="grey-4" />
+                  <div class="text-grey-6 q-mt-sm">No services linked to this property</div>
+                </div>
+              </q-card-section>
+            </q-expansion-item>
+          </q-card>
+
+          <q-card class="property-documents-card">
+            <q-expansion-item
+              icon="folder"
+              label="Property Documents"
+              :caption="`${syncedPropertyDocuments.length} files`"
+              default-opened
+              header-class="text-subtitle1"
+              expand-separator
+            >
+              <q-card-section>
+                <div class="row items-center justify-end q-mb-sm">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    size="sm"
+                    color="primary"
+                    icon="open_in_new"
+                    @click="router.push('/documents')"
+                  >
+                    <q-tooltip>View all documents</q-tooltip>
+                  </q-btn>
+                </div>
+
+                <div v-if="loadingPhotos || loadingDocuments" class="documents-loading">
+                  <q-spinner-dots size="24px" color="primary" />
+                  <div class="text-caption text-grey-6 q-mt-sm">Loading documents...</div>
+                </div>
+
+                <div v-else-if="syncedPropertyDocuments.length > 0" class="documents-list">
+                  <q-list separator dense>
+                    <q-item
+                      v-for="doc in syncedPropertyDocuments"
+                      :key="doc.id"
+                      clickable
+                      class="document-list-item"
+                      @click="viewDocument(doc)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon :name="getFileIcon(doc)" :color="getFileIconColor(doc)" size="18px" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ getDocumentDisplayName(doc) }}</q-item-label>
+                        <q-item-label caption>
+                          {{ getFileExtension(doc) }} · {{ formatDate(getDocumentDate(doc)) }}
+                          <span v-if="doc.uploaded_by_role">
+                            · {{ getRoleLabel(doc.uploaded_by_role) }}
+                          </span>
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+
+                <div v-else class="no-documents">
+                  <q-icon name="folder_open" size="32px" color="grey-4" />
+                  <div class="text-grey-6 q-mt-sm">No documents uploaded</div>
+                </div>
+              </q-card-section>
+            </q-expansion-item>
+          </q-card>
+
+          <q-card class="property-assets-card">
+            <q-expansion-item
+              icon="inventory_2"
+              label="Asset List"
+              :caption="`${propertyAssets.length} items`"
+              default-opened
+              header-class="text-subtitle1"
+              expand-separator
+            >
+              <q-card-section>
+                <div class="row items-center justify-end q-mb-sm">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    size="sm"
+                    color="primary"
+                    icon="open_in_new"
+                    @click="router.push('/assets')"
+                  >
+                    <q-tooltip>View all assets</q-tooltip>
+                  </q-btn>
+                </div>
+
+                <div v-if="loadingAssets" class="assets-loading">
+                  <q-spinner-dots size="24px" color="primary" />
+                  <div class="text-caption text-grey-6 q-mt-sm">Loading assets...</div>
+                </div>
+
+                <div v-else-if="propertyAssets.length === 0" class="no-assets">
+                  <q-icon name="inventory_2" size="28px" color="grey-4" />
+                  <div class="text-grey-6 q-mt-sm">No assets for this property</div>
+                </div>
+
+                <q-list v-else dense separator class="asset-list">
+                  <q-item
+                    v-for="asset in displayedPropertyAssets"
+                    :key="asset.id"
+                    clickable
+                    @click="router.push('/assets')"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        {{ getAssetDisplayName(asset) }}
+                      </q-item-label>
+                      <q-item-label caption>
+                        {{ getAssetSubtitle(asset) }} · Updated {{ formatDate(asset.updated_at) }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-chip
+                        size="sm"
+                        :color="String(asset.status || '').toLowerCase() === 'archived' ? 'grey-6' : 'positive'"
+                        text-color="white"
+                      >
+                        {{
+                          String(asset.status || '').toLowerCase() === 'archived'
+                            ? 'Archived'
+                            : 'Active'
+                        }}
+                      </q-chip>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-card-section>
+            </q-expansion-item>
+          </q-card>
+
           <!-- Tasks Summary Card -->
-          <q-card class="tasks-summary-card">
+          <q-card v-if="false" class="tasks-summary-card">
             <q-card-section>
               <div class="text-h6 q-mb-md">
                 <q-icon name="task_alt" class="q-mr-sm" />
@@ -231,7 +418,7 @@
           </q-card>
 
           <!-- Transaction Summary Card -->
-          <q-card class="transaction-summary-card">
+          <q-card v-if="false" class="transaction-summary-card">
             <q-card-section>
               <div class="text-h6 q-mb-md">
                 <q-icon name="account_balance" class="q-mr-sm" />
@@ -259,145 +446,8 @@
             </q-card-section>
           </q-card>
 
-          <!-- Lease Status Card -->
-          <q-card class="lease-status-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="home_work" class="q-mr-sm" />
-                Current Lease Status
-              </div>
-
-              <div v-if="getCurrentLease()" class="lease-info">
-                <div class="lease-item">
-                  <div class="lease-label">Tenant</div>
-                  <div class="lease-value">{{ getCurrentLease().tenant_name || 'N/A' }}</div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Rent Amount</div>
-                  <div class="lease-value">
-                    ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
-                      getCurrentLease().rate_type || 'month'
-                    }}
-                  </div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Lease Start</div>
-                  <div class="lease-value">
-                    {{ formatDate(getCurrentLease().lease_start_date) }}
-                  </div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Lease End</div>
-                  <div class="lease-value">{{ formatDate(getCurrentLease().lease_end_date) }}</div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Status</div>
-                  <div class="lease-value">
-                    <q-chip
-                      :color="getLeaseStatusColor(getCurrentLease().status)"
-                      text-color="white"
-                      size="sm"
-                    >
-                      {{ getCurrentLease().status }}
-                    </q-chip>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="no-lease">
-                <q-icon name="home_work" size="50px" color="grey-4" />
-                <div class="text-grey-6 q-mt-sm">No Active Lease</div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <!-- Property Documents Card -->
-          <q-card class="property-documents-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="folder" class="q-mr-sm" />
-                Property Documents
-                <span class="text-caption text-grey-6 q-ml-sm">({{ propertyPhotos.length }} files)</span>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="note_add"
-                  color="primary"
-                  class="q-ml-sm"
-                  @click="openPhotoManagementDialog"
-                >
-                  <q-tooltip>Add Documents</q-tooltip>
-                </q-btn>
-              </div>
-
-              <!-- Documents Grid -->
-              <div v-if="loadingPhotos" class="documents-loading">
-                <q-spinner-dots size="32px" color="primary" />
-                <div class="text-caption text-grey-6 q-mt-sm">Loading documents...</div>
-              </div>
-
-              <div v-else-if="propertyPhotos.length > 0" class="documents-grid">
-                <div
-                  v-for="doc in propertyPhotos"
-                  :key="doc.id"
-                  class="document-item"
-                  @click="viewDocument(doc)"
-                >
-                  <div class="document-thumbnail">
-                    <!-- Show image preview for image files -->
-                    <q-img
-                      v-if="isImageFile(doc)"
-                      :src="doc.image_url"
-                      :alt="doc.description || 'Document'"
-                      class="document-image"
-                      fit="cover"
-                    >
-                      <template v-slot:loading>
-                        <q-spinner-gears color="primary" size="24px" />
-                      </template>
-                      <template v-slot:error>
-                        <div class="absolute-full flex flex-center bg-grey-3">
-                          <q-icon name="broken_image" size="24px" color="grey-6" />
-                        </div>
-                      </template>
-                    </q-img>
-                    <!-- Show file type icon for non-image files -->
-                    <div v-else class="document-file-icon">
-                      <q-icon :name="getFileIcon(doc)" :color="getFileIconColor(doc)" size="48px" />
-                    </div>
-                    <div class="document-overlay">
-                      <q-icon :name="isImageFile(doc) ? 'zoom_in' : 'open_in_new'" color="white" size="24px" />
-                    </div>
-                  </div>
-                  <div class="document-info">
-                    <div class="document-name">{{ doc.description || doc.original_filename || 'Document' }}</div>
-                    <div class="document-meta">
-                      <span class="document-type">{{ getFileExtension(doc) }}</span>
-                      <span class="document-date">{{ formatDate(doc.upload_date) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Empty State -->
-              <div v-else class="no-documents">
-                <q-icon name="folder_open" size="48px" color="grey-4" />
-                <div class="text-grey-6 q-mt-sm">No documents uploaded</div>
-                <q-btn
-                  flat
-                  color="primary"
-                  icon="note_add"
-                  label="Upload Documents"
-                  class="q-mt-md"
-                  @click="openPhotoManagementDialog"
-                />
-              </div>
-            </q-card-section>
-          </q-card>
-
           <!-- Rent Tracking Card -->
-          <q-card class="rent-tracking-card">
+          <q-card v-if="false" class="rent-tracking-card">
             <q-card-section>
               <div class="text-h6 q-mb-md">
                 <q-icon name="payments" class="q-mr-sm" />
@@ -487,104 +537,335 @@
               </div>
             </q-card-section>
           </q-card>
+
+        </div>
         </div>
       </div>
     </div>
 
     <!-- Property Detail Dialog (kept from original) -->
-    <q-dialog v-model="showPropertyDialog" maximized>
-      <q-card>
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h5 text-weight-bold">
-              {{
-                selectedProperty
-                  ? selectedProperty.nickname || 'Property Details'
-                  : 'Property Details'
-              }}
-            </div>
-            <div class="row q-gutter-sm">
-              <q-btn
-                flat
-                round
-                dense
-                icon="close"
-                @click="closePropertyDialog"
-                class="dialog-close-btn"
-              />
-              <q-btn
-                v-if="!isEditMode"
-                color="primary"
-                icon="edit"
-                label="Edit"
-                @click="toggleEditMode"
-                class="edit-btn"
-              />
-            </div>
+    <q-dialog v-model="showPropertySelectorDialog">
+      <q-card class="property-selector-dialog">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Select Property</div>
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+          <div class="property-selector-grid">
+            <q-btn
+              v-for="property in userProperties"
+              :key="property.id"
+              outline
+              no-caps
+              class="property-selector-btn"
+              :class="{ 'property-selector-btn--active': selectedProperty?.id === property.id }"
+              :color="selectedProperty?.id === property.id ? 'primary' : 'grey-8'"
+              @click="selectPropertyFromDialog(property)"
+            >
+              <div class="property-selector-btn__title">
+                {{ property.nickname || 'Unnamed Property' }}
+              </div>
+              <div class="property-selector-btn__sub">{{ property.address || property.id }}</div>
+            </q-btn>
           </div>
         </q-card-section>
+      </q-card>
+    </q-dialog>
 
-        <q-card-section class="q-pa-lg">
-          <div v-if="selectedProperty" class="property-detail-content">
-            <!-- Property Image -->
-            <div class="property-detail-image q-mb-lg">
-              <q-img
-                :src="selectedProperty.image_url || '/placeholder-property.jpg'"
-                :alt="selectedProperty.nickname"
-                class="property-detail-img"
-                fit="cover"
-              />
+    <q-dialog
+      v-model="showPropertyDialog"
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card property-detail-dialog-card">
+        <div v-if="selectedProperty" class="property-detail-frame">
+          <q-card-section class="q-pa-md composer-head property-detail-header">
+            <q-btn
+              flat
+              round
+              dense
+              icon="close"
+              class="property-detail-close"
+              @click="closePropertyDialog"
+            />
+            <div class="row items-start justify-between q-col-gutter-sm">
+              <div class="col">
+                <div class="text-h6 text-weight-bold text-primary q-mb-sm">
+                  <q-icon name="home" class="q-mr-sm" />
+                  {{ isEditMode ? 'Edit Property' : 'Property Details' }}
+                </div>
+                <div class="text-caption text-grey-7 q-mb-sm">
+                  Review or update the core property profile without losing the current property context.
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ selectedProperty.nickname || 'Unnamed Property' }} ·
+                  {{ selectedProperty.address || 'No address on file' }}
+                </div>
+              </div>
+              <div class="col-auto row items-center q-gutter-sm property-detail-actions">
+                <q-btn
+                  v-if="isEditMode"
+                  unelevated
+                  color="primary"
+                  text-color="white"
+                  label="Cancel"
+                  class="top-action-btn"
+                  @click="cancelEdit"
+                />
+                <q-btn
+                  v-if="isEditMode"
+                  unelevated
+                  color="primary"
+                  text-color="white"
+                  label="Save"
+                  class="top-action-btn"
+                  :loading="editLoading"
+                  @click="saveProperty"
+                />
+                <q-btn
+                  v-else-if="canManageRecords"
+                  unelevated
+                  color="primary"
+                  text-color="white"
+                  label="Edit"
+                  class="top-action-btn"
+                  @click="toggleEditMode"
+                />
+                <q-btn
+                  v-else
+                  unelevated
+                  color="primary"
+                  text-color="white"
+                  label="Close"
+                  class="top-action-btn"
+                  @click="closePropertyDialog"
+                />
+              </div>
             </div>
+          </q-card-section>
 
-            <!-- Property Information -->
-            <div class="property-detail-info">
-              <div class="row q-gutter-lg">
-                <div class="col-12 col-md-6">
-                  <div class="detail-section">
-                    <div class="text-h6 q-mb-md">Basic Information</div>
-                    <div class="detail-item">
-                      <div class="detail-label">Property Name</div>
-                      <div class="detail-value">{{ selectedProperty.nickname || 'N/A' }}</div>
+          <div class="property-detail-content-scroll">
+            <div class="property-detail-shell">
+              <div class="property-detail-body">
+                <div class="section-label q-mb-xs">Property Snapshot</div>
+                <div class="property-detail-image-panel q-mb-md">
+                  <q-img
+                    :src="selectedProperty.image_url || '/placeholder-property.jpg'"
+                    :alt="selectedProperty.nickname"
+                    class="property-detail-img"
+                    fit="contain"
+                  />
+                  <div class="row items-center justify-between q-gutter-sm q-mt-sm">
+                    <div class="text-caption text-grey-6">
+                      Snapshot is the primary property image shown across the app.
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Address</div>
-                      <div class="detail-value">{{ selectedProperty.address || 'N/A' }}</div>
+                    <div v-if="canManageRecords && isEditMode" class="row items-center q-gutter-sm">
+                      <q-file
+                        v-model="snapshotUploadFile"
+                        accept="image/*"
+                        outlined
+                        dense
+                        label="Replace Snapshot"
+                        bg-color="grey-1"
+                        style="min-width: 220px"
+                        :disable="snapshotUploading"
+                        :loading="snapshotUploading"
+                        @update:model-value="onSnapshotSelected"
+                      >
+                        <template v-slot:prepend>
+                          <q-icon name="photo_camera" color="primary" />
+                        </template>
+                      </q-file>
+                      <q-btn
+                        flat
+                        color="primary"
+                        icon="folder_open"
+                        label="Manage All"
+                        :disable="snapshotUploading"
+                        @click="openPhotoManagementDialog"
+                      />
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Type</div>
-                      <div class="detail-value">{{ selectedProperty.type || 'N/A' }}</div>
+                  </div>
+                </div>
+
+                <div class="section-label q-mb-xs">Basic Information</div>
+                <div class="row q-col-gutter-sm q-row-gutter-sm q-mb-md">
+                  <div class="col-12 col-md-6">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.nickname"
+                      label="Property Name"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Property Name</div>
+                      <div class="detail-display-value">{{ selectedProperty.nickname || 'N/A' }}</div>
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Status</div>
-                      <div class="detail-value">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-select
+                      v-if="isEditMode"
+                      v-model="selectedProperty.status"
+                      :options="propertyStatusOptions"
+                      label="Status"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Status</div>
+                      <div class="detail-display-value">
                         <q-chip
                           :color="getStatusColor(selectedProperty.status)"
                           text-color="white"
                           size="sm"
                         >
-                          {{ selectedProperty.status }}
+                          {{ selectedProperty.status || 'N/A' }}
+                        </q-chip>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.address"
+                      label="Address"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Address</div>
+                      <div class="detail-display-value">{{ selectedProperty.address || 'N/A' }}</div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.city"
+                      label="City"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">City</div>
+                      <div class="detail-display-value">{{ selectedProperty.city || 'N/A' }}</div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.state"
+                      label="State"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">State</div>
+                      <div class="detail-display-value">{{ selectedProperty.state || 'N/A' }}</div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.zip"
+                      label="ZIP"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">ZIP</div>
+                      <div class="detail-display-value">
+                        {{ selectedProperty.zip || selectedProperty.zip_code || 'N/A' }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-select
+                      v-if="isEditMode"
+                      v-model="selectedProperty.type"
+                      :options="propertyTypeOptions"
+                      label="Property Type"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Property Type</div>
+                      <div class="detail-display-value">{{ selectedProperty.type || 'N/A' }}</div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="detail-display-card">
+                      <div class="detail-display-label">Your Role</div>
+                      <div class="detail-display-value">
+                        <q-chip
+                          :color="getRoleColor(selectedProperty.userRole)"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ getRoleLabel(selectedProperty.userRole) }}
                         </q-chip>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div class="col-12 col-md-6">
-                  <div class="detail-section">
-                    <div class="text-h6 q-mb-md">Specifications</div>
-                    <div class="detail-item">
-                      <div class="detail-label">Bedrooms</div>
-                      <div class="detail-value">{{ selectedProperty.spec?.bedroom || 'N/A' }}</div>
+                <div class="section-label q-mb-xs">Property Specifications</div>
+                <div class="row q-col-gutter-sm q-row-gutter-sm property-detail-bottom-space">
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model.number="selectedProperty.spec.bedroom"
+                      type="number"
+                      label="Bedrooms"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Bedrooms</div>
+                      <div class="detail-display-value">{{ selectedProperty.spec?.bedroom || 'N/A' }}</div>
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Bathrooms</div>
-                      <div class="detail-value">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model.number="selectedProperty.spec.full_bathroom"
+                      type="number"
+                      label="Bathrooms"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Bathrooms</div>
+                      <div class="detail-display-value">
                         {{ selectedProperty.spec?.full_bathroom || 'N/A' }}
                       </div>
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Size</div>
-                      <div class="detail-value">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model.number="selectedProperty.spec.size"
+                      type="number"
+                      label="Size"
+                      suffix="sq ft"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                    />
+                    <div v-else class="detail-display-card">
+                      <div class="detail-display-label">Size</div>
+                      <div class="detail-display-value">
                         {{
                           selectedProperty.spec?.size
                             ? `${selectedProperty.spec?.size} sq ft`
@@ -592,36 +873,12 @@
                         }}
                       </div>
                     </div>
-                    <div class="detail-item">
-                      <div class="detail-label">Your Role</div>
-                      <div class="detail-value">
-                        <q-chip
-                          :color="getRoleColor(selectedProperty.userRole)"
-                          text-color="white"
-                          size="sm"
-                        >
-                          {{ selectedProperty.userRole }}
-                        </q-chip>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-lg">
-          <q-btn v-if="isEditMode" flat label="Cancel" @click="cancelEdit" class="q-mr-sm" />
-          <q-btn
-            v-if="isEditMode"
-            color="primary"
-            label="Save"
-            @click="saveProperty"
-            :loading="editLoading"
-          />
-          <q-btn v-else flat label="Close" @click="closePropertyDialog" />
-        </q-card-actions>
+        </div>
       </q-card>
     </q-dialog>
 
@@ -680,29 +937,30 @@
     </q-dialog>
 
     <!-- Create Lease Dialog -->
-    <q-dialog v-model="showCreateLeaseDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Lease</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreateLeaseDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
+    <q-dialog
+      v-model="showCreateLeaseDialog"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <q-btn
+          flat
+          round
+          dense
+          icon="close"
+          class="create-fullscreen-close"
+          @click="closeCreateLeaseDialog"
+        />
+        <div class="create-lease-dialog-scroll">
           <CreateLease
             :property-id="selectedProperty?.id"
             :property-name="selectedProperty?.nickname"
             @lease-created="onLeaseCreated"
             @cancel="closeCreateLeaseDialog"
           />
-        </q-card-section>
+        </div>
       </q-card>
     </q-dialog>
 
@@ -733,31 +991,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Create Property Dialog -->
-    <q-dialog v-model="showCreatePropertyDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Property</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreatePropertyDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
-          <CreateProperty
-            @property-created="onPropertyCreated"
-            @cancel="closeCreatePropertyDialog"
-          />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
     <!-- Document Management Dialog -->
     <q-dialog v-model="showPhotoManagementDialog" maximized>
       <q-card class="photo-management-dialog">
@@ -781,7 +1014,7 @@
         <q-card-section class="photo-management-content">
           <div v-if="selectedProperty" class="photo-management-container">
             <!-- Upload Section -->
-            <div class="upload-section q-mb-lg">
+            <div v-if="canManageRecords" class="upload-section q-mb-lg">
               <div class="section-header">
                 <div class="text-h6 text-weight-medium">Upload New Documents</div>
                 <div class="text-caption text-grey-6 q-mt-xs">
@@ -898,6 +1131,7 @@
                           <q-tooltip>Download</q-tooltip>
                         </q-btn>
                         <q-btn
+                          v-if="canManageRecords"
                           flat
                           round
                           icon="delete"
@@ -913,7 +1147,7 @@
                     <!-- Set as Main Photo Button (only for images) -->
                     <div v-if="isImageFile(doc)" class="photo-main-action">
                       <q-btn
-                        v-if="selectedProperty.image_url !== doc.image_url"
+                        v-if="canManageRecords && selectedProperty.image_url !== doc.image_url"
                         flat
                         dense
                         color="primary"
@@ -923,7 +1157,7 @@
                         @click="setAsMainPhoto(doc)"
                       />
                       <q-chip
-                        v-else
+                        v-else-if="selectedProperty.image_url === doc.image_url"
                         color="primary"
                         text-color="white"
                         size="sm"
@@ -1010,6 +1244,30 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showInviteLinkDialog">
+      <q-card style="width: 100%; max-width: 720px">
+        <q-card-section class="row items-center">
+          <div class="text-h6">Invite Link</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <div class="text-body2 text-grey-7 q-mb-sm">
+            Email was not sent. Share this link manually.
+          </div>
+          <q-input
+            :model-value="inviteLinkValue"
+            outlined
+            readonly
+            autogrow
+            type="textarea"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Close" v-close-popup />
+          <q-btn color="primary" unelevated label="Copy Link" @click="copyInviteLink" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -1019,11 +1277,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
+import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
+import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
+import { sendOwnerInviteEmailRequest } from '../services/ownerInviteApi'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
-import CreateProperty from '../components/CreateProperty.vue'
 import CreateAsset from '../components/CreateAsset.vue'
+import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1035,16 +1296,200 @@ const {
   uploadImagesWithDetails,
   deleteFile,
   getAllDocuments,
+  getDocument,
 } = useFirebase()
+const canManageRecords = computed(() => userDataStore.isManagerCapableUser)
+const canInviteOwner = (property) => {
+  if (!property?.id) return false
+  return userDataStore.canShareProperty(property.id)
+}
+
+const createOwnerInvite = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = String(ownerEmail || '').trim().toLowerCase()
+  const existingInvites = await getAllDocuments('owner_invites')
+  const existingPendingInvite = existingInvites.find((entry) => {
+    const sameProperty = String(entry?.property_id || '') === String(property.id || '')
+    const sameOwnerEmail = String(entry?.owner_email || '').trim().toLowerCase() === normalizedOwnerEmail
+    const isPending = String(entry?.status || '').toLowerCase() === 'pending'
+    return sameProperty && sameOwnerEmail && isPending
+  })
+
+  const token = generateOwnerInviteToken()
+  const now = new Date()
+  const expiresAt = createOwnerInviteExpiry()
+
+  if (existingPendingInvite?.id) {
+    await updateDocument('owner_invites', existingPendingInvite.id, {
+      invite_id: existingPendingInvite.invite_id || existingPendingInvite.id,
+      property_id: property.id,
+      pm_user_id: userDataStore.userId,
+      owner_email: normalizedOwnerEmail,
+      status: 'pending',
+      token,
+      expires_at: expiresAt,
+      accepted_at: null,
+      accepted_by_user_id: null,
+      updated_at: now,
+    })
+
+    return buildOwnerInviteUrl(token)
+  }
+
+  const inviteId = token.slice(0, 20)
+
+  await createDocument('owner_invites', {
+    invite_id: inviteId,
+    property_id: property.id,
+    pm_user_id: userDataStore.userId,
+    owner_email: normalizedOwnerEmail,
+    status: 'pending',
+    token,
+    expires_at: expiresAt,
+    accepted_at: null,
+    accepted_by_user_id: null,
+    created_at: now,
+    updated_at: now,
+  }, inviteId)
+
+  return buildOwnerInviteUrl(token)
+}
+
+const promptOwnerInvite = (property) => {
+  const input = window.prompt(
+    'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
+    '',
+  )
+  const email = String(input || '').trim().toLowerCase()
+  if (!email) return
+  if (!/.+@.+\..+/.test(email)) {
+    Notify.create({
+      type: 'negative',
+      message: 'Please enter a valid email address.',
+      position: 'top',
+    })
+    return
+  }
+
+  ;(async () => {
+    try {
+      const response = await sendOwnerInviteEmailRequest({
+        propertyId: property.id,
+        ownerEmail: email,
+        propertyName: property.nickname || property.address || 'Property',
+        propertyAddress: property.address || '',
+        inviterName:
+          userDataStore.userProfile?.full_name ||
+          userDataStore.userProfile?.user_name ||
+          userDataStore.user?.displayName ||
+          userDataStore.user?.email ||
+          'A property manager',
+      })
+
+      if (response?.email_sent) {
+        Notify.create({
+          type: 'positive',
+          message: 'Owner invitation email sent successfully.',
+          position: 'top',
+          timeout: 4000,
+        })
+        return
+      }
+
+      const inviteLink = String(response?.invite_url || '').trim()
+      openInviteLinkDialog(inviteLink || response?.fallback_reason || '')
+      Notify.create({
+        type: 'warning',
+        message: 'Email was not sent. Invite link is shown for manual copy.',
+        caption: inviteLink || response?.fallback_reason || '',
+        position: 'top',
+        timeout: 6000,
+      })
+    } catch (error) {
+      try {
+        const inviteLink = await createOwnerInvite(property, email)
+        openInviteLinkDialog(inviteLink)
+        Notify.create({
+          type: 'warning',
+          message: 'Email service unavailable. Invite link is shown for manual copy.',
+          caption: inviteLink,
+          position: 'top',
+          timeout: 6000,
+        })
+      } catch (fallbackError) {
+        Notify.create({
+          type: 'negative',
+          message: fallbackError?.message || error?.message || 'Failed to create owner access link.',
+          position: 'top',
+        })
+      }
+    }
+  })()
+}
+const propertyTypeOptions = ['Residential', 'Commercial', 'Industrial', 'Land', 'Mixed Use']
+const propertyStatusOptions = [
+  'Available',
+  'Active',
+  'Occupied',
+  'Maintenance',
+  'Inactive',
+  'Sold',
+  'Under Contract',
+  'Off Market',
+  'Pending',
+]
+
+const parseLegacyAddressParts = (rawAddress) => {
+  const text = String(rawAddress || '').trim()
+  if (!text) return { city: '', state: '', zip: '' }
+  const parts = text.split(',').map((item) => item.trim()).filter(Boolean)
+  if (parts.length < 2) return { city: '', state: '', zip: '' }
+  const city = parts[parts.length - 2] || ''
+  const stateZip = parts[parts.length - 1] || ''
+  const stateZipMatch = stateZip.match(/^([A-Za-z]{2,})\s+(\S+)$/)
+  if (stateZipMatch) {
+    return {
+      city,
+      state: stateZipMatch[1],
+      zip: stateZipMatch[2],
+    }
+  }
+  return {
+    city,
+    state: stateZip,
+    zip: '',
+  }
+}
+
+const normalizePropertyAddressFields = (property) => {
+  if (!property || typeof property !== 'object') return property
+  const fallback = parseLegacyAddressParts(property.address)
+  return {
+    ...property,
+    city: String(property.city || fallback.city || '').trim(),
+    state: String(property.state || fallback.state || '').trim(),
+    zip: String(property.zip || property.zip_code || property.zipCode || property.postal_code || fallback.zip || '').trim(),
+  }
+}
+
+const cloneProperty = (property) => {
+  if (!property || typeof property !== 'object') return null
+  const cloned = JSON.parse(JSON.stringify(normalizePropertyAddressFields(property)))
+  if (!cloned.spec || typeof cloned.spec !== 'object') {
+    cloned.spec = {}
+  }
+  return cloned
+}
 
 // Dialog state
 const showPropertyDialog = ref(false)
+const showPropertySelectorDialog = ref(false)
 const selectedProperty = ref(null)
 const isEditMode = ref(false)
 const editLoading = ref(false)
+const showInviteLinkDialog = ref(false)
+const inviteLinkValue = ref('')
 
 // Create form dialogs
-const showCreatePropertyDialog = ref(false)
 const showCreateMxRecordDialog = ref(false)
 const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
@@ -1057,15 +1502,122 @@ const showDeletePhotoDialog = ref(false)
 
 // Photo management data
 const propertyPhotos = ref([])
+const propertyDocuments = ref([])
+const propertyAssets = ref([])
+const propertyServices = ref([])
 const uploadFiles = ref(null)
+const snapshotUploadFile = ref(null)
+const snapshotUploading = ref(false)
 const uploading = ref(false)
 const loadingPhotos = ref(false)
+const loadingDocuments = ref(false)
+const loadingAssets = ref(false)
 const deletingPhoto = ref(false)
 const photoToDelete = ref(null)
 const currentPhotoUrl = ref('')
 const currentPhotoTitle = ref('')
 
+const openInviteLinkDialog = (link) => {
+  inviteLinkValue.value = String(link || '').trim()
+  showInviteLinkDialog.value = true
+}
+
+const copyInviteLink = async () => {
+  const link = String(inviteLinkValue.value || '').trim()
+  if (!link) return
+  try {
+    await navigator.clipboard.writeText(link)
+    Notify.create({
+      type: 'positive',
+      message: 'Invite link copied.',
+      position: 'top',
+    })
+  } catch {
+    Notify.create({
+      type: 'negative',
+      message: 'Unable to copy link automatically.',
+      caption: 'Please copy it manually from the text box.',
+      position: 'top',
+    })
+  }
+}
+
 const loading = computed(() => userDataStore.loading)
+const selectedPropertyId = computed(() => selectedProperty.value?.id || null)
+
+const toDateObject = (value) => {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (value?.toDate && typeof value.toDate === 'function') return value.toDate()
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+const getDocumentDate = (doc) =>
+  doc?.upload_date || doc?.created_at || doc?.created_datetime || doc?.updated_at || null
+
+const syncedPropertyDocuments = computed(() => {
+  const photos = (propertyPhotos.value || []).map((doc) => ({
+    ...doc,
+    source_collection: 'property_photos',
+  }))
+  const docs = (propertyDocuments.value || []).map((doc) => ({
+    ...doc,
+    source_collection: 'documents',
+  }))
+
+  return [...docs, ...photos].sort(
+    (a, b) =>
+      (toDateObject(getDocumentDate(b))?.getTime() || 0) -
+      (toDateObject(getDocumentDate(a))?.getTime() || 0),
+  )
+})
+
+const getLegacyServiceInfo = (property) => {
+  const legacyService = property?.service_info || null
+  if (legacyService && Object.values(legacyService).some(Boolean)) return legacyService
+  const legacyLoan = property?.loan_insurance?.loan || null
+  if (legacyLoan && Object.values(legacyLoan).some(Boolean)) {
+    return { service_type: 'loan', ...legacyLoan }
+  }
+  const legacyInsurance = property?.loan_insurance?.insurance || null
+  if (legacyInsurance && Object.values(legacyInsurance).some(Boolean)) {
+    return { service_type: 'insurance', ...legacyInsurance }
+  }
+  return null
+}
+
+const displayedPropertyServices = computed(() =>
+  (propertyServices.value || [])
+    .slice()
+    .sort(
+      (a, b) =>
+        (toDateObject(b?.updated_at || b?.created_at || b?.created_datetime)?.getTime() || 0) -
+        (toDateObject(a?.updated_at || a?.created_at || a?.created_datetime)?.getTime() || 0),
+    )
+    .slice(0, 6),
+)
+
+const formatServiceType = (value) => {
+  const text = String(value || '').trim()
+  if (!text) return 'Service'
+  return text
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+const displayedPropertyAssets = computed(() =>
+  (propertyAssets.value || [])
+    .slice()
+    .sort(
+      (a, b) =>
+        (toDateObject(b?.updated_at || b?.created_at || b?.created_datetime)?.getTime() || 0) -
+        (toDateObject(a?.updated_at || a?.created_at || a?.created_datetime)?.getTime() || 0),
+    )
+    .slice(0, 6),
+)
+
 const userProperties = computed(() => {
   console.log('PropertyView - Computing userProperties')
   console.log('userDataStore.userAccessibleProperties:', userDataStore.userAccessibleProperties)
@@ -1105,10 +1657,7 @@ const userProperties = computed(() => {
 
 // Photo management functions
 const openPhotoManagementDialog = () => {
-  if (selectedProperty.value) {
-    showPhotoManagementDialog.value = true
-    loadPropertyPhotos()
-  }
+  showPhotoManagementDialog.value = true
 }
 
 const closePhotoManagementDialog = () => {
@@ -1137,11 +1686,134 @@ const loadPropertyPhotos = async () => {
   }
 }
 
+const loadPropertyDocuments = async () => {
+  if (!selectedProperty.value) return
+
+  try {
+    loadingDocuments.value = true
+    const collectionPath = `properties/${selectedProperty.value.id}/documents`
+    const docs = await getAllDocuments(collectionPath)
+    propertyDocuments.value = docs || []
+  } catch (error) {
+    console.error('Error loading property documents:', error)
+    propertyDocuments.value = []
+  } finally {
+    loadingDocuments.value = false
+  }
+}
+
+const loadPropertyAssets = async () => {
+  if (!selectedProperty.value) return
+
+  try {
+    loadingAssets.value = true
+    const collectionPath = `properties/${selectedProperty.value.id}/assets`
+    const assets = await getAllDocuments(collectionPath)
+    propertyAssets.value = assets || []
+  } catch (error) {
+    console.error('Error loading property assets:', error)
+    propertyAssets.value = []
+  } finally {
+    loadingAssets.value = false
+  }
+}
+
+const loadPropertyServices = async () => {
+  if (!selectedProperty.value) return
+  try {
+    const primary = await getDocument(`properties/${selectedProperty.value.id}/services/primary`)
+    if (primary) {
+      propertyServices.value = [{ id: primary.id || 'primary', ...primary }]
+      return
+    }
+    const list = await getAllDocuments(`properties/${selectedProperty.value.id}/services`)
+    if (list && list.length > 0) {
+      propertyServices.value = list
+      return
+    }
+    const legacy = getLegacyServiceInfo(selectedProperty.value)
+    propertyServices.value = legacy ? [{ id: 'legacy', ...legacy }] : []
+  } catch (error) {
+    console.error('Error loading property services:', error)
+    const legacy = getLegacyServiceInfo(selectedProperty.value)
+    propertyServices.value = legacy ? [{ id: 'legacy', ...legacy }] : []
+  }
+}
+
 const onPhotosSelected = (files) => {
   console.log('Photos selected:', files?.length || 0)
 }
 
+const onSnapshotSelected = async (file) => {
+  if (!file) return
+  if (!canManageRecords.value) {
+    snapshotUploadFile.value = null
+    Notify.create({
+      type: 'warning',
+      message: 'This action is not available for PO accounts.',
+      position: 'top',
+    })
+    return
+  }
+  if (!selectedProperty.value?.id) {
+    snapshotUploadFile.value = null
+    return
+  }
+
+  try {
+    snapshotUploading.value = true
+    const normalizedFile = Array.isArray(file) ? file[0] : file
+    const uploadResults = await uploadImagesWithDetails(
+      [normalizedFile],
+      selectedProperty.value.id,
+      'property_photos',
+    )
+
+    const uploadResult = uploadResults?.[0]
+    if (!uploadResult?.url) {
+      throw new Error('Snapshot upload failed')
+    }
+
+    const photoData = {
+      property_id: selectedProperty.value.id,
+      image_url: uploadResult.url,
+      storage_path: uploadResult.storagePath,
+      description: 'Property snapshot',
+      upload_date: new Date().toISOString(),
+      created_datetime: new Date().toISOString(),
+      original_filename: uploadResult.originalName,
+    }
+
+    const result = await createDocument(
+      `properties/${selectedProperty.value.id}/property_photos`,
+      photoData,
+    )
+
+    const newPhoto = { id: result.id, ...photoData }
+    propertyPhotos.value.unshift(newPhoto)
+    await setAsMainPhoto(newPhoto)
+  } catch (error) {
+    console.error('Error replacing snapshot:', error)
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to replace snapshot.',
+      position: 'top',
+    })
+  } finally {
+    snapshotUploadFile.value = null
+    snapshotUploading.value = false
+  }
+}
+
 const uploadPhotos = async () => {
+  if (!canManageRecords.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'This action is not available for PO accounts.',
+      position: 'top',
+    })
+    return
+  }
   if (!uploadFiles.value || uploadFiles.value.length === 0) return
 
   try {
@@ -1220,11 +1892,27 @@ const closePhotoFullscreen = () => {
 }
 
 const confirmDeletePhoto = (photo) => {
+  if (!canManageRecords.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'This action is not available for PO accounts.',
+      position: 'top',
+    })
+    return
+  }
   photoToDelete.value = photo
   showDeletePhotoDialog.value = true
 }
 
 const deletePhoto = async () => {
+  if (!canManageRecords.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'This action is not available for PO accounts.',
+      position: 'top',
+    })
+    return
+  }
   if (!photoToDelete.value) return
 
   try {
@@ -1284,6 +1972,14 @@ const deletePhoto = async () => {
 }
 
 const setAsMainPhoto = async (photo) => {
+  if (!canManageRecords.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'This action is not available for PO accounts.',
+      position: 'top',
+    })
+    return
+  }
   try {
     console.log('Setting photo as main:', photo.image_url)
 
@@ -1344,6 +2040,9 @@ const handlePageFocus = () => {
       console.log('PropertyView - Page focused and data appears missing, refreshing...')
       refreshData()
     }
+    if (selectedProperty.value) {
+      loadPropertyServices()
+    }
   } catch (error) {
     console.warn('PropertyView - Error in handlePageFocus:', error)
   }
@@ -1358,6 +2057,9 @@ const handleVisibilityChange = () => {
       if (userDataStore.userRoles.length > 0 && userDataStore.properties.length === 0) {
         console.log('PropertyView - Tab visible and data appears missing, refreshing...')
         refreshData()
+      }
+      if (selectedProperty.value) {
+        loadPropertyServices()
       }
     }
   } catch (error) {
@@ -1404,7 +2106,7 @@ onMounted(() => {
 
     // Auto-select first property if available
     if (userProperties.value.length > 0 && !selectedProperty.value) {
-      selectedProperty.value = userProperties.value[0]
+      selectedProperty.value = cloneProperty(userProperties.value[0])
     }
 
     // Data is automatically loaded by the store when user is authenticated
@@ -1461,7 +2163,7 @@ watch(
   userProperties,
   (newProperties) => {
     if (newProperties.length > 0 && !selectedProperty.value) {
-      selectedProperty.value = newProperties[0]
+      selectedProperty.value = cloneProperty(newProperties[0])
     }
   },
   { immediate: true },
@@ -1471,9 +2173,15 @@ watch(
 watch(
   selectedProperty,
   () => {
-    // Load photos when property changes
+    // Load media and documents when property changes
     if (selectedProperty.value) {
       loadPropertyPhotos()
+      loadPropertyDocuments()
+      loadPropertyAssets()
+      loadPropertyServices()
+    } else {
+      propertyAssets.value = []
+      propertyServices.value = []
     }
   },
   { immediate: true },
@@ -1482,6 +2190,7 @@ watch(
 const getStatusColor = (status) => {
   const colors = {
     Available: 'green',
+    Active: 'green',
     Occupied: 'blue',
     Maintenance: 'orange',
     Inactive: 'grey',
@@ -1490,15 +2199,16 @@ const getStatusColor = (status) => {
 }
 
 const getRoleColor = (role) => {
-  const colors = {
-    'Property Owner': 'deep-purple',
-    'Property Manager': 'blue',
-    Tenant: 'green',
-    Contractor: 'orange',
-    Other: 'grey',
-  }
-  return colors[role] || 'grey'
+  const normalized = normalizeRoleValue(role)
+  if (normalized === 'po') return 'deep-purple'
+  if (normalized === 'pm') return 'blue'
+  if (normalized === 'tt') return 'green'
+  if (normalized === 'sp') return 'orange'
+  if (normalized === 'admin') return 'grey'
+  return 'grey'
 }
+
+const getRoleLabel = (role) => roleLabel(role || '')
 
 const getLeaseStatusColor = (status) => {
   const colors = {
@@ -1510,22 +2220,55 @@ const getLeaseStatusColor = (status) => {
   return colors[status] || 'grey'
 }
 
+const getLeasePropertyId = (lease) =>
+  lease?.property_id?.id || lease?.property_id || lease?.property?.id || null
+
+const isActiveLeaseStatus = (status) => {
+  const normalized = String(status || '').toLowerCase()
+  return ['active', 'rented', 'occupied'].includes(normalized)
+}
+
+const isLeaseForSelectedProperty = (lease) => {
+  if (!selectedProperty.value) return false
+  return String(getLeasePropertyId(lease) || '') === String(selectedProperty.value.id || '')
+}
+
 const formatDate = (date) => {
   if (!date) return 'Not set'
-  if (typeof date === 'string') return date
-  if (date instanceof Date) {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-  return 'Invalid date'
+  const parsed = toDateObject(date)
+  if (!parsed) return String(date)
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const getAssetDisplayName = (asset) => asset?.nickname || asset?.name || 'Unnamed Asset'
+
+const getAssetSubtitle = (asset) => {
+  const parts = [asset?.type, asset?.brand, asset?.model].filter(Boolean)
+  if (parts.length > 0) return parts.join(' · ')
+  return 'No additional details'
 }
 
 const selectProperty = (property) => {
-  selectedProperty.value = property
+  selectedProperty.value = cloneProperty(property)
   console.log('PropertyView - Selected property:', property)
+}
+
+const handleSidebarPropertySelect = (propertyId) => {
+  const property = userProperties.value.find((item) => item.id === propertyId)
+  if (property) {
+    selectProperty(property)
+  }
+}
+
+
+
+const selectPropertyFromDialog = (property) => {
+  selectProperty(property)
+  showPropertySelectorDialog.value = false
 }
 
 const refreshData = async () => {
@@ -1556,9 +2299,7 @@ const getPendingTransactionsCount = () => {
 
 const getActiveLeasesCount = () => {
   if (!selectedProperty.value) return 0
-  return userDataStore.leases.filter(
-    (lease) => lease.property_id === selectedProperty.value.id && lease.status === 'Active',
-  ).length
+  return userDataStore.leases.filter((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status)).length
 }
 
 const getUpcomingRenewalsCount = () => {
@@ -1567,8 +2308,9 @@ const getUpcomingRenewalsCount = () => {
   const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
 
   return userDataStore.leases.filter((lease) => {
-    if (lease.property_id !== selectedProperty.value.id || lease.status !== 'Active') return false
-    const endDate = new Date(lease.lease_end_date)
+    if (!isLeaseForSelectedProperty(lease) || !isActiveLeaseStatus(lease.status)) return false
+    const endDate = toDateObject(lease.lease_end_date || lease.end_date)
+    if (!endDate) return false
     return endDate <= threeMonthsFromNow && endDate >= now
   }).length
 }
@@ -1653,18 +2395,17 @@ const getMonthlyExpense = () => {
 // Lease functions
 const getCurrentLease = () => {
   if (!selectedProperty.value) return null
-  return userDataStore.leases.find(
-    (lease) => lease.property_id === selectedProperty.value.id && lease.status === 'Active',
-  )
+  return userDataStore.leases.find((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status))
 }
 
 // Get all active leases for property
 const getPropertyLeases = () => {
   if (!selectedProperty.value) return []
-  return userDataStore.leases.filter(
-    (lease) => lease.property_id === selectedProperty.value.id && lease.status === 'Active',
-  )
+  return userDataStore.leases.filter((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status))
 }
+
+const getLeaseDisplayTenantName = (lease) =>
+  lease?.tenant_name || lease?.tenant_email || lease?.tenant_id || 'N/A'
 
 // Rent Tracking Functions
 const getCurrentMonthYear = () => {
@@ -1686,25 +2427,26 @@ const getExpectedRent = () => {
 const getCollectedRent = () => {
   if (!selectedProperty.value) return '0.00'
   const currentMonth = getCurrentMonthKey()
-  
+
   // Find rent payments for current month
   const rentPayments = userDataStore.transactions.filter((t) => {
-    if (t.property_id !== selectedProperty.value.id) return false
+    const txnPropertyId = t.property_id?.id || t.property_id || t.property?.id
+    if (String(txnPropertyId || '') !== String(selectedProperty.value.id || '')) return false
     if (t.type !== 'income') return false
-    
+
     // Check if it's a rent payment (by category or description)
-    const isRent = 
+    const isRent =
       (t.category && t.category.toLowerCase().includes('rent')) ||
       (t.description && t.description.toLowerCase().includes('rent'))
-    
+
     if (!isRent) return false
-    
+
     // Check if it's from current month
     const transDate = new Date(t.transaction_date)
     const transMonth = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
     return transMonth === currentMonth
   })
-  
+
   const total = rentPayments.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
   return total.toFixed(2)
 }
@@ -1724,42 +2466,42 @@ const getRentBalanceClass = () => {
 
 const getLeaseRentStatus = (lease) => {
   if (!selectedProperty.value) return { status: 'unknown', label: 'Unknown', paid: 0 }
-  
+
   const currentMonth = getCurrentMonthKey()
   const expectedRent = parseFloat(lease.rate_amount) || 0
-  
+
   // Find rent payments for this lease in current month
   const rentPayments = userDataStore.transactions.filter((t) => {
     if (t.property_id !== selectedProperty.value.id) return false
     if (t.type !== 'income') return false
-    
+
     // Check if it's a rent payment
-    const isRent = 
+    const isRent =
       (t.category && t.category.toLowerCase().includes('rent')) ||
       (t.description && t.description.toLowerCase().includes('rent'))
-    
+
     if (!isRent) return false
-    
+
     // Check if it matches this lease (by tenant name or lease_id if available)
-    const matchesLease = 
+    const matchesLease =
       (t.lease_id && t.lease_id === lease.id) ||
       (t.tenant_name && t.tenant_name === lease.tenant_name) ||
       !t.tenant_name // If no tenant specified, count towards property rent
-    
+
     if (!matchesLease) return false
-    
+
     // Check if it's from current month
     const transDate = new Date(t.transaction_date)
     const transMonth = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
     return transMonth === currentMonth
   })
-  
+
   const paidAmount = rentPayments.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
-  
+
   // Determine status
   const now = new Date()
   const dayOfMonth = now.getDate()
-  
+
   if (paidAmount >= expectedRent) {
     return { status: 'paid', label: 'Paid', paid: paidAmount }
   } else if (paidAmount > 0 && paidAmount < expectedRent) {
@@ -1805,39 +2547,57 @@ const getTenantInitials = (name) => {
 
 const getRecentRentPayments = () => {
   if (!selectedProperty.value) return []
-  
+
   // Get last 5 rent payments
   const rentPayments = userDataStore.transactions
     .filter((t) => {
-      if (t.property_id !== selectedProperty.value.id) return false
+      const txnPropertyId = t.property_id?.id || t.property_id || t.property?.id
+      if (String(txnPropertyId || '') !== String(selectedProperty.value.id || '')) return false
       if (t.type !== 'income') return false
-      
-      const isRent = 
+
+      const isRent =
         (t.category && t.category.toLowerCase().includes('rent')) ||
         (t.description && t.description.toLowerCase().includes('rent'))
-      
+
       return isRent
     })
     .sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date))
     .slice(0, 5)
-  
+
   return rentPayments
 }
 
 // Document helper functions
+const getDocumentUrl = (doc) => doc?.image_url || doc?.url || ''
+
+const getDocumentDisplayName = (doc) =>
+  doc?.name || doc?.description || doc?.original_filename || 'Document'
+
+const getPropertyPreviewImageUrl = (property) =>
+  property?.image_compressed_url ||
+  property?.compressed_image_url ||
+  property?.image_thumb_url ||
+  property?.image_thumbnail_url ||
+  property?.image_url ||
+  '/placeholder-property.jpg'
+
 const isImageFile = (doc) => {
-  const filename = doc.original_filename || doc.image_url || ''
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
+  const contentType = String(doc?.content_type || '').toLowerCase()
+  if (contentType.startsWith('image/')) return true
+
+  const filename = getDocumentDisplayName(doc) || getDocumentUrl(doc) || ''
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.heic']
   const lowerFilename = filename.toLowerCase()
-  return imageExtensions.some(ext => lowerFilename.includes(ext))
+  return imageExtensions.some((ext) => lowerFilename.includes(ext))
 }
 
 const getFileExtension = (doc) => {
-  const filename = doc.original_filename || doc.image_url || ''
+  const filename = getDocumentDisplayName(doc) || getDocumentUrl(doc) || ''
   const parts = filename.split('.')
   if (parts.length > 1) {
     return parts[parts.length - 1].toUpperCase()
   }
+  if (doc?.content_type) return String(doc.content_type).split('/').pop().toUpperCase()
   return 'FILE'
 }
 
@@ -1888,72 +2648,48 @@ const getFileIconColor = (doc) => {
 }
 
 const viewDocument = (doc) => {
+  const url = getDocumentUrl(doc)
+  if (!url) return
   if (isImageFile(doc)) {
-    showPhotoFullscreen(doc.image_url, doc.description)
+    showPhotoFullscreen(url, getDocumentDisplayName(doc))
   } else {
     // Open non-image files in a new tab
-    window.open(doc.image_url, '_blank')
+    window.open(url, '_blank')
   }
 }
 
 const downloadDocument = (doc) => {
   // Create a temporary link to download the file
   const link = document.createElement('a')
-  link.href = doc.image_url
-  link.download = doc.original_filename || 'document'
+  link.href = getDocumentUrl(doc)
+  link.download = getDocumentDisplayName(doc)
   link.target = '_blank'
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
 }
 
+const openCreatePropertyDialog = () => {
+  if (!canManageRecords.value) return
+  router.push('/create-property')
+}
+
 // Navigation functions
 const viewProperty = (propertyId) => {
   const property = userProperties.value.find((p) => p.id === propertyId)
   if (property) {
-    selectedProperty.value = { ...property }
+    selectedProperty.value = cloneProperty(property)
     showPropertyDialog.value = true
   }
 }
 
 // Dialog functions
-const openCreatePropertyDialog = () => {
-  try {
-    showCreatePropertyDialog.value = true
-  } catch (error) {
-    console.warn('PropertyView - Error opening create property dialog:', error)
-  }
-}
-
-const closeCreatePropertyDialog = () => {
-  try {
-    showCreatePropertyDialog.value = false
-  } catch (error) {
-    console.warn('PropertyView - Error closing create property dialog:', error)
-  }
-}
-
-const openCreateMxRecordDialog = () => {
-  try {
-    showCreateMxRecordDialog.value = true
-  } catch (error) {
-    console.warn('PropertyView - Error opening create task dialog:', error)
-  }
-}
 
 const closeCreateMxRecordDialog = () => {
   try {
     showCreateMxRecordDialog.value = false
   } catch (error) {
     console.warn('PropertyView - Error closing create task dialog:', error)
-  }
-}
-
-const openCreateTransactionDialog = () => {
-  try {
-    showCreateTransactionDialog.value = true
-  } catch (error) {
-    console.warn('PropertyView - Error opening create transaction dialog:', error)
   }
 }
 
@@ -1965,28 +2701,11 @@ const closeCreateTransactionDialog = () => {
   }
 }
 
-const openCreateLeaseDialog = () => {
-  try {
-    showCreateLeaseDialog.value = true
-  } catch (error) {
-    console.warn('PropertyView - Error opening create lease dialog:', error)
-  }
-}
-
 const closeCreateLeaseDialog = () => {
   try {
     showCreateLeaseDialog.value = false
   } catch (error) {
     console.warn('PropertyView - Error closing create lease dialog:', error)
-  }
-}
-
-const openAssetRegistry = () => {
-  try {
-    if (!selectedProperty.value?.id) return
-    showCreateAssetDialog.value = true
-  } catch (error) {
-    console.warn('PropertyView - Error opening asset registry:', error)
   }
 }
 
@@ -1999,14 +2718,6 @@ const closeCreateAssetDialog = () => {
 }
 
 // Event handlers for form completion
-const onPropertyCreated = () => {
-  try {
-    closeCreatePropertyDialog()
-    refreshData()
-  } catch (error) {
-    console.warn('PropertyView - Error in onPropertyCreated:', error)
-  }
-}
 
 const onMxRecordCreated = () => {
   try {
@@ -2051,36 +2762,66 @@ const onAssetCreated = () => {
 
 // Dialog functions
 const closePropertyDialog = () => {
+  if (isEditMode.value) {
+    cancelEdit()
+  }
   showPropertyDialog.value = false
-  selectedProperty.value = null
   isEditMode.value = false
 }
 
 const toggleEditMode = () => {
+  if (!isEditMode.value && selectedProperty.value && !selectedProperty.value.spec) {
+    selectedProperty.value.spec = {}
+  }
   isEditMode.value = !isEditMode.value
 }
 
 const saveProperty = async () => {
   try {
+    if (!selectedProperty.value?.id) return
     editLoading.value = true
-    // For now, we'll just show a success message
-    // In a real app, you'd call userDataStore.updateProperty(selectedProperty.value)
+    const payload = {
+      address: String(selectedProperty.value.address || '').trim(),
+      city: String(selectedProperty.value.city || '').trim(),
+      state: String(selectedProperty.value.state || '').trim(),
+      zip: String(selectedProperty.value.zip || '').trim(),
+      nickname: selectedProperty.value.nickname || '',
+      type: selectedProperty.value.type || '',
+      status: selectedProperty.value.status || '',
+      spec: {
+        ...(selectedProperty.value.spec || {}),
+      },
+      updatedAt: new Date(),
+    }
+    await updateDocument('properties', selectedProperty.value.id, payload)
 
     isEditMode.value = false
-    // Refresh the data to get updated information
     await refreshData()
+    const refreshed = userProperties.value.find((p) => p.id === selectedProperty.value.id)
+    if (refreshed) {
+      selectedProperty.value = cloneProperty(refreshed)
+    }
+    Notify.create({
+      type: 'positive',
+      message: 'Property updated successfully.',
+      position: 'top',
+    })
   } catch (error) {
     console.error('Error saving property:', error)
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to update property.',
+      position: 'top',
+    })
   } finally {
     editLoading.value = false
   }
 }
 
 const cancelEdit = () => {
-  // Reset to original property data
-  const originalProperty = userProperties.value.find((p) => p.id === selectedProperty.value.id)
+  const originalProperty = userProperties.value.find((p) => p.id === selectedProperty.value?.id)
   if (originalProperty) {
-    selectedProperty.value = { ...originalProperty }
+    selectedProperty.value = cloneProperty(originalProperty)
   }
   isEditMode.value = false
 }
@@ -2096,39 +2837,43 @@ const cancelEdit = () => {
 
 .property-sidebar {
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .property-list-card {
   height: fit-content;
-  max-height: calc(50vh - 80px);
-  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.action-buttons-card {
-  height: fit-content;
+.property-list-card--summary {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
 
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.property-summary-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 6px;
 }
 
-.action-btn {
-  width: 100%;
-  min-height: 42px;
+.property-summary-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
 }
 
-.action-btn :deep(.q-btn__content) {
-  justify-content: flex-start;
-  text-align: left;
-  width: 100%;
-}
-
-.action-btn :deep(.q-icon) {
-  width: 20px;
-  min-width: 20px;
-  text-align: center;
+.property-summary-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.45;
+  margin-top: 4px;
+  word-break: break-word;
 }
 
 .property-list-item {
@@ -2159,11 +2904,22 @@ const cancelEdit = () => {
 }
 
 .property-image-card {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 1;
   transition: all 0.2s ease;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
+
+.tasks-summary-card,
+.transaction-summary-card,
+.rent-tracking-card {
+  grid-column: 1 / span 2;
+}
+
 
 .property-image-card:hover {
   transform: translateY(-2px);
@@ -2171,13 +2927,73 @@ const cancelEdit = () => {
 }
 
 .property-main-image {
-  height: 300px;
+  width: 100%;
+  height: 160px;
   border-radius: 8px;
+  background: var(--neutral-100, #f5f6f8);
+}
+
+.property-main-image :deep(.q-img__container) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.property-main-image :deep(img) {
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+
+.property-selector-dialog {
+  min-width: 520px;
+  max-width: 720px;
+}
+
+.property-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.property-selector-btn {
+  min-height: 88px;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: left;
+  justify-content: flex-start;
+  align-items: flex-start;
+  border-width: 1px;
+  border-color: var(--neutral-300);
+  background: #fff;
+  transition: all 0.18s ease;
+}
+
+.property-selector-btn:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.12);
+}
+
+.property-selector-btn--active {
+  background: rgba(25, 118, 210, 0.1);
+  border-color: var(--primary-color);
+}
+
+.property-selector-btn__title {
+  font-weight: 600;
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.property-selector-btn__sub {
+  font-size: 0.74rem;
+  color: var(--neutral-600);
+  margin-top: 2px;
+  white-space: normal;
 }
 
 .property-info-card {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 2;
+  grid-row: 1;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -2188,18 +3004,13 @@ const cancelEdit = () => {
 }
 
 .tasks-summary-card {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
 }
 
 .transaction-summary-card {
-  grid-column: 1;
-  grid-row: 3;
-}
-
-.lease-status-card {
   grid-column: 2;
-  grid-row: 3;
+  grid-row: 2;
 }
 
 .property-documents-card {
@@ -2209,7 +3020,18 @@ const cancelEdit = () => {
 
 .rent-tracking-card {
   grid-column: 1 / -1;
-  grid-row: 5;
+  grid-row: 4;
+}
+
+.property-assets-card .q-expansion-item__container,
+.property-documents-card .q-expansion-item__container {
+  border-radius: 8px;
+}
+
+.assets-loading,
+.no-assets {
+  text-align: center;
+  padding: 12px;
 }
 
 .info-grid {
@@ -2350,6 +3172,47 @@ const cancelEdit = () => {
   color: white;
 }
 
+.create-fullscreen-card {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+  position: relative;
+}
+
+.create-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-lease-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  padding-bottom: calc(72px + constant(safe-area-inset-bottom));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(2px);
+}
+
 .dialog-close-btn {
   color: var(--neutral-600);
   transition: all 0.2s ease;
@@ -2361,44 +3224,131 @@ const cancelEdit = () => {
   transform: scale(1.1);
 }
 
-.property-detail-content {
-  max-width: 1200px;
-  margin: 0 auto;
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
 }
 
-.property-detail-image {
-  text-align: center;
+.elevated {
+  border-radius: 14px;
+  border: 1px solid var(--neutral-200);
+}
+
+.composer-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-600);
+}
+
+.property-detail-dialog-card {
+  background: #f6f8fb;
+}
+
+.property-detail-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.property-detail-header {
+  position: relative;
+  flex: 0 0 auto;
+  padding-right: 112px;
+}
+
+.property-detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  color: var(--neutral-700);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(2px);
+}
+
+.property-detail-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-right: 48px;
+}
+
+.property-detail-content-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.property-detail-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.property-detail-body {
+  width: 100%;
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+}
+
+.property-detail-image-panel {
+  border: 1px solid var(--neutral-200);
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px;
 }
 
 .property-detail-img {
-  max-width: 100%;
-  max-height: 400px;
-  border-radius: 8px;
+  width: 100%;
+  height: 200px;
+  border-radius: 10px;
+  background: var(--neutral-100, #f5f6f8);
 }
 
-.detail-section {
-  margin-bottom: 32px;
-}
-
-.detail-item {
+.property-detail-img :deep(.q-img__container) {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--neutral-200);
+  justify-content: center;
 }
 
-.detail-item:last-child {
-  border-bottom: none;
+.property-detail-img :deep(img) {
+  object-fit: contain !important;
+  object-position: center center !important;
 }
 
-.detail-label {
-  font-weight: 500;
-  color: var(--neutral-700);
+.detail-display-card {
+  min-height: 56px;
+  border: 1px solid var(--neutral-200);
+  border-radius: 10px;
+  background: #f7f8fa;
+  padding: 12px 14px;
 }
 
-.detail-value {
+.detail-display-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--neutral-600);
+  margin-bottom: 6px;
+}
+
+.detail-display-value {
+  color: var(--neutral-800);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.property-detail-bottom-space {
+  padding-bottom: 24px;
 }
 
 /* Responsive design */
@@ -2440,9 +3390,12 @@ const cancelEdit = () => {
     grid-row: 4;
   }
 
-  .lease-status-card {
-    grid-column: 1;
-    grid-row: 5;
+  .property-documents-card {
+    grid-row: 7;
+  }
+
+  .rent-tracking-card {
+    grid-row: 6;
   }
 }
 
@@ -2451,6 +3404,31 @@ const cancelEdit = () => {
   .tasks-grid,
   .financial-grid {
     grid-template-columns: 1fr;
+  }
+
+  .property-selector-dialog {
+    min-width: 92vw;
+  }
+
+  .property-selector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .property-detail-header {
+    padding-right: 72px;
+  }
+
+  .property-detail-content-scroll {
+    padding: 12px 12px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .property-detail-actions {
+    justify-content: flex-start;
+    padding-right: 0;
+  }
+
+  .property-detail-img {
+    height: 160px;
   }
 }
 
@@ -2663,97 +3641,18 @@ const cancelEdit = () => {
   padding: 32px;
 }
 
-.documents-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 16px;
-}
-
-.document-item {
-  background: var(--neutral-50, #fafafa);
+.documents-list {
+  border: 1px solid var(--neutral-200, #e5e5e5);
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--neutral-200, #e5e5e5);
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.document-item:hover {
-  border-color: var(--primary-color, #1976d2);
-  transform: translateY(-2px);
+.document-list-item {
+  min-height: 56px;
 }
 
-.document-item:hover .document-overlay {
-  opacity: 1;
-}
-
-.document-thumbnail {
-  position: relative;
-  width: 100%;
-  height: 100px;
-  overflow: hidden;
-}
-
-.document-image {
-  width: 100%;
-  height: 100%;
-}
-
-.document-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.document-file-icon {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--neutral-100, #f5f5f5);
-}
-
-.document-info {
-  padding: 8px;
-}
-
-.document-name {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--neutral-800, #1a1a1a);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.document-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.document-type {
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--primary-color, #1976d2);
-  background: rgba(25, 118, 210, 0.1);
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-.document-date {
-  font-size: 0.625rem;
-  color: var(--neutral-500, #888);
+.document-list-item :deep(.q-item__label) {
+  font-size: 0.84rem;
 }
 
 .no-documents {
@@ -2938,10 +3837,25 @@ const cancelEdit = () => {
   background: transparent;
 }
 
-:global(body.body--dark) .property-list-card,
-:global(body.body--dark) .action-buttons-card {
+:global(body.body--dark) .property-list-card {
   background: #1e1e1e !important;
   border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .property-list-card--summary {
+  background: linear-gradient(180deg, #223041 0%, #15202b 100%) !important;
+}
+
+:global(body.body--dark) .property-summary-label {
+  color: #9fb0c3;
+}
+
+:global(body.body--dark) .property-summary-title {
+  color: #e6edf3;
+}
+
+:global(body.body--dark) .property-summary-sub {
+  color: #9fb0c3;
 }
 
 :global(body.body--dark) .property-list-item {

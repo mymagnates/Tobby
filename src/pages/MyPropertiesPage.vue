@@ -4,8 +4,11 @@
       <div class="text-h4">My Properties</div>
       <div class="row q-gutter-sm">
         <q-btn
+          v-if="canCreateProperty"
           @click="openCreatePropertyDialog"
           color="primary"
+          text-color="white"
+          unelevated
           icon="add"
           label="Create Property"
         />
@@ -29,8 +32,11 @@
       </div>
       <div class="q-mt-md">
         <q-btn
+          v-if="canCreateProperty"
           @click="openCreatePropertyDialog"
           color="primary"
+          text-color="white"
+          unelevated
           label="Create Your First Property"
           class="q-mr-sm"
         />
@@ -137,7 +143,7 @@
                 size="sm"
                 class="detail-chip"
               >
-                {{ property.userRole }}
+                {{ roleLabel(property.userRole) }}
               </q-chip>
             </div>
 
@@ -168,23 +174,36 @@
             <q-btn
               color="primary"
               text-color="white"
+              unelevated
               label="Create Transaction"
               class="action-btn"
               @click="openCreateTransactionDialog(property.id, property.nickname)"
             />
             <q-btn
+              v-if="canManagePropertyAction(property.id)"
               color="primary"
               text-color="white"
+              unelevated
               label="Create Task"
               class="action-btn"
               @click="openCreateMxRecordDialog(property.id, property.nickname)"
             />
             <q-btn
+              v-if="canManagePropertyAction(property.id)"
               color="primary"
               text-color="white"
               label="Create Lease"
               class="action-btn"
               @click="openCreateLeaseDialog(property.id, property.nickname)"
+            />
+            <q-btn
+              v-if="canInviteOwner(property)"
+              color="primary"
+              text-color="white"
+              unelevated
+              label="Invite Owner / Co-Owner To This Property"
+              class="action-btn"
+              @click="promptOwnerInvite(property)"
             />
           </div>
         </q-card-actions>
@@ -201,16 +220,16 @@
             </div>
             <div class="row q-gutter-sm">
               <q-btn
-                v-if="!isEditMode"
+                v-if="!isEditMode && canManagePropertyAction(selectedProperty?.id)"
                 flat
                 round
                 icon="edit"
-                color="primary"
+                color="white"
                 @click="toggleEditMode"
                 class="edit-btn"
               />
               <q-btn
-                v-if="isEditMode"
+                v-if="isEditMode && canManagePropertyAction(selectedProperty?.id)"
                 flat
                 round
                 icon="save"
@@ -253,6 +272,42 @@
                     class="detail-input"
                   />
                   <span v-else class="detail-value">{{ selectedProperty?.address || 'N/A' }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <label class="detail-label">City:</label>
+                  <q-input
+                    v-if="isEditMode"
+                    v-model="selectedProperty.city"
+                    outlined
+                    dense
+                    class="detail-input"
+                  />
+                  <span v-else class="detail-value">{{ selectedProperty?.city || 'N/A' }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <label class="detail-label">State:</label>
+                  <q-input
+                    v-if="isEditMode"
+                    v-model="selectedProperty.state"
+                    outlined
+                    dense
+                    class="detail-input"
+                  />
+                  <span v-else class="detail-value">{{ selectedProperty?.state || 'N/A' }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <label class="detail-label">ZIP:</label>
+                  <q-input
+                    v-if="isEditMode"
+                    v-model="selectedProperty.zip"
+                    outlined
+                    dense
+                    class="detail-input"
+                  />
+                  <span v-else class="detail-value">{{ selectedProperty?.zip || 'N/A' }}</span>
                 </div>
 
                 <div class="detail-item">
@@ -499,31 +554,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Create Property Dialog -->
-    <q-dialog v-model="showCreatePropertyDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Property</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreatePropertyDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
-          <CreateProperty
-            @property-created="onPropertyCreated"
-            @cancel="closeCreatePropertyDialog"
-          />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
     <!-- Create Task Dialog -->
     <q-dialog v-model="showCreateMxRecordDialog" persistent>
       <q-card style="min-width: 600px; max-width: 800px">
@@ -579,29 +609,54 @@
     </q-dialog>
 
     <!-- Create Lease Dialog -->
-    <q-dialog v-model="showCreateLeaseDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Lease</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreateLeaseDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
+    <q-dialog
+      v-model="showCreateLeaseDialog"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <q-btn
+          flat
+          round
+          dense
+          icon="close"
+          class="create-fullscreen-close"
+          @click="closeCreateLeaseDialog"
+        />
+        <div class="create-lease-dialog-scroll">
           <CreateLease
             :property-id="selectedPropertyForDialog?.id"
             :property-name="selectedPropertyForDialog?.nickname"
             @lease-created="onLeaseCreated"
             @cancel="closeCreateLeaseDialog"
           />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="showInviteLinkDialog">
+      <q-card style="width: 100%; max-width: 720px">
+        <q-card-section class="row items-center">
+          <div class="text-h6">Invite Link</div>
         </q-card-section>
+        <q-card-section class="q-pt-none">
+          <div class="text-body2 text-grey-7 q-mb-sm">
+            Email was not sent. Share this link manually.
+          </div>
+          <q-input
+            :model-value="inviteLinkValue"
+            outlined
+            readonly
+            autogrow
+            type="textarea"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Close" v-close-popup />
+          <q-btn color="primary" unelevated label="Copy Link" @click="copyInviteLink" />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -610,8 +665,12 @@
 <script setup>
 import { onMounted, computed, watch, ref, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { Notify } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
-import CreateProperty from '../components/CreateProperty.vue'
+import { useFirebase } from '../composables/useFirebase'
+import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
+import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
+import { sendOwnerInviteEmailRequest } from '../services/ownerInviteApi'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
@@ -619,21 +678,224 @@ import CreateLease from '../components/CreateLease.vue'
 const router = useRouter()
 const route = useRoute()
 const userDataStore = useUserDataStore()
+const { createDocument, updateDocument, getAllDocuments } = useFirebase()
 
 // Dialog state
 const showPropertyDialog = ref(false)
 const selectedProperty = ref(null)
 const isEditMode = ref(false)
 const editLoading = ref(false)
+const showInviteLinkDialog = ref(false)
+const inviteLinkValue = ref('')
 
 // Create form dialogs
-const showCreatePropertyDialog = ref(false)
 const showCreateMxRecordDialog = ref(false)
 const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
 const selectedPropertyForDialog = ref(null)
 
+const openInviteLinkDialog = (link) => {
+  inviteLinkValue.value = String(link || '').trim()
+  showInviteLinkDialog.value = true
+}
+
+const copyInviteLink = async () => {
+  const link = String(inviteLinkValue.value || '').trim()
+  if (!link) return
+  try {
+    await navigator.clipboard.writeText(link)
+    Notify.create({
+      type: 'positive',
+      message: 'Invite link copied.',
+      position: 'top',
+    })
+  } catch {
+    Notify.create({
+      type: 'negative',
+      message: 'Unable to copy link automatically.',
+      caption: 'Please copy it manually from the text box.',
+      position: 'top',
+    })
+  }
+}
+
 const loading = computed(() => userDataStore.loading)
+const canCreateProperty = computed(() => {
+  return userDataStore.isManagerCapableUser
+})
+
+const parseLegacyAddressParts = (rawAddress) => {
+  const text = String(rawAddress || '').trim()
+  if (!text) return { city: '', state: '', zip: '' }
+  const parts = text.split(',').map((item) => item.trim()).filter(Boolean)
+  if (parts.length < 2) return { city: '', state: '', zip: '' }
+  const city = parts[parts.length - 2] || ''
+  const stateZip = parts[parts.length - 1] || ''
+  const stateZipMatch = stateZip.match(/^([A-Za-z]{2,})\s+(\S+)$/)
+  if (stateZipMatch) {
+    return {
+      city,
+      state: stateZipMatch[1],
+      zip: stateZipMatch[2],
+    }
+  }
+  return {
+    city,
+    state: stateZip,
+    zip: '',
+  }
+}
+
+const normalizePropertyAddressFields = (property) => {
+  if (!property || typeof property !== 'object') return property
+  const fallback = parseLegacyAddressParts(property.address)
+  return {
+    ...property,
+    city: String(property.city || fallback.city || '').trim(),
+    state: String(property.state || fallback.state || '').trim(),
+    zip: String(property.zip || property.zip_code || property.zipCode || property.postal_code || fallback.zip || '').trim(),
+  }
+}
+
+const cloneProperty = (property) => {
+  if (!property || typeof property !== 'object') return null
+  const cloned = JSON.parse(JSON.stringify(normalizePropertyAddressFields(property)))
+  if (!cloned.spec || typeof cloned.spec !== 'object') {
+    cloned.spec = {}
+  }
+  return cloned
+}
+
+const canManagePropertyAction = (propertyId) => {
+  if (!propertyId) return false
+  return userDataStore.canManageProperty(propertyId)
+}
+const canInviteOwner = (property) => {
+  if (!property?.id) return false
+  return userDataStore.canShareProperty(property.id)
+}
+
+const createOwnerInvite = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = String(ownerEmail || '').trim().toLowerCase()
+  const existingInvites = await getAllDocuments('owner_invites')
+  const existingPendingInvite = existingInvites.find((entry) => {
+    const sameProperty = String(entry?.property_id || '') === String(property.id || '')
+    const sameOwnerEmail = String(entry?.owner_email || '').trim().toLowerCase() === normalizedOwnerEmail
+    const isPending = String(entry?.status || '').toLowerCase() === 'pending'
+    return sameProperty && sameOwnerEmail && isPending
+  })
+
+  const token = generateOwnerInviteToken()
+  const now = new Date()
+  const expiresAt = createOwnerInviteExpiry()
+
+  if (existingPendingInvite?.id) {
+    await updateDocument('owner_invites', existingPendingInvite.id, {
+      invite_id: existingPendingInvite.invite_id || existingPendingInvite.id,
+      property_id: property.id,
+      pm_user_id: userDataStore.userId,
+      owner_email: normalizedOwnerEmail,
+      status: 'pending',
+      token,
+      expires_at: expiresAt,
+      accepted_at: null,
+      accepted_by_user_id: null,
+      updated_at: now,
+    })
+
+    return buildOwnerInviteUrl(token)
+  }
+
+  const inviteId = token.slice(0, 20)
+
+  await createDocument('owner_invites', {
+    invite_id: inviteId,
+    property_id: property.id,
+    pm_user_id: userDataStore.userId,
+    owner_email: normalizedOwnerEmail,
+    status: 'pending',
+    token,
+    expires_at: expiresAt,
+    accepted_at: null,
+    accepted_by_user_id: null,
+    created_at: now,
+    updated_at: now,
+  }, inviteId)
+
+  return buildOwnerInviteUrl(token)
+}
+
+const promptOwnerInvite = (property) => {
+  const input = window.prompt(
+    'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
+    '',
+  )
+  const email = String(input || '').trim().toLowerCase()
+  if (!email) return
+  if (!/.+@.+\..+/.test(email)) {
+    Notify.create({
+      type: 'negative',
+      message: 'Please enter a valid email address.',
+      position: 'top',
+    })
+    return
+  }
+
+  ;(async () => {
+    try {
+      const response = await sendOwnerInviteEmailRequest({
+        propertyId: property.id,
+        ownerEmail: email,
+        propertyName: property.nickname || property.address || 'Property',
+        propertyAddress: property.address || '',
+        inviterName:
+          userDataStore.userProfile?.full_name ||
+          userDataStore.userProfile?.user_name ||
+          userDataStore.user?.displayName ||
+          userDataStore.user?.email ||
+          'A property manager',
+      })
+
+      if (response?.email_sent) {
+        Notify.create({
+          type: 'positive',
+          message: 'Owner invitation email sent successfully.',
+          position: 'top',
+          timeout: 4000,
+        })
+        return
+      }
+
+      const inviteLink = String(response?.invite_url || '').trim()
+      openInviteLinkDialog(inviteLink || response?.fallback_reason || '')
+      Notify.create({
+        type: 'warning',
+        message: 'Email was not sent. Invite link is shown for manual copy.',
+        caption: inviteLink || response?.fallback_reason || '',
+        position: 'top',
+        timeout: 6000,
+      })
+    } catch (error) {
+      try {
+        const inviteLink = await createOwnerInvite(property, email)
+        openInviteLinkDialog(inviteLink)
+        Notify.create({
+          type: 'warning',
+          message: 'Email service unavailable. Invite link is shown for manual copy.',
+          caption: inviteLink,
+          position: 'top',
+          timeout: 6000,
+        })
+      } catch (fallbackError) {
+        Notify.create({
+          type: 'negative',
+          message: fallbackError?.message || error?.message || 'Failed to create owner access link.',
+          position: 'top',
+        })
+      }
+    }
+  })()
+}
 const userProperties = computed(() => {
   console.log('MyPropertiesPage - Computing userProperties')
   console.log('userDataStore.userAccessibleProperties:', userDataStore.userAccessibleProperties)
@@ -811,7 +1073,12 @@ const getStatusColor = (status) => {
 }
 
 const getRoleColor = (role) => {
-  return role === 'Property Owner' ? 'deep-purple' : 'teal'
+  const normalized = normalizeRoleValue(role)
+  if (normalized === 'po') return 'deep-purple'
+  if (normalized === 'pm') return 'teal'
+  if (normalized === 'tt') return 'blue'
+  if (normalized === 'sp') return 'orange'
+  return 'grey'
 }
 
 const formatPrice = (price) => {
@@ -870,18 +1137,15 @@ const viewProperty = (propertyId) => {
   // Find the property by ID
   const property = userProperties.value.find((p) => p.id === propertyId)
   if (property) {
-    selectedProperty.value = { ...property }
+    selectedProperty.value = cloneProperty(property)
     showPropertyDialog.value = true
   }
 }
 
 // Dialog functions
 const openCreatePropertyDialog = () => {
-  showCreatePropertyDialog.value = true
-}
-
-const closeCreatePropertyDialog = () => {
-  showCreatePropertyDialog.value = false
+  if (!canCreateProperty.value) return
+  router.push('/create-property')
 }
 
 const openCreateMxRecordDialog = (propertyId, propertyName) => {
@@ -915,10 +1179,6 @@ const closeCreateLeaseDialog = () => {
 }
 
 // Event handlers for form completion
-const onPropertyCreated = () => {
-  closeCreatePropertyDialog()
-  refreshData()
-}
 
 const onMxRecordCreated = () => {
   closeCreateMxRecordDialog()
@@ -953,6 +1213,9 @@ const closePropertyDialog = () => {
 }
 
 const toggleEditMode = () => {
+  if (!isEditMode.value && selectedProperty.value && !selectedProperty.value.spec) {
+    selectedProperty.value.spec = {}
+  }
   isEditMode.value = !isEditMode.value
 }
 
@@ -961,17 +1224,39 @@ const savePropertyChanges = async () => {
 
   editLoading.value = true
   try {
-    // Here you would typically call an API to update the property
-    console.log('Saving property changes:', selectedProperty.value)
-
-    // For now, we'll just show a success message
-    // In a real app, you'd call userDataStore.updateProperty(selectedProperty.value)
+    const payload = {
+      address: String(selectedProperty.value.address || '').trim(),
+      city: String(selectedProperty.value.city || '').trim(),
+      state: String(selectedProperty.value.state || '').trim(),
+      zip: String(selectedProperty.value.zip || '').trim(),
+      nickname: selectedProperty.value.nickname || '',
+      type: selectedProperty.value.type || '',
+      status: selectedProperty.value.status || '',
+      spec: {
+        ...(selectedProperty.value.spec || {}),
+      },
+      updatedAt: new Date(),
+    }
+    await updateDocument('properties', selectedProperty.value.id, payload)
 
     isEditMode.value = false
-    // Refresh the data to get updated information
     await refreshData()
+    const refreshed = userProperties.value.find((p) => p.id === selectedProperty.value.id)
+    if (refreshed) {
+      selectedProperty.value = cloneProperty(refreshed)
+    }
+    Notify.create({
+      type: 'positive',
+      message: 'Property updated successfully.',
+      position: 'top',
+    })
   } catch (error) {
     console.error('Error saving property:', error)
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to update property.',
+      position: 'top',
+    })
   } finally {
     editLoading.value = false
   }
@@ -981,7 +1266,7 @@ const cancelEdit = () => {
   // Reset to original property data
   const originalProperty = userProperties.value.find((p) => p.id === selectedProperty.value.id)
   if (originalProperty) {
-    selectedProperty.value = { ...originalProperty }
+    selectedProperty.value = cloneProperty(originalProperty)
   }
   isEditMode.value = false
 }
@@ -1209,6 +1494,47 @@ const cancelEdit = () => {
   overflow-y: auto;
 }
 
+.create-fullscreen-card {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+  position: relative;
+}
+
+.create-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-lease-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  padding-bottom: calc(72px + constant(safe-area-inset-bottom));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(2px);
+}
+
 .property-details-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -1268,7 +1594,7 @@ const cancelEdit = () => {
 }
 
 .edit-btn:hover {
-  background: rgba(25, 118, 210, 0.1);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .save-btn:hover {

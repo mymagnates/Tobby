@@ -1,18 +1,45 @@
 <template>
   <div class="create-transaction animate-fade-in">
     <q-card class="elevated">
-      <q-card-section class="q-pa-md">
-        <div class="text-h6 text-weight-bold text-primary q-mb-sm">
-          <q-icon name="receipt_long" class="q-mr-sm" />
-          Create New Transaction Record
+      <q-card-section class="q-pa-md composer-head">
+        <div class="row items-start justify-between q-col-gutter-sm">
+          <div class="col">
+            <div class="text-h6 text-weight-bold text-primary q-mb-sm">
+              <q-icon name="receipt_long" class="q-mr-sm" />
+              Create New Transaction Record
+            </div>
+            <div class="text-caption text-grey-7 q-mb-sm">
+              Record a payment or cost with participants, amount, date, and optional proof.
+            </div>
+          </div>
+          <div class="col-auto row items-center q-gutter-sm">
+            <q-btn
+              unelevated
+              color="primary"
+              text-color="white"
+              label="Cancel"
+              class="top-action-btn"
+              @click="handleCancel"
+            />
+            <q-btn
+              type="submit"
+              form="create-transaction-form"
+              class="top-action-btn"
+              color="primary"
+              text-color="white"
+              :loading="loading"
+              label="Save"
+              unelevated
+            />
+          </div>
         </div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form @submit="onSubmit" class="q-gutter-sm">
-          <!-- Property Selection and Transaction Type Row -->
+        <q-form id="create-transaction-form" @submit="onSubmit" class="q-gutter-sm">
+          <div class="section-label q-mb-xs">Transaction Context</div>
           <div class="row q-gutter-sm">
-            <div v-if="propertyId" class="col-12 col-md-6">
+            <div v-if="propertyId && !showPropertySelect" class="col-12 col-md-6">
               <q-input
                 :model-value="propertyName"
                 label="Property"
@@ -36,7 +63,11 @@
               class="col-12 col-md-6"
               :loading="propertiesLoading"
               bg-color="grey-1"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="home" color="primary" />
+              </template>
+            </q-select>
 
             <q-select
               v-model="transactionData.transac_type"
@@ -48,11 +79,15 @@
               :rules="[(val) => !!val || 'Transaction type is required']"
               bg-color="grey-1"
               class="col-12 col-md-6"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="category" color="primary" />
+              </template>
+            </q-select>
           </div>
 
           <div
-            v-if="!propertyId && !propertiesLoading && availableProperties.length === 0"
+            v-if="showPropertySelect && !propertiesLoading && availableProperties.length === 0"
             class="text-caption text-primary q-mb-sm"
           >
             No properties found. Check console for details.
@@ -70,7 +105,7 @@
             />
           </div>
 
-          <!-- From/To Role Selection Row -->
+          <div class="section-label q-mb-xs q-mt-sm">Transaction Details</div>
           <div class="row q-gutter-sm">
             <q-select
               v-model="transactionData.transac_from"
@@ -82,7 +117,11 @@
               :rules="[(val) => !!val || 'Please select who the transaction is from']"
               class="col-12 col-md-6"
               bg-color="grey-1"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="north_east" color="primary" />
+              </template>
+            </q-select>
 
             <q-select
               v-model="transactionData.transac_to"
@@ -98,10 +137,13 @@
               :disable="!transactionData.transac_from"
               class="col-12 col-md-6"
               bg-color="grey-1"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="south_west" color="primary" />
+              </template>
+            </q-select>
           </div>
 
-          <!-- Amount and Date Row -->
           <div class="row q-gutter-sm">
             <q-input
               v-model.number="transactionData.amount"
@@ -117,7 +159,11 @@
               ]"
               class="col-12 col-md-6"
               bg-color="grey-1"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="payments" color="primary" />
+              </template>
+            </q-input>
 
             <q-input
               v-model="transactionData.transac_date"
@@ -129,7 +175,11 @@
               :rules="[(val) => !!val || 'Transaction date is required']"
               class="col-12 col-md-6"
               bg-color="grey-1"
-            />
+            >
+              <template v-slot:prepend>
+                <q-icon name="event" color="primary" />
+              </template>
+            </q-input>
           </div>
 
           <q-input
@@ -185,22 +235,6 @@
             </div>
           </div>
 
-          <!-- Action Buttons Row -->
-          <div class="row q-mt-md">
-            <q-btn
-              type="submit"
-              color="primary"
-              :loading="loading"
-              label="Save Transaction"
-              class="col-12 col-md-6"
-              size="md"
-              unelevated
-            >
-              <template v-slot:prepend>
-                <q-icon name="save" />
-              </template>
-            </q-btn>
-          </div>
         </q-form>
       </q-card-section>
     </q-card>
@@ -224,20 +258,29 @@ const props = defineProps({
     type: String,
     required: false,
   },
+  allowPropertyEdit: {
+    type: Boolean,
+    default: true,
+  },
+  prefill: {
+    type: Object,
+    default: null,
+  },
 })
 
 const route = useRoute()
 const propertyId = computed(() => props.propertyId || route.params.propertyId)
-const propertyName = computed(() => route.query.propertyName || 'Unknown Property')
+const propertyName = computed(() => props.propertyName || route.query.propertyName || 'Unknown Property')
 
 const emit = defineEmits(['transaction-created', 'cancel'])
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { createDocument, loading, uploadImages } = useFirebase()
 
-const availableProperties = computed(() => userDataStore.userAccessibleProperties)
+const availableProperties = computed(() => userDataStore.userAccessibleProperties || [])
 const selectedPropertyId = ref('')
 const propertiesLoading = computed(() => userDataStore.propertiesLoading)
+const showPropertySelect = computed(() => props.allowPropertyEdit || !propertyId.value)
 
 // Role options for from/to fields
 const roleOptions = [
@@ -279,6 +322,21 @@ watch(
       transactionData.transac_to = ''
     }
   },
+)
+
+watch(
+  () => props.prefill,
+  (value) => {
+    if (!value) return
+    if (typeof value.transac_type === 'string') transactionData.transac_type = value.transac_type
+    if (typeof value.transac_from === 'string') transactionData.transac_from = value.transac_from
+    if (typeof value.transac_to === 'string') transactionData.transac_to = value.transac_to
+    if (value.amount !== undefined && value.amount !== null) transactionData.amount = value.amount
+    if (typeof value.transac_date === 'string') transactionData.transac_date = value.transac_date
+    if (typeof value.note === 'string') transactionData.note = value.note
+    if (value.property_id) selectedPropertyId.value = String(value.property_id)
+  },
+  { immediate: true },
 )
 
 // Property ID utilities are now imported from ../utils/propertyIdUtils.js
@@ -671,6 +729,7 @@ const onSubmit = async () => {
       transac_id: `txn_${Date.now()}`,
       property_id: finalPropertyId,
       role: transactionData.role,
+      created_by_role: getUserRoleForProperty(finalPropertyId)?.role || transactionData.role || '',
       transac_from: transactionData.transac_from,
       transac_to: transactionData.transac_to,
       amount: parseFloat(transactionData.amount),
@@ -679,6 +738,7 @@ const onSubmit = async () => {
       note: transactionData.note || '',
       picture_url: pictureUrl, // Add the uploaded image URL
       created_by: userDataStore.userId,
+      created_by_user_id: userDataStore.userId,
       created_datetime: currentTimestamp,
     }
 
@@ -713,8 +773,9 @@ const onSubmit = async () => {
       position: 'top',
     })
 
-    // Navigate back to transactions page
-    router.push('/transactions')
+    if (String(route.path || '').startsWith('/create-transaction')) {
+      router.push('/transactions')
+    }
   } catch (error) {
     console.error('Error creating transaction:', error)
     Notify.create({
@@ -724,12 +785,55 @@ const onSubmit = async () => {
     })
   }
 }
+
+const handleCancel = () => {
+  emit('cancel')
+  if (String(route.path || '').startsWith('/create-transaction')) {
+    router.back()
+  }
+}
 </script>
 
 <style scoped>
 .create-transaction {
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
+}
+
+.composer-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+:global(body.body--dark) .q-card__section.composer-head {
+  background: linear-gradient(180deg, #243447 0%, #1b2635 100%) !important;
+}
+
+:global(body.body--dark) .create-transaction .elevated,
+:global(body.body--dark) .create-transaction .q-card__section:not(.composer-head) {
+  background: #15202b !important;
+  border-color: #2d3f52;
+  color: #e6edf3;
+}
+
+:global(body.body--dark) .create-transaction .bg-grey-1,
+:global(body.body--dark) .create-transaction .q-field__control,
+:global(body.body--dark) .create-transaction .picture-upload-section,
+:global(body.body--dark) .create-transaction .image-preview {
+  background: #223041 !important;
+  border-color: #35506a;
+}
+
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-600);
 }
 
 .q-input {

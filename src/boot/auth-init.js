@@ -11,6 +11,25 @@ import { useUserDataStore } from '../stores/userDataStore'
 export default defineBoot(async () => {
   return new Promise((resolve) => {
     const userDataStore = useUserDataStore()
+
+    if (typeof window !== 'undefined') {
+      const cleanupKey = 'handout-clear-mock-v1'
+      if (!localStorage.getItem(cleanupKey)) {
+        const keysToClear = [
+          'web_sp_bids_v1',
+          'web_sp_projects_v1',
+          'web_sp_invoices_v1',
+          'web_sp_leads_v1',
+          'web_sp_cards_snapshot_v1',
+          'web_sp_documents_v1',
+          'web_sp_credit_account_v1',
+          'web_sp_credit_ledger_v1',
+          'web_sp_credit_orders_v1',
+        ]
+        keysToClear.forEach((key) => localStorage.removeItem(key))
+        localStorage.setItem(cleanupKey, 'true')
+      }
+    }
     
     // Wait for auth state to be determined
     const unsubscribe = onAuthStateChanged(auth, async (user) => {

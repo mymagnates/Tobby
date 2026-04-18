@@ -5,11 +5,20 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { createApiServer } from './apiServer.js'
 import { extractSemanticTags } from './marketplace.js'
 
-const { handler } = createApiServer()
+let cachedHandler = null
+const getHandler = () => {
+  if (cachedHandler) return cachedHandler
+  const { handler } = createApiServer()
+  cachedHandler = handler
+  return cachedHandler
+}
 
 export const mkpl = onRequest(
-  { region: 'us-central1', cors: true },
-  handler,
+  {
+    region: 'us-central1',
+    cors: true,
+  },
+  (req, res) => getHandler()(req, res),
 )
 
 if (!getApps().length) initializeApp()
@@ -42,6 +51,16 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
   const taskStatus = String(taskData?.status || 'open')
   const nextLeadStatus = mapTaskStatusToLeadStatus(taskStatus, currentLead.status || 'open')
   const description = String(taskData?.description || currentLead.description || '')
+  const comments = Array.isArray(taskData?.comments) ? taskData.comments : (Array.isArray(currentLead.comments) ? currentLead.comments : [])
+  const imageUrls = Array.isArray(taskData?.image_urls)
+    ? taskData.image_urls
+    : Array.isArray(taskData?.photos)
+      ? taskData.photos
+      : Array.isArray(currentLead.image_urls)
+        ? currentLead.image_urls
+        : Array.isArray(currentLead.photos)
+          ? currentLead.photos
+          : []
   const title = String(
     taskData?.title ||
       currentLead.title ||
@@ -56,6 +75,52 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
     // Keep Firestore doc id as redundant system reference.
     task_doc_id: taskId,
     property_id: propertyId || taskData?.property_id || currentLead.property_id || null,
+    property_name: String(
+      taskData?.property_name ||
+        taskData?.property_address_line1 ||
+        currentLead.property_name ||
+        currentLead.property_address_line1 ||
+        '',
+    ),
+    property_address_line1: String(taskData?.property_address_line1 || currentLead.property_address_line1 || ''),
+    property_address_line2: String(taskData?.property_address_line2 || currentLead.property_address_line2 || ''),
+    property_city: String(taskData?.property_city || taskData?.city || currentLead.property_city || currentLead.city || ''),
+    property_state: String(taskData?.property_state || taskData?.state || currentLead.property_state || currentLead.state || ''),
+    property_zip: String(
+      taskData?.property_zip ||
+        taskData?.zip_code ||
+        taskData?.postal_code ||
+        taskData?.zip ||
+        currentLead.property_zip ||
+        currentLead.zip_code ||
+        currentLead.postal_code ||
+        currentLead.zip ||
+        '',
+    ),
+    city: String(taskData?.city || taskData?.property_city || currentLead.city || currentLead.property_city || ''),
+    state: String(taskData?.state || taskData?.property_state || currentLead.state || currentLead.property_state || ''),
+    zip_code: String(
+      taskData?.zip_code ||
+        taskData?.property_zip ||
+        taskData?.postal_code ||
+        taskData?.zip ||
+        currentLead.zip_code ||
+        currentLead.property_zip ||
+        currentLead.postal_code ||
+        currentLead.zip ||
+        '',
+    ),
+    postal_code: String(
+      taskData?.postal_code ||
+        taskData?.property_zip ||
+        taskData?.zip_code ||
+        taskData?.zip ||
+        currentLead.postal_code ||
+        currentLead.property_zip ||
+        currentLead.zip_code ||
+        currentLead.zip ||
+        '',
+    ),
     lease_id: taskData?.lease_id || currentLead.lease_id || null,
     creator_id: taskData?.create_id || currentLead.creator_id || null,
     creator_role: taskData?.reported_role || currentLead.creator_role || null,
@@ -74,6 +139,10 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
     bid_count: currentLead.bid_count || 0,
     assigned_sp_id: currentLead.assigned_sp_id || null,
     assigned_bid_id: currentLead.assigned_bid_id || null,
+    comments,
+    comment_count: Number(taskData?.comment_count ?? comments.length ?? currentLead.comment_count ?? 0),
+    image_urls: imageUrls,
+    photo_count: Number(taskData?.photo_count ?? imageUrls.length ?? currentLead.photo_count ?? 0),
     source: currentLead.source || 'task-trigger',
     task_status: taskStatus,
     task_updated_at: toIsoString(taskData?.updatedAt) || now,

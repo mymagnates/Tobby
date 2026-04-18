@@ -40,6 +40,41 @@
       </aside>
 
       <div class="feed-main">
+        <div class="ad-slot-wrap q-mb-sm">
+          <q-skeleton v-if="adSlotLoading" type="rect" class="ad-slot-skeleton" />
+          <q-card
+            v-else-if="adSlotItem"
+            ref="adSlotCardRef"
+            class="ad-slot-card"
+            :style="adCardStyle"
+            clickable
+            @click="openAdSlot"
+          >
+            <q-img
+              :src="adSlotItem.image_url"
+              class="ad-slot-image"
+              fit="cover"
+              no-spinner
+            />
+            <div class="ad-slot-overlay">
+              <div class="ad-slot-title">{{ adSlotItem.title }}</div>
+              <div class="ad-slot-summary">{{ adSlotItem.summary }}</div>
+              <div class="ad-slot-label">{{ adSlotItem.service_type_label }}</div>
+            </div>
+          </q-card>
+          <q-banner
+            v-else-if="adSlotError"
+            dense
+            inline-actions
+            class="ad-slot-error"
+          >
+            {{ adSlotError }}
+            <template #action>
+              <q-btn flat dense label="Retry" @click="loadAdSlot" />
+            </template>
+          </q-banner>
+        </div>
+
         <div class="feed-list feed-grid">
           <q-card v-if="isMainFeedEmpty" class="feed-post feed-empty-card q-mb-sm">
             <q-card-section class="q-pa-md">
@@ -74,6 +109,12 @@
                   </div>
 
                   <div class="post-body">{{ post.brief }}</div>
+                  <div
+                    v-if="post.type === 'task' && post.bidCount > 0"
+                    class="post-body text-purple-8 q-mt-xs"
+                  >
+                    {{ post.latestBidSummary }}
+                  </div>
 
                   <div class="post-open-hint">Tap card to open detail</div>
                 </q-card-section>
@@ -84,15 +125,6 @@
       </div>
 
       <aside class="feed-rail">
-        <q-card class="rail-card q-mb-sm">
-          <q-card-section class="q-pa-sm">
-            <div class="rail-title q-mb-sm">Ad Slot</div>
-            <div class="ad-placeholder">
-              Reserved for future ad placement
-            </div>
-          </q-card-section>
-        </q-card>
-
         <q-card class="rail-card">
           <q-card-section class="q-pa-sm">
             <div class="rail-title q-mb-sm">Contacts</div>
@@ -128,11 +160,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
+import { adSlotApi, marketplaceApi } from '../services/webApiClient'
 
 const router = useRouter()
 const userDataStore = useUserDataStore()
@@ -140,12 +173,16 @@ const { getCollectionData } = useFirebase()
 
 const showContactsDialog = ref(false)
 const propertyReminders = ref([])
+const bidFeedItems = ref([])
+const taskBidSummaries = ref({})
+const adSlotLoading = ref(false)
+const adSlotError = ref('')
+const adSlotItem = ref(null)
+const adSlotCardRef = ref(null)
+const adImpressionSent = ref(false)
+let adObserver = null
 
-const contacts = [
-  { id: 'c1', name: 'AquaFix LLC', role: 'SP • Plumbing', initials: 'AF' },
-  { id: 'c2', name: 'Westlake Tenant', role: 'TT', initials: 'WT' },
-  { id: 'c3', name: 'Property Owner', role: 'PO', initials: 'PO' },
-]
+const contacts = []
 
 const loadPropertyReminders = async () => {
   try {
@@ -180,6 +217,15 @@ onMounted(async () => {
   }
 
   await loadPropertyReminders()
+  await loadBidFeedItems()
+  await loadAdSlot()
+})
+
+onBeforeUnmount(() => {
+  if (adObserver) {
+    adObserver.disconnect()
+    adObserver = null
+  }
 })
 
 watch(
@@ -187,6 +233,25 @@ watch(
   () => {
     loadPropertyReminders()
   }
+)
+
+watch(
+  () => userDataStore.user?.uid,
+  (uid, prevUid) => {
+    if (!uid || uid === prevUid) return
+    loadAdSlot()
+  }
+)
+
+watch(
+  () => [
+    userDataStore.userId,
+    selectedPropertyTasks.value.map((task) => normalizeId(task.id, task.mx_id, task.task_id)).join('|'),
+  ],
+  () => {
+    loadBidFeedItems()
+  },
+  { immediate: true }
 )
 
 const activePropertyLabel = computed(() => 'All Properties')
@@ -220,6 +285,7 @@ const getDueDayFromLease = (lease) => {
   const anchorDate =
     toDateSafe(lease?.rent_due_date) ||
     toDateSafe(lease?.next_rent_due_date) ||
+    toDateSafe(lease?.lease_start_date) ||
     toDateSafe(lease?.start_date) ||
     toDateSafe(lease?.lease_create_date) ||
     toDateSafe(lease?.move_in_date)
@@ -317,6 +383,78 @@ const selectedPropertyLeases = computed(() =>
   userDataStore.userAccessibleLeases || []
 )
 
+const getTaskBidSummary = (task) => {
+  const taskId = normalizeId(task?.id, task?.mx_id, task?.task_id)
+  if (!taskId) return null
+  return taskBidSummaries.value[taskId] || null
+}
+
+const loadBidFeedItems = async () => {
+  try {
+    const tasks = selectedPropertyTasks.value || []
+    if (!tasks.length || !userDataStore.userId) {
+      bidFeedItems.value = []
+      taskBidSummaries.value = {}
+      return
+    }
+
+    const summaryByTask = {}
+    const rowsByTask = await Promise.all(
+      tasks.map(async (task) => {
+        const taskRef = normalizeId(task?.mx_id, task?.task_id, task?.id)
+        if (!taskRef) return []
+        try {
+          const rows = await marketplaceApi.getTaskBids(taskRef, {
+            actor_id: userDataStore.userId,
+            actor_role: 'pm_po',
+          })
+          const taskDataId = normalizeId(task?.id, task?.mx_id, task?.task_id, taskRef)
+          const latestBid = Array.isArray(rows) && rows.length ? rows[0] : null
+          if (taskDataId) {
+            summaryByTask[taskDataId] = {
+              bidCount: Array.isArray(rows) ? rows.length : 0,
+              latestBidAmount: latestBid?.amount || null,
+              latestBidStatus: latestBid?.status || 'submitted',
+              latestBidSpName: latestBid?.sp_business_name || latestBid?.sp_name || 'SP',
+              latestBidAt: latestBid?.created_at || null,
+            }
+          }
+          return (rows || []).map((bid) => ({
+            eventId: makeEventId('bid', normalizeId(bid?.id, bid?.bid_id)),
+            id: `bid-${normalizeId(bid?.id, bid?.bid_id)}`,
+            type: 'bid',
+            avatarColor: 'purple-2',
+            avatarIcon: 'gavel',
+            title: `Bid received for ${task?.task_title || task?.title || `Task ${taskRef}`}`,
+            meta: `${activePropertyLabel.value} • Bids`,
+            brief: `$${Number(bid?.amount || 0).toLocaleString()} · ${bid?.status || 'submitted'} · ${
+              bid?.sp_business_name || bid?.sp_name || 'SP'
+            }`,
+            detailPath: '/mx-records',
+            dataType: 'bid',
+            dataId: normalizeId(bid?.id, bid?.bid_id),
+            taskId: taskDataId,
+            eventDate: bid?.created_at,
+          }))
+        } catch {
+          return []
+        }
+      })
+    )
+
+    bidFeedItems.value = rowsByTask
+      .flat()
+      .filter(Boolean)
+      .sort((a, b) => getEventTimestamp(b) - getEventTimestamp(a))
+      .slice(0, 10)
+    taskBidSummaries.value = summaryByTask
+  } catch (error) {
+    console.error('Failed to load bid feed items:', error)
+    bidFeedItems.value = []
+    taskBidSummaries.value = {}
+  }
+}
+
 const getEventTimestamp = (item) => {
   const date =
     toDateSafe(item?.eventDate) ||
@@ -355,20 +493,35 @@ const formatEventTime = (item) => {
 
 const taskFeedItems = computed(() =>
   selectedPropertyTasks.value
-    .map((task) => ({
-      eventId: makeEventId('task', normalizeId(task.id, task.mx_id)),
-      id: `task-${task.id}`,
-      type: 'task',
-      avatarColor: 'blue-2',
-      avatarIcon: 'build',
-      title: `Task ${task.mx_id || `#${task.id}`} updated`,
-      meta: `${activePropertyLabel.value} • PM`,
-      brief: task.description || 'Task has new updates.',
-      detailPath: '/mx-records',
-      dataType: 'task',
-      dataId: normalizeId(task.id, task.mx_id),
-      eventDate: task.updatedAt || task.createAt || task.report_date,
-    }))
+    .map((task) => {
+      const taskId = normalizeId(task.id, task.mx_id)
+      const bidSummary = getTaskBidSummary(task)
+      return {
+        eventId: makeEventId('task', taskId),
+        id: `task-${task.id}`,
+        type: 'task',
+        avatarColor: 'blue-2',
+        avatarIcon: 'build',
+        title: `Task ${task.mx_id || `#${task.id}`} updated`,
+        meta: `${activePropertyLabel.value} • PM`,
+        brief: task.description || 'Task has new updates.',
+        bidCount: bidSummary?.bidCount || 0,
+        latestBidAmount: bidSummary?.latestBidAmount || null,
+        latestBidStatus: bidSummary?.latestBidStatus || null,
+        latestBidSpName: bidSummary?.latestBidSpName || null,
+        latestBidAt: bidSummary?.latestBidAt || null,
+        latestBidSummary:
+          bidSummary && bidSummary.bidCount > 0
+            ? `${bidSummary.bidCount} bid${bidSummary.bidCount > 1 ? 's' : ''} · Latest ${
+                bidSummary.latestBidSpName
+              } $${Number(bidSummary.latestBidAmount || 0).toLocaleString()}`
+            : '',
+        detailPath: '/mx-records',
+        dataType: 'task',
+        dataId: taskId,
+        eventDate: task.updatedAt || task.createAt || task.report_date,
+      }
+    })
     .sort((a, b) => getEventTimestamp(b) - getEventTimestamp(a))
     .slice(0, 5)
 )
@@ -416,11 +569,13 @@ const leaseFeedItems = computed(() =>
 const filteredReminderItems = ref([])
 const feedTypeLabels = {
   task: 'Tasks',
+  bid: 'Bids',
   transaction: 'Transactions',
   lease: 'Leases',
 }
 const feedTypeOrder = [
   { type: 'task', items: taskFeedItems },
+  { type: 'bid', items: bidFeedItems },
   { type: 'transaction', items: transactionFeedItems },
   { type: 'lease', items: leaseFeedItems },
 ]
@@ -456,10 +611,86 @@ const openDetail = (post) => {
     })
     return
   }
-  const query = {}
-  query.openType = dataType
-  query.openId = dataId
+  const query = { openType: dataType, openId: dataId }
+  if (dataType === 'bid') {
+    query.openTaskId = normalizeId(post?.taskId, post?.task_id, post?.taskDataId)
+  }
   router.push({ path: post.detailPath, query })
+}
+
+const adCardStyle = computed(() => {
+  const width = Number(adSlotItem.value?.card_spec?.width_px || 320)
+  const height = Number(adSlotItem.value?.card_spec?.height_px || 180)
+  return {
+    '--ad-card-width': `${width}px`,
+    '--ad-card-height': `${height}px`,
+    aspectRatio: `${width} / ${height}`,
+  }
+})
+
+const reportAdImpression = async (entry) => {
+  if (!adSlotItem.value?.impression_token || adImpressionSent.value) return
+  try {
+    await adSlotApi.reportImpression({
+      userId: userDataStore.user?.uid,
+      role: 'pm_po',
+      impressionToken: adSlotItem.value.impression_token,
+      viewportRatio: Number(entry?.intersectionRatio || 0),
+      dwellMs: null,
+    })
+    adImpressionSent.value = true
+  } catch (error) {
+    console.error('Failed to report ad impression:', error)
+  }
+}
+
+const bindAdObserver = async () => {
+  if (adObserver) {
+    adObserver.disconnect()
+    adObserver = null
+  }
+  await nextTick()
+  const el = adSlotCardRef.value?.$el || adSlotCardRef.value
+  if (!el || !adSlotItem.value) return
+  adObserver = new IntersectionObserver(
+    (entries) => {
+      const first = entries?.[0]
+      if (!first?.isIntersecting) return
+      if ((first.intersectionRatio || 0) < 0.6) return
+      reportAdImpression(first)
+    },
+    { threshold: [0.6, 0.8] }
+  )
+  adObserver.observe(el)
+}
+
+const loadAdSlot = async () => {
+  if (!userDataStore.user?.uid) return
+  adSlotLoading.value = true
+  adSlotError.value = ''
+  try {
+    const response = await adSlotApi.getFeed({
+      userId: userDataStore.user.uid,
+      role: 'pm_po',
+      slotId: 'pm_feed_top',
+      limit: 1,
+    })
+    adSlotItem.value = (response.items || [])[0] || null
+    adImpressionSent.value = false
+    await bindAdObserver()
+  } catch (error) {
+    adSlotItem.value = null
+    adSlotError.value = error?.message || 'Failed to load sponsored content.'
+  } finally {
+    adSlotLoading.value = false
+  }
+}
+
+const openAdSlot = () => {
+  const clickPath = adSlotItem.value?.tracking?.click_url
+  const target = adSlotApi.resolveClickUrl(clickPath)
+  if (!target) return
+  window.location.assign(target)
 }
 </script>
 
@@ -477,10 +708,91 @@ const openDetail = (post) => {
   min-width: 0;
 }
 
+.feed-reminders {
+  grid-column: 1;
+}
+
+.feed-main {
+  grid-column: 2;
+}
+
+.feed-rail {
+  grid-column: 3;
+}
+
 .feed-list.feed-grid {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.ad-slot-wrap {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ad-slot-card {
+  width: min(100%, var(--ad-card-width, 320px));
+  max-width: var(--ad-card-width, 320px);
+  min-height: var(--ad-card-height, 180px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--neutral-200);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.ad-slot-image {
+  width: 100%;
+  height: 100%;
+}
+
+.ad-slot-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02) 18%, rgba(0, 0, 0, 0.66) 100%);
+  color: #fff;
+}
+
+.ad-slot-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ad-slot-summary {
+  font-size: 0.74rem;
+  opacity: 0.95;
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+
+.ad-slot-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  background: rgba(11, 18, 32, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ad-slot-skeleton {
+  width: min(100%, 320px);
+  max-width: 320px;
+  height: 180px;
+  border-radius: 12px;
+}
+
+.ad-slot-error {
+  width: min(100%, 560px);
+  border-radius: 10px;
 }
 
 .feed-type-section {
@@ -591,19 +903,6 @@ const openDetail = (post) => {
   color: var(--neutral-800);
 }
 
-.ad-placeholder {
-  min-height: 120px;
-  border-radius: 10px;
-  border: 1px dashed var(--neutral-300);
-  background: var(--bg-secondary);
-  color: var(--neutral-500);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 12px;
-}
-
 .reminder-card {
   border-radius: 10px;
 }
@@ -632,10 +931,7 @@ const openDetail = (post) => {
 
 @media (max-width: 1280px) {
   .feed-shell {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-  .feed-rail {
-    grid-column: 1 / -1;
+    grid-template-columns: 220px minmax(0, 1fr) 240px;
   }
 }
 
@@ -645,12 +941,17 @@ const openDetail = (post) => {
   }
 
   .feed-reminders,
+  .feed-main,
   .feed-rail {
     grid-column: auto;
   }
 
   .feed-list.feed-grid {
     gap: 10px;
+  }
+
+  .ad-slot-wrap {
+    justify-content: center;
   }
 
   .feed-type-grid {

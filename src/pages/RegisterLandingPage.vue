@@ -17,8 +17,8 @@
             <div class="role-icon-wrap role-icon-pmpo">
               <q-icon name="apartment" size="32px" color="white" />
             </div>
-            <div class="role-label">Property Manager / Owner</div>
-            <div class="role-desc">Manage properties, tenants, leases, transactions, and maintenance tasks.</div>
+            <div class="role-label">Property Manager</div>
+            <div class="role-desc">Create and manage properties, tenants, leases, maintenance, and owner relationships.</div>
           </q-card-section>
         </q-card>
 
@@ -34,21 +34,6 @@
             </div>
             <div class="role-label">Service Provider</div>
             <div class="role-desc">Receive leads, submit bids, manage projects, and send invoices.</div>
-          </q-card-section>
-        </q-card>
-
-        <q-card
-          flat bordered
-          class="role-card"
-          clickable
-          @click="router.push('/public/tenant-signup')"
-        >
-          <q-card-section class="role-card-body">
-            <div class="role-icon-wrap role-icon-tt">
-              <q-icon name="person" size="32px" color="white" />
-            </div>
-            <div class="role-label">Tenant</div>
-            <div class="role-desc">View your lease, pay rent, submit maintenance requests, and upload documents.</div>
           </q-card-section>
         </q-card>
       </div>
@@ -142,8 +127,6 @@ const router = useRouter()
 
 .role-icon-pmpo { background: linear-gradient(135deg, #1976d2, #1565c0); }
 .role-icon-sp { background: linear-gradient(135deg, #f57c00, #e65100); }
-.role-icon-tt { background: linear-gradient(135deg, #43a047, #2e7d32); }
-
 .role-label {
   font-size: 1rem;
   font-weight: 700;

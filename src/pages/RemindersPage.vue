@@ -1,17 +1,5 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row justify-end q-mb-md">
-      <div class="row q-gutter-sm">
-        <q-btn
-          icon="add"
-          color="primary"
-          flat
-          label="Create Reminder"
-          @click="showCreateDialog = true"
-        />
-      </div>
-    </div>
-
     <!-- Quick Stats -->
     <div class="row q-gutter-md q-mb-lg">
       <q-card class="summary-card">
@@ -44,47 +32,51 @@
     </div>
 
     <!-- Filters -->
-    <div class="row q-gutter-md q-mb-md">
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="selectedProperty"
-          :options="propertyOptions"
-          label="Filter by Property"
-          clearable
-          outlined
-          dense
-        />
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="selectedCategory"
-          :options="categorySelectOptions"
-          option-label="label"
-          option-value="value"
-          label="Filter by Category"
-          clearable
-          outlined
-          dense
-          emit-value
-          map-options
-        />
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="selectedStatus"
-          :options="statusOptions"
-          label="Filter by Status"
-          clearable
-          outlined
-          dense
-        />
-      </div>
-      <div class="col-12 col-md-3">
-        <q-input v-model="searchText" label="Search" outlined dense clearable>
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
+    <div class="row q-col-gutter-md q-mb-md">
+      <div class="col-12">
+        <div class="row q-gutter-md items-end">
+          <div class="col-12 col-md-4">
+            <q-select
+              v-model="selectedCategory"
+              :options="categorySelectOptions"
+              option-label="label"
+              option-value="value"
+              label="Filter by Category"
+              clearable
+              outlined
+              dense
+              emit-value
+              map-options
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <q-select
+              v-model="selectedStatus"
+              :options="statusOptions"
+              label="Filter by Status"
+              clearable
+              outlined
+              dense
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <q-input v-model="searchText" label="Search" outlined dense clearable>
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+          </div>
+          <div v-if="canManageRecords" class="col-12 col-md-auto row justify-end">
+            <q-btn
+              icon="add"
+              color="primary"
+              unelevated
+              text-color="white"
+              label="Create Reminder"
+              @click="openCreateDialog"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -136,6 +128,10 @@
                 <q-tooltip>Click to view renewal history</q-tooltip>
               </q-badge>
             </div>
+            <div class="text-body2 text-grey-7 q-mb-xs">
+              <q-icon name="event_available" size="16px" class="q-mr-xs" />
+              {{ getReminderDueLabel(reminder) }}
+            </div>
 
             <div class="text-body2 text-grey-6 q-mb-xs">
               <q-icon name="repeat" size="16px" class="q-mr-xs" />
@@ -152,7 +148,7 @@
 
           <q-card-actions class="reminder-actions">
             <!-- First Row: Complete and Renew -->
-            <div class="action-row">
+            <div class="action-row" v-if="canManageRecords">
               <q-btn
                 flat
                 dense
@@ -176,16 +172,16 @@
                 dense
                 color="primary"
                 icon="refresh"
-                label="Defer"
+                label="Renew"
                 @click="renewReminder(reminder)"
                 class="action-btn"
               >
-                <q-tooltip>Defer reminder (restart clock)</q-tooltip>
+                <q-tooltip>Renew reminder and set next due date</q-tooltip>
               </q-btn>
             </div>
 
             <!-- Second Row: Status and Edit -->
-            <div class="action-row">
+            <div class="action-row" v-if="canManageRecords">
               <q-btn
                 flat
                 dense
@@ -207,7 +203,7 @@
             </div>
 
             <!-- Third Row: Delete -->
-            <div class="action-row">
+            <div class="action-row" v-if="canManageRecords">
               <q-btn
                 flat
                 dense
@@ -231,116 +227,96 @@
     </div>
 
     <!-- Create/Edit Reminder Dialog -->
-    <q-dialog v-model="showCreateDialog" position="standard">
-      <q-card class="reminder-dialog compact-dialog">
-        <q-card-section class="dialog-header">
-          <div class="text-h6">{{ editingReminder ? 'Edit Reminder' : 'Create New Reminder' }}</div>
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-
-        <q-card-section class="dialog-content">
-          <q-form @submit="saveReminder" class="compact-form">
-            <!-- Property and Category Row -->
-            <div class="form-row">
-              <div class="form-field">
-                <UniversalPropertySelect
-                  v-model="reminderForm.property_id"
-                  label="Property *"
-                  :rules="[(val) => !!val || 'Property is required']"
-                  @property-change="onPropertyChange"
-                />
-              </div>
-              <div class="form-field">
-                <q-select
-                  v-model="reminderForm.category"
-                  :options="categorySelectOptions"
-                  option-label="label"
-                  option-value="value"
-                  label="Category *"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                  :rules="[(val) => !!val || 'Category is required']"
-                />
-              </div>
-            </div>
-
-            <!-- Date and Repeat Row -->
-            <div class="form-row">
-              <div class="form-field">
-                <q-input
-                  v-model="reminderForm.start_date"
-                  label="Start Date *"
-                  type="date"
-                  outlined
-                  dense
-                  :rules="[(val) => !!val || 'Start date is required']"
-                />
-              </div>
-              <div class="form-field">
-                <q-select
-                  v-model="reminderForm.repeat_by"
-                  :options="repeatSelectOptions"
-                  option-label="label"
-                  option-value="value"
-                  label="Repeat By"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                  clearable
-                />
-              </div>
-            </div>
-
-            <!-- Amount and Status Row -->
-            <div class="form-row">
-              <div class="form-field">
-                <q-input
-                  v-model.number="reminderForm.amount"
-                  label="Amount"
-                  type="number"
-                  step="0.01"
-                  outlined
-                  dense
-                />
-              </div>
-              <div class="form-field status-field">
-                <q-checkbox v-model="reminderForm.status" label="Active" />
-              </div>
-            </div>
-
-            <!-- Note Field -->
-            <div class="form-row">
-              <div class="form-field full-width">
-                <q-input
-                  v-model="reminderForm.note"
-                  label="Note"
-                  type="textarea"
-                  outlined
-                  dense
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="form-actions">
-              <q-btn flat label="Cancel" color="primary" v-close-popup />
-              <q-btn
-                type="submit"
-                :label="editingReminder ? 'Update' : 'Create'"
-                color="primary"
-                text-color="white"
-                class="btn-primary"
-                :loading="saving"
-              />
-            </div>
-          </q-form>
+    <q-dialog v-model="showCreateDialog" persistent maximized>
+      <q-card class="create-fullscreen-card reminder-create-fullscreen elevated">
+        <q-card-section class="create-fullscreen-body dialog-content">
+          <CreateReminder
+            :property-id="fixedPropertyId"
+            :prefill="editingReminder"
+            :allow-property-edit="!hasMatchedFixedProperty"
+            @reminder-saved="onReminderSaved"
+            @cancel="showCreateDialog = false"
+          />
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <DetailShell
+      v-model="showReminderDetail"
+      title="Reminder Details"
+      :subtitle="
+        selectedReminder
+          ? `${getPropertyName(selectedReminder.property_id)} • ${selectedReminder.category || 'Reminder'}`
+          : ''
+      "
+      @close="closeReminderDetail"
+    >
+      <div class="reminder-detail-body" v-if="selectedReminder">
+        <div v-if="canManageRecords" class="reminder-detail-actions">
+          <q-btn
+            color="primary"
+            unelevated
+            icon="refresh"
+            label="Renew"
+            @click="renewReminder(selectedReminder)"
+          />
+        </div>
+        <div class="reminder-detail-grid">
+          <div class="detail-block">
+            <div class="detail-label">Property</div>
+            <div class="detail-value">{{ getPropertyName(selectedReminder.property_id) }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Category</div>
+            <div class="detail-value">{{ selectedReminder.category || 'N/A' }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">
+              <q-chip
+                :color="selectedReminder.status ? 'positive' : 'negative'"
+                text-color="white"
+                size="sm"
+              >
+                {{ selectedReminder.status ? 'Active' : 'Inactive' }}
+              </q-chip>
+            </div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Start Date</div>
+            <div class="detail-value">{{ formatDate(selectedReminder.start_date) }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Due</div>
+            <div class="detail-value">{{ getReminderDueLabel(selectedReminder) }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Repeat</div>
+            <div class="detail-value">{{ selectedReminder.repeat_by || 'One-time' }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Amount</div>
+            <div class="detail-value">
+              {{ selectedReminder.amount ? `$${formatCurrency(selectedReminder.amount)}` : 'N/A' }}
+            </div>
+          </div>
+          <div class="detail-block full-width">
+            <div class="detail-label">Note</div>
+            <div class="detail-value">{{ selectedReminder.note || 'No notes added.' }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Created</div>
+            <div class="detail-value">{{ formatDate(selectedReminder.created_date) }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-label">Renewals</div>
+            <div class="detail-value">
+              {{ selectedReminder.renewals ? selectedReminder.renewals.length : 0 }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </DetailShell>
 
     <!-- Renewal History Dialog -->
     <q-dialog v-model="showRenewalHistoryDialog" persistent>
@@ -375,7 +351,7 @@
               </span>
             </div>
             <div class="text-caption text-grey-6">
-              Current Start Date: {{ formatDate(selectedReminderForHistory.start_date) }}
+              Current Due Date: {{ formatDate(selectedReminderForHistory.due_date) }}
             </div>
           </div>
 
@@ -404,12 +380,16 @@
                     <span class="detail-value">{{ formatDateTime(renewal.renewed_at) }}</span>
                   </div>
                   <div class="renewal-detail-item">
-                    <span class="detail-label">Previous Start Date:</span>
-                    <span class="detail-value">{{ formatDate(renewal.previous_start_date) }}</span>
+                    <span class="detail-label">Previous Due Date:</span>
+                    <span class="detail-value">{{
+                      formatDate(renewal.previous_due_date || renewal.previous_start_date)
+                    }}</span>
                   </div>
                   <div class="renewal-detail-item">
-                    <span class="detail-label">New Start Date:</span>
-                    <span class="detail-value">{{ formatDate(renewal.new_start_date) }}</span>
+                    <span class="detail-label">New Due Date:</span>
+                    <span class="detail-value">{{
+                      formatDate(renewal.new_due_date || renewal.new_start_date)
+                    }}</span>
                   </div>
                   <q-chip
                     v-if="index === 0"
@@ -438,11 +418,12 @@
               >
                 <div class="renewal-details">
                   <div class="renewal-detail-item">
-                    <span class="detail-label">Original Start Date:</span>
+                    <span class="detail-label">Original Due Date:</span>
                     <span class="detail-value">
                       {{
                         formatDate(
-                          selectedReminderForHistory.created_date ||
+                          selectedReminderForHistory.due_date ||
+                            selectedReminderForHistory.created_date ||
                             selectedReminderForHistory.start_date,
                         )
                       }}
@@ -475,19 +456,21 @@ import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
-import UniversalPropertySelect from '../components/UniversalPropertySelect.vue'
+import CreateReminder from '../components/CreateReminder.vue'
+import DetailShell from '../components/details/DetailShell.vue'
 
 const userDataStore = useUserDataStore()
 const route = useRoute()
-const { createDocument, updateDocument, deleteDocument, getCollectionData, getDocument } =
+const { updateDocument, deleteDocument, getCollectionData } =
   useFirebase()
 
 // Reactive data
 const loading = ref(false)
-const saving = ref(false)
 const reminders = ref([])
 const showCreateDialog = ref(false)
 const editingReminder = ref(null)
+const selectedReminder = ref(null)
+const showReminderDetail = ref(false)
 
 // Renewal history dialog
 const showRenewalHistoryDialog = ref(false)
@@ -499,17 +482,26 @@ const selectedCategory = ref(null)
 const selectedStatus = ref(null)
 const searchText = ref('')
 const deepLinkHandled = ref(false)
-
-// Form data
-const reminderForm = ref({
-  property_id: null,
-  category: '',
-  start_date: new Date().toISOString().split('T')[0],
-  repeat_by: '',
-  amount: null,
-  note: '',
-  status: true,
+const canManageRecords = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  return ['pm', 'po', 'admin'].includes(accountType)
 })
+
+const fixedPropertyId = computed(() =>
+  String(route.params.propertyId || route.query.propertyId || route.query.property || '').trim(),
+)
+const matchedFixedProperty = computed(() =>
+  (userDataStore.userAccessibleProperties || []).find(
+    (property) => String(property.id || property.property_id || '').trim() === fixedPropertyId.value,
+  ) || null,
+)
+const hasMatchedFixedProperty = computed(() => Boolean(matchedFixedProperty.value))
+
+const openCreateDialog = () => {
+  if (!canManageRecords.value) return
+  editingReminder.value = null
+  showCreateDialog.value = true
+}
 
 // Options
 const categorySelectOptions = [
@@ -521,25 +513,10 @@ const categorySelectOptions = [
   { label: 'Tax', value: 'tax' },
   { label: 'Other', value: 'other' },
 ]
-const repeatSelectOptions = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Yearly', value: 'yearly' },
-  { label: 'One-time', value: 'one-time' },
-]
 const statusOptions = [
   { label: 'Active', value: true },
   { label: 'Inactive', value: false },
 ]
-
-// Use universal property options from the store
-const propertyOptions = computed(() => {
-  console.log('=== REMINDERS PAGE - Using Universal Property Options ===')
-  console.log('Universal property options:', userDataStore.universalPropertyOptions)
-  return userDataStore.universalPropertyOptions
-})
-
 // Computed properties
 const activeReminders = computed(() => reminders.value.filter((r) => r.status).length)
 
@@ -578,6 +555,59 @@ const filteredReminders = computed(() => {
 
   return filtered
 })
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const toMidnightDate = (value) => {
+  if (!value) return null
+  const date = value instanceof Date ? new Date(value) : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+const toIsoDate = (value) => {
+  const date = toMidnightDate(value)
+  return date ? date.toISOString().split('T')[0] : ''
+}
+
+const normalizeRepeatValue = (value) => String(value || 'one-time').trim().toLowerCase()
+
+const calculateNextDueDate = (baseDateValue, repeatBy) => {
+  const repeatValue = normalizeRepeatValue(repeatBy)
+  const base = toMidnightDate(baseDateValue) || toMidnightDate(new Date())
+  const next = new Date(base)
+  if (repeatValue === 'daily') next.setDate(next.getDate() + 1)
+  else if (repeatValue === 'weekly') next.setDate(next.getDate() + 7)
+  else if (repeatValue === 'monthly') next.setMonth(next.getMonth() + 1)
+  else if (repeatValue === 'yearly') next.setFullYear(next.getFullYear() + 1)
+  else next.setDate(next.getDate() + 30)
+  return toIsoDate(next)
+}
+
+const getReminderDueDate = (reminder) => toMidnightDate(reminder?.due_date || reminder?.start_date)
+
+const getReminderDueLabel = (reminder) => {
+  const dueDate = getReminderDueDate(reminder)
+  if (!dueDate) return 'Due: N/A'
+  const today = toMidnightDate(new Date())
+  const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / MS_PER_DAY)
+  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`
+  if (diffDays === 0) return 'Due today'
+  return `Due in ${diffDays} day${diffDays === 1 ? '' : 's'}`
+}
+
+const syncUpdatedReminder = (updatedReminder) => {
+  const index = reminders.value.findIndex((r) => r.id === updatedReminder.id)
+  if (index !== -1) {
+    reminders.value[index] = updatedReminder
+  }
+  if (selectedReminder.value?.id === updatedReminder.id) {
+    selectedReminder.value = { ...updatedReminder }
+  }
+  if (selectedReminderForHistory.value?.id === updatedReminder.id) {
+    selectedReminderForHistory.value = { ...updatedReminder }
+  }
+}
 
 // Methods
 const loadReminders = async () => {
@@ -645,7 +675,7 @@ const tryOpenDeepLinkedReminder = () => {
   })
   if (!targetReminder) return
 
-  editReminder(targetReminder)
+  openReminderDetail(targetReminder)
   deepLinkHandled.value = true
 }
 
@@ -687,247 +717,26 @@ const debugStoreState = () => {
 
 window.debugStoreState = debugStoreState
 
-const saveReminder = async () => {
-  console.log('=== SAVE REMINDER CALLED ===')
-  console.log('Form data:', reminderForm.value)
-  console.log('User authenticated:', userDataStore.isAuthenticated)
-  console.log('User ID:', userDataStore.userId)
-  console.log('Firebase auth user:', userDataStore.user)
-  console.log('Available properties count:', userDataStore.userAccessibleProperties.length)
-
-  // Run full debug before proceeding
-  debugRemindersPage()
-
-  // Check authentication first
-  if (!userDataStore.isAuthenticated) {
-    console.log('ERROR: User not authenticated')
-    Notify.create({
-      type: 'negative',
-      message: 'Please sign in to create reminders',
-      position: 'top',
-    })
-    return
-  }
-
-  if (!userDataStore.userId) {
-    console.log('ERROR: No user ID available')
-    Notify.create({
-      type: 'negative',
-      message: 'User ID not available. Please sign in again.',
-      position: 'top',
-    })
-    return
-  }
-
-  saving.value = true
-  try {
-    const propertyId =
-      reminderForm.value.property_id?.value ||
-      reminderForm.value.property_id?.id ||
-      reminderForm.value.property_id
-    console.log('Property ID:', propertyId)
-    console.log('Property ID type:', typeof propertyId)
-
-    if (!propertyId) {
-      console.log('ERROR: No property selected')
-      Notify.create({
-        type: 'negative',
-        message: 'Please select a property',
-        position: 'top',
-      })
-      return
-    }
-
-    // Get the selected property (no accessibility check)
-    console.log('=== PROPERTY SELECTION ===')
-    console.log('Selected property ID:', propertyId, 'Type:', typeof propertyId)
-    console.log(
-      'Available properties in store:',
-      userDataStore.userAccessibleProperties.map((p) => ({
-        id: p.id,
-        type: typeof p.id,
-        nickname: p.nickname,
-      })),
-    )
-
-    const selectedProperty = userDataStore.getPropertyById(propertyId)
-    console.log('Selected property:', selectedProperty)
-
-    if (!selectedProperty) {
-      console.log('ERROR: Selected property not found in store')
-      Notify.create({
-        type: 'negative',
-        message: 'Selected property not found. Please refresh and try again.',
-        position: 'top',
-      })
-      return
-    }
-
-    const normalizedCategory = String(
-      reminderForm.value.category?.value || reminderForm.value.category || '',
-    )
-      .trim()
-      .toLowerCase()
-    if (!normalizedCategory) {
-      console.log('ERROR: No category selected')
-      Notify.create({
-        type: 'negative',
-        message: 'Please select a category',
-        position: 'top',
-      })
-      return
-    }
-
-    if (!reminderForm.value.start_date) {
-      console.log('ERROR: No start date selected')
-      Notify.create({
-        type: 'negative',
-        message: 'Please select a start date',
-        position: 'top',
-      })
-      return
-    }
-
-    const normalizedRepeat = String(
-      reminderForm.value.repeat_by?.value || reminderForm.value.repeat_by || '',
-    )
-      .trim()
-      .toLowerCase()
-
-    const amountValue = reminderForm.value.amount
-    const normalizedAmount =
-      amountValue === null || amountValue === '' || Number.isNaN(Number(amountValue))
-        ? null
-        : Number(amountValue)
-
-    const reminderData = {
-      category: normalizedCategory,
-      start_date: reminderForm.value.start_date,
-      repeat_by: normalizedRepeat || 'one-time',
-      amount: normalizedAmount,
-      note: (reminderForm.value.note || '').trim(),
-      status: !!reminderForm.value.status,
-      created_date: new Date().toISOString(),
-      created_by: userDataStore.userId,
-    }
-
-    if (editingReminder.value) {
-      // Update existing reminder in property's subcollection
-      await updateDocument(
-        `properties/${propertyId}/reminders`,
-        editingReminder.value.id,
-        reminderData,
-      )
-      const index = reminders.value.findIndex((r) => r.id === editingReminder.value.id)
-      if (index !== -1) {
-        reminders.value[index] = {
-          ...reminderData,
-          id: editingReminder.value.id,
-          property_id: propertyId,
-        }
-      }
-      Notify.create({
-        type: 'positive',
-        message: 'Reminder updated successfully',
-        position: 'top',
-      })
-    } else {
-      // Create new reminder in property's subcollection
-      console.log('Creating new reminder...')
-      console.log('Reminder data:', reminderData)
-      console.log('Collection path:', `properties/${propertyId}/reminders`)
-
-      try {
-        console.log(
-          'Attempting to create reminder in collection:',
-          `properties/${propertyId}/reminders`,
-        )
-        console.log('Reminder data being sent:', reminderData)
-
-        const newReminder = await createDocument(`properties/${propertyId}/reminders`, reminderData)
-        console.log('SUCCESS: Reminder created with ID:', newReminder)
-
-        // Verify the reminder was actually saved by reading it back
-        try {
-          const savedReminder = await getDocument(
-            `properties/${propertyId}/reminders/${newReminder}`,
-          )
-          if (savedReminder) {
-            console.log('VERIFIED: Reminder successfully saved to Firebase:', savedReminder)
-          } else {
-            console.log('WARNING: Could not verify reminder was saved')
-          }
-        } catch (verifyError) {
-          console.error('WARNING: Could not verify reminder was saved:', verifyError)
-        }
-
-        reminders.value.unshift({ ...reminderData, id: newReminder, property_id: propertyId })
-        Notify.create({
-          type: 'positive',
-          message: 'Reminder created successfully',
-          position: 'top',
-        })
-      } catch (createError) {
-        console.error('ERROR creating reminder:', createError)
-        console.error('Error details:', {
-          message: createError.message,
-          code: createError.code,
-          stack: createError.stack,
-        })
-
-        // Show specific error message to user
-        let errorMessage = 'Failed to create reminder'
-        if (createError.message.includes('asset not accessible')) {
-          errorMessage = 'Access denied: Please check your authentication and permissions'
-        } else if (createError.message.includes('permission-denied')) {
-          errorMessage = 'Permission denied: You may not have access to this property'
-        } else if (createError.message.includes('unauthenticated')) {
-          errorMessage = 'Authentication required: Please sign in again'
-        } else if (createError.message.includes('not-found')) {
-          errorMessage = 'Property not found: The selected property may have been deleted'
-        }
-
-        Notify.create({
-          type: 'negative',
-          message: errorMessage,
-          position: 'top',
-          caption: createError.message,
-        })
-        return
-      }
-    }
-
-    showCreateDialog.value = false
-    resetForm()
-  } catch (error) {
-    console.error('Error saving reminder:', error)
-    Notify.create({
-      type: 'negative',
-      message: error?.message || 'Failed to save reminder',
-      position: 'top',
-    })
-  } finally {
-    saving.value = false
-  }
+const onReminderSaved = async () => {
+  showCreateDialog.value = false
+  editingReminder.value = null
+  await loadReminders()
 }
 
 const editReminder = (reminder) => {
-  console.log('=== EDITING REMINDER ===')
-  console.log('Reminder being edited:', reminder)
-  console.log('Reminder property_id:', reminder.property_id, 'Type:', typeof reminder.property_id)
-
+  if (!canManageRecords.value) return
   editingReminder.value = reminder
-  reminderForm.value = { ...reminder }
-
-  console.log('Form after setting:', reminderForm.value)
-  console.log(
-    'Form property_id:',
-    reminderForm.value.property_id,
-    'Type:',
-    typeof reminderForm.value.property_id,
-  )
-
   showCreateDialog.value = true
+}
+
+const openReminderDetail = (reminder) => {
+  selectedReminder.value = reminder
+  showReminderDetail.value = true
+}
+
+const closeReminderDetail = () => {
+  showReminderDetail.value = false
+  selectedReminder.value = null
 }
 
 const completeReminder = async (reminder) => {
@@ -940,23 +749,27 @@ const completeReminder = async (reminder) => {
       console.log('Completing recurring reminder - auto-deferring...')
 
       const previousStartDate = reminder.start_date
+      const previousDueDate = reminder.due_date || reminder.start_date
       const today = new Date()
       const newStartDate = today.toISOString().split('T')[0]
+      const newDueDate = calculateNextDueDate(previousDueDate, reminder.repeat_by)
 
       // Create renewal record
       const renewalRecord = {
         renewed_at: new Date().toISOString(),
         previous_start_date: previousStartDate,
         new_start_date: newStartDate,
+        previous_due_date: previousDueDate,
+        new_due_date: newDueDate,
         reason: 'Auto-deferred on completion',
       }
 
       // Initialize renewals array if it doesn't exist
-      const renewals = reminder.renewals || []
+      const renewals = Array.isArray(reminder.renewals) ? [...reminder.renewals] : []
       renewals.push(renewalRecord)
 
       // Initialize completions array if it doesn't exist
-      const completions = reminder.completions || []
+      const completions = Array.isArray(reminder.completions) ? [...reminder.completions] : []
       completions.push({
         completed_at: new Date().toISOString(),
         completed_date: previousStartDate,
@@ -965,6 +778,7 @@ const completeReminder = async (reminder) => {
       const updatedReminder = {
         ...reminder,
         start_date: newStartDate,
+        due_date: newDueDate,
         renewals: renewals,
         completions: completions,
         status: true, // Keep active
@@ -976,16 +790,13 @@ const completeReminder = async (reminder) => {
         updatedReminder,
       )
 
-      const index = reminders.value.findIndex((r) => r.id === reminder.id)
-      if (index !== -1) {
-        reminders.value[index] = updatedReminder
-      }
+      syncUpdatedReminder(updatedReminder)
 
       Notify.create({
         type: 'positive',
-        message: `Recurring reminder completed and deferred!`,
+        message: `Recurring reminder completed and renewed.`,
         position: 'top',
-        caption: `New cycle starts today. Total completions: ${completions.length}`,
+        caption: `Next due: ${formatDate(newDueDate)} • Total completions: ${completions.length}`,
         timeout: 3000,
       })
     } else {
@@ -1041,33 +852,36 @@ const completeReminder = async (reminder) => {
 }
 
 const renewReminder = async (reminder) => {
+  if (!canManageRecords.value) return
   try {
-    // Store the current start date as previous date
+    // Store current schedule dates before renewal
     const previousStartDate = reminder.start_date
+    const previousDueDate = reminder.due_date || reminder.start_date
 
-    // Set new start date to TODAY (clock restarts)
+    // Start new cycle today and set next due date
     const today = new Date()
     const newStartDate = today.toISOString().split('T')[0]
+    const newDueDate = calculateNextDueDate(previousDueDate, reminder.repeat_by)
 
     // Create renewal record
     const renewalRecord = {
       renewed_at: new Date().toISOString(),
       previous_start_date: previousStartDate,
       new_start_date: newStartDate,
+      previous_due_date: previousDueDate,
+      new_due_date: newDueDate,
     }
 
     // Initialize renewals array if it doesn't exist
-    const renewals = reminder.renewals || []
+    const renewals = Array.isArray(reminder.renewals) ? [...reminder.renewals] : []
     renewals.push(renewalRecord)
 
-    // Update the reminder with new start date and renewals
-    // NOTE: created_date remains unchanged - it's the original creation date
-    // start_date is updated to today - this is when the clock starts for this renewal cycle
+    // Update the reminder with new cycle dates
     const updatedReminder = {
       ...reminder,
-      start_date: newStartDate, // Clock starts today
+      start_date: newStartDate,
+      due_date: newDueDate,
       renewals: renewals,
-      // created_date stays the same (original creation date)
     }
 
     await updateDocument(
@@ -1076,22 +890,21 @@ const renewReminder = async (reminder) => {
       updatedReminder,
     )
 
-    const index = reminders.value.findIndex((r) => r.id === reminder.id)
-    if (index !== -1) {
-      reminders.value[index] = updatedReminder
-    }
+    syncUpdatedReminder(updatedReminder)
 
     Notify.create({
       type: 'positive',
-      message: `Reminder deferred! Clock restarted from today.`,
+      message: `Reminder renewed successfully.`,
       position: 'top',
-      caption: `New start date: ${formatDate(newStartDate)}`,
+      caption: `Next due: ${formatDate(newDueDate)}`,
     })
 
     console.log('Reminder deferred:', {
       id: reminder.id,
       previousStartDate: previousStartDate,
       newStartDate: newStartDate,
+      previousDueDate: previousDueDate,
+      newDueDate: newDueDate,
       renewalCount: updatedReminder.renewals.length,
       createdDate: updatedReminder.created_date, // Original creation date
     })
@@ -1106,6 +919,7 @@ const renewReminder = async (reminder) => {
 }
 
 const toggleReminderStatus = async (reminder) => {
+  if (!canManageRecords.value) return
   try {
     const updatedReminder = { ...reminder, status: !reminder.status }
     await updateDocument(
@@ -1135,6 +949,7 @@ const toggleReminderStatus = async (reminder) => {
 }
 
 const deleteReminder = async (reminder) => {
+  if (!canManageRecords.value) return
   try {
     await deleteDocument(`properties/${reminder.property_id}/reminders`, reminder.id)
     const index = reminders.value.findIndex((r) => r.id === reminder.id)
@@ -1157,28 +972,9 @@ const deleteReminder = async (reminder) => {
   }
 }
 
-const resetForm = () => {
-  reminderForm.value = {
-    property_id: null,
-    category: '',
-    start_date: new Date().toISOString().split('T')[0],
-    repeat_by: '',
-    amount: null,
-    note: '',
-    status: true,
-  }
-  editingReminder.value = null
-}
-
 // Use universal getPropertyName from the store
 const getPropertyName = (propertyId) => {
   return userDataStore.getPropertyName(propertyId)
-}
-
-// Handle property change from universal select
-const onPropertyChange = ({ propertyId, property }) => {
-  console.log('Property changed:', { propertyId, property })
-  // Additional logic can be added here if needed
 }
 
 const formatDate = (date) => {
@@ -1228,6 +1024,7 @@ const closeRenewalHistoryDialog = () => {
   showRenewalHistoryDialog.value = false
   selectedReminderForHistory.value = null
 }
+
 // Enhanced debugging function for RemindersPage
 const debugRemindersPage = () => {
   console.log('=== REMINDERS PAGE DEBUG ===')
@@ -1238,11 +1035,10 @@ const debugRemindersPage = () => {
   console.log('All properties:', userDataStore.properties)
   console.log('User accessible properties:', userDataStore.userAccessibleProperties)
   console.log('Universal property options:', userDataStore.universalPropertyOptions)
-  console.log('Reminder form data:', reminderForm.value)
+  console.log('Editing reminder:', editingReminder.value)
   console.log('Current reminders:', reminders.value.length)
   console.log('Loading states:', {
     loading: loading.value,
-    saving: saving.value,
     propertiesLoading: userDataStore.propertiesLoading,
     userRolesLoading: userDataStore.userRolesLoading,
   })
@@ -1265,6 +1061,10 @@ window.debugRemindersPage = debugRemindersPage
 onMounted(() => {
   console.log('=== REMINDERS PAGE MOUNTED ===')
   debugRemindersPage()
+
+  if (route.query.create === 'true') {
+    showCreateDialog.value = true
+  }
 
   // Load reminders if user is authenticated and data is available
   if (userDataStore.isAuthenticated && userDataStore.userAccessibleProperties.length > 0) {
@@ -1309,11 +1109,27 @@ watch(
 )
 
 watch(
+  () => route.query.create,
+  (val) => {
+    if (val === 'true') showCreateDialog.value = true
+  },
+)
+
+watch(
   () => [route.query.openType, route.query.openId],
   () => {
     deepLinkHandled.value = false
     tryOpenDeepLinkedReminder()
   }
+)
+
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    selectedProperty.value = value || null
+  },
+  { immediate: true },
 )
 </script>
 
@@ -1347,26 +1163,48 @@ watch(
   background-color: #f5f5f5;
 }
 
-.btn-primary {
-  background: linear-gradient(45deg, #1976d2, #42a5f5);
-  color: white;
-  border: none;
+.reminder-detail-body {
+  padding: 20px;
 }
 
-.reminder-dialog {
-  max-height: 80vh;
-  overflow-y: auto;
+.reminder-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
-.compact-dialog {
-  min-width: 450px;
-  max-width: 550px;
+.reminder-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.detail-block {
+  background: #f8fafc;
+  border: 1px solid var(--neutral-200);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.detail-block.full-width {
+  grid-column: 1 / -1;
+}
+
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
+}
+
+.reminder-create-fullscreen {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  max-width: none !important;
+  min-width: 0 !important;
+  border-radius: 0;
 }
 
 .dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 16px 20px 8px 20px;
   border-bottom: 1px solid #e0e0e0;
 }
@@ -1375,58 +1213,64 @@ watch(
   padding: 16px 20px 20px 20px;
 }
 
-.compact-form {
+.create-reminder-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.form-row {
+.create-reminder-head {
+  border-bottom: 1px solid var(--neutral-200);
+  padding-bottom: 6px;
+}
+
+.elevated {
+  border-radius: 14px;
+  border: 1px solid var(--neutral-200);
+}
+
+.composer-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.create-fullscreen-card {
+  height: 100vh;
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
-.form-field {
+.create-fullscreen-body {
   flex: 1;
-  min-width: 0;
+  overflow-y: auto;
 }
 
-.form-field.full-width {
-  flex: 1 1 100%;
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--neutral-600);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.status-field {
-  display: flex;
-  align-items: center;
-  padding-top: 8px;
+.status-toggle-card {
+  background: #f8fbff;
+  border-radius: 10px;
+  border: 1px solid var(--neutral-200);
 }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+.q-btn {
+  transition: var(--transition);
+}
+
+.q-btn:hover {
+  transform: translateY(-2px);
 }
 
 /* Mobile responsiveness */
 @media (max-width: 600px) {
-  .compact-dialog {
-    min-width: 320px;
-    max-width: 95vw;
-  }
-
-  .form-row {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .form-field {
-    width: 100%;
-  }
-
   .dialog-header,
   .dialog-content {
     padding-left: 16px;
@@ -1505,6 +1349,12 @@ watch(
   font-size: 0.9rem;
   color: #1a1a1a;
   font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .reminder-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cursor-pointer {

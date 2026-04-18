@@ -126,20 +126,14 @@
 import { ref } from 'vue'
 
 const typeOptions = ['task', 'lease', 'transaction', 'reminder', 'document', 'asset', 'sp']
-const seedResults = [
-  { id: 'mx184', type: 'task', title: 'Task #MX-184', summary: 'Kitchen plumbing issue in progress.' },
-  { id: 'l2201', type: 'lease', title: 'Lease #L-2201', summary: 'Expires in 30 days.' },
-  { id: 'inv932', type: 'transaction', title: 'Invoice #INV-932', summary: 'Submitted by AquaFix LLC.' },
-  { id: 'sp221', type: 'sp', title: 'AquaFix LLC', summary: 'Rating 4.8, emergency plumbing.' },
-  { id: 'doc17', type: 'document', title: 'Move-out Checklist', summary: 'Final inspection checklist.' },
-]
+const seedResults = []
 
 const searchMode = ref('structured')
 const selectedType = ref('task')
 const queryText = ref('')
 const dialogQuery = ref('')
 const selected = ref(null)
-const results = ref([...seedResults])
+const results = ref([])
 
 const filterRows = ({ type, term }) => {
   const normalizedTerm = term.trim().toLowerCase()

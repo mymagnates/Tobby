@@ -10,17 +10,31 @@
               Add tenant information and upload documents
             </p>
           </div>
-          <q-btn
-            flat
-            icon="arrow_back"
-            label="Back"
-            color="primary"
-            @click="$router.back()"
-          />
+          <div class="row items-center q-gutter-sm">
+            <q-btn
+              unelevated
+              color="primary"
+              text-color="white"
+              label="Cancel"
+              class="top-action-btn"
+              :disable="submitting"
+              @click="$router.back()"
+            />
+            <q-btn
+              type="submit"
+              form="create-tenant-form"
+              unelevated
+              color="primary"
+              text-color="white"
+              label="Save"
+              class="top-action-btn"
+              :loading="submitting"
+            />
+          </div>
         </div>
       </div>
 
-      <q-form @submit="handleSubmit" class="q-gutter-md">
+      <q-form id="create-tenant-form" @submit="handleSubmit" class="q-gutter-md">
         <!-- Property Selection -->
         <q-card class="q-mb-lg">
           <q-card-section class="bg-primary text-white">
@@ -31,20 +45,29 @@
           </q-card-section>
           <q-card-section>
             <q-select
-              v-model="formData.propertyId"
-              :options="propertyOptions"
-              label="Select Property *"
+              v-model="selectedLeasePropertyKey"
+              :options="leasePropertyOptions"
+              label="Select Lease / Property *"
               outlined
               emit-value
               map-options
               option-value="value"
               option-label="label"
-              :rules="[(val) => !!val || 'Property is required']"
+              :rules="[(val) => !!val || 'Lease or property is required']"
             >
               <template v-slot:prepend>
                 <q-icon name="apartment" />
               </template>
             </q-select>
+            <div v-if="selectedLeasePropertySummary" class="text-caption text-grey-7 q-mt-sm">
+              {{ selectedLeasePropertySummary }}
+            </div>
+            <div
+              v-if="selectedLeasePropertyType === 'property'"
+              class="text-warning text-caption q-mt-xs"
+            >
+              This selection has no lease yet. Tenant will be created without lease binding.
+            </div>
           </q-card-section>
         </q-card>
 
@@ -753,35 +776,13 @@
           </q-card-section>
         </q-card>
 
-        <!-- Action Buttons -->
-        <q-card>
-          <q-card-section>
-            <div class="row q-gutter-md justify-end">
-              <q-btn
-                flat
-                label="Cancel"
-                color="primary"
-                icon="cancel"
-                @click="$router.back()"
-                :disable="submitting"
-              />
-              <q-btn
-                type="submit"
-                label="Create Tenant"
-                color="primary"
-                icon="person_add"
-                :loading="submitting"
-              />
-            </div>
-          </q-card-section>
-        </q-card>
       </q-form>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
@@ -877,13 +878,67 @@ const newCoApplicant = ref({
   relationship: '',
 })
 
-// Property Options
-const propertyOptions = computed(() => {
-  return userDataStore.userAccessibleProperties.map((property) => ({
-    label: property.displayName || property.address,
-    value: property.id,
-  }))
+const selectedLeasePropertyKey = ref(null)
+
+const getLeasePropertyId = (lease) =>
+  lease?.property_id?.id || lease?.property_id || lease?.property?.id || null
+
+const propertyById = computed(() => {
+  const map = new Map()
+  for (const property of userDataStore.userAccessibleProperties || []) {
+    map.set(String(property.id), property)
+  }
+  return map
 })
+
+const leasePropertyOptions = computed(() => {
+  const options = []
+  const coveredPropertyIds = new Set()
+
+  for (const lease of userDataStore.userAccessibleLeases || []) {
+    const propertyId = String(getLeasePropertyId(lease) || '')
+    if (!propertyId) continue
+    coveredPropertyIds.add(propertyId)
+
+    const property = propertyById.value.get(propertyId)
+    const propertyName = property?.displayName || property?.nickname || property?.address || 'Unknown Property'
+    const propertyAddress = property?.address || 'No address'
+    const leaseStatus = lease?.status || 'Unknown'
+
+    options.push({
+      value: `lease:${lease.id}`,
+      type: 'lease',
+      leaseId: lease.id,
+      propertyId,
+      label: `${propertyName} · ${leaseStatus}`,
+      summary: `Lease ${lease.id} · ${propertyAddress}`,
+    })
+  }
+
+  for (const property of userDataStore.userAccessibleProperties || []) {
+    const propertyId = String(property.id || '')
+    if (!propertyId || coveredPropertyIds.has(propertyId)) continue
+    const propertyName = property.displayName || property.nickname || property.address || 'Unknown Property'
+    const propertyAddress = property.address || 'No address'
+    options.push({
+      value: `property:${propertyId}`,
+      type: 'property',
+      leaseId: null,
+      propertyId,
+      label: `${propertyName} · No Lease`,
+      summary: propertyAddress,
+    })
+  }
+
+  return options
+})
+
+const selectedLeasePropertyOption = computed(() =>
+  leasePropertyOptions.value.find((option) => option.value === selectedLeasePropertyKey.value) || null,
+)
+
+const selectedLeasePropertySummary = computed(() => selectedLeasePropertyOption.value?.summary || '')
+const selectedLeasePropertyType = computed(() => selectedLeasePropertyOption.value?.type || null)
 
 // Handle File Selection
 const handleFileSelection = (files) => {
@@ -1158,7 +1213,7 @@ const handleSubmit = async () => {
 
 onMounted(() => {
   // Check if user has properties
-  if (propertyOptions.value.length === 0) {
+  if (leasePropertyOptions.value.length === 0) {
     $q.notify({
       type: 'warning',
       message: 'Please create a property first before adding tenants',
@@ -1167,19 +1222,49 @@ onMounted(() => {
   }
 
   // Pre-populate property and lease IDs if coming from lease page
-  if (route.query.propertyId) {
-    formData.value.propertyId = route.query.propertyId
-    formData.value.leaseId = route.query.leaseId || null
+  if (route.query.leaseId) {
+    const leaseKey = `lease:${route.query.leaseId}`
+    const matchedLeaseOption = leasePropertyOptions.value.find((opt) => opt.value === leaseKey)
+    if (matchedLeaseOption) {
+      selectedLeasePropertyKey.value = matchedLeaseOption.value
+      formData.value.propertyId = matchedLeaseOption.propertyId
+      formData.value.leaseId = matchedLeaseOption.leaseId
+    }
+  } else if (route.query.propertyId) {
+    const propertyKey = `property:${route.query.propertyId}`
+    const propertyOption = leasePropertyOptions.value.find((opt) => opt.value === propertyKey)
+    if (propertyOption) {
+      selectedLeasePropertyKey.value = propertyOption.value
+      formData.value.propertyId = propertyOption.propertyId
+      formData.value.leaseId = propertyOption.leaseId
+    } else {
+      formData.value.propertyId = route.query.propertyId
+      formData.value.leaseId = null
+    }
 
     // Show notification about pre-populated data
     $q.notify({
       type: 'positive',
-      message: 'Creating tenant for selected lease',
+      message: 'Lease/property preselected',
       position: 'top',
       icon: 'check_circle',
     })
   }
 })
+
+watch(
+  selectedLeasePropertyKey,
+  (newValue) => {
+    const matched = leasePropertyOptions.value.find((option) => option.value === newValue)
+    if (!matched) {
+      formData.value.propertyId = null
+      formData.value.leaseId = null
+      return
+    }
+    formData.value.propertyId = matched.propertyId
+    formData.value.leaseId = matched.leaseId
+  },
+)
 </script>
 
 <style scoped>
@@ -1191,6 +1276,25 @@ onMounted(() => {
   padding-bottom: 16px;
   border-bottom: 2px solid #e0e0e0;
 }
+
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
+}
+
+:global(body.body--dark) .page-container .q-card,
+:global(body.body--dark) .page-container .q-card__section:not(.bg-primary):not(.bg-secondary):not(.bg-info):not(.bg-accent):not(.bg-warning):not(.bg-deep-purple):not(.bg-indigo):not(.bg-orange) {
+  background: #15202b !important;
+  color: #e6edf3;
+  border-color: #2d3f52;
+}
+
+:global(body.body--dark) .page-container .bg-grey-1,
+:global(body.body--dark) .page-container .q-field__control,
+:global(body.body--dark) .page-container .q-item {
+  background: #223041 !important;
+}
+
 
 .animate-success {
   animation: scaleIn 0.5s ease-in-out;
@@ -1210,4 +1314,3 @@ onMounted(() => {
   }
 }
 </style>
-

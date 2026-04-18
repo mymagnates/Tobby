@@ -20,7 +20,9 @@ const call = async (path, options = {}) => {
 describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
   let store
   let taskId
+  let taskIdWithComments
   let leadId
+  let leadWithCommentsId
   let bidId1
   let bidId2
   let convId
@@ -81,6 +83,45 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
     leadId = payload.lead.id
   })
 
+  it('PM/PO publishes a task lead with comments included', async () => {
+    const taskRes = await call('/tasks', {
+      method: 'POST',
+      headers: pm,
+      body: JSON.stringify({
+        title: 'Broken disposal',
+        description: 'Disposal hums and does not spin',
+        property_id: 'prop-1',
+      }),
+    })
+    expect(taskRes.status).toBe(200)
+    taskIdWithComments = taskRes.payload.id
+
+    const { status, payload } = await call('/leads/from-task', {
+      method: 'POST',
+      headers: pm,
+      body: JSON.stringify({
+        mx_id: taskIdWithComments,
+        task_id: taskIdWithComments,
+        task_doc_id: taskIdWithComments,
+        title: 'Broken disposal',
+        description: 'Disposal hums and does not spin',
+        scope: 'Inspect motor and replace if needed',
+        comments: [
+          {
+            comment: 'Please prioritize this task.',
+            action_type: 'comment',
+            created_at: '2026-03-30T10:00:00.000Z',
+            user_name: 'Property Manager',
+          },
+        ],
+      }),
+    })
+    expect(status).toBe(200)
+    expect(payload.lead.comments).toHaveLength(1)
+    expect(payload.lead.comment_count).toBe(1)
+    leadWithCommentsId = payload.lead.id
+  })
+
   it('rejects duplicate lead for same task', async () => {
     const { status, payload } = await call('/leads', {
       method: 'POST',
@@ -92,7 +133,7 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
   })
 
   it('tenant cannot create a lead', async () => {
-    const { status, payload } = await call('/leads', {
+    const { status } = await call('/leads', {
       method: 'POST',
       headers: tenant,
       body: JSON.stringify({ task_id: taskId }),
@@ -110,6 +151,13 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
     const found = payload.items.find((l) => l.id === leadId)
     expect(found).toBeTruthy()
     expect(found.status).toBe('open')
+  })
+
+  it('SP can view lead comments on task-synced lead detail', async () => {
+    const { status, payload } = await call(`/leads/${leadWithCommentsId}`, { headers: sp1 })
+    expect(status).toBe(200)
+    expect(payload.lead.comments).toHaveLength(1)
+    expect(payload.lead.comment_count).toBe(1)
   })
 
   it('SP can view lead detail', async () => {
@@ -324,7 +372,7 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
   })
 
   it('lead is no longer visible to SPs (not open)', async () => {
-    const { status, payload } = await call('/leads', { headers: sp1 })
+    const { payload } = await call('/leads', { headers: sp1 })
     const found = payload.items.find((l) => l.id === leadId)
     expect(found).toBeUndefined()
   })
@@ -372,7 +420,7 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
 // ------------------------------------------------------------------
 
 describe('Marketplace: state machine guards', () => {
-  let store, taskId, leadId, bidId, assignmentId
+  let store, taskId, leadId, bidId
 
   beforeAll(async () => {
     store = createInMemoryStore()

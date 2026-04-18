@@ -1,11 +1,19 @@
 <template>
   <q-card class="task-composer-feed-card">
-    <q-card-section class="row items-center justify-between q-pb-sm">
+    <q-card-section class="task-composer-header row items-center justify-between q-pb-sm">
       <div class="text-subtitle1 text-weight-medium">
-        <q-icon name="dns" color="primary" class="q-mr-xs" />
+        <q-icon name="dns" color="white" class="q-mr-xs" />
         Create Task
       </div>
-      <q-btn flat dense round icon="close" color="grey-7" @click="$emit('close')" />
+      <q-btn
+        flat
+        dense
+        round
+        icon="close"
+        color="white"
+        class="task-composer-close-btn"
+        @click="$emit('close')"
+      />
     </q-card-section>
     <q-separator />
     <q-card-section class="q-pt-md">
@@ -41,5 +49,17 @@ defineEmits(['created', 'close'])
   border-radius: 12px;
   border: 1px solid var(--neutral-200);
   background: var(--bg-surface);
+}
+
+.task-composer-header {
+  background: #1f2937;
+  color: #ffffff;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.task-composer-close-btn,
+.task-composer-close-btn :deep(.q-icon) {
+  color: #ffffff !important;
 }
 </style>

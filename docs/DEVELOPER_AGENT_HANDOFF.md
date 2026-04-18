@@ -47,6 +47,10 @@
 - Billing/credits are surfaced in Profile and all paid-feature gating is server-enforced.
 - No dedicated notification system in MVP.
 - TT is invite-only (`TT_INVITED`) and not open for self-signup.
+- PM/PO share the same IA, but permissions differ by property role:
+  - PM full CRUD.
+  - PO view-only except can manage own-created transactions.
+  - PO can export reports and view billing (read-only).
 
 ## Mandatory Web Retrofit
 - Developer must update existing Web flows to support plan/usage/credit gating end-to-end.

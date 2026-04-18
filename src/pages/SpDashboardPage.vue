@@ -105,8 +105,11 @@
               <q-btn flat dense no-caps icon="campaign" label="Leads" :color="feedView === 'leads' ? 'primary' : 'grey-7'" @click="setFeedView('leads')" />
               <q-btn flat dense no-caps icon="gavel" label="Bids" :color="feedView === 'bids' ? 'primary' : 'grey-7'" @click="setFeedView('bids')" />
               <q-btn flat dense no-caps icon="engineering" label="Projects" :color="feedView === 'projects' ? 'primary' : 'grey-7'" @click="setFeedView('projects')" />
+              <q-btn flat dense no-caps icon="article" label="Posts" :color="feedView === 'posts' ? 'primary' : 'grey-7'" @click="setFeedView('posts')" />
               <q-btn flat dense no-caps icon="receipt_long" label="Invoices" :color="feedView === 'invoices' ? 'primary' : 'grey-7'" @click="setFeedView('invoices')" />
               <q-btn flat dense no-caps icon="handyman" label="Services" color="grey-7" @click="goToServices" />
+              <q-btn flat dense no-caps icon="token" label="Credits" color="grey-7" @click="goToCredits" />
+              <q-btn flat dense no-caps icon="edit" label="Edit Profile" color="grey-7" @click="goToEditProfile" />
               <div class="feed-sort-group">
                 <span class="feed-sort-label">Sort</span>
                 <q-btn
@@ -153,8 +156,8 @@
                     <div class="feed-card-footer">
                       <span v-if="lead.budget_range" class="post-amount">{{ lead.budget_range }}</span>
                       <span v-else></span>
-                      <div v-if="lead.location" class="post-property">
-                        <q-icon name="location_on" size="12px" class="q-mr-xs" />{{ lead.location }}
+                      <div v-if="getLeadCityStateZip(lead) !== 'N/A'" class="post-property">
+                        <q-icon name="location_on" size="12px" class="q-mr-xs" />{{ getLeadCityStateZip(lead) }}
                       </div>
                     </div>
                   </div>
@@ -176,7 +179,7 @@
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Location</span>
-                        <span class="detail-value">{{ lead.location || '—' }}</span>
+                        <span class="detail-value">{{ getLeadCityStateZip(lead) }}</span>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Posted</span>
@@ -259,6 +262,88 @@
                     <div v-if="bid.note || bid.message" class="detail-description">
                       <span class="detail-label">Note</span>
                       <p>{{ bid.note || bid.message }}</p>
+                    </div>
+                  </div>
+                </div>
+              </q-slide-transition>
+            </q-card>
+          </template>
+
+          <!-- Posts view -->
+          <template v-else-if="feedView === 'posts'">
+            <div class="posts-view-actions q-mb-sm">
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                color="primary"
+                icon="add"
+                label="Create Post"
+                @click="goToCreatePost"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                color="primary"
+                icon="open_in_new"
+                label="Open Handout Page"
+                @click="goToPostsPage"
+              />
+            </div>
+
+            <q-card v-if="!sortedPosts.length" class="feed-post feed-empty-card q-mb-sm">
+              <q-card-section class="q-pa-md">
+                <div class="post-title q-mb-xs">No Posts Yet</div>
+                <div class="post-body">Publish posts from this dashboard to build your Handout page.</div>
+              </q-card-section>
+            </q-card>
+
+            <q-card
+              v-for="post in sortedPosts"
+              :key="post.id"
+              class="feed-post feed-mini-card"
+              :class="{ 'feed-post-expanded': expandedFeedId === `post-${post.id}` }"
+            >
+              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`post-${post.id}`)">
+                <div class="feed-card-row">
+                  <q-avatar size="32px" color="indigo-2" text-color="white" class="feed-card-avatar">
+                    <q-icon name="article" size="16px" />
+                  </q-avatar>
+                  <div class="feed-card-content">
+                    <div class="feed-card-header">
+                      <div class="post-title">{{ post.title || 'Post' }}</div>
+                      <div class="post-time">{{ formatRelativeTime(post.created_at || post.updated_at) }}</div>
+                    </div>
+                    <div class="post-body">{{ post.content || 'Media post' }}</div>
+                    <div class="feed-card-footer">
+                      <q-chip
+                        dense
+                        size="xs"
+                        :color="post.media_type === 'video' ? 'deep-purple' : post.media_type === 'image' ? 'blue' : 'grey'"
+                        text-color="white"
+                      >
+                        {{ post.media_type || 'text' }}
+                      </q-chip>
+                      <span></span>
+                    </div>
+                  </div>
+                  <q-icon :name="expandedFeedId === `post-${post.id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                </div>
+              </q-card-section>
+              <q-slide-transition>
+                <div v-show="expandedFeedId === `post-${post.id}`" class="feed-detail-panel">
+                  <q-separator />
+                  <div class="feed-detail-body">
+                    <div v-if="post.content" class="detail-description">
+                      <span class="detail-label">Content</span>
+                      <p>{{ post.content }}</p>
+                    </div>
+                    <div v-if="post.media_url" class="q-mt-sm">
+                      <q-img v-if="post.media_type === 'image'" :src="post.media_url" class="feed-post-media" fit="cover" />
+                      <video v-else-if="post.media_type === 'video'" controls class="feed-post-video">
+                        <source :src="post.media_url" />
+                      </video>
                     </div>
                   </div>
                 </div>
@@ -443,15 +528,6 @@
         </div>
       </div>
 
-      <!-- Right Rail: Ad Slot -->
-      <aside class="feed-rail">
-        <q-card class="rail-card">
-          <q-card-section class="q-pa-sm">
-            <div class="rail-title q-mb-sm">Ad Slot</div>
-            <div class="ad-placeholder">Reserved for future ad placement</div>
-          </q-card-section>
-        </q-card>
-      </aside>
     </div>
 
     <!-- Submit Bid Dialog -->
@@ -463,10 +539,10 @@
         </q-card-section>
         <q-separator class="q-mt-sm" />
         <q-card-section>
-          <div v-if="bidTargetLead" class="q-mb-md text-body2">
-            <strong>Lead:</strong> {{ bidTargetLead.title }}<br/>
-            <span class="text-grey-7">{{ bidTargetLead.location || '' }} · {{ bidTargetLead.budget_range || '' }}</span>
-          </div>
+        <div v-if="bidTargetLead" class="q-mb-md text-body2">
+          <strong>Lead:</strong> {{ bidTargetLead.title }}<br/>
+          <span class="text-grey-7">{{ getLeadCityStateZip(bidTargetLead) }} · {{ bidTargetLead.budget_range || '' }}</span>
+        </div>
           <q-input v-model="bidAmount" label="Bid Amount ($)" outlined dense type="number" class="q-mb-md" />
           <q-input v-model="bidNote" label="Message / Note" outlined dense type="textarea" autogrow />
         </q-card-section>
@@ -476,25 +552,73 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showCreatePostDialog">
+      <q-card style="min-width: 420px; max-width: 520px;">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Create Post</div>
+          <q-btn icon="close" flat round dense @click="closeCreatePostDialog" />
+        </q-card-section>
+        <q-separator class="q-mt-sm" />
+        <q-card-section>
+          <q-input v-model="createPostForm.title" outlined dense label="Title (optional)" class="q-mb-sm" />
+          <q-input
+            v-model="createPostForm.content"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="Post content"
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="createPostForm.tags"
+            outlined
+            dense
+            label="Tags (comma separated)"
+            class="q-mb-sm"
+          />
+          <q-file
+            v-model="createPostMediaFile"
+            outlined
+            dense
+            clearable
+            accept="image/*,video/*"
+            label="Attach photo or video (optional)"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Cancel" @click="closeCreatePostDialog" />
+          <q-btn
+            color="primary"
+            label="Publish"
+            :loading="savingCreatePost"
+            @click="handleCreatePost"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spPortalApi } from 'src/services/webApiClient'
 import { useFirebase } from 'src/composables/useFirebase'
+import { resolveSpSlug } from 'src/utils/spPosts'
 
 const userStore = useUserDataStore()
 const router = useRouter()
-const { createDocument } = useFirebase()
+const { getCollectionData, createDocument, uploadFile } = useFirebase()
 
 const leads = ref([])
 const bids = ref([])
 const projects = ref([])
 const invoices = ref([])
+const posts = ref([])
 
 const leadsLoading = ref(true)
 const bidsLoading = ref(true)
@@ -535,6 +659,28 @@ const goToServices = () => {
   router.push('/sp-services')
 }
 
+const goToCredits = () => {
+  router.push('/sp-credits')
+}
+
+const goToEditProfile = () => {
+  router.push('/sp-profile')
+}
+
+const goToShowcase = () => {
+  const slug = resolveSpSlug(userStore.userProfile || {}, userStore.userId || userStore.user?.uid || '')
+  if (!slug) return
+  router.push({ path: `/public/handout/${slug}` })
+}
+
+const goToPostsPage = () => {
+  goToShowcase()
+}
+
+const goToCreatePost = () => {
+  openCreatePostDialog()
+}
+
 // Expanded feed item
 const expandedFeedId = ref(null)
 const toggleFeedExpand = (id) => {
@@ -552,12 +698,104 @@ const bidTargetLead = ref(null)
 const bidAmount = ref('')
 const bidNote = ref('')
 const submittingBid = ref(false)
+const showCreatePostDialog = ref(false)
+const savingCreatePost = ref(false)
+const createPostMediaFile = ref(null)
+const createPostForm = reactive({
+  title: '',
+  content: '',
+  tags: '',
+})
 
 const openBidDialog = (lead) => {
   bidTargetLead.value = lead
   bidAmount.value = ''
   bidNote.value = ''
   showBidDialog.value = true
+}
+
+const toTags = (input) => {
+  return String(input || '')
+    .split(',')
+    .map((row) => row.trim())
+    .filter(Boolean)
+}
+
+const openCreatePostDialog = () => {
+  createPostForm.title = ''
+  createPostForm.content = ''
+  createPostForm.tags = ''
+  createPostMediaFile.value = null
+  showCreatePostDialog.value = true
+}
+
+const closeCreatePostDialog = () => {
+  showCreatePostDialog.value = false
+  createPostMediaFile.value = null
+}
+
+const uploadCreatePostMedia = async (spId) => {
+  const file = createPostMediaFile.value
+  if (!file) {
+    return {
+      media_url: '',
+      media_type: '',
+      media_name: '',
+    }
+  }
+  const safeName = String(file.name || 'media').replace(/[^a-zA-Z0-9_.-]/g, '-')
+  const path = `media/posts/${spId}/${Date.now()}-${safeName}`
+  const mediaUrl = await uploadFile(path, file)
+  return {
+    media_url: mediaUrl,
+    media_type: String(file.type || '').startsWith('video/') ? 'video' : 'image',
+    media_name: file.name || '',
+  }
+}
+
+const handleCreatePost = async () => {
+  const spId = String(userStore.userId || userStore.user?.uid || '').trim()
+  if (!spId) return
+
+  const hasText = Boolean(String(createPostForm.content || '').trim())
+  const hasMedia = Boolean(createPostMediaFile.value)
+  if (!hasText && !hasMedia) {
+    Notify.create({
+      type: 'warning',
+      message: 'Add content or media before publishing.',
+      position: 'top',
+    })
+    return
+  }
+
+  try {
+    savingCreatePost.value = true
+    const mediaPayload = await uploadCreatePostMedia(spId)
+    const now = new Date().toISOString()
+    const payload = {
+      title: String(createPostForm.title || '').trim(),
+      content: String(createPostForm.content || '').trim(),
+      tags: toTags(createPostForm.tags),
+      likes_count: 0,
+      ...mediaPayload,
+      created_at: now,
+      updated_at: now,
+    }
+
+    const postId = await createDocument(`users/${spId}/posts`, payload)
+    posts.value = [{ id: postId, ...payload }, ...posts.value]
+    closeCreatePostDialog()
+    feedView.value = 'posts'
+    Notify.create({ type: 'positive', message: 'Post published.', position: 'top' })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to publish post.',
+      position: 'top',
+    })
+  } finally {
+    savingCreatePost.value = false
+  }
 }
 
 const getSpBidCore = () => {
@@ -584,6 +822,23 @@ const getSpBidCore = () => {
   }
 }
 
+const getLeadCityStateZip = (lead) => {
+  if (!lead) return 'N/A'
+  const city = String(lead.property_city || lead.city || '').trim()
+  const state = String(lead.property_state || lead.state || '').trim()
+  const zip = String(
+    lead.property_zip ||
+      lead.zip ||
+      lead.zip_code ||
+      lead.postal_code ||
+      '',
+  ).trim()
+  const parts = [city, state].filter(Boolean)
+  const head = parts.join(', ')
+  if (zip) return head ? `${head} ${zip}` : zip
+  return head || 'N/A'
+}
+
 const handleSubmitBid = async () => {
   const leadDocId = bidTargetLead.value?.id || bidTargetLead.value?.lead_doc_id || bidTargetLead.value?.lead_id
   const leadPublicId = bidTargetLead.value?.lead_id || leadDocId
@@ -594,11 +849,7 @@ const handleSubmitBid = async () => {
   }
   submittingBid.value = true
   try {
-    const bidId = `bid-${Date.now()}`
-    const now = new Date().toISOString()
     const bidPayload = {
-      id: bidId,
-      bid_id: bidId,
       ...getSpBidCore(),
       lead_id: leadPublicId,
       lead_doc_id: leadDocId,
@@ -609,19 +860,25 @@ const handleSubmitBid = async () => {
       task_doc_id: bidTargetLead.value.task_doc_id || null,
       amount,
       note: bidNote.value,
-      status: 'submitted',
-      created_at: now,
-      updated_at: now,
     }
 
-    await createDocument(`marketplace_leads/${leadDocId}/bids`, bidPayload, bidId)
-
-    bids.value = [bidPayload, ...bids.value]
+    const res = await spPortalApi.createBid(bidPayload)
+    const bidRow = res?.bid || res
+    bids.value = [bidRow, ...bids.value]
     leads.value = leads.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
-    Notify.create({ type: 'positive', message: 'Bid saved to Firebase.', position: 'top' })
+    const remaining = res?.credits_balance
+    Notify.create({
+      type: 'positive',
+      message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
+      position: 'top',
+    })
     showBidDialog.value = false
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to submit bid.', position: 'top' })
+    const message =
+      error?.error_code === 'INSUFFICIENT_CREDITS'
+        ? 'Insufficient credits. Your free credit will refresh next week.'
+        : error.message || 'Failed to submit bid.'
+    Notify.create({ type: 'negative', message, position: 'top' })
   } finally {
     submittingBid.value = false
   }
@@ -670,6 +927,7 @@ const sortedLeads = computed(() => sortList(leads.value, 'created_at'))
 const sortedBids = computed(() => sortList(bids.value, 'created_at'))
 const sortedInvoices = computed(() => sortList(invoices.value, 'created_at'))
 const sortedProjects = computed(() => sortList(projects.value, 'accepted_at'))
+const sortedPosts = computed(() => sortList(posts.value, 'created_at'))
 const openProjects = computed(() => projects.value.filter((p) => p.status !== 'completed' && p.status !== 'cancelled'))
 
 const toggleSort = (field) => {
@@ -737,17 +995,23 @@ const addComment = async (proj) => {
 // Data loading
 const loadDashboard = async () => {
   try {
-    const [leadRows, bidRows, projectRows, invoiceRows] = await Promise.all([
+    const [leadRows, bidRows, projectRows, invoiceRows, postRows] = await Promise.all([
       spPortalApi.listLeads(userStore.userId).finally(() => { leadsLoading.value = false }),
       spPortalApi.listBids(userStore.userId).finally(() => { bidsLoading.value = false }),
       spPortalApi.listProjects(userStore.userId).finally(() => { projectsLoading.value = false }),
       spPortalApi.listInvoices(userStore.userId).finally(() => { invoicesLoading.value = false }),
+      getCollectionData(`users/${String(userStore.userId || '')}/posts`).catch(() => []),
     ])
 
     leads.value = leadRows || []
     bids.value = bidRows || []
     projects.value = projectRows || []
     invoices.value = invoiceRows || []
+    posts.value = postRows || []
+    if (!posts.value.length) {
+      const legacyRows = await getCollectionData(`users/${String(userStore.userId || '')}/showcase_posts`).catch(() => [])
+      posts.value = legacyRows || []
+    }
   } catch (error) {
     leadsLoading.value = false
     bidsLoading.value = false
@@ -813,18 +1077,26 @@ onMounted(loadDashboard)
   color: #2e7d32;
 }
 
-/* 3-column grid */
+/* 2-column grid */
 .feed-shell {
   max-width: 1580px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 12px;
 }
 
 .feed-reminders,
 .feed-main {
   min-width: 0;
+}
+
+.feed-reminders {
+  grid-column: 1;
+}
+
+.feed-main {
+  grid-column: 2;
 }
 
 /* Stats */
@@ -1014,6 +1286,13 @@ onMounted(loadDashboard)
   gap: 10px;
 }
 
+.posts-view-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .feed-context,
 .feed-post,
 .rail-card {
@@ -1087,6 +1366,19 @@ onMounted(loadDashboard)
   overflow: hidden;
 }
 
+.feed-post-media {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 8px;
+}
+
+.feed-post-video {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 8px;
+  background: #0f172a;
+}
+
 .feed-card-footer {
   display: flex;
   justify-content: space-between;
@@ -1106,19 +1398,6 @@ onMounted(loadDashboard)
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--primary-color);
-}
-
-/* Ad placeholder */
-.ad-placeholder {
-  min-height: 120px;
-  border-radius: 10px;
-  border: 1px dashed var(--neutral-300);
-  background: var(--bg-secondary);
-  color: var(--neutral-500);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
 }
 
 /* Expand icon */
@@ -1269,16 +1548,13 @@ onMounted(loadDashboard)
 /* Responsive */
 @media (max-width: 1440px) {
   .feed-shell {
-    grid-template-columns: 240px minmax(0, 1fr) 260px;
+    grid-template-columns: 240px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 1280px) {
   .feed-shell {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-  .feed-rail {
-    grid-column: 1 / -1;
+    grid-template-columns: 220px minmax(0, 1fr);
   }
   .feed-stats-row {
     grid-template-columns: repeat(2, 1fr);
@@ -1290,7 +1566,7 @@ onMounted(loadDashboard)
     grid-template-columns: 1fr;
   }
   .feed-reminders,
-  .feed-rail {
+  .feed-main {
     grid-column: auto;
   }
   .feed-list {

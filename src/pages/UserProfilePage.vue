@@ -1,94 +1,168 @@
 <template>
   <q-page class="profile-page q-pa-sm">
     <div class="profile-container">
-      <q-card class="profile-hero q-mb-sm">
-        <q-card-section class="q-pa-md">
-          <div class="row items-center justify-between">
-            <div>
-              <div class="text-h5 text-weight-bold text-white">Profile</div>
-              <div class="text-body2 hero-subtitle">Account, role context, plan, and billing controls</div>
+      <q-card class="profile-topbar q-mb-sm">
+        <q-card-section class="q-pa-sm">
+          <div class="row items-center q-col-gutter-sm">
+            <div class="col-auto">
+              <q-avatar size="52px" color="primary" text-color="white">
+                <q-icon name="person" size="26px" />
+              </q-avatar>
             </div>
-            <q-chip dense color="white" text-color="primary">
-              {{ accountTypeLabel }}
-            </q-chip>
+            <div class="col">
+              <div class="row items-center q-col-gutter-sm">
+                <div class="col-auto">
+                  <div class="text-h6 text-weight-bold">{{ displayName }}</div>
+                </div>
+                <div class="col-auto">
+                  <q-chip dense color="primary" text-color="white" class="text-caption">
+                    {{ accountTypeLabel }}
+                  </q-chip>
+                </div>
+              </div>
+
+              <div class="text-caption text-grey-7">
+                {{ isSpAccount ? (businessName || 'Business Profile') : 'Property Management Profile' }}
+              </div>
+            </div>
+            <div class="col-12 col-lg-auto">
+              <div class="row q-col-gutter-xs justify-end topbar-actions">
+                <div class="col-auto">
+                  <q-btn
+                    outline
+                    color="primary"
+                    size="sm"
+                    icon="edit"
+                    label="Edit Contact"
+                    @click="openContactEditDialog('phone')"
+                  />
+                </div>
+                <div class="col-auto">
+                  <q-btn
+                    outline
+                    color="primary"
+                    size="sm"
+                    icon="receipt_long"
+                    label="Billing"
+                    @click="openBillingHistory"
+                  />
+                </div>
+                <div class="col-auto">
+                  <q-btn
+                    outline
+                    color="primary"
+                    size="sm"
+                    icon="support_agent"
+                    label="Support"
+                    @click="openSupport"
+                  />
+                </div>
+
+                <div class="col-auto">
+                  <q-btn
+                    class="full-width"
+                    outline
+                    color="primary"
+                    size="sm"
+                    label="Payment Method"
+                    @click="openPaymentMethod"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </q-card-section>
       </q-card>
 
-      <div class="row q-col-gutter-sm">
-        <div class="col-12 col-xl-4">
-          <q-card class="section-card q-mb-sm">
-            <q-card-section class="q-pa-md">
-              <div class="text-h6 q-mb-md">Account</div>
-              <div class="row items-center q-col-gutter-sm q-mb-md">
-                <div class="col-auto">
-                  <q-avatar size="56px" color="primary" text-color="white">
-                    <q-icon name="person" size="30px" />
-                  </q-avatar>
+      <div class="row q-col-gutter-sm profile-main-row">
+        <div class="col-12 col-lg-4">
+          <q-card class="section-card panel-card">
+            <q-card-section class="q-pa-sm">
+              <div class="section-title q-mb-sm">Account</div>
+              <div class="compact-grid q-mb-sm">
+                <div class="info-cell">
+                  <span class="cell-label">Email</span>
+                  <strong>{{ userProfile?.email || 'No email' }}</strong>
                 </div>
-                <div class="col">
-                  <div class="text-subtitle1 text-weight-medium">{{ displayName }}</div>
-                  <div class="text-body2 text-grey-7">{{ userProfile?.email || 'No email' }}</div>
+                <div class="info-cell">
+                  <span class="cell-label">{{ isSpAccount ? 'Business' : 'Company' }}</span>
+                  <button class="info-editable" type="button" @click="openContactEditDialog('company')">
+                    {{ (isSpAccount ? businessName : companyDisplay) || 'Not set' }}
+                  </button>
+                </div>
+                <div class="info-cell">
+                  <span class="cell-label">Phone</span>
+                  <button class="info-editable" type="button" @click="openContactEditDialog('phone')">
+                    {{ phoneDisplay }}
+                  </button>
+                </div>
+                <div class="info-cell">
+                  <span class="cell-label">Address</span>
+                  <button class="info-editable" type="button" @click="openContactEditDialog('address')">
+                    {{ addressDisplay }}
+                  </button>
                 </div>
               </div>
 
-              <div class="info-row">
-                <span>Account Type</span>
-                <strong>{{ accountTypeLabel }}</strong>
-              </div>
-              <div class="info-row">
-                <span>Primary Role</span>
-                <strong>{{ primaryRoleLabel }}</strong>
-              </div>
-              <div class="info-row">
-                <span>Phone</span>
-                <strong>{{ userProfile?.mobile_phone || userProfile?.cellphone || 'Not set' }}</strong>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="section-card q-mb-sm">
-            <q-card-section class="q-pa-md">
-              <div class="text-h6 q-mb-md">Role Context</div>
-              <q-select
-                v-if="propertyContextOptions.length"
-                v-model="activePropertyId"
-                :options="propertyContextOptions"
-                option-label="label"
-                option-value="value"
-                emit-value
-                map-options
-                outlined
-                dense
-                label="Active Property"
-                class="q-mb-md"
-              />
-              <q-banner v-else dense rounded class="bg-blue-1 text-primary q-mb-md">
+              <q-separator class="q-my-sm" />
+              <div class="section-title q-mb-sm">Role Context</div>
+              <q-banner v-if="!propertyContextOptions.length" dense rounded class="bg-blue-1 text-primary q-mb-sm">
                 No property role assignments found.
               </q-banner>
-
-              <div class="row q-gutter-sm q-mb-md">
+              <div v-else class="role-chip-wrap">
                 <q-chip
-                  v-if="selectedRoleEntry"
-                  color="primary"
-                  text-color="white"
-                  :label="selectedRoleEntry.roleCode"
-                />
-                <q-chip v-if="selectedRoleEntry" color="blue-1" text-color="primary">
-                  {{ selectedRoleEntry.propertyName }}
+                  v-for="item in propertyContextOptions"
+                  :key="item.value"
+                  color="blue-1"
+                  text-color="primary"
+                >
+                  {{ item.propertyName }} • {{ formatRoleCodes(item.roleCodes) }}
                 </q-chip>
               </div>
-
-              <div class="text-caption text-grey-7">
-                Permissions are evaluated by current active property and property role.
+              <div class="text-caption text-grey-7 q-mt-sm">
+                Role tags show all assignments per property.
               </div>
             </q-card-section>
           </q-card>
+        </div>
 
-          <q-card class="section-card">
-            <q-card-section class="q-pa-md">
-              <div class="text-h6 q-mb-md">Settings</div>
-              <q-list bordered separator class="rounded-borders">
+        <div class="col-12 col-lg-4">
+          <q-card class="section-card panel-card">
+            <q-card-section class="q-pa-sm">
+              <div class="section-title q-mb-sm">Usage Quotas</div>
+
+              <div class="quota-card q-mb-sm">
+                <div class="row items-center justify-between q-mb-xs">
+                  <div class="text-subtitle2">AI Tokens</div>
+                  <div class="text-caption text-grey-7">{{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}</div>
+                </div>
+                <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="ratioColor(aiTokensRatio)" />
+                <div class="row items-center justify-between q-mt-xs">
+                  <div class="text-caption text-grey-7">{{ aiTokensRemainingDisplay }} left this month</div>
+                  <q-btn outline color="primary" size="sm" label="Buy Tokens" @click="buyAddon('ai_tokens_pack')" />
+                </div>
+              </div>
+
+              <div class="quota-card">
+                <div class="row items-center justify-between q-mb-xs">
+                  <div class="text-subtitle2">Storage</div>
+                  <div class="text-caption text-grey-7">{{ storageUsedGb }} / {{ storageLimitGb }} GB</div>
+                </div>
+                <q-linear-progress rounded size="8px" :value="storageRatio" :color="ratioColor(storageRatio)" />
+                <div class="row items-center justify-between q-mt-xs">
+                  <div class="text-caption text-grey-7">{{ Math.round(storageRatio * 100) }}% used</div>
+                  <q-btn outline color="primary" size="sm" label="Buy +20GB" @click="buyAddon('storage_20gb')" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <q-card class="section-card panel-card">
+            <q-card-section class="q-pa-sm">
+              <div class="section-title q-mb-sm">Settings</div>
+              <q-list dense bordered separator class="rounded-borders q-mb-sm">
                 <q-item>
                   <q-item-section>
                     <q-item-label>Language</q-item-label>
@@ -110,168 +184,13 @@
                     <q-item-label>Privacy / Data Request</q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-icon name="open_in_new" size="18px" />
+                    <q-icon name="open_in_new" size="16px" />
                   </q-item-section>
                 </q-item>
               </q-list>
 
-              <div class="row q-col-gutter-sm q-mt-md">
-                <div class="col-6">
-                  <q-btn
-                    class="full-width"
-                    outline
-                    color="primary"
-                    label="Support"
-                    @click="openSupport"
-                  />
-                </div>
-                <div class="col-6">
-                  <q-btn
-                    class="full-width"
-                    outline
-                    color="negative"
-                    label="Sign Out"
-                    :loading="logoutLoading"
-                    @click="handleSignOut"
-                  />
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
+              <div class="row q-col-gutter-xs">
 
-        <div class="col-12 col-xl-8">
-          <q-card class="section-card q-mb-sm">
-            <q-card-section class="q-pa-md">
-              <div class="row items-start justify-between">
-                <div>
-                  <div class="text-h6">Plan</div>
-                  <div class="text-caption text-grey-7">Server-enforced feature gates and usage quotas</div>
-                </div>
-                <div class="plan-status">
-                  <q-badge :color="subscriptionStatusColor" class="q-mr-xs">
-                    {{ subscriptionStatusLabel }}
-                  </q-badge>
-                </div>
-              </div>
-
-              <div v-if="billingLoading" class="text-center q-py-lg">
-                <q-spinner-dots size="36px" color="primary" />
-              </div>
-
-              <div v-else class="row q-col-gutter-md q-mt-sm">
-                <div class="col-12 col-lg-7">
-                  <div class="plan-name">{{ currentPlanName }}</div>
-                  <div class="text-body2 text-grey-7 q-mb-md">
-                    Renews on {{ formatDate(billingSummary.next_renewal_date) }}
-                  </div>
-                </div>
-                <div class="col-12 col-lg-5">
-                  <q-btn
-                    class="full-width q-mb-sm"
-                    color="primary"
-                    unelevated
-                    label="Upgrade Plan"
-                    @click="upgradePlan"
-                  />
-                  <q-btn
-                    class="full-width"
-                    outline
-                    color="primary"
-                    label="Compare Plans"
-                    @click="comparePlans"
-                  />
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <div class="row q-col-gutter-sm q-mb-sm">
-            <div class="col-12 col-lg-8">
-              <q-card class="section-card fill-height">
-                <q-card-section class="q-pa-md">
-                  <div class="text-h6 q-mb-md">Usage Quotas</div>
-
-                  <div class="quota-card q-mb-md">
-                    <div class="row items-center justify-between q-mb-xs">
-                      <div class="text-subtitle2">Properties</div>
-                      <div class="text-caption text-grey-7">{{ propertyUsed }} / {{ propertyLimit }}</div>
-                    </div>
-                    <q-linear-progress rounded size="10px" :value="propertyRatio" :color="ratioColor(propertyRatio)" />
-                    <div class="row items-center justify-between q-mt-sm">
-                      <div class="text-caption text-grey-7">{{ Math.round(propertyRatio * 100) }}% used</div>
-                      <q-btn outline color="primary" size="sm" label="+10" @click="buyAddon('extra_properties')" />
-                    </div>
-                  </div>
-
-                  <div class="quota-card q-mb-md">
-                    <div class="row items-center justify-between q-mb-xs">
-                      <div class="text-subtitle2">Voice Fill</div>
-                      <div class="text-caption text-grey-7">{{ voiceUsed }} / {{ voiceLimit }}</div>
-                    </div>
-                    <q-linear-progress rounded size="10px" :value="voiceRatio" :color="ratioColor(voiceRatio)" />
-                    <div class="row items-center justify-between q-mt-sm">
-                      <div class="text-caption text-grey-7">{{ voiceRemaining }} left this month</div>
-                      <q-btn outline color="primary" size="sm" label="Buy Pack" @click="buyAddon('voice_pack_50')" />
-                    </div>
-                  </div>
-
-                  <div class="quota-card">
-                    <div class="row items-center justify-between q-mb-xs">
-                      <div class="text-subtitle2">Storage</div>
-                      <div class="text-caption text-grey-7">{{ storageUsedGb }} / {{ storageLimitGb }} GB</div>
-                    </div>
-                    <q-linear-progress rounded size="10px" :value="storageRatio" :color="ratioColor(storageRatio)" />
-                    <div class="row items-center justify-between q-mt-sm">
-                      <div class="text-caption text-grey-7">{{ Math.round(storageRatio * 100) }}% used</div>
-                      <q-btn outline color="primary" size="sm" label="Buy +20GB" @click="buyAddon('storage_20gb')" />
-                    </div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-12 col-lg-4">
-              <q-card class="wallet-card fill-height">
-                <q-card-section class="q-pa-md">
-                  <div class="text-h6 text-white">Credit Wallet</div>
-                  <div class="text-caption wallet-subtitle">Available credits</div>
-                  <div class="wallet-balance">{{ creditBalance }}</div>
-
-                  <q-list dense class="wallet-activity q-mt-sm">
-                    <q-item v-for="item in recentBillingActivity" :key="item.id" class="q-pa-none q-mb-xs">
-                      <q-item-section>
-                        <q-item-label class="text-white text-caption">{{ item.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-
-                  <div class="row q-col-gutter-sm q-mt-md">
-                    <div class="col-6">
-                      <q-btn class="full-width wallet-btn" label="Top Up" @click="topUpCredits" />
-                    </div>
-                    <div class="col-6">
-                      <q-btn class="full-width wallet-btn-outline" outline label="History" @click="openBillingHistory" />
-                    </div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-
-          <q-card class="section-card">
-            <q-card-section class="q-pa-md">
-              <div class="text-h6 q-mb-md">Billing Actions</div>
-              <div class="row q-col-gutter-sm">
-                <div class="col-12 col-md-4">
-                  <q-btn class="full-width" outline color="primary" label="Billing History" @click="openBillingHistory" />
-                </div>
-                <div class="col-12 col-md-4">
-                  <q-btn class="full-width" outline color="primary" label="Invoices" @click="openInvoices" />
-                </div>
-                <div class="col-12 col-md-4">
-                  <q-btn class="full-width" outline color="primary" label="Payment Method" @click="openPaymentMethod" />
-                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -304,12 +223,63 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showContactEditDialog">
+      <q-card style="min-width: 420px; max-width: 90vw">
+        <q-card-section class="row items-center justify-between">
+          <div class="text-h6">Update Contact Info</div>
+          <q-btn icon="close" flat round dense color="primary" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-pa-md">
+          <q-input
+            v-model="contactForm.displayName"
+            label="Display Name"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="contactForm.phone"
+            label="Phone"
+            type="tel"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="contactForm.companyName"
+            label="Company Name"
+            outlined
+            dense
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="contactForm.address"
+            label="Address"
+            outlined
+            dense
+            autogrow
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancel" color="grey" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Save"
+            :loading="savingContact"
+            @click="saveContactInfo"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { normalizeRoleValue } from '../utils/roleUtils'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useQuasar } from 'quasar'
 import { billingApi } from '../services/webApiClient'
@@ -318,14 +288,43 @@ import { useFirebase } from '../composables/useFirebase'
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
-const { logout, loading: firebaseLoading } = useFirebase()
+useFirebase()
 
 const userProfile = computed(() => userDataStore.userProfile || {})
 const userRoles = computed(() => userDataStore.userRoles || [])
 
-const accountTypeRaw = computed(() => String(userProfile.value.account_type || '').toUpperCase())
-const accountTypeLabel = computed(() => accountTypeRaw.value || 'UNSET')
-const primaryRoleLabel = computed(() => userProfile.value.primary_role || userProfile.value.user_category || 'N/A')
+const accountTypeRaw = computed(() => String(userProfile.value.account_type || '').toLowerCase())
+const accountTypeLabel = computed(() => (accountTypeRaw.value || 'unset').toUpperCase())
+const isSpAccount = computed(() => accountTypeRaw.value === 'sp' || String(userProfile.value.user_category || '').toLowerCase() === 'sp')
+const businessName = computed(
+  () =>
+    userProfile.value.business_name ||
+    userProfile.value.sp_business_name ||
+    userProfile.value.company_name ||
+    ''
+)
+const companyDisplay = computed(
+  () =>
+    userProfile.value.company_name ||
+    userProfile.value.business_name ||
+    userProfile.value.sp_business_name ||
+    userProfile.value.company ||
+    ''
+)
+const phoneDisplay = computed(
+  () =>
+    userProfile.value.mobile_phone ||
+    userProfile.value.cellphone ||
+    userProfile.value.phone ||
+    'Not set'
+)
+const addressDisplay = computed(
+  () =>
+    userProfile.value.registered_business_address ||
+    userProfile.value.address ||
+    userProfile.value.mailing_address ||
+    'Not set'
+)
 const displayName = computed(
   () =>
     userProfile.value.user_name ||
@@ -341,68 +340,53 @@ const mergedPropertyRoles = computed(() => {
 })
 
 const normalizeRoleCode = (role) => {
-  const value = String(role || '').toUpperCase().trim()
-  if (value === 'PROPERTY OWNER' || value === 'OWNER' || value === 'PO') return 'PO'
-  if (value === 'PROPERTY MANAGER' || value === 'MANAGER' || value === 'PM') return 'PM'
-  return value || 'N/A'
+  const normalized = normalizeRoleValue(role)
+  if (normalized === 'pm') return 'PM'
+  if (normalized === 'po') return 'PO'
+  if (normalized === 'tt') return 'TT'
+  if (normalized === 'sp') return 'SP'
+  if (normalized === 'admin') return 'ADMIN'
+  return 'N/A'
 }
 
-const propertyContextOptions = computed(() =>
-  mergedPropertyRoles.value
-    .map((entry) => {
-      const propertyId = entry.property_id || entry.propertyId || entry.id
-      if (!propertyId) return null
-      const property = userDataStore.getPropertyById(propertyId)
-      const propertyName = property?.nickname || property?.address || 'Unknown Property'
-      const roleCode = normalizeRoleCode(entry.role)
-      return {
-        value: String(propertyId),
-        label: `${propertyName} • ${roleCode}`,
-        roleCode,
+const formatRoleCodes = (codes = []) => {
+  const roleOrder = ['PM', 'PO', 'TT', 'SP', 'ADMIN', 'N/A']
+  const set = new Set((Array.isArray(codes) ? codes : []).filter(Boolean))
+  return roleOrder.filter((code) => set.has(code)).join('/') || 'N/A'
+}
+
+const propertyContextOptions = computed(() => {
+  const grouped = new Map()
+
+  for (const entry of mergedPropertyRoles.value) {
+    const propertyId = entry.property_id || entry.propertyId || entry.id
+    if (!propertyId) continue
+    const key = String(propertyId)
+    const property = userDataStore.getPropertyById(propertyId)
+    const propertyName = property?.nickname || property?.address || 'Unknown Property'
+    const roleCode = normalizeRoleCode(entry.role)
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        value: key,
+        label: propertyName,
         propertyName,
-        raw: entry,
-      }
-    })
-    .filter(Boolean)
-)
-
-const activePropertyId = ref('')
-const syncingActiveProperty = ref(false)
-const selectedRoleEntry = computed(
-  () => propertyContextOptions.value.find((item) => item.value === activePropertyId.value) || null
-)
-
-watch(
-  propertyContextOptions,
-  (options) => {
-    if (!options.length) {
-      activePropertyId.value = ''
-      return
+        roleCodes: [],
+        raw: [],
+      })
     }
-    const preferred = String(userProfile.value.active_property_id || '')
-    const hasPreferred = preferred && options.some((item) => item.value === preferred)
-    activePropertyId.value = hasPreferred ? preferred : options[0].value
-  },
-  { immediate: true }
-)
 
-watch(activePropertyId, async (value, previous) => {
-  if (!value || value === previous || syncingActiveProperty.value) return
-  const current = String(userProfile.value.active_property_id || '')
-  if (current === value) return
-  try {
-    syncingActiveProperty.value = true
-    await userDataStore.updateUserProfile({ active_property_id: value })
-  } catch (error) {
-    console.error('Failed to persist active property context:', error)
-    $q.notify({
-      type: 'warning',
-      message: 'Unable to save active property context.',
-      position: 'top',
-    })
-  } finally {
-    syncingActiveProperty.value = false
+    const current = grouped.get(key)
+    if (!current.roleCodes.includes(roleCode)) {
+      current.roleCodes.push(roleCode)
+    }
+    current.raw.push(entry)
   }
+
+  return Array.from(grouped.values()).map((item) => ({
+    ...item,
+    label: `${item.propertyName} • ${item.roleCodes.join(' + ')}`,
+  }))
 })
 
 const billingLoading = ref(false)
@@ -411,23 +395,28 @@ const billingUsage = ref({})
 const billingCredits = ref({})
 const billingHistory = ref([])
 
-const currentPlanName = computed(() => billingSummary.value.plan_name || 'Free')
-const subscriptionStatusLabel = computed(() => (billingSummary.value.subscription_status || 'inactive').toUpperCase())
-const subscriptionStatusColor = computed(() => {
-  const status = String(billingSummary.value.subscription_status || 'inactive').toLowerCase()
-  if (status === 'active') return 'positive'
-  if (status === 'trialing') return 'warning'
-  return 'grey'
-})
+const pickUsageNumber = (keys = []) => {
+  for (const key of keys) {
+    const value = Number(billingUsage.value?.[key])
+    if (Number.isFinite(value) && value >= 0) return value
+  }
+  return 0
+}
 
-const propertyUsed = computed(() => Number(billingUsage.value.properties_used || 0))
-const propertyLimit = computed(() => Math.max(1, Number(billingUsage.value.properties_limit || 0)))
-const propertyRatio = computed(() => Math.min(1, propertyUsed.value / propertyLimit.value))
+const numberFormatter = new Intl.NumberFormat('en-US')
 
-const voiceUsed = computed(() => Number(billingUsage.value.voice_used || 0))
-const voiceLimit = computed(() => Math.max(1, Number(billingUsage.value.voice_limit || 0)))
-const voiceRatio = computed(() => Math.min(1, voiceUsed.value / voiceLimit.value))
-const voiceRemaining = computed(() => Math.max(0, voiceLimit.value - voiceUsed.value))
+const aiTokensUsed = computed(() =>
+  pickUsageNumber(['ai_tokens_used', 'ai_token_used', 'tokens_used', 'token_used', 'voice_used'])
+)
+const aiTokensLimitRaw = computed(() =>
+  pickUsageNumber(['ai_tokens_limit', 'ai_token_limit', 'tokens_limit', 'token_limit', 'voice_limit'])
+)
+const aiTokensLimit = computed(() => Math.max(1, aiTokensLimitRaw.value))
+const aiTokensRatio = computed(() => Math.min(1, aiTokensUsed.value / aiTokensLimit.value))
+const aiTokensRemaining = computed(() => Math.max(0, aiTokensLimitRaw.value - aiTokensUsed.value))
+const aiTokensUsedDisplay = computed(() => numberFormatter.format(aiTokensUsed.value))
+const aiTokensLimitDisplay = computed(() => numberFormatter.format(aiTokensLimitRaw.value))
+const aiTokensRemainingDisplay = computed(() => numberFormatter.format(aiTokensRemaining.value))
 
 const storageUsedMb = computed(() => Number(billingUsage.value.storage_used_mb || 0))
 const storageLimitMb = computed(() => Math.max(1, Number(billingUsage.value.storage_limit_mb || 0)))
@@ -435,19 +424,6 @@ const storageRatio = computed(() => Math.min(1, storageUsedMb.value / storageLim
 const storageUsedGb = computed(() => (storageUsedMb.value / 1024).toFixed(1))
 const storageLimitGb = computed(() => (storageLimitMb.value / 1024).toFixed(1))
 
-const creditBalance = computed(() => Number(billingCredits.value.balance || 0).toLocaleString())
-const recentBillingActivity = computed(() => {
-  if (!billingHistory.value.length) {
-    return [
-      { id: 'placeholder-1', label: 'No recent billing activity' },
-      { id: 'placeholder-2', label: 'Credits and purchases will appear here' },
-    ]
-  }
-  return billingHistory.value.slice(0, 3).map((item, index) => ({
-    id: item.id || `history-${index}`,
-    label: item.description || item.type || 'Billing record',
-  }))
-})
 const billingHistoryRows = computed(() =>
   (billingHistory.value || []).map((item, index) => {
     const amountNum = Number(item.amount || 0)
@@ -463,8 +439,14 @@ const billingHistoryRows = computed(() =>
 )
 
 const showBillingHistoryDialog = ref(false)
-
-const logoutLoading = computed(() => Boolean(firebaseLoading.value))
+const showContactEditDialog = ref(false)
+const savingContact = ref(false)
+const contactForm = ref({
+  displayName: '',
+  phone: '',
+  companyName: '',
+  address: '',
+})
 
 const ratioColor = (ratio) => {
   if (ratio >= 1) return 'negative'
@@ -513,40 +495,9 @@ const notifyApiError = (error, fallbackMessage) => {
   })
 }
 
-const upgradePlan = async () => {
-  try {
-    await billingApi.upgrade({ target_plan: 'pro' })
-    $q.notify({ type: 'positive', message: 'Upgrade request submitted.', position: 'top' })
-    await loadBillingData()
-  } catch (error) {
-    notifyApiError(error, 'Unable to upgrade plan.')
-  }
-}
-
-const buyAddon = async (addonCode = 'extra_properties') => {
-  try {
-    await billingApi.purchaseAddon({ addon_code: addonCode })
-    $q.notify({ type: 'positive', message: 'Add-on purchase submitted.', position: 'top' })
-    await loadBillingData()
-  } catch (error) {
-    notifyApiError(error, 'Unable to purchase add-on.')
-  }
-}
-
-const comparePlans = () => {
-  $q.notify({ type: 'info', message: 'Plan comparison modal can be added here.', position: 'top' })
-}
-
-const topUpCredits = () => {
-  $q.notify({ type: 'info', message: 'Credit top-up flow can be connected here.', position: 'top' })
-}
 
 const openBillingHistory = () => {
   showBillingHistoryDialog.value = true
-}
-
-const openInvoices = () => {
-  router.push('/sp-invoices')
 }
 
 const openPaymentMethod = () => {
@@ -561,12 +512,86 @@ const openDataRequest = () => {
   router.push('/public/privacy')
 }
 
-const handleSignOut = async () => {
+const buyAddon = (addonKey) => {
+  const addonMap = {
+    ai_tokens_pack: 'AI Token Pack',
+    storage_20gb: 'Storage Pack',
+  }
+  const addonLabel = addonMap[addonKey] || 'Addon'
+  $q.notify({
+    type: 'info',
+    message: `${addonLabel} checkout will be enabled in a later phase.`,
+    position: 'top',
+  })
+}
+
+const openContactEditDialog = (focusField) => {
+  contactForm.value = {
+    displayName:
+      userProfile.value.user_name ||
+      [userProfile.value.first_name, userProfile.value.last_name].filter(Boolean).join(' ') ||
+      userDataStore.user?.displayName ||
+      '',
+    phone:
+      userProfile.value.mobile_phone ||
+      userProfile.value.cellphone ||
+      userProfile.value.phone ||
+      '',
+    companyName:
+      userProfile.value.company_name ||
+      userProfile.value.business_name ||
+      userProfile.value.sp_business_name ||
+      userProfile.value.company ||
+      '',
+    address:
+      userProfile.value.registered_business_address ||
+      userProfile.value.address ||
+      userProfile.value.mailing_address ||
+      '',
+  }
+  showContactEditDialog.value = true
+  const fieldToIndex = { name: 0, phone: 1, company: 2, address: 3 }
+  const targetIndex = fieldToIndex[focusField] ?? 0
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.q-dialog input, .q-dialog textarea')
+    const target = inputs[targetIndex] || inputs[0]
+    target?.focus?.()
+  }, 50)
+}
+
+const saveContactInfo = async () => {
   try {
-    await logout()
-    router.push('/public/login')
+    savingContact.value = true
+    const displayNameInput = String(contactForm.value.displayName || '').trim()
+    const phone = String(contactForm.value.phone || '').trim()
+    const companyName = String(contactForm.value.companyName || '').trim()
+    const address = String(contactForm.value.address || '').trim()
+    const nameParts = displayNameInput ? displayNameInput.split(/\s+/).filter(Boolean) : []
+    const firstName = nameParts.length ? nameParts[0] : ''
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
+    const profilePayload = {
+      user_name: displayNameInput,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+      mobile_phone: phone,
+      registered_business_address: address,
+      address,
+      company_name: companyName,
+      company: companyName,
+    }
+    if (isSpAccount.value) {
+      profilePayload.business_name = companyName
+      profilePayload.sp_business_name = companyName
+    }
+    await userDataStore.updateUserProfile({
+      ...profilePayload,
+    })
+    showContactEditDialog.value = false
   } catch (error) {
-    notifyApiError(error, 'Unable to sign out.')
+    notifyApiError(error, 'Unable to update contact info.')
+  } finally {
+    savingContact.value = false
   }
 }
 
@@ -581,18 +606,32 @@ onMounted(async () => {
 
 <style scoped>
 .profile-container {
-  max-width: 1640px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
-.profile-hero {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  border: 1px solid var(--neutral-200);
-  border-radius: 12px;
+.profile-page :deep(.q-card__section.q-pa-sm) {
+  padding: 10px !important;
 }
 
-.hero-subtitle {
-  color: rgba(255, 255, 255, 0.85);
+.profile-page :deep(.q-card__section.q-pa-md) {
+  padding: 12px !important;
+}
+
+.profile-topbar {
+  border-radius: 12px;
+  border: 1px solid var(--neutral-200);
+  background: linear-gradient(120deg, var(--bg-secondary) 0%, var(--bg-surface) 100%);
+}
+
+.topbar-subline {
+  color: var(--neutral-700);
+}
+
+.topbar-actions :deep(.q-btn) {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
 }
 
 .section-card {
@@ -601,80 +640,149 @@ onMounted(async () => {
   background: var(--bg-surface);
 }
 
-.fill-height {
+.profile-main-row {
+  align-items: stretch;
+}
+
+.panel-card {
   height: 100%;
+  min-height: 360px;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--neutral-100);
+.section-title {
   font-size: 0.95rem;
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.plan-name {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 2.4rem;
-  line-height: 1.1;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--neutral-900);
+}
+
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.info-cell {
+  border: 1px solid var(--neutral-200);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  padding: 8px 10px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.cell-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--neutral-600);
+}
+
+.info-editable {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primary-color);
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.info-editable:hover {
+  text-decoration: underline;
+}
+
+.info-cell strong {
+  font-size: 0.85rem;
+  line-height: 1.3;
   color: var(--neutral-900);
 }
 
 .quota-card {
   border: 1px solid var(--neutral-200);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
+  padding: 8px 10px;
   background: var(--bg-secondary);
 }
 
-.wallet-card {
-  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: white;
+.quota-card :deep(.q-btn) {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  border-radius: 7px;
 }
 
-.wallet-subtitle {
-  color: rgba(255, 255, 255, 0.78);
+.role-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 142px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
-.wallet-balance {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 3rem;
-  line-height: 1;
-  font-weight: 700;
-  margin: 12px 0 8px;
+.role-chip-wrap :deep(.q-chip) {
+  margin: 0;
+  height: 26px;
+  font-size: 0.72rem;
 }
 
-.wallet-activity {
-  min-height: 90px;
+.panel-card :deep(.q-list .q-item) {
+  min-height: 34px;
 }
 
-.wallet-btn {
-  background: rgba(255, 255, 255, 0.16);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.32);
+.panel-card :deep(.q-item__label) {
+  font-size: 0.84rem;
 }
 
-.wallet-btn-outline {
-  color: #bfdbfe;
-  border-color: #bfdbfe;
+.panel-card :deep(.q-item__label--caption) {
+  font-size: 0.72rem;
 }
 
-code {
-  background: var(--neutral-100);
-  padding: 2px 6px;
-  border-radius: 6px;
+@media (min-width: 1200px) {
+  .profile-main-row {
+    min-height: calc(100vh - 190px);
+  }
+
+  .panel-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 1199px) {
+  .panel-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .compact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
 }
 
 :global(body.body--dark) .section-card {
   border-color: var(--neutral-300) !important;
+}
+
+:global(body.body--dark) .profile-topbar {
+  border-color: var(--neutral-300) !important;
+  background: linear-gradient(120deg, #1a2230 0%, var(--bg-surface) 100%);
+}
+
+:global(body.body--dark) .info-cell {
+  border-color: var(--neutral-300);
+  background: var(--bg-tertiary);
 }
 
 :global(body.body--dark) .quota-card {

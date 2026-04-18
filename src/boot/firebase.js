@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics } from 'firebase/analytics'
 
@@ -57,7 +57,12 @@ try {
       console.error('Error setting persistence:', error)
     })
   
-  db = getFirestore(app)
+  // Improve compatibility for networks/browsers that block Firestore streaming channel.
+  db = initializeFirestore(app, {
+    // Force long-polling to avoid flaky streaming transport errors on some networks/proxies.
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
+  })
   storage = getStorage(app)
   console.log('Firebase services initialized successfully')
 } catch (error) {
@@ -73,6 +78,16 @@ if (typeof window !== 'undefined') {
   } catch (error) {
     console.warn('Analytics initialization failed:', error)
   }
+}
+
+const envDisableListen = String(import.meta.env.VITE_DISABLE_FIRESTORE_LISTEN || '').toLowerCase()
+const isListenDisabledByEnv = envDisableListen === '1' || envDisableListen === 'true'
+const isListenDisabledByHost =
+  typeof window !== 'undefined' &&
+  ['handout.us', 'www.handout.us'].includes(window.location.hostname)
+export const FIRESTORE_LISTEN_DISABLED = isListenDisabledByEnv || isListenDisabledByHost
+if (FIRESTORE_LISTEN_DISABLED) {
+  console.warn('Firestore realtime listeners are disabled for this environment/host.')
 }
 
 // ============================================

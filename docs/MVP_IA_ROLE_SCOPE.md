@@ -45,14 +45,15 @@
 - `Records`: my tasks history, task comments, my payments/receipts, lease info, assigned move-in inventory history.
 - `Profile`: account, notifications, sign out.
 
-### PM/PO
+### PM/PO (Shared IA, Split Permissions)
+- PM and PO share the same navigation IA, but permissions differ by property role.
 - `Dashboard`: portfolio overview, task/reminder alerts, lease/rent alerts, transaction highlights.
-- `Create`: unified create entry for property/task/asset/reminder/lease/document/transaction/inventory.
+- `Create`: unified create entry for property/task/asset/reminder/lease/document/transaction/inventory (PM full, PO restricted).
 - `Inbox`: assignment updates, task status changes, reminders, team notifications.
-- `Records`: independent page for global search and historical data across all entities, editable detail pages.
-- `Task Detail`: includes right-side `Recommended SP` panel for contact/quote/assign actions.
-- `SP Cards`: independent page for saved SP cards and note management.
-- `Reports`: 4 simple reports (see section 5).
+- `Records`: independent page for global search and historical data across all entities.
+- `Task Detail`: includes right-side `Recommended SP` panel for contact/quote/assign actions (PM only).
+- `SP Cards`: independent page for saved SP cards and note management (PM only).
+- `Reports`: 4 simple reports (see section 5). PO can export.
 - `Profile`: account/org context, settings, billing plan status, usage quota, credit balance, sign out.
 
 ### SP
@@ -75,7 +76,7 @@
 - Cannot edit submitted inventory list.
 - Cannot perform PM/PO-level entity CRUD.
 
-### PM/PO (MVP)
+### PM (MVP)
 - Full CRUD for:
   - `Property`
   - `Task`
@@ -87,6 +88,29 @@
   - `Inventory List`
 - Move-out process support via inventory create/update and revision handling.
 - Full historical search across entities.
+
+### PO (MVP)
+- View-only for:
+  - `Property`
+  - `Task`
+  - `Asset`
+  - `Reminders`
+  - `Lease`
+  - `Document`
+  - `Inventory List`
+- Transactions:
+  - Can `create`, `edit`, `delete` **only own-created** transactions.
+  - Can view all transactions for owned properties.
+- Reports:
+  - Can view and export all reports for owned properties.
+- Billing:
+  - Can view subscription and billing history (read-only).
+
+### Registration / Onboarding (Manager/Owner)
+- Ask: “Do you only manage your own properties?”
+  - If `Yes`: default property role intent = `PO`.
+  - If `No`: default property role intent = `PM`.
+- Company name is optional.
 
 ## 4) Records + Search SP
 

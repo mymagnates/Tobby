@@ -1,79 +1,32 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Role Filter -->
     <div class="row q-mb-md q-padding-sm">
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
-        <q-select
-          v-model="selectedRole"
-          :options="roleOptions"
-          label="Filter by Role"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-          @update:model-value="onRoleFilterChange"
-        >
-          <template v-slot:prepend>
-            <q-icon name="person" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
         <q-select
           v-model="dateRange"
           :options="dateRangeOptions"
           label="Date Range"
+          class="report-filter-control"
           outlined
           dense
           bg-color="grey-1"
-          @update:model-value="updateCharts"
         >
           <template v-slot:prepend>
             <q-icon name="date_range" />
           </template>
         </q-select>
       </div>
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
-        <q-select
-          v-model="selectedProperties"
-          :options="propertyOptions"
-          label="Filter by Properties (Multiple)"
-          outlined
-          dense
-          clearable
-          multiple
-          bg-color="grey-1"
-          option-label="label"
-          option-value="value"
-          emit-value
-          map-options
-          use-chips
-          @update:model-value="updateCharts"
-        >
-          <template v-slot:prepend>
-            <q-icon name="home" />
-          </template>
-          <template v-slot:hint> Select one or more properties to filter </template>
-          <template v-slot:append>
-            <q-btn
-              flat
-              dense
-              size="sm"
-              color="primary"
-              label="Select All"
-              @click.stop="selectAllProperties"
-              class="select-all-btn"
-            />
-          </template>
-        </q-select>
-
+      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
       </div>
-      <div class="col-12 col-md-3" style="padding-left: 2px; padding-right: 2px">
+      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
 
       <q-btn-dropdown
           icon="download"
           color="primary"
           label="Bulk Export"
+          outline
+          no-caps
+          class="report-action-btn"
           split
           @click="exportAllReports"
         >
@@ -146,13 +99,6 @@
         </q-card-section>
       </q-card>
 
-      <q-card class="summary-card col">
-        <q-card-section class="text-center">
-          <q-icon name="task_alt" size="32px" color="info" />
-          <div class="text-h5 text-info q-mt-sm">{{ completedTasks }}</div>
-          <div class="text-subtitle2">Completed Tasks</div>
-        </q-card-section>
-      </q-card>
     </div>
 
     <!-- Core Reports (Free) -->
@@ -202,143 +148,6 @@
       </div>
     </div>
 
-    <!-- Premium Charts (Future Paid) -->
-    <div class="q-mb-lg premium-section">
-      <div class="row items-center q-mb-sm">
-        <div class="text-h6">
-          <q-icon name="workspace_premium" class="q-mr-sm" />
-          Premium Charts
-        </div>
-        <q-chip
-          :color="canAccessAdvancedReports ? 'positive' : 'warning'"
-          text-color="black"
-          size="sm"
-          class="q-ml-sm"
-        >
-          {{ canAccessAdvancedReports ? 'Enabled' : 'Plan Required' }}
-        </q-chip>
-        <q-btn
-          v-if="!canAccessAdvancedReports"
-          flat
-          color="primary"
-          size="sm"
-          label="Upgrade"
-          class="q-ml-sm"
-          @click="upgradeForReports"
-        />
-      </div>
-      <div class="premium-grid">
-        <q-card class="premium-card">
-          <q-card-section>
-            <div class="premium-title">
-              <q-icon name="lock" size="16px" class="q-mr-xs" />
-              Delinquency Recovery Cohort
-            </div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Recovery rate by overdue age bucket and cohort month.
-            </div>
-          </q-card-section>
-        </q-card>
-        <q-card class="premium-card">
-          <q-card-section>
-            <div class="premium-title">
-              <q-icon name="lock" size="16px" class="q-mr-xs" />
-              Renewal Risk Prediction
-            </div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Predicted lease non-renewal risk by tenant and property.
-            </div>
-          </q-card-section>
-        </q-card>
-        <q-card class="premium-card">
-          <q-card-section>
-            <div class="premium-title">
-              <q-icon name="lock" size="16px" class="q-mr-xs" />
-              Maintenance Cost Forecast
-            </div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Forecasted maintenance spend by property and category.
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-    </div>
-
-    <div class="q-mb-lg">
-      <q-card class="table-card">
-        <q-card-section>
-          <div class="text-h6 q-mb-sm">
-            <q-icon name="receipt_long" class="q-mr-sm" />
-            Annual Tax Finance Report (Web)
-          </div>
-
-          <div class="row q-col-gutter-sm q-mb-sm">
-            <div class="col-12 col-md-3">
-              <q-input v-model.number="taxYear" type="number" label="Tax Year" outlined dense />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select v-model="taxRoleView" :options="taxRoleOptions" label="Role View" outlined dense />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="taxPropertyIds"
-                :options="propertyOptions"
-                label="Properties"
-                outlined
-                dense
-                multiple
-                option-label="label"
-                option-value="value"
-                emit-value
-                map-options
-              />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-input
-                v-model="taxCategory"
-                label="Transaction Category (Optional)"
-                outlined
-                dense
-              />
-            </div>
-          </div>
-
-          <div class="row q-gutter-sm q-mb-md">
-            <q-btn color="primary" unelevated label="Generate" :loading="taxLoading" @click="generateTaxReport" />
-            <q-btn flat color="primary" label="Export CSV" @click="exportTaxCsv" />
-            <q-btn flat color="secondary" label="Export PDF" @click="exportTaxPdf" />
-          </div>
-
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-4">
-              <q-card bordered flat>
-                <q-card-section class="text-center">
-                  <div class="text-caption">Income Total</div>
-                  <div class="text-h6 text-positive">${{ taxReport.incomeTotal }}</div>
-                </q-card-section>
-              </q-card>
-            </div>
-            <div class="col-12 col-md-4">
-              <q-card bordered flat>
-                <q-card-section class="text-center">
-                  <div class="text-caption">Expense Total</div>
-                  <div class="text-h6 text-negative">${{ taxReport.expenseTotal }}</div>
-                </q-card-section>
-              </q-card>
-            </div>
-            <div class="col-12 col-md-4">
-              <q-card bordered flat>
-                <q-card-section class="text-center">
-                  <div class="text-caption">Net Total</div>
-                  <div class="text-h6">${{ taxReport.netTotal }}</div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
-    </div>
-
     <!-- Financial Transactions Table -->
     <div class="row q-mb-lg">
       <div class="col-12">
@@ -350,11 +159,12 @@
                 Financial Transactions Report
               </div>
               <q-btn
-                flat
+                outline
                 dense
                 color="primary"
                 icon="download"
                 label="Download CSV"
+                class="report-action-btn"
                 @click="downloadTransactionsCSV"
               />
             </div>
@@ -402,9 +212,15 @@
 
               <template v-slot:body-cell-amount="props">
                 <q-td :props="props">
-                  <span :class="getAmountClass(props.row.type)">
+                  <span :class="getAmountClass(props.row)">
                     ${{ formatAmount(props.value) }}
                   </span>
+                </q-td>
+              </template>
+
+              <template v-slot:body-cell-task_link="props">
+                <q-td :props="props">
+                  {{ props.value || '-' }}
                 </q-td>
               </template>
 
@@ -440,11 +256,12 @@
                 Task History Report
               </div>
               <q-btn
-                flat
+                outline
                 dense
                 color="primary"
                 icon="download"
                 label="Download CSV"
+                class="report-action-btn"
                 @click="downloadTasksCSV"
               />
             </div>
@@ -481,6 +298,12 @@
                   {{ getPropertyName(props.row.property_id) }}
                 </q-td>
               </template>
+
+              <template v-slot:body-cell-linked_tx_total="props">
+                <q-td :props="props">
+                  ${{ formatAmount(props.value) }}
+                </q-td>
+              </template>
             </q-table>
           </q-card-section>
         </q-card>
@@ -507,34 +330,24 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
-import { billingApi } from '../services/webApiClient'
+import { normalizeRoleValue } from '../utils/roleUtils'
 
 const userDataStore = useUserDataStore()
+const router = useRouter()
+const route = useRoute()
 
 // Reactive data
 const loading = ref(false)
 const dataLoaded = ref(false)
-const selectedRole = ref(null)
 const selectedProperties = ref([])
 const dateRange = ref('Last 6 Months')
+const chartsReady = ref(false)
+let chartsUpdateTimer = null
 const showImageViewer = ref(false)
 const currentImageUrl = ref('')
-const billingSummary = ref({})
-const canAccessAdvancedReports = ref(false)
-const taxYear = ref(new Date().getFullYear())
-const taxRoleView = ref('PM')
-const taxRoleOptions = ['PM', 'PO']
-const taxPropertyIds = ref([])
-const taxCategory = ref('')
-const taxLoading = ref(false)
-const taxReport = ref({
-  incomeTotal: '0.00',
-  expenseTotal: '0.00',
-  netTotal: '0.00',
-  transactions: [],
-})
 
 // Chart references
 const coreCashFlowChartCanvas = ref(null)
@@ -547,8 +360,79 @@ let delinquencyChart = null
 let maintenanceChart = null
 
 // Options
-const roleOptions = ['Property Owner', 'Property Manager', 'Tenant']
 const dateRangeOptions = ['Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'Last Year', 'All Time']
+
+const normalizePropertyId = (value) => {
+  if (!value) return ''
+  if (typeof value === 'object') {
+    return String(value.id || value.property_id || '').trim()
+  }
+  return String(value).trim()
+}
+
+const normalizeTransactionRole = (value) => {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return ''
+  if (raw === 'pm' || raw === 'property manager' || raw === 'manager') return 'pm'
+  if (raw === 'po' || raw === 'property owner' || raw === 'owner' || raw === 'landlord') return 'po'
+  if (raw === 'tt' || raw === 'tenant') return 'tt'
+  if (raw === 'sp' || raw === 'service provider' || raw === 'contractor') return 'sp'
+  if (raw === 'admin' || raw === 'administrator') return 'admin'
+  if (raw === 'government' || raw === 'gov') return 'government'
+  if (raw === 'hoa') return 'hoa'
+  return raw
+}
+
+const toDateSafe = (value) => {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (typeof value?.toDate === 'function') return value.toDate()
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const normalizeFlowType = (value) => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'income' || normalized === 'expense') return normalized
+  return ''
+}
+
+const getTransactionTaskLinkId = (transaction) =>
+  String(transaction?.task_id || transaction?.related_task_id || '').trim()
+
+const getTaskIdCandidates = (task) =>
+  [...new Set([task?.id, task?.mx_id, task?.task_id]
+    .filter((value) => value !== null && value !== undefined && String(value).trim().length)
+    .map((value) => String(value).trim()))]
+
+const classifyTransactionFlow = (transaction, roleOverride = null) => {
+  const fromRole = normalizeTransactionRole(transaction?.transac_from || transaction?.role)
+  const toRole = normalizeTransactionRole(transaction?.transac_to)
+  const explicitRole = normalizeTransactionRole(roleOverride)
+  const portfolioRoles = ['pm', 'po']
+
+  if (explicitRole) {
+    if (toRole && toRole === explicitRole) return 'income'
+    if (fromRole && fromRole === explicitRole) return 'expense'
+  } else {
+    if (toRole && portfolioRoles.includes(toRole)) return 'income'
+    if (fromRole && portfolioRoles.includes(fromRole)) return 'expense'
+  }
+
+  const explicitType = normalizeFlowType(transaction?.type)
+  if (explicitType) return explicitType
+
+  const amount = Number(transaction?.amount || 0)
+  if (Number.isFinite(amount) && amount < 0) return 'expense'
+  return 'ignore'
+}
+
+const getTransactionFlowLabel = (transaction, roleOverride = null) => {
+  const flowType = classifyTransactionFlow(transaction, roleOverride)
+  if (flowType === 'income') return 'Income'
+  if (flowType === 'expense') return 'Expense'
+  return 'N/A'
+}
 
 // Property options
 const propertyOptions = computed(() => {
@@ -565,23 +449,19 @@ const totalDataCount = computed(() => {
   return transactionCount + taskCount
 })
 
+const hasReportData = computed(() => totalDataCount.value > 0)
+
 // Filtered data based on role and property selection
 const filteredTransactions = computed(() => {
-  let transactions = userDataStore.userAccessibleTransactions
-
-  // Filter by role
-  if (selectedRole.value) {
-    transactions = transactions.filter(
-      (t) =>
-        t.transac_from === selectedRole.value ||
-        t.transac_to === selectedRole.value ||
-        t.role === selectedRole.value,
-    )
-  }
+  let transactions = Array.isArray(userDataStore.userAccessibleTransactions)
+    ? userDataStore.userAccessibleTransactions
+    : []
 
   // Filter by properties (multiple selection)
   if (selectedProperties.value && selectedProperties.value.length > 0) {
-    transactions = transactions.filter((t) => selectedProperties.value.includes(t.property_id))
+    transactions = transactions.filter((t) =>
+      selectedProperties.value.includes(normalizePropertyId(t.property_id)),
+    )
   }
 
   // Filter by date range
@@ -591,13 +471,17 @@ const filteredTransactions = computed(() => {
 })
 
 const filteredTasks = computed(() => {
-  let tasks = userDataStore.userAccessibleMxRecords
+  let tasks = Array.isArray(userDataStore.userAccessibleMxRecords)
+    ? userDataStore.userAccessibleMxRecords
+    : []
 
   // NOTE: Task history does NOT filter by role - shows all tasks
 
   // Filter by properties (multiple selection)
   if (selectedProperties.value && selectedProperties.value.length > 0) {
-    tasks = tasks.filter((t) => selectedProperties.value.includes(t.property_id))
+    tasks = tasks.filter((t) =>
+      selectedProperties.value.includes(normalizePropertyId(t.property_id)),
+    )
   }
 
   // Filter by date range
@@ -606,32 +490,51 @@ const filteredTasks = computed(() => {
   return tasks
 })
 
-// Helper function to determine if transaction is income or expense for selected role
-const isIncomeForRole = (transaction, role) => {
-  // If role is in "to" field, it's income
-  return transaction.transac_to === role
+const taskTransactionsIndex = computed(() => {
+  const map = new Map()
+  filteredTransactions.value.forEach((transaction) => {
+    const taskLinkId = getTransactionTaskLinkId(transaction)
+    if (!taskLinkId) return
+    if (!map.has(taskLinkId)) {
+      map.set(taskLinkId, [])
+    }
+    map.get(taskLinkId).push(transaction)
+  })
+  return map
+})
+
+const getTaskLinkedTransactions = (task) => {
+  const candidates = getTaskIdCandidates(task)
+  if (!candidates.length) return []
+  const linked = []
+  const seen = new Set()
+  candidates.forEach((candidate) => {
+    const rows = taskTransactionsIndex.value.get(candidate) || []
+    rows.forEach((row) => {
+      const rowKey = String(row?.id || row?.transac_id || JSON.stringify(row))
+      if (seen.has(rowKey)) return
+      seen.add(rowKey)
+      linked.push(row)
+    })
+  })
+  return linked
 }
 
-const isExpenseForRole = (transaction, role) => {
-  // If role is in "from" field, it's expense
-  return transaction.transac_from === role
-}
+const getTaskLinkedTransactionCount = (task) => getTaskLinkedTransactions(task).length
+
+const getTaskLinkedTransactionTotal = (task) =>
+  getTaskLinkedTransactions(task).reduce((sum, transaction) => {
+    const amount = Number(transaction?.amount || 0)
+    return sum + (Number.isFinite(amount) ? amount : 0)
+  }, 0)
 
 // Summary calculations
 const totalIncome = computed(() => {
   let income = 0
 
   filteredTransactions.value.forEach((t) => {
-    // If a specific role is selected, check if transaction is income for that role
-    if (selectedRole.value) {
-      if (isIncomeForRole(t, selectedRole.value)) {
-        income += parseFloat(t.amount) || 0
-      }
-    } else {
-      // If no role filter, use the transaction's type field
-      if (t.type === 'income') {
-        income += parseFloat(t.amount) || 0
-      }
+    if (classifyTransactionFlow(t) === 'income') {
+      income += parseFloat(t.amount) || 0
     }
   })
 
@@ -642,16 +545,8 @@ const totalExpenses = computed(() => {
   let expenses = 0
 
   filteredTransactions.value.forEach((t) => {
-    // If a specific role is selected, check if transaction is expense for that role
-    if (selectedRole.value) {
-      if (isExpenseForRole(t, selectedRole.value)) {
-        expenses += parseFloat(t.amount) || 0
-      }
-    } else {
-      // If no role filter, use the transaction's type field
-      if (t.type === 'expense') {
-        expenses += parseFloat(t.amount) || 0
-      }
+    if (classifyTransactionFlow(t) === 'expense') {
+      expenses += parseFloat(t.amount) || 0
     }
   })
 
@@ -686,6 +581,13 @@ const transactionColumns = [
     align: 'left',
   },
   {
+    name: 'task_link',
+    label: 'Task ID',
+    field: (row) => getTransactionTaskLinkId(row),
+    sortable: true,
+    align: 'left',
+  },
+  {
     name: 'property',
     label: 'Property',
     field: 'property_id',
@@ -709,14 +611,7 @@ const transactionColumns = [
   {
     name: 'flow',
     label: 'Flow',
-    field: (row) => {
-      if (selectedRole.value) {
-        if (isIncomeForRole(row, selectedRole.value)) return 'Income'
-        if (isExpenseForRole(row, selectedRole.value)) return 'Expense'
-        return 'N/A'
-      }
-      return row.type === 'income' ? 'Income' : 'Expense'
-    },
+    field: (row) => getTransactionFlowLabel(row),
     sortable: true,
     align: 'center',
   },
@@ -773,6 +668,20 @@ const taskColumns = [
     align: 'center',
   },
   {
+    name: 'linked_tx_count',
+    label: 'Linked Tx',
+    field: (row) => getTaskLinkedTransactionCount(row),
+    sortable: true,
+    align: 'right',
+  },
+  {
+    name: 'linked_tx_total',
+    label: 'Linked Cost',
+    field: (row) => getTaskLinkedTransactionTotal(row),
+    sortable: true,
+    align: 'right',
+  },
+  {
     name: 'resolv_date',
     label: 'Resolved Date',
     field: 'resolv_date',
@@ -820,7 +729,8 @@ const filterByDateRange = (items, dateField) => {
   }
 
   return items.filter((item) => {
-    const itemDate = new Date(item[dateField])
+    const itemDate = toDateSafe(item?.[dateField] || item?.created_datetime || item?.createdAt)
+    if (!itemDate) return false
     return itemDate >= startDate
   })
 }
@@ -870,126 +780,19 @@ const getTaskStatusColor = (status) => {
 }
 
 const getRoleColor = (role) => {
-  const colors = {
-    'Property Owner': 'deep-purple',
-    'Property Manager': 'blue',
-    Tenant: 'green',
-  }
-  return colors[role] || 'grey'
+  const normalized = normalizeRoleValue(role)
+  if (normalized === 'po') return 'deep-purple'
+  if (normalized === 'pm') return 'blue'
+  if (normalized === 'tt') return 'green'
+  if (normalized === 'sp') return 'orange'
+  return 'grey'
 }
 
-const getAmountClass = (type) => {
-  return type === 'income' ? 'text-positive text-bold' : 'text-negative text-bold'
-}
-
-const loadBillingSummary = async () => {
-  try {
-    billingSummary.value = await billingApi.getProfileSummary()
-    const plan = String(billingSummary.value.plan_name || 'free').toLowerCase()
-    canAccessAdvancedReports.value = !['free', 'starter', 'trial'].includes(plan)
-  } catch {
-    canAccessAdvancedReports.value = false
-  }
-}
-
-const upgradeForReports = async () => {
-  try {
-    await billingApi.upgrade({ target_plan: 'pro' })
-    Notify.create({
-      type: 'positive',
-      message: 'Upgrade request submitted.',
-      position: 'top',
-    })
-    await loadBillingSummary()
-  } catch (error) {
-    Notify.create({
-      type: 'negative',
-      message: error.message || 'Upgrade failed.',
-      caption: error.upgrade_hint || '',
-      position: 'top',
-    })
-  }
-}
-
-const classifyFlowForTax = (transaction, role) => {
-  if (transaction.transac_to === role) return 'income'
-  if (transaction.transac_from === role) return 'expense'
-  return 'ignore'
-}
-
-const generateTaxReport = () => {
-  taxLoading.value = true
-  try {
-    const year = Number(taxYear.value)
-    const role = taxRoleView.value
-    const tx = userDataStore.userAccessibleTransactions.filter((t) => {
-      const date = new Date(t.transac_date)
-      if (Number.isNaN(date.getTime()) || date.getFullYear() !== year) return false
-      if (taxPropertyIds.value.length && !taxPropertyIds.value.includes(t.property_id)) return false
-      if (taxCategory.value && !String(t.transac_type || '').toLowerCase().includes(taxCategory.value.toLowerCase())) return false
-      return true
-    })
-
-    let income = 0
-    let expense = 0
-    tx.forEach((t) => {
-      const flow = classifyFlowForTax(t, role)
-      const amount = Number(t.amount || 0)
-      if (flow === 'income') income += amount
-      if (flow === 'expense') expense += amount
-    })
-
-    taxReport.value = {
-      incomeTotal: formatAmount(income),
-      expenseTotal: formatAmount(expense),
-      netTotal: formatAmount(income - expense),
-      transactions: tx,
-    }
-  } finally {
-    taxLoading.value = false
-  }
-}
-
-const exportTaxCsv = () => {
-  const role = String(taxRoleView.value || 'PM').toLowerCase()
-  const rows = taxReport.value.transactions.map((t) => [
-    formatDate(t.transac_date),
-    getPropertyName(t.property_id),
-    t.transac_type || '',
-    t.transac_from || '',
-    t.transac_to || '',
-    t.amount || 0,
-    classifyFlowForTax(t, taxRoleView.value),
-  ])
-  let csv = ''
-  csv += 'Tax Year,Role View,Income Total,Expense Total,Net Total\n'
-  csv += `${taxYear.value},${taxRoleView.value},${taxReport.value.incomeTotal},${taxReport.value.expenseTotal},${taxReport.value.netTotal}\n\n`
-  csv += 'Date,Property,Category,From,To,Amount,Flow\n'
-  rows.forEach((row) => {
-    csv += row.map((cell) => `"${cell}"`).join(',') + '\n'
-  })
-  downloadCSV(csv, `annual-tax-report-${role}-${taxYear.value}`)
-}
-
-const exportTaxPdf = () => {
-  const filename = `annual-tax-report-${String(taxRoleView.value || 'pm').toLowerCase()}-${taxYear.value}.pdf`
-  const html = `
-    <html><head><title>${filename}</title></head><body>
-    <h2>Annual Tax Finance Report</h2>
-    <p>Tax Year: ${taxYear.value}</p>
-    <p>Role View: ${taxRoleView.value}</p>
-    <p>Income: $${taxReport.value.incomeTotal}</p>
-    <p>Expense: $${taxReport.value.expenseTotal}</p>
-    <p>Net: $${taxReport.value.netTotal}</p>
-    <p>Use browser Print to save as PDF.</p>
-    </body></html>
-  `
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+const getAmountClass = (transaction) => {
+  const flowType = classifyTransactionFlow(transaction)
+  if (flowType === 'income') return 'text-positive text-bold'
+  if (flowType === 'expense') return 'text-negative text-bold'
+  return 'text-grey-7 text-bold'
 }
 
 // Chart functions
@@ -1001,14 +804,6 @@ const initializeCharts = () => {
     createDelinquencyChart(Chart.default)
     createMaintenanceChart(Chart.default)
   })
-}
-
-const toDateSafe = (value) => {
-  if (!value) return null
-  if (value instanceof Date) return value
-  if (typeof value?.toDate === 'function') return value.toDate()
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? null : d
 }
 
 const getMonthsForSelectedRange = () => {
@@ -1060,8 +855,9 @@ const createCoreCashFlowChart = (Chart) => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (!monthly[key]) return
     const amount = parseFloat(t.amount) || 0
-    if (t.type === 'income') monthly[key].income += amount
-    else monthly[key].expense += amount
+    const flowType = classifyTransactionFlow(t)
+    if (flowType === 'income') monthly[key].income += amount
+    else if (flowType === 'expense') monthly[key].expense += amount
   })
 
   coreCashFlowChart = new Chart(ctx, {
@@ -1316,6 +1112,7 @@ const createMaintenanceChart = (Chart) => {
 }
 
 const updateCharts = () => {
+  if (!dataLoaded.value || !hasReportData.value) return
   console.log('updateCharts called - recreating all charts')
   import('chart.js/auto')
     .then((Chart) => {
@@ -1323,30 +1120,19 @@ const updateCharts = () => {
       createOccupancyChart(Chart.default)
       createDelinquencyChart(Chart.default)
       createMaintenanceChart(Chart.default)
+      chartsReady.value = true
     })
     .catch((error) => {
       console.error('Error updating charts:', error)
     })
 }
 
-// Event handlers
-const onRoleFilterChange = () => {
-  updateCharts()
-}
-
-const selectAllProperties = () => {
-  // Select all available property IDs
-  selectedProperties.value = propertyOptions.value.map((p) => p.value)
-
-  // Update charts with all properties selected
-  updateCharts()
-
-  Notify.create({
-    type: 'info',
-    message: `All ${selectedProperties.value.length} properties selected`,
-    position: 'top',
-    timeout: 2000,
-  })
+const scheduleUpdateCharts = () => {
+  if (!dataLoaded.value || !hasReportData.value) return
+  if (chartsUpdateTimer) clearTimeout(chartsUpdateTimer)
+  chartsUpdateTimer = setTimeout(() => {
+    updateCharts()
+  }, 120)
 }
 
 const downloadTransactionsCSV = () => {
@@ -1361,20 +1147,14 @@ const downloadTransactionsCSV = () => {
       'Flow (Income/Expense)',
       'Amount',
       'Role',
+      'Task ID',
       'Transaction ID',
       'Lease ID',
     ]
 
     // Create CSV rows
     const rows = filteredTransactions.value.map((t) => {
-      // Determine flow based on role filter
-      let flow = 'N/A'
-      if (selectedRole.value) {
-        if (isIncomeForRole(t, selectedRole.value)) flow = 'Income'
-        else if (isExpenseForRole(t, selectedRole.value)) flow = 'Expense'
-      } else {
-        flow = t.type === 'income' ? 'Income' : 'Expense'
-      }
+      const flow = getTransactionFlowLabel(t)
 
       return [
         formatDate(t.transac_date),
@@ -1385,6 +1165,7 @@ const downloadTransactionsCSV = () => {
         flow,
         t.amount || 0,
         t.role || '',
+        getTransactionTaskLinkId(t),
         t.transac_id || '',
         t.lease_id || '',
       ]
@@ -1402,7 +1183,6 @@ const downloadTransactionsCSV = () => {
 
     // Add filter information
     csvContent += '=== FILTERS APPLIED ===\n'
-    csvContent += `Role,${selectedRole.value || 'All Roles'}\n`
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.map((id) => getPropertyName(id)).join('; ') : 'All Properties'}\n`
     csvContent += `Total Records,${filteredTransactions.value.length}\n`
@@ -1435,6 +1215,8 @@ const downloadTasksCSV = () => {
       'Description',
       'Reported By (Role)',
       'Status',
+      'Linked Transaction Count',
+      'Linked Transaction Total',
       'Resolved Date',
       'Resolved By',
     ]
@@ -1446,6 +1228,8 @@ const downloadTasksCSV = () => {
       t.description || '',
       t.reported_role || '',
       t.status || 'Open',
+      getTaskLinkedTransactionCount(t),
+      formatAmount(getTaskLinkedTransactionTotal(t)),
       t.resolv_date ? formatDate(t.resolv_date) : '-',
       t.resolv_by || '-',
     ])
@@ -1462,7 +1246,6 @@ const downloadTasksCSV = () => {
 
     // Add filter information
     csvContent += '=== FILTERS APPLIED ===\n'
-    csvContent += `Role,${selectedRole.value || 'All Roles'}\n`
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.map((id) => getPropertyName(id)).join('; ') : 'All Properties'}\n`
     csvContent += `Total Records,${filteredTasks.value.length}\n`
@@ -1494,8 +1277,7 @@ const downloadCSV = (csvContent, reportType) => {
 
   // Generate filename with timestamp
   const timestamp = new Date().toISOString().split('T')[0]
-  const roleFilter = selectedRole.value ? `_${selectedRole.value.replace(/\s+/g, '-')}` : ''
-  const filename = `${reportType}${roleFilter}_${timestamp}.csv`
+  const filename = `${reportType}_${timestamp}.csv`
 
   link.setAttribute('href', url)
   link.setAttribute('download', filename)
@@ -1530,19 +1312,13 @@ const exportAllReports = () => {
       'Flow (Income/Expense)',
       'Amount',
       'Role',
+      'Task ID',
       'Transaction ID',
       'Lease ID',
     ]
 
     const transactionRows = filteredTransactions.value.map((t) => {
-      // Determine flow based on role filter
-      let flow = 'N/A'
-      if (selectedRole.value) {
-        if (isIncomeForRole(t, selectedRole.value)) flow = 'Income'
-        else if (isExpenseForRole(t, selectedRole.value)) flow = 'Expense'
-      } else {
-        flow = t.type === 'income' ? 'Income' : 'Expense'
-      }
+      const flow = getTransactionFlowLabel(t)
 
       return [
         formatDate(t.transac_date),
@@ -1553,6 +1329,7 @@ const exportAllReports = () => {
         flow,
         t.amount || 0,
         t.role || '',
+        getTransactionTaskLinkId(t),
         t.transac_id || '',
         t.lease_id || '',
       ]
@@ -1565,6 +1342,8 @@ const exportAllReports = () => {
       'Description',
       'Reported By (Role)',
       'Status',
+      'Linked Transaction Count',
+      'Linked Transaction Total',
       'Resolved Date',
       'Resolved By',
     ]
@@ -1575,6 +1354,8 @@ const exportAllReports = () => {
       t.description || '',
       t.reported_role || '',
       t.status || 'Open',
+      getTaskLinkedTransactionCount(t),
+      formatAmount(getTaskLinkedTransactionTotal(t)),
       t.resolv_date ? formatDate(t.resolv_date) : '-',
       t.resolv_by || '-',
     ])
@@ -1604,7 +1385,6 @@ const exportAllReports = () => {
 
     // Add filters information
     csvContent += '=== FILTERS APPLIED ===\n'
-    csvContent += `Role Filter,${selectedRole.value || 'All Roles'}\n`
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.map((id) => getPropertyName(id)).join('; ') : 'All Properties'}\n`
     csvContent += '\n'
@@ -1665,8 +1445,9 @@ const exportSummaryReport = () => {
     // Transaction Summary
     csvContent += '=== TRANSACTION METRICS ===\n'
     csvContent += `Total Transactions,${filteredTransactions.value.length}\n`
-    csvContent += `Income Transactions,${filteredTransactions.value.filter((t) => t.type === 'income').length}\n`
-    csvContent += `Expense Transactions,${filteredTransactions.value.filter((t) => t.type === 'expense').length}\n`
+    csvContent += `Income Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t) === 'income').length}\n`
+    csvContent += `Expense Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t) === 'expense').length}\n`
+    csvContent += `Task-linked Transactions,${filteredTransactions.value.filter((t) => Boolean(getTransactionTaskLinkId(t))).length}\n`
     csvContent += '\n'
 
     // Task Summary
@@ -1685,8 +1466,12 @@ const exportSummaryReport = () => {
     const propertyStats = {}
     userDataStore.userAccessibleProperties.forEach((p) => {
       const propTransactions = filteredTransactions.value.filter((t) => t.property_id === p.id)
-      const propIncome = propTransactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
-      const propExpense = propTransactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+      const propIncome = propTransactions
+        .filter((t) => classifyTransactionFlow(t) === 'income')
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
+      const propExpense = propTransactions
+        .filter((t) => classifyTransactionFlow(t) === 'expense')
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
       propertyStats[p.id] = {
         name: p.nickname || p.address,
         income: propIncome,
@@ -1703,7 +1488,6 @@ const exportSummaryReport = () => {
 
     // Filters
     csvContent += '\n=== FILTERS APPLIED ===\n'
-    csvContent += `Role Filter,${selectedRole.value || 'All Roles'}\n`
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties Selected,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.length : 'All'}\n`
 
@@ -1739,8 +1523,6 @@ onMounted(async () => {
   console.log('ReportsPage mounted')
 
   try {
-    await loadBillingSummary()
-
     // Load data if not already loaded
     if (userDataStore.isAuthenticated) {
       loading.value = true
@@ -1769,9 +1551,21 @@ onMounted(async () => {
 
       // Initialize charts after data is loaded
       setTimeout(() => {
-        initializeCharts()
+        if (hasReportData.value) {
+          initializeCharts()
+          scheduleUpdateCharts()
+        }
       }, 100)
-      generateTaxReport()
+
+      if (!hasReportData.value) {
+        Notify.create({
+          type: 'info',
+          message: 'No report data available yet.',
+          position: 'top',
+        })
+        router.replace('/')
+        return
+      }
 
       Notify.create({
         type: 'positive',
@@ -1797,26 +1591,61 @@ onMounted(async () => {
 
 // Watch for filter changes to update charts
 watch(
-  [selectedRole, selectedProperties, dateRange],
+  [selectedProperties, dateRange],
   () => {
     console.log('Filters changed:', {
-      role: selectedRole.value,
       properties: selectedProperties.value?.length || 0,
       dateRange: dateRange.value,
     })
-    // Use setTimeout to debounce rapid filter changes
-    setTimeout(() => {
-      updateCharts()
-    }, 100)
+    scheduleUpdateCharts()
   },
   { deep: true },
 )
 
-watch([taxYear, taxRoleView, taxPropertyIds, taxCategory], () => {
-  generateTaxReport()
-})
+watch(
+  hasReportData,
+  (hasData) => {
+    if (!dataLoaded.value) return
+    if (!hasData) {
+      if (router.currentRoute.value.path === '/reports') {
+        Notify.create({
+          type: 'info',
+          message: 'Reports are available after you have data.',
+          position: 'top',
+        })
+        router.replace('/')
+      }
+      return
+    }
+    initializeCharts()
+    scheduleUpdateCharts()
+  },
+  { immediate: false },
+)
+
+watch(
+  [() => route.query.propertyId, propertyOptions],
+  ([propertyId]) => {
+    const value = String(propertyId || '').trim()
+    if (!value) {
+      selectedProperties.value = []
+      return
+    }
+    const exists = propertyOptions.value.some((option) => String(option.value) === value)
+    if (exists) {
+      selectedProperties.value = [value]
+    } else {
+      selectedProperties.value = []
+    }
+  },
+  { immediate: true },
+)
 
 onUnmounted(() => {
+  if (chartsUpdateTimer) {
+    clearTimeout(chartsUpdateTimer)
+    chartsUpdateTimer = null
+  }
   // Clean up charts
   if (coreCashFlowChart) coreCashFlowChart.destroy()
   if (occupancyChart) occupancyChart.destroy()
@@ -1826,6 +1655,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.report-filter-control :deep(.q-field__control) {
+  border-radius: 10px;
+  border: 1px solid var(--neutral-300);
+  background: var(--bg-surface, #fff);
+}
+
+.report-filter-control :deep(.q-field__native),
+.report-filter-control :deep(.q-field__input) {
+  font-size: 0.86rem;
+}
+
+.report-action-btn {
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.select-all-btn {
+  border-radius: 8px;
+}
+
 .summary-card {
   min-width: 200px;
   border-radius: 12px;

@@ -1,38 +1,42 @@
 <template>
   <q-page class="q-pa-md assets-page">
     <div class="row justify-end q-mb-md">
-      <q-btn color="primary" icon="add" label="Add Asset" @click="openCreateDialog" />
+      <q-btn
+        v-if="canManageRecords"
+        color="primary"
+        text-color="white"
+        unelevated
+        icon="add"
+        label="Add Asset"
+        @click="openCreateDialog"
+      />
     </div>
 
     <q-card flat bordered class="q-mb-md">
       <q-card-section>
-        <div class="row q-col-gutter-md items-center">
-          <div class="col-12 col-md-4">
-            <UniversalPropertySelect
-              v-model="selectedPropertyFilter"
-              label="Filter by Property"
-              clearable
-              show-property-details
-            />
-          </div>
-          <div class="col-12 col-md-4">
-            <q-input
-              v-model="searchQuery"
-              outlined
-              dense
-              clearable
-              label="Search nickname, brand, model, serial"
-            >
-              <template #prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
-          <div class="col-12 col-md-2">
-            <q-toggle v-model="showArchived" label="Show Archived" />
-          </div>
-          <div class="col-12 col-md-2 text-right">
-            <q-btn flat icon="refresh" label="Reload" @click="loadAssets" :loading="loading" />
+        <div class="row q-col-gutter-md">
+          <div class="col-12">
+            <div class="row q-col-gutter-md items-center">
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="searchQuery"
+                  outlined
+                  dense
+                  clearable
+                  label="Search nickname, brand, model, serial"
+                >
+                  <template #prepend>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-md-3">
+                <q-toggle v-model="showArchived" label="Show Archived" />
+              </div>
+              <div class="col-12 col-md-3 text-right">
+                <q-btn flat icon="refresh" label="Reload" @click="loadAssets" :loading="loading" />
+              </div>
+            </div>
           </div>
         </div>
       </q-card-section>
@@ -90,11 +94,19 @@
         <template #body-cell-actions="props">
           <q-td :props="props">
             <div class="row no-wrap q-gutter-xs">
-              <q-btn flat dense round icon="edit" color="primary" @click="openEditDialog(props.row)">
+              <q-btn
+                v-if="canManagePropertyAction(props.row.property_id)"
+                flat
+                dense
+                round
+                icon="edit"
+                color="primary"
+                @click="openEditDialog(props.row)"
+              >
                 <q-tooltip>Edit</q-tooltip>
               </q-btn>
               <q-btn
-                v-if="props.row.status !== 'archived'"
+                v-if="canManagePropertyAction(props.row.property_id) && props.row.status !== 'archived'"
                 flat
                 dense
                 round
@@ -105,7 +117,7 @@
                 <q-tooltip>Archive</q-tooltip>
               </q-btn>
               <q-btn
-                v-else
+                v-else-if="canManagePropertyAction(props.row.property_id)"
                 flat
                 dense
                 round
@@ -122,9 +134,18 @@
     </q-card>
 
     <q-dialog v-model="showFormDialog" persistent maximized>
-      <q-card class="asset-form-dialog">
+      <q-card v-if="!editingAsset" class="create-fullscreen-card">
+        <q-card-section class="create-fullscreen-body">
+          <CreateAsset
+            @asset-created="onAssetCreated"
+            @cancel="closeDialog"
+          />
+        </q-card-section>
+      </q-card>
+
+      <q-card v-else class="asset-form-dialog">
         <q-card-section class="row items-center">
-          <div class="text-h6">{{ editingAsset ? 'Edit Asset' : 'Add Asset' }}</div>
+          <div class="text-h6">Edit Asset</div>
           <q-space />
           <q-btn flat round dense icon="close" @click="closeDialog" />
         </q-card-section>
@@ -293,7 +314,7 @@
           <q-btn
             color="primary"
             @click="saveAsset"
-            :label="editingAsset ? 'Update Asset' : 'Create Asset'"
+            label="Update Asset"
             :loading="saving"
           />
         </q-card-actions>
@@ -306,6 +327,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
+import CreateAsset from '../components/CreateAsset.vue'
 import UniversalPropertySelect from '../components/UniversalPropertySelect.vue'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
@@ -333,6 +355,15 @@ const imagesMarkedForRemoval = ref([])
 const newImageFiles = ref([])
 const newImageFilesModel = ref([])
 const newImagePreviews = ref([])
+const canManageRecords = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  return ['pm', 'po', 'admin'].includes(accountType)
+})
+
+const canManagePropertyAction = (propertyId) => {
+  if (!propertyId) return false
+  return userDataStore.canManageProperty(propertyId)
+}
 
 const assetTypeOptions = [
   'Appliance',
@@ -536,6 +567,7 @@ async function loadAssets() {
 }
 
 function openCreateDialog() {
+  if (!canManageRecords.value) return
   const preselectedProperty = route.params.propertyId || route.query.propertyId || selectedPropertyFilter.value
   form.value = getEmptyForm()
   form.value.property_id = typeof preselectedProperty === 'string' ? preselectedProperty : null
@@ -548,6 +580,7 @@ function openCreateDialog() {
 }
 
 function openEditDialog(asset) {
+  if (!canManageRecords.value) return
   const normalizedLocation = locationOptions.includes(asset.location) ? asset.location : 'Other'
   editingAsset.value = asset
   form.value = {
@@ -574,6 +607,17 @@ function openEditDialog(asset) {
 
 function closeDialog() {
   showFormDialog.value = false
+  editingAsset.value = null
+}
+
+async function onAssetCreated() {
+  $q.notify({
+    type: 'positive',
+    message: 'Asset created.',
+    position: 'top',
+  })
+  closeDialog()
+  await loadAssets()
 }
 
 function removeExistingImage(index) {
@@ -865,7 +909,17 @@ watch(
 
 onMounted(async () => {
   await loadAssets()
+  if (route.query.create === 'true') {
+    openCreateDialog()
+  }
 })
+
+watch(
+  () => route.query.create,
+  (val) => {
+    if (val === 'true') openCreateDialog()
+  },
+)
 
 onUnmounted(() => {
   resetNewImageSelection()
@@ -881,6 +935,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+}
+
+.create-fullscreen-card {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-fullscreen-body {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .asset-form-body {

@@ -2,66 +2,69 @@
   <q-page class="q-pa-md">
     <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
-        <q-btn @click="openCreateMxRecordDialog" color="primary" icon="add" label="Create Task" />
+        <q-btn
+          v-if="canManageRecords"
+          @click="openCreateMxRecordDialog"
+          color="primary"
+          text-color="white"
+          unelevated
+          icon="add"
+          label="Create Task"
+        />
       </div>
     </div>
 
-    <TaskComposerFeedCard
-      v-if="showCreateMxRecordComposer"
-      class="q-mb-md"
-      @created="onMxRecordCreated"
-      @close="closeCreateMxRecordDialog"
-    />
+    <q-dialog
+      v-model="showCreateMxRecordComposer"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <q-card-section class="create-fullscreen-body">
+          <CreateMxRecord
+            @mxrecord-created="onMxRecordCreated"
+            @cancel="closeCreateMxRecordDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <!-- Filters Row -->
-    <div class="row q-gutter-sm q-mb-md">
-      <div class="col-12 col-md-4">
-        <q-input
-          v-model="searchQuery"
-          outlined
-          dense
-          placeholder="Search tasks..."
-          clearable
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="selectedProperty"
-          :options="propertyFilterOptions"
-          label="Filter by Property"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-          option-label="label"
-          option-value="value"
-          emit-value
-          map-options
-        >
-          <template v-slot:prepend>
-            <q-icon name="home" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-select
-          v-model="dateFilter"
-          :options="dateFilterOptions"
-          label="Filter by Time"
-          outlined
-          dense
-          clearable
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="date_range" />
-          </template>
-        </q-select>
+    <div class="row q-col-gutter-md q-mb-md">
+      <div class="col-12">
+        <div class="row q-gutter-sm">
+          <div class="col-12 col-md-7">
+            <q-input
+              v-model="searchQuery"
+              outlined
+              dense
+              placeholder="Search tasks..."
+              clearable
+              bg-color="grey-1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+          </div>
+          <div class="col-12 col-md-5">
+            <q-select
+              v-model="dateFilter"
+              :options="dateFilterOptions"
+              label="Filter by Time"
+              outlined
+              dense
+              clearable
+              bg-color="grey-1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="date_range" />
+              </template>
+            </q-select>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -89,8 +92,8 @@
       </q-card>
       <q-card
         class="summary-card cursor-pointer"
-        :class="{ 'filter-active': activeFilter === 'Closed' }"
-        @click="setFilter('Closed')"
+        :class="{ 'filter-active': activeFilter === 'closed' }"
+        @click="setFilter('closed')"
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-green">{{ closedRecords.length }}</div>
@@ -105,6 +108,16 @@
         <q-card-section class="text-center">
           <div class="text-h6 text-red">{{ cancelRecords.length }}</div>
           <div class="text-caption">Cancelled</div>
+        </q-card-section>
+      </q-card>
+      <q-card
+        class="summary-card cursor-pointer"
+        :class="{ 'filter-active': activeFilter === 'published' }"
+        @click="setFilter('published')"
+      >
+        <q-card-section class="text-center">
+          <div class="text-h6 text-positive">{{ publishedRecords.length }}</div>
+          <div class="text-caption">Published to SP</div>
         </q-card-section>
       </q-card>
     </div>
@@ -146,8 +159,8 @@
 
     <div v-else class="mx-records-list">
       <q-card
-        v-for="mxRecord in filteredMxRecords"
-        :key="mxRecord.id"
+        v-for="(mxRecord, mxRecordIndex) in filteredMxRecords"
+        :key="mxRecord.id || mxRecord.mx_id || `mx-${mxRecordIndex}`"
         class="mxrecord-row clickable-row"
         @click="viewMxRecord(mxRecord)"
       >
@@ -169,8 +182,8 @@
           <!-- Reported By -->
           <div class="mxrecord-reporter">
             <div class="reporter-label">Reported By</div>
-            <div class="reporter-value">{{ mxRecord.reported_by || 'Unknown' }}</div>
-            <div class="reporter-role">{{ mxRecord.reported_role || 'Unknown Role' }}</div>
+            <div class="reporter-value">{{ getReportedBy(mxRecord) }}</div>
+            <div class="reporter-role">{{ getReportedRole(mxRecord) }}</div>
           </div>
 
           <!-- Status -->
@@ -183,11 +196,22 @@
             >
               {{ mxRecord.status || 'open' }}
             </q-chip>
+            <q-chip
+              v-if="isTaskPublished(mxRecord)"
+              color="positive"
+              text-color="white"
+              size="sm"
+              class="status-chip q-mt-xs"
+              icon="flag"
+            >
+              Published to SP
+            </q-chip>
           </div>
 
           <!-- Add Comment Button (only action remaining) -->
           <div class="mxrecord-actions">
             <q-btn
+              v-if="canManageRecords"
               outline
               color="primary"
               label="Add Comment"
@@ -209,6 +233,7 @@
   >
     <template #actions>
       <q-btn
+        v-if="canManageRecords"
         outline
         color="primary"
         icon="photo_camera"
@@ -218,12 +243,25 @@
         @click="addPhotosToMxRecord"
       />
       <q-btn
+        v-if="canManageRecords"
         outline
         color="primary"
         label="Add Comment"
         size="sm"
         class="dialog-action-btn"
         @click="addCommentFromDialog"
+      />
+      <q-btn
+        v-if="canManageRecords && selectedMxRecord"
+        unelevated
+        :color="isTaskPublished(selectedMxRecord) ? 'positive' : 'deep-orange'"
+        text-color="white"
+        icon="publish"
+        :label="getPublishTaskButtonLabel(selectedMxRecord)"
+        size="sm"
+        class="dialog-action-btn publish-task-btn"
+        :loading="publishingTaskToSp"
+        @click="openTaskPublishDialog(selectedMxRecord, 'detail')"
       />
     </template>
 
@@ -254,6 +292,7 @@
                   @click="openAssignedSpDetailDialog"
                 />
                 <q-btn
+                  v-if="canManageRecords"
                   dense
                   flat
                   color="negative"
@@ -263,6 +302,15 @@
                 />
               </div>
             </div>
+          </q-banner>
+
+          <q-banner
+            v-if="isTaskPublished(selectedMxRecord)"
+            rounded
+            class="bg-green-1 text-green-10 q-mb-md"
+          >
+            <q-icon name="flag" class="q-mr-xs" />
+            Flag: This task has been published to service providers.
           </q-banner>
 
           <!-- Basic Information -->
@@ -295,6 +343,21 @@
                 <div class="detail-label">Property</div>
                 <div class="detail-value">{{ getPropertyName(selectedMxRecord.property_id) }}</div>
               </div>
+              <div class="detail-item">
+                <div class="detail-label">SP Publish Status</div>
+                <div class="detail-value">
+                  <q-chip
+                    :color="isTaskPublished(selectedMxRecord) ? 'positive' : 'grey-6'"
+                    text-color="white"
+                    size="sm"
+                  >
+                    {{ isTaskPublished(selectedMxRecord) ? 'Published' : 'Not Published' }}
+                  </q-chip>
+                  <div v-if="selectedMxRecord.sp_published_at" class="text-caption text-grey-7 q-mt-xs">
+                    Last publish: {{ formatDate(selectedMxRecord.sp_published_at) }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -304,11 +367,11 @@
             <div class="details-grid">
               <div class="detail-item">
                 <div class="detail-label">Reported By</div>
-                <div class="detail-value">{{ selectedMxRecord.reported_by || 'Unknown' }}</div>
+                <div class="detail-value">{{ getReportedBy(selectedMxRecord) }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Reporter Role</div>
-                <div class="detail-value">{{ selectedMxRecord.reported_role || 'Unknown' }}</div>
+                <div class="detail-value">{{ getReportedRole(selectedMxRecord) }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Report Date</div>
@@ -353,12 +416,16 @@
 
           <!-- Activity Log -->
           <div
-            v-if="selectedMxRecord.logs && selectedMxRecord.logs.length > 0"
+            v-if="selectedMxRecordLogs.length > 0"
             class="details-section"
           >
             <div class="section-title">Activity Log</div>
             <div class="activity-log">
-              <div v-for="log in selectedMxRecord.logs" :key="log.log_timestamp" class="log-entry">
+              <div
+                v-for="(log, logIndex) in selectedMxRecordLogs"
+                :key="log.log_timestamp || `log-${logIndex}`"
+                class="log-entry"
+              >
                 <div class="log-header">
                   <div class="log-user">
                     <strong>{{ log.user_name }}</strong>
@@ -403,9 +470,131 @@
               </div>
             </div>
           </div>
+
+          <div class="details-section">
+            <div class="section-title row items-center justify-between">
+              <span>Task Transactions</span>
+              <q-btn
+                v-if="canManageRecords"
+                flat
+                dense
+                color="primary"
+                icon="add"
+                label="Add Transaction"
+                @click="openTaskTransactionEntry"
+              />
+            </div>
+            <div v-if="loadingTaskTransactions" class="text-center q-pa-sm">
+              <q-spinner-dots size="28px" color="primary" />
+            </div>
+            <div
+              v-else-if="selectedTaskTransactionRows.length === 0"
+              class="text-caption text-grey-6"
+            >
+              No transactions linked to this task yet.
+            </div>
+            <q-list v-else separator bordered class="rounded-borders">
+              <q-item
+                v-for="transaction in selectedTaskTransactionRows"
+                :key="transaction.id"
+              >
+                <q-item-section>
+                  <q-item-label>
+                    {{ transaction.transac_type || 'Transaction' }} ·
+                    ${{ formatTransactionAmount(transaction.amount) }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ transaction.transac_from || 'Unknown' }} ->
+                    {{ transaction.transac_to || 'Unknown' }} ·
+                    {{ formatDate(transaction.transac_date || transaction.created_datetime) }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <div v-if="selectedTaskTransactionRows.length > 0" class="text-caption text-grey-7 q-mt-sm">
+              Total cost: ${{ formatTransactionAmount(taskTransactionsTotal) }}
+            </div>
+          </div>
           </div>
 
-          <q-card class="sp-recommendations-panel" flat bordered>
+          <q-card v-if="loadingTaskBids || taskBids.length > 0" class="task-bids-side-panel" flat bordered>
+            <q-card-section>
+              <div class="sp-panel-header q-mb-xs">
+                <div>
+                  <div class="text-subtitle2 text-weight-bold">Bids</div>
+                  <div class="text-caption text-grey-7">
+                    Select one bid to keep only that bid visible.
+                  </div>
+                </div>
+                <q-btn
+                  v-if="showOnlySelectedBid && taskBids.length > 1"
+                  flat
+                  dense
+                  no-caps
+                  color="primary"
+                  label="Show All"
+                  @click="showOnlySelectedBid = false"
+                />
+              </div>
+
+              <div v-if="loadingTaskBids" class="text-center q-pa-sm">
+                <q-spinner-dots size="22px" color="primary" />
+              </div>
+              <div v-else class="task-bid-rows">
+                <div
+                  v-for="bid in visibleTaskBids"
+                  :key="bid.id || bid.bid_id"
+                  class="task-bid-row cursor-pointer"
+                  :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
+                  @click="openTaskBidDetailDialog(bid)"
+                >
+                  <div class="task-bid-main">
+                    <div class="task-bid-sp-wrap">
+                      <q-btn
+                        flat
+                        dense
+                        no-caps
+                        class="task-bid-sp-link"
+                        :label="getBidSpName(bid)"
+                        @click.stop="openBidSpDetailDialog(bid)"
+                      />
+                    </div>
+                    <span class="task-bid-amount"
+                      >${{ Number(bid.amount || 0).toLocaleString() }}</span
+                    >
+                  </div>
+                  <div class="task-bid-meta">
+                    <span>{{ bid.status || 'submitted' }}</span>
+                    <span>{{ formatDate(bid.created_at) }}</span>
+                  </div>
+                  <div class="task-bid-actions">
+                    <q-chip
+                      v-if="isBidSelected(bid)"
+                      dense
+                      size="sm"
+                      color="positive"
+                      text-color="white"
+                      icon="check_circle"
+                    >
+                      Selected
+                    </q-chip>
+                    <q-btn
+                      v-else-if="canManageRecords"
+                      dense
+                      flat
+                      size="sm"
+                      color="primary"
+                      icon="task_alt"
+                      label="Select Bid"
+                      @click.stop="selectBidAndHideOthers(bid)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="showSpRecommendationPanel" class="sp-recommendations-panel" flat bordered>
             <q-card-section>
               <div class="sp-panel-header q-mb-sm">
                 <div>
@@ -485,96 +674,144 @@
                 </div>
               </div>
 
-              <q-separator class="q-my-sm" />
+              <template v-if="loadingTaskBids || taskBids.length > 0">
+                <q-separator class="q-my-sm" />
 
-              <div class="sp-panel-header q-mb-xs">
-                <div>
-                  <div class="text-subtitle2 text-weight-bold">Bids</div>
-                  <div class="text-caption text-grey-7">All bids for this task</div>
+                <div class="sp-panel-header q-mb-xs">
+                  <div>
+                    <div class="text-subtitle2 text-weight-bold">Bids</div>
+                    <div class="text-caption text-grey-7">All bids for this task</div>
+                  </div>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    :icon="showTaskBids ? 'expand_less' : 'expand_more'"
+                    @click="showTaskBids = !showTaskBids"
+                  />
                 </div>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  :icon="showTaskBids ? 'expand_less' : 'expand_more'"
-                  @click="showTaskBids = !showTaskBids"
-                />
-              </div>
 
-              <div v-show="showTaskBids" class="task-bids-section">
-                <div v-if="loadingTaskBids" class="text-center q-pa-sm">
-                  <q-spinner-dots size="22px" color="primary" />
-                </div>
-                <div v-else-if="taskBids.length === 0" class="text-caption text-grey-6">
-                  No bids yet.
-                </div>
-                <div v-else class="task-bid-rows">
-                  <div
-                    v-for="bid in taskBids"
-                    :key="bid.id || bid.bid_id"
-                    class="task-bid-row"
-                    :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
-                  >
-                    <div class="task-bid-main">
-                      <div class="task-bid-sp-wrap">
-                        <q-btn
-                          flat
-                          dense
-                          no-caps
-                          class="task-bid-sp-link"
-                          :label="getBidSpName(bid)"
-                          @click="openBidSpDetailDialog(bid)"
-                        />
-                        <q-chip
-                          dense
-                          size="sm"
-                          color="teal"
-                          text-color="white"
-                          class="task-bid-rating-chip"
+                <div v-show="showTaskBids" class="task-bids-section">
+                  <div v-if="loadingTaskBids" class="text-center q-pa-sm">
+                    <q-spinner-dots size="22px" color="primary" />
+                  </div>
+                  <div v-else class="task-bid-rows">
+                    <div
+                      v-for="bid in taskBids"
+                      :key="bid.id || bid.bid_id"
+                      class="task-bid-row cursor-pointer"
+                      :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
+                      @click="openTaskBidDetailDialog(bid)"
+                    >
+                      <div class="task-bid-main">
+                        <div class="task-bid-sp-wrap">
+                          <q-btn
+                            flat
+                            dense
+                            no-caps
+                            class="task-bid-sp-link"
+                            :label="getBidSpName(bid)"
+                            @click.stop="openBidSpDetailDialog(bid)"
+                          />
+                          <q-chip
+                            dense
+                            size="sm"
+                            color="teal"
+                            text-color="white"
+                            class="task-bid-rating-chip"
+                          >
+                            {{ getBidSpRatingLabel(bid) }}
+                          </q-chip>
+                        </div>
+                        <span class="task-bid-amount"
+                          >${{ Number(bid.amount || 0).toLocaleString() }}</span
                         >
-                          {{ getBidSpRatingLabel(bid) }}
-                        </q-chip>
                       </div>
-                      <span class="task-bid-amount"
-                        >${{ Number(bid.amount || 0).toLocaleString() }}</span
-                      >
-                    </div>
-                    <div class="task-bid-meta">
-                      <span>{{ bid.status || 'submitted' }}</span>
-                      <span>{{ formatDate(bid.created_at) }}</span>
-                    </div>
-                    <div class="task-bid-actions">
-                      <q-btn
-                        dense
-                        flat
-                        size="sm"
-                        color="primary"
-                        icon="chat"
-                        label="Chat"
-                        @click="openBidConversation(bid)"
-                      />
-                      <q-btn
-                        dense
-                        flat
-                        size="sm"
-                        :color="getBidAssignBtnColor(bid)"
-                        :icon="getBidAssignBtnIcon(bid)"
-                        :label="getBidAssignBtnLabel(bid)"
-                        :disable="isBidAssigned(bid)"
-                        @click="assignTaskToBidSp(bid)"
-                      />
+                      <div class="task-bid-meta">
+                        <span>{{ bid.status || 'submitted' }}</span>
+                        <span>{{ formatDate(bid.created_at) }}</span>
+                      </div>
+                      <div class="task-bid-actions">
+                        <q-btn
+                          dense
+                          flat
+                          size="sm"
+                          color="primary"
+                          icon="chat"
+                          label="Chat"
+                          @click.stop="openBidConversation(bid)"
+                        />
+                        <q-btn
+                          v-if="canManageRecords"
+                          dense
+                          flat
+                          size="sm"
+                          :color="getBidAssignBtnColor(bid)"
+                          :icon="getBidAssignBtnIcon(bid)"
+                          :label="getBidAssignBtnLabel(bid)"
+                          :disable="isBidAssigned(bid)"
+                          @click.stop="assignTaskToBidSp(bid)"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </template>
             </q-card-section>
           </q-card>
         </div>
     </div>
   </DetailShell>
 
+  <q-dialog v-model="showTaskPublishDialog" persistent>
+    <q-card style="min-width: 440px; max-width: 640px">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">
+          {{
+            taskPublishDialogSource === 'create'
+              ? 'Task Saved: Publish to Service Provider?'
+              : getPublishTaskButtonLabel(activeTaskPublishTarget)
+          }}
+        </div>
+        <q-btn
+          v-if="!publishingTaskToSp"
+          flat
+          round
+          dense
+          icon="close"
+          @click="cancelTaskPublishDialog"
+        />
+      </q-card-section>
+      <q-separator />
+      <q-card-section class="q-gutter-sm">
+        <div class="text-body2">
+          {{ activeTaskPublishTarget?.description || 'This task' }}
+        </div>
+        <q-banner rounded class="bg-orange-1 text-orange-10">
+          Disclaimer: task comments will also be published to service providers.
+        </q-banner>
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn
+          flat
+          color="primary"
+          label="No"
+          :disable="publishingTaskToSp"
+          @click="cancelTaskPublishDialog"
+        />
+        <q-btn
+          unelevated
+          color="primary"
+          :label="isTaskPublished(activeTaskPublishTarget) ? 'Republish' : 'Publish'"
+          :loading="publishingTaskToSp"
+          @click="confirmTaskPublishDialog"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
   <!-- Add Comment Dialog -->
-  <q-dialog v-model="showCommentDialog" persistent>
+  <q-dialog v-if="canManageRecords" v-model="showCommentDialog" persistent>
     <q-card style="min-width: 500px">
       <q-card-section>
         <div class="row items-center justify-between">
@@ -716,7 +953,7 @@
   </q-dialog>
 
   <!-- Add Photos to Task Dialog -->
-  <q-dialog v-model="showAddPhotosDialog" persistent>
+  <q-dialog v-if="canManageRecords" v-model="showAddPhotosDialog" persistent>
     <q-card style="min-width: 500px">
       <q-card-section>
         <div class="text-h6">Add Photos to Task</div>
@@ -803,6 +1040,157 @@
           :loading="uploadingPhotos"
           :disable="additionalImagePreviews.length === 0"
         />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
+  <q-dialog
+    v-model="showTaskCostPromptDialog"
+    persistent
+  >
+    <q-card style="min-width: 420px">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">Task Cost Check</div>
+      </q-card-section>
+      <q-separator />
+      <q-card-section>
+        <div class="text-body1">
+          Did you pay any cost or buy any parts for this task?
+        </div>
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn flat label="No" color="primary" @click="resolveTaskCostDecision('no')" />
+        <q-btn unelevated label="Yes" color="primary" @click="resolveTaskCostDecision('yes')" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
+  <q-dialog
+    v-if="canManageRecords"
+    v-model="showTaskTransactionDialog"
+    persistent
+  >
+    <q-card style="min-width: 560px; max-width: 720px; width: 100%">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">Create Task Transaction</div>
+        <q-btn
+          v-if="!requireTaskTransactionSave"
+          flat
+          round
+          dense
+          icon="close"
+          @click="cancelTaskTransactionDialog"
+        />
+      </q-card-section>
+      <q-separator />
+      <q-card-section class="q-gutter-md">
+        <q-select
+          v-model="taskTransactionForm.transac_type"
+          :options="taskTransactionTypeOptions"
+          label="Transaction Type *"
+          outlined
+          dense
+        />
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <q-select
+              v-model="taskTransactionForm.transac_from"
+              :options="taskTransactionRoleOptions"
+              label="Transaction From *"
+              outlined
+              dense
+            />
+          </div>
+          <div class="col-12 col-md-6">
+            <q-select
+              v-model="taskTransactionForm.transac_to"
+              :options="taskTransactionToRoleOptions"
+              label="Transaction To *"
+              outlined
+              dense
+            />
+          </div>
+        </div>
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <q-input
+              v-model.number="taskTransactionForm.amount"
+              type="number"
+              step="0.01"
+              min="0"
+              label="Amount *"
+              outlined
+              dense
+            />
+          </div>
+          <div class="col-12 col-md-6">
+            <q-input
+              v-model="taskTransactionForm.transac_date"
+              type="date"
+              label="Transaction Date *"
+              outlined
+              dense
+            />
+          </div>
+        </div>
+        <q-input
+          v-model="taskTransactionForm.note"
+          label="Note"
+          type="textarea"
+          rows="3"
+          outlined
+          dense
+        />
+        <q-file
+          v-model="taskTransactionSelectedFile"
+          accept="image/*"
+          outlined
+          dense
+          label="Attach Picture (Optional)"
+          @update:model-value="onTaskTransactionFileSelected"
+        />
+        <div v-if="taskTransactionImagePreview" class="q-mt-sm">
+          <q-img
+            :src="taskTransactionImagePreview"
+            style="max-width: 240px; max-height: 160px"
+            class="rounded-borders"
+            fit="contain"
+          />
+        </div>
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn
+          v-if="!requireTaskTransactionSave"
+          flat
+          label="Cancel"
+          color="primary"
+          @click="cancelTaskTransactionDialog"
+        />
+        <q-btn
+          unelevated
+          color="primary"
+          label="Save Transaction"
+          :loading="savingTaskTransaction"
+          @click="saveTaskTransaction"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
+  <q-dialog v-model="showAddAnotherTransactionDialog" persistent>
+    <q-card style="min-width: 420px">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">Add Another Transaction?</div>
+      </q-card-section>
+      <q-separator />
+      <q-card-section>
+        <div class="text-body1">
+          Do you want to add one more transaction for this task?
+        </div>
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn flat label="Done" color="primary" @click="resolveAddAnotherTransaction(false)" />
+        <q-btn unelevated label="Add Another" color="primary" @click="resolveAddAnotherTransaction(true)" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -999,6 +1387,54 @@
     </q-card>
   </q-dialog>
 
+  <q-dialog v-model="showTaskBidDetailDialog">
+    <q-card style="min-width: 420px; max-width: 640px">
+      <q-card-section class="row items-center justify-between">
+        <div class="text-subtitle1 text-weight-bold">Bid Details</div>
+        <q-btn flat round dense icon="close" v-close-popup />
+      </q-card-section>
+      <q-separator />
+      <q-card-section v-if="selectedTaskBidDetail">
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Amount</div>
+          <div class="detail-value">
+            ${{ Number(selectedTaskBidDetail.amount || 0).toLocaleString() }}
+          </div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Status</div>
+          <div class="detail-value">{{ selectedTaskBidDetail.status || 'submitted' }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Service Provider</div>
+          <div class="detail-value">{{ selectedTaskBidDetail.sp_name || 'SP' }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">SP Rating</div>
+          <div class="detail-value">{{ selectedTaskBidDetail.sp_rating || 'N/A' }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Submitted At</div>
+          <div class="detail-value">{{ formatDate(selectedTaskBidDetail.created_at) }}</div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Note</div>
+          <div class="detail-value">
+            {{ selectedTaskBidDetail.note || 'No note provided.' }}
+          </div>
+        </div>
+        <div class="detail-item q-mb-sm">
+          <div class="detail-label">Currency</div>
+          <div class="detail-value">{{ selectedTaskBidDetail.currency || 'USD' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Task</div>
+          <div class="detail-value">{{ selectedTaskBidDetail.task_label || 'Task' }}</div>
+        </div>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
+
 </template>
 
 <script setup>
@@ -1006,16 +1442,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
-import TaskComposerFeedCard from '../components/TaskComposerFeedCard.vue'
+import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
+import CreateMxRecord from '../components/CreateMxRecord.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import { Notify } from 'quasar'
 import { marketplaceApi, spCardsApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
-const { updateDocument, uploadImages, getCollectionData } = useFirebase()
+const { updateDocument, createDocument, uploadImages, getCollectionData } = useFirebase()
 const route = useRoute()
 const searchQuery = ref('')
-const activeFilter = ref('all') // 'all', 'pending', 'resolved'
+const activeFilter = ref('all') // 'all', 'open', 'closed', 'cancel', 'published'
 const selectedProperty = ref(null)
 const dateFilter = ref(null)
 
@@ -1029,11 +1466,9 @@ const dateFilterOptions = [
   'All Time',
 ]
 
-const propertyFilterOptions = computed(() => {
-  return userDataStore.userAccessibleProperties.map((p) => ({
-    label: p.nickname || p.address,
-    value: p.id,
-  }))
+const canManageRecords = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  return ['pm', 'po', 'admin'].includes(accountType)
 })
 const showMxRecordDialog = ref(false)
 const selectedMxRecord = ref(null)
@@ -1041,8 +1476,12 @@ const recommendedSps = ref([])
 const loadingRecommendedSps = ref(false)
 const taskBids = ref([])
 const loadingTaskBids = ref(false)
+const showOnlySelectedBid = ref(false)
+const selectedBidFilterId = ref('')
 const showBidSpDetailDialog = ref(false)
 const selectedBidSpDetail = ref(null)
+const showTaskBidDetailDialog = ref(false)
+const selectedTaskBidDetail = ref(null)
 const showCreateMxRecordComposer = ref(false)
 const showCommentDialog = ref(false)
 const submittingComment = ref(false)
@@ -1068,9 +1507,106 @@ const uploadingCommentPhotos = ref(false)
 const selectedCommentLog = ref(null)
 const commentAdditionalSelectedFiles = ref([])
 const commentAdditionalImagePreviews = ref([])
+const selectedTaskTransactions = ref([])
+const loadingTaskTransactions = ref(false)
+const showTaskCostPromptDialog = ref(false)
+const showTaskTransactionDialog = ref(false)
+const showAddAnotherTransactionDialog = ref(false)
+const savingTaskTransaction = ref(false)
+const requireTaskTransactionSave = ref(false)
+const activeTaskTransactionContext = ref(null)
+const taskCostDecisionResolver = ref(null)
+const taskTransactionResolver = ref(null)
+const addAnotherTransactionResolver = ref(null)
+const taskTransactionSelectedFile = ref(null)
+const taskTransactionImagePreview = ref(null)
+const taskTransactionForm = ref({
+  transac_from: '',
+  transac_to: '',
+  amount: null,
+  transac_date: new Date().toISOString().split('T')[0],
+  transac_type: '',
+  note: '',
+})
 const deepLinkHandled = ref(false)
 const showRecommendedSp = ref(true)
 const showTaskBids = ref(true)
+const showSpRecommendationPanel = ref(false)
+const showTaskPublishDialog = ref(false)
+const taskPublishDialogSource = ref('detail')
+const activeTaskPublishTarget = ref(null)
+const publishingTaskToSp = ref(false)
+
+const taskTransactionTypeOptions = [
+  'Rent',
+  'Deposit',
+  'Tax',
+  'Insurance',
+  'Utility',
+  'Maintenance',
+  'Labor',
+  'HOA',
+  'Fee',
+  'Refund',
+  'Other',
+]
+
+const taskTransactionRoleOptions = [
+  'Property Owner',
+  'Property Manager',
+  'Tenant',
+  'Service Provider',
+  'Government',
+  'HOA',
+]
+
+const taskTransactionToRoleOptions = computed(() => {
+  if (!taskTransactionForm.value.transac_from) return []
+  return taskTransactionRoleOptions.filter(
+    (option) => option !== taskTransactionForm.value.transac_from,
+  )
+})
+
+const selectedTaskTransactionRows = computed(() =>
+  (Array.isArray(selectedTaskTransactions.value) ? selectedTaskTransactions.value : []).filter(
+    (transaction) => transaction && typeof transaction === 'object',
+  ),
+)
+
+const selectedBidIdForTask = computed(() =>
+  normalizeId(
+    selectedMxRecord.value?.selected_bid_id,
+    selectedMxRecord.value?.assigned_sp?.bid_id,
+    selectedBidFilterId.value,
+  ),
+)
+
+const visibleTaskBids = computed(() => {
+  const rows = (Array.isArray(taskBids.value) ? taskBids.value : []).filter(
+    (bid) => bid && typeof bid === 'object',
+  )
+  if (!showOnlySelectedBid.value) return rows
+  const selectedBidId = selectedBidIdForTask.value
+  if (!selectedBidId) return rows
+  const filtered = rows.filter((bid) => normalizeId(bid?.id, bid?.bid_id) === selectedBidId)
+  return filtered.length ? filtered : rows
+})
+
+const taskTransactionsTotal = computed(() =>
+  selectedTaskTransactionRows.value.reduce((sum, transaction) => {
+    const amount = Number(transaction?.amount || 0)
+    return sum + (Number.isFinite(amount) ? amount : 0)
+  }, 0),
+)
+
+watch(
+  () => taskTransactionForm.value.transac_from,
+  (nextFrom, prevFrom) => {
+    if (nextFrom !== prevFrom) {
+      taskTransactionForm.value.transac_to = ''
+    }
+  },
+)
 
 const actionTypeOptions = [
   { label: 'Update', value: 'update' },
@@ -1081,20 +1617,62 @@ const actionTypeOptions = [
 
 // Use computed properties from the store
 const userAccessibleMxRecords = computed(() => {
-  return userDataStore.userAccessibleMxRecords
+  return Array.isArray(userDataStore.userAccessibleMxRecords)
+    ? userDataStore.userAccessibleMxRecords
+    : []
 })
+
+const normalizedAccessibleMxRecords = computed(() =>
+  userAccessibleMxRecords.value.filter((record) => record && typeof record === 'object'),
+)
+
+const selectedMxRecordLogs = computed(() =>
+  (Array.isArray(selectedMxRecord.value?.logs) ? selectedMxRecord.value.logs : []).filter(
+    (log) => log && typeof log === 'object',
+  ),
+)
+
+const normalizeFilterValue = (status) => String(status || '').toLowerCase()
+
+const isOpenStatus = (status) => {
+  const normalized = normalizeFilterValue(status)
+  return !normalized || normalized === 'open'
+}
+
+const normalizeRoleLabel = (role) => {
+  const normalized = normalizeRoleValue(role)
+  return normalized ? roleLabel(normalized) : 'Unknown Role'
+}
+
+const getReportedBy = (mxRecord) => {
+  if (!mxRecord) return 'Unknown'
+  return (
+    mxRecord.reported_by ||
+    mxRecord.created_by_name ||
+    mxRecord.user_name ||
+    mxRecord.created_by ||
+    'Unknown'
+  )
+}
+
+const getReportedRole = (mxRecord) => {
+  if (!mxRecord) return 'Unknown Role'
+  return normalizeRoleLabel(mxRecord.reported_role || mxRecord.created_by_role || mxRecord.user_role)
+}
 
 // Filtered tasks based on search query, status filter, property filter, and date filter
 const filteredMxRecords = computed(() => {
-  let records = userAccessibleMxRecords.value
+  let records = normalizedAccessibleMxRecords.value
 
   // Apply status filter first
   if (activeFilter.value === 'open') {
-    records = records.filter((record) => !record.status || record.status === 'open')
+    records = records.filter((record) => isOpenStatus(record.status))
   } else if (activeFilter.value === 'closed') {
-    records = records.filter((record) => record.status === 'closed')
+    records = records.filter((record) => normalizeFilterValue(record.status) === 'closed')
   } else if (activeFilter.value === 'cancel') {
-    records = records.filter((record) => record.status === 'cancel')
+    records = records.filter((record) => normalizeFilterValue(record.status) === 'cancel')
+  } else if (activeFilter.value === 'published') {
+    records = records.filter((record) => isTaskPublished(record))
   }
 
   // Apply property filter
@@ -1143,7 +1721,7 @@ const filteredMxRecords = computed(() => {
   return records.filter((mxRecord) => {
     const description = (mxRecord.description || '').toLowerCase()
     const propertyName = getPropertyName(mxRecord.property_id).toLowerCase()
-    const reportedBy = (mxRecord.reported_by || '').toLowerCase()
+    const reportedBy = getReportedBy(mxRecord).toLowerCase()
     const mxId = (mxRecord.mx_id || '').toLowerCase()
 
     return (
@@ -1157,21 +1735,29 @@ const filteredMxRecords = computed(() => {
 
 // Summary statistics (unfiltered)
 const openRecords = computed(() =>
-  userAccessibleMxRecords.value.filter((record) => !record.status || record.status === 'open'),
+  normalizedAccessibleMxRecords.value.filter((record) => isOpenStatus(record.status)),
 )
 
 const closedRecords = computed(() =>
-  userAccessibleMxRecords.value.filter((record) => record.status === 'closed'),
+  normalizedAccessibleMxRecords.value.filter(
+    (record) => normalizeFilterValue(record.status) === 'closed',
+  ),
 )
 
 const cancelRecords = computed(() =>
-  userAccessibleMxRecords.value.filter((record) => record.status === 'cancel'),
+  normalizedAccessibleMxRecords.value.filter(
+    (record) => normalizeFilterValue(record.status) === 'cancel',
+  ),
+)
+
+const publishedRecords = computed(() =>
+  normalizedAccessibleMxRecords.value.filter((record) => isTaskPublished(record)),
 )
 
 // Filter functions
 const setFilter = (filter) => {
-  activeFilter.value = filter
-  console.log('Tasks filter set to:', filter)
+  activeFilter.value = normalizeFilterValue(filter) || 'all'
+  console.log('Tasks filter set to:', activeFilter.value)
 }
 
 const clearFilter = () => {
@@ -1185,6 +1771,7 @@ const getFilterColor = (filter) => {
     open: 'orange',
     closed: 'green',
     cancel: 'red',
+    published: 'positive',
   }
   return colors[filter] || 'primary'
 }
@@ -1195,6 +1782,7 @@ const getFilterIcon = (filter) => {
     open: 'radio_button_unchecked',
     closed: 'check_circle',
     cancel: 'cancel',
+    published: 'flag',
   }
   return icons[filter] || 'dns'
 }
@@ -1205,12 +1793,35 @@ const getFilterLabel = (filter) => {
     open: 'Open',
     closed: 'Closed',
     cancel: 'Cancelled',
+    published: 'Published to SP',
   }
   return labels[filter] || 'All Records'
 }
 
 const getFilteredCount = () => {
   return filteredMxRecords.value.length
+}
+
+const normalizeId = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue
+    const parsed = String(value).trim()
+    if (!parsed || parsed.toLowerCase() === 'undefined' || parsed.toLowerCase() === 'null') continue
+    return parsed
+  }
+  return ''
+}
+
+const getBidTaskLabel = (bid, fallbackRecord = selectedMxRecord.value) => {
+  const taskRef = normalizeId(
+    bid?.mx_id,
+    bid?.task_id,
+    bid?.task_doc_id,
+    fallbackRecord?.mx_id,
+    fallbackRecord?.task_id,
+    fallbackRecord?.id,
+  )
+  return `Task ${taskRef || 'N/A'}`
 }
 
 onMounted(async () => {
@@ -1227,13 +1838,40 @@ onMounted(async () => {
 
 const getPropertyName = (propertyId) => {
   const property = userDataStore.getPropertyById(propertyId)
-  return property ? property.nickname || property.address || 'Unknown Property' : 'Unknown Property'
+  if (!property) return 'Unknown Property'
+  const address = getTaskPropertyAddress(property)
+  return (
+    address.line1 ||
+    String(property.displayName || property.name || property.address || 'Unknown Property')
+  )
+}
+
+const extractTaskPropertyId = (propertyValue) => {
+  if (!propertyValue) return ''
+  if (typeof propertyValue === 'object') {
+    return String(propertyValue.id || propertyValue.property_id || '').trim()
+  }
+  return String(propertyValue).trim()
+}
+
+const buildTaskIdCandidates = (mxRecord) => {
+  if (!mxRecord) return []
+  return [...new Set([mxRecord.id, mxRecord.mx_id, mxRecord.task_id]
+    .filter((value) => value !== null && value !== undefined && String(value).trim().length)
+    .map((value) => String(value).trim()))]
+}
+
+const formatTransactionAmount = (value) => {
+  const amount = Number(value || 0)
+  if (!Number.isFinite(amount)) return '0.00'
+  return amount.toFixed(2)
 }
 
 const getStatusColor = (status) => {
-  if (!status || status === 'open') return 'orange'
-  if (status === 'closed') return 'green'
-  if (status === 'cancel') return 'red'
+  const normalized = normalizeFilterValue(status)
+  if (!normalized || normalized === 'open') return 'orange'
+  if (normalized === 'closed') return 'green'
+  if (normalized === 'cancel') return 'red'
   return 'grey'
 }
 
@@ -1243,22 +1881,289 @@ const formatDate = (timestamp) => {
   return date.toLocaleDateString()
 }
 
+const isTaskPublished = (mxRecord) => {
+  if (!mxRecord || typeof mxRecord !== 'object') return false
+  if (mxRecord.sp_published === true) return true
+  const publishStatus = String(mxRecord.sp_publish_status || mxRecord.publish_status || '').toLowerCase()
+  return publishStatus === 'published'
+}
+
+const getPublishTaskButtonLabel = (mxRecord) =>
+  isTaskPublished(mxRecord) ? 'Republish to SP' : 'Publish to SP'
+
+const getTaskPublishComments = (mxRecord) =>
+  (Array.isArray(mxRecord?.logs) ? mxRecord.logs : [])
+    .filter((log) => log && typeof log === 'object')
+    .map((log) => ({
+      comment: String(log.comment || ''),
+      action_type: String(log.action_type || 'comment'),
+      created_at: log.log_timestamp || null,
+      user_id: String(log.user_id || ''),
+      user_name: String(log.user_name || ''),
+      user_role: String(log.user_role || ''),
+      image_urls: Array.isArray(log.image_urls) ? log.image_urls : [],
+    }))
+    .filter((comment) => comment.comment.length > 0)
+
+const getTaskPropertyAddress = (mxRecord, property = {}) => {
+  const task = mxRecord && typeof mxRecord === 'object' ? mxRecord : {}
+  const taskAddress = task.address && typeof task.address === 'object' ? task.address : {}
+  const propertyAddress = property.address && typeof property.address === 'object' ? property.address : {}
+  const taskLegacyStreet = typeof task.address === 'string' ? String(task.address || '').trim() : ''
+  const propertyLegacyStreet = typeof property.address === 'string' ? String(property.address || '').trim() : ''
+
+  const line1 = String(
+    taskAddress.street ||
+      taskAddress.street1 ||
+      taskAddress.line1 ||
+      taskAddress.address1 ||
+      task.property_address_line1 ||
+      task.property_name ||
+      task.street ||
+      task.address_line1 ||
+      task.address1 ||
+      taskLegacyStreet ||
+      propertyAddress.street ||
+      propertyAddress.street1 ||
+      propertyAddress.line1 ||
+      propertyAddress.address1 ||
+      property.street ||
+      property.address_line1 ||
+      propertyLegacyStreet ||
+      '',
+  ).trim()
+  const line2 = String(
+    taskAddress.line2 ||
+      taskAddress.unit ||
+      task.address_line2 ||
+      propertyAddress.line2 ||
+      propertyAddress.unit ||
+      property.address_line2 ||
+      '',
+  ).trim()
+  const city = String(
+    taskAddress.city ||
+      task.city ||
+      task.city_name ||
+      task.property_city ||
+      propertyAddress.city ||
+      property.city ||
+      property.city_name ||
+      '',
+  ).trim()
+  const state = String(
+    taskAddress.state ||
+      task.state ||
+      task.state_code ||
+      task.property_state ||
+      propertyAddress.state ||
+      property.state ||
+      property.state_code ||
+      '',
+  ).trim()
+  const zip = String(
+    taskAddress.zip ||
+      taskAddress.zipCode ||
+      taskAddress.postal_code ||
+      task.zip ||
+      task.zip_code ||
+      task.postal_code ||
+      task.property_zip ||
+      propertyAddress.zip ||
+      propertyAddress.zipCode ||
+      propertyAddress.postal_code ||
+      property.zip ||
+      property.zip_code ||
+      property.postal_code ||
+      '',
+  ).trim()
+
+  return { line1, line2, city, state, zip }
+}
+
+const buildTaskPublishPayload = (mxRecord, source = 'detail') => {
+  const propertyId = extractTaskPropertyId(mxRecord?.property_id)
+  const taskDocId = String(mxRecord?.id || '').trim()
+  const taskRef = String(mxRecord?.mx_id || taskDocId || '').trim()
+  const property = userDataStore.getPropertyById(propertyId) || {}
+  const actorRole =
+    normalizeRoleValue(userDataStore.getUserRoleForProperty(propertyId)?.role) || 'pm'
+  const comments = getTaskPublishComments(mxRecord)
+  const propertyAddress = getTaskPropertyAddress(mxRecord, property)
+  const location = [propertyAddress.city, propertyAddress.state].filter(Boolean).join(', ')
+  const propertyLabel = propertyAddress.line1 || String(property?.name || property?.address || '').trim()
+
+  return {
+    actor_id: String(userDataStore.userId || ''),
+    actor_role: actorRole,
+    property_id: propertyId,
+    property_name: propertyLabel,
+    property_address_line1: propertyAddress.line1,
+    property_address_line2: propertyAddress.line2,
+    property_city: propertyAddress.city,
+    property_state: propertyAddress.state,
+    property_zip: propertyAddress.zip,
+    city: propertyAddress.city,
+    state: propertyAddress.state,
+    zip_code: propertyAddress.zip,
+    postal_code: propertyAddress.zip,
+    task_doc_id: taskDocId,
+    system_task_id: taskDocId,
+    mx_id: taskRef,
+    task_id: taskRef,
+    title: String(mxRecord?.description || `Task ${taskRef || taskDocId}`),
+    description: String(mxRecord?.description || ''),
+    scope: String(mxRecord?.description || ''),
+    status: String(mxRecord?.status || 'open'),
+    address: propertyAddress.line1,
+    location: location || propertyLabel,
+    image_urls: Array.isArray(mxRecord?.image_urls) ? mxRecord.image_urls : Array.isArray(mxRecord?.photos) ? mxRecord.photos : [],
+    comments,
+    comment_count: comments.length,
+    publish_source: source,
+  }
+}
+
+const publishTaskToServiceProvider = async (mxRecord, source = 'detail') => {
+  if (!mxRecord || typeof mxRecord !== 'object') return false
+
+  const propertyId = extractTaskPropertyId(mxRecord.property_id)
+  const mxRecordId = String(mxRecord.id || '').trim()
+  if (!propertyId || !mxRecordId) {
+    Notify.create({
+      type: 'negative',
+      message: 'Task reference is incomplete. Cannot publish.',
+      position: 'top',
+    })
+    return false
+  }
+
+  publishingTaskToSp.value = true
+  try {
+    const lead = await marketplaceApi.publishLeadFromTask(buildTaskPublishPayload(mxRecord, source))
+    const now = new Date()
+    const nextPublishCount = Number(mxRecord.sp_publish_count || 0) + 1
+    const leadId = String(lead?.id || lead?.lead_id || mxRecord.sp_lead_id || '').trim() || null
+    const roleForProperty =
+      normalizeRoleValue(userDataStore.getUserRoleForProperty(propertyId)?.role) || 'pm'
+    const updatePayload = {
+      sp_published: true,
+      sp_publish_status: 'published',
+      sp_publish_source: source,
+      sp_publish_includes_comments: true,
+      sp_published_at: now,
+      sp_published_by: String(userDataStore.userId || ''),
+      sp_published_by_role: roleForProperty,
+      sp_publish_count: nextPublishCount,
+      sp_lead_id: leadId,
+      updatedAt: now,
+    }
+
+    await updateDocument(`properties/${propertyId}/mxrecords`, mxRecordId, updatePayload)
+
+    if (selectedMxRecord.value?.id === mxRecordId) {
+      selectedMxRecord.value = {
+        ...selectedMxRecord.value,
+        ...updatePayload,
+      }
+    }
+
+    await userDataStore.loadMxRecords()
+
+    Notify.create({
+      type: 'positive',
+      message: nextPublishCount > 1 ? 'Task republished to service providers.' : 'Task published to service providers.',
+      position: 'top',
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to publish task to service providers:', error)
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to publish task to service providers.',
+      position: 'top',
+    })
+    return false
+  } finally {
+    publishingTaskToSp.value = false
+  }
+}
+
+const openTaskPublishDialog = (mxRecord, source = 'detail') => {
+  if (!canManageRecords.value) return
+  if (!mxRecord || typeof mxRecord !== 'object') return
+  activeTaskPublishTarget.value = mxRecord
+  taskPublishDialogSource.value = source
+  showTaskPublishDialog.value = true
+}
+
+const clearTaskPublishDialogState = () => {
+  showTaskPublishDialog.value = false
+  activeTaskPublishTarget.value = null
+  taskPublishDialogSource.value = 'detail'
+}
+
+const cancelTaskPublishDialog = async () => {
+  if (publishingTaskToSp.value) return
+  const source = taskPublishDialogSource.value
+  clearTaskPublishDialogState()
+  if (source === 'create') {
+    await refreshData()
+  }
+}
+
+const confirmTaskPublishDialog = async () => {
+  if (publishingTaskToSp.value) return
+  const target = activeTaskPublishTarget.value
+  const source = taskPublishDialogSource.value
+  const published = await publishTaskToServiceProvider(target, source)
+  if (!published) return
+  clearTaskPublishDialogState()
+}
+
 const viewMxRecord = (mxRecord) => {
+  if (!mxRecord || typeof mxRecord !== 'object') return
   selectedMxRecord.value = mxRecord
+  selectedBidFilterId.value = normalizeId(mxRecord?.selected_bid_id, mxRecord?.assigned_sp?.bid_id)
+  showOnlySelectedBid.value = Boolean(selectedBidFilterId.value)
   showMxRecordDialog.value = true
-  loadRecommendedSps(mxRecord)
+  selectedTaskBidDetail.value = null
+  showTaskBidDetailDialog.value = false
   loadTaskBids(mxRecord)
+  if (showSpRecommendationPanel.value) loadRecommendedSps(mxRecord)
+  loadTaskTransactions(mxRecord)
+}
+
+const openTaskBidDetailDialog = (bid) => {
+  if (!bid || typeof bid !== 'object') return
+  selectedTaskBidDetail.value = {
+    bid_row: bid,
+    bid_id: String(bid?.id || bid?.bid_id || ''),
+    amount: Number(bid?.amount || 0),
+    status: bid?.status || 'submitted',
+    sp_id: String(bid?.sp_id || ''),
+    sp_name: getBidSpName(bid),
+    sp_rating: getBidSpRating(bid),
+    sp_contact: getBidSpContact(bid),
+    note: bid?.note || bid?.description || '',
+    currency: bid?.currency || 'USD',
+    created_at: bid?.created_at || bid?.createdAt || null,
+    updated_at: bid?.updated_at || null,
+    task_label: getBidTaskLabel(bid),
+  }
+  showTaskBidDetailDialog.value = true
 }
 
 const tryOpenDeepLinkedMxRecord = () => {
   if (deepLinkHandled.value) return
   const openType = String(route.query.openType || '').toLowerCase()
   const openId = String(route.query.openId || '')
-  if (!openId || !['task', 'mxrecord'].includes(openType)) return
-  if (!userAccessibleMxRecords.value.length) return
+  const openTaskId = String(route.query.openTaskId || '')
+  if (!openId || !['task', 'mxrecord', 'bid'].includes(openType)) return
+  if (!normalizedAccessibleMxRecords.value.length) return
 
-  const normalizedOpenId = openId.toLowerCase()
-  const targetRecord = userAccessibleMxRecords.value.find((record) => {
+  const normalizedOpenId = String((openType === 'bid' ? openTaskId || openId : openId) || '').toLowerCase()
+  const targetRecord = normalizedAccessibleMxRecords.value.find((record) => {
     const idCandidates = [record.id, record.mx_id]
       .filter((value) => value !== null && value !== undefined)
       .map((value) => String(value).toLowerCase())
@@ -1271,7 +2176,7 @@ const tryOpenDeepLinkedMxRecord = () => {
 }
 
 watch(
-  () => userAccessibleMxRecords.value.length,
+  () => normalizedAccessibleMxRecords.value.length,
   () => {
     tryOpenDeepLinkedMxRecord()
   },
@@ -1286,11 +2191,72 @@ watch(
   }
 )
 
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    selectedProperty.value = value || null
+  },
+  { immediate: true },
+)
+
 const closeMxRecordDialog = () => {
   showMxRecordDialog.value = false
   selectedMxRecord.value = null
   recommendedSps.value = []
   taskBids.value = []
+  selectedTaskBidDetail.value = null
+  showTaskBidDetailDialog.value = false
+  selectedTaskTransactions.value = []
+  loadingTaskTransactions.value = false
+  showTaskCostPromptDialog.value = false
+  showTaskTransactionDialog.value = false
+  showAddAnotherTransactionDialog.value = false
+  showOnlySelectedBid.value = false
+  selectedBidFilterId.value = ''
+  if (taskPublishDialogSource.value === 'detail') {
+    clearTaskPublishDialogState()
+  }
+}
+
+async function loadTaskTransactions(mxRecord = selectedMxRecord.value) {
+  if (!mxRecord) {
+    selectedTaskTransactions.value = []
+    return
+  }
+
+  const propertyId = extractTaskPropertyId(mxRecord.property_id)
+  if (!propertyId) {
+    selectedTaskTransactions.value = []
+    return
+  }
+
+  const taskIdCandidates = buildTaskIdCandidates(mxRecord)
+  if (taskIdCandidates.length === 0) {
+    selectedTaskTransactions.value = []
+    return
+  }
+
+  loadingTaskTransactions.value = true
+  try {
+    const rows = await getCollectionData(`properties/${propertyId}/transactions`)
+    selectedTaskTransactions.value = (rows || [])
+      .filter((transaction) => transaction && typeof transaction === 'object')
+      .filter((transaction) => {
+        const taskId = String(transaction?.task_id || transaction?.related_task_id || '').trim()
+        return taskId && taskIdCandidates.includes(taskId)
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a?.created_datetime || a?.transac_date || 0).getTime()
+        const bTime = new Date(b?.created_datetime || b?.transac_date || 0).getTime()
+        return bTime - aTime
+      })
+  } catch (error) {
+    console.error('Failed to load task transactions:', error)
+    selectedTaskTransactions.value = []
+  } finally {
+    loadingTaskTransactions.value = false
+  }
 }
 
 async function loadRecommendedSps(mxRecord) {
@@ -1298,7 +2264,7 @@ async function loadRecommendedSps(mxRecord) {
   try {
     const rows = await marketplaceApi.getRecommendedSps(mxRecord.id)
     recommendedSps.value = rows.map((row, index) => ({
-      sp_id: row.sp_id || `mock-sp-${index + 1}`,
+      sp_id: row.sp_id || '',
       sp_name: row.sp_name || row.display_name || `Service Provider ${index + 1}`,
       rating: row.rating || row.rating_avg || 'N/A',
       service_area: row.service_area || 'Unknown',
@@ -1320,7 +2286,8 @@ async function loadRecommendedSps(mxRecord) {
 async function loadTaskBids(mxRecord) {
   loadingTaskBids.value = true
   try {
-    const actorRole = userDataStore.getUserRoleForProperty(mxRecord.property_id)?.role || 'pm_po'
+    const actorRole =
+      normalizeRoleValue(userDataStore.getUserRoleForProperty(mxRecord.property_id)?.role) || 'pm'
     const taskIdCandidates = [...new Set([
       mxRecord?.mx_id,
       mxRecord?.task_id,
@@ -1371,6 +2338,20 @@ async function loadTaskBids(mxRecord) {
       seen.add(key)
       return true
     })
+    if (String(route.query.openType || '').toLowerCase() === 'bid') {
+      const openBidId = String(route.query.openId || '').toLowerCase()
+      const matchedBid = taskBids.value.find((bid) => {
+        const bidIds = [bid?.id, bid?.bid_id]
+          .filter((value) => value !== null && value !== undefined)
+          .map((value) => String(value).toLowerCase())
+        return bidIds.includes(openBidId)
+      })
+      if (matchedBid) {
+        showTaskBids.value = true
+        openTaskBidDetailDialog(matchedBid)
+        deepLinkHandled.value = true
+      }
+    }
   } catch (error) {
     console.error('Failed loading task bids:', error)
     taskBids.value = []
@@ -1432,6 +2413,13 @@ const getBidSpRating = (bid) => {
 const getBidSpRatingLabel = (bid) => {
   const rating = getBidSpRating(bid)
   return rating ? `Rating: ${rating}` : 'Rating: N/A'
+}
+
+const getBidIdentifier = (bid) => normalizeId(bid?.id, bid?.bid_id)
+
+const isBidSelected = (bid) => {
+  const bidId = getBidIdentifier(bid)
+  return Boolean(bidId) && bidId === selectedBidIdForTask.value
 }
 
 const getAssignedSpId = () => {
@@ -1509,6 +2497,7 @@ const openBidConversation = async (bid) => {
 }
 
 const assignTaskToBidSp = async (bid) => {
+  if (!canManageRecords.value) return
   if (!selectedMxRecord.value) return
   const spId = String(bid?.sp_id || '')
   if (!spId) {
@@ -1520,15 +2509,16 @@ const assignTaskToBidSp = async (bid) => {
   const mxRecordId = selectedMxRecord.value.id
   if (!propertyId || !mxRecordId) {
     Notify.create({ type: 'negative', message: 'Task reference missing.', position: 'top' })
-    return
+    return false
   }
 
+  const bidId = getBidIdentifier(bid)
   const assignedSp = {
     sp_id: spId,
     sp_name: getBidSpName(bid),
     sp_contact: getBidSpContact(bid),
     sp_rating: getBidSpRating(bid),
-    bid_id: String(bid?.bid_id || bid?.id || ''),
+    bid_id: bidId,
     bid_amount: Number(bid?.amount || 0),
     assigned_at: new Date().toISOString(),
     assigned_by: String(userDataStore.userId || ''),
@@ -1538,25 +2528,39 @@ const assignTaskToBidSp = async (bid) => {
     await updateDocument(`properties/${String(propertyId)}/mxrecords`, String(mxRecordId), {
       assigned_sp: assignedSp,
       assigned_sp_id: spId,
+      selected_bid_id: bidId,
+      selected_bid_at: new Date(),
       updatedAt: new Date(),
     })
     selectedMxRecord.value.assigned_sp = assignedSp
     selectedMxRecord.value.assigned_sp_id = spId
+    selectedMxRecord.value.selected_bid_id = bidId
+    selectedMxRecord.value.selected_bid_at = new Date().toISOString()
+    selectedBidFilterId.value = bidId
     Notify.create({
       type: 'positive',
       message: `Task assigned to ${assignedSp.sp_name}`,
       position: 'top',
     })
+    return true
   } catch (error) {
     Notify.create({
       type: 'negative',
       message: error.message || 'Failed to assign task.',
       position: 'top',
     })
+    return false
   }
 }
 
+const selectBidAndHideOthers = async (bid) => {
+  const assigned = await assignTaskToBidSp(bid)
+  if (!assigned) return
+  showOnlySelectedBid.value = true
+}
+
 const clearAssignedSp = async () => {
+  if (!canManageRecords.value) return
   if (!selectedMxRecord.value) return
   const propertyId = selectedMxRecord.value.property_id
   const mxRecordId = selectedMxRecord.value.id
@@ -1565,10 +2569,16 @@ const clearAssignedSp = async () => {
     await updateDocument(`properties/${String(propertyId)}/mxrecords`, String(mxRecordId), {
       assigned_sp: null,
       assigned_sp_id: null,
+      selected_bid_id: null,
+      selected_bid_at: null,
       updatedAt: new Date(),
     })
     selectedMxRecord.value.assigned_sp = null
     selectedMxRecord.value.assigned_sp_id = null
+    selectedMxRecord.value.selected_bid_id = null
+    selectedMxRecord.value.selected_bid_at = null
+    selectedBidFilterId.value = ''
+    showOnlySelectedBid.value = false
     Notify.create({ type: 'positive', message: 'Task unassigned.', position: 'top' })
   } catch (error) {
     Notify.create({
@@ -1598,6 +2608,7 @@ const saveSpCard = async (sp) => {
 }
 
 const addComment = (mxRecord) => {
+  if (!canManageRecords.value) return
   selectedMxRecord.value = mxRecord
   showCommentDialog.value = true
   // Reset form
@@ -1608,6 +2619,7 @@ const addComment = (mxRecord) => {
 }
 
 const addCommentFromDialog = () => {
+  if (!canManageRecords.value) return
   showCommentDialog.value = true
   // Reset form
   newComment.value = {
@@ -1704,6 +2716,7 @@ const addMorePhotosToComment = () => {
 
 // Additional photos functions
 const addPhotosToMxRecord = () => {
+  if (!canManageRecords.value) return
   showAddPhotosDialog.value = true
 }
 
@@ -1961,7 +2974,7 @@ const submitCommentAdditionalPhotos = async () => {
     const updatedImageUrls = [...existingImageUrls, ...newImageUrls]
 
     // Find the comment in the logs and update it
-    const updatedLogs = selectedMxRecord.value.logs.map((log) => {
+    const updatedLogs = selectedMxRecordLogs.value.map((log) => {
       if (log.log_timestamp === selectedCommentLog.value.log_timestamp) {
         return {
           ...log,
@@ -2017,6 +3030,271 @@ const submitCommentAdditionalPhotos = async () => {
     })
   } finally {
     uploadingCommentPhotos.value = false
+  }
+}
+
+const getTaskTransactionContextForRecord = (mxRecord = selectedMxRecord.value) => {
+  if (!mxRecord) return null
+  const propertyId = extractTaskPropertyId(mxRecord.property_id)
+  const taskId = String(mxRecord.id || '').trim()
+  if (!propertyId || !taskId) return null
+  return {
+    propertyId,
+    taskId,
+    taskDescription: mxRecord.description || '',
+  }
+}
+
+const resetTaskTransactionForm = (context = null) => {
+  const taskContext = context || activeTaskTransactionContext.value
+  const roleValue =
+    normalizeRoleValue(
+      userDataStore.getUserRoleForProperty(taskContext?.propertyId)?.role,
+    ) || 'pm'
+  const defaultRole = roleLabel(roleValue) || 'Property Manager'
+
+  taskTransactionForm.value = {
+    transac_from: defaultRole,
+    transac_to: '',
+    amount: null,
+    transac_date: new Date().toISOString().split('T')[0],
+    transac_type: '',
+    note: taskContext?.taskDescription
+      ? `Task: ${taskContext.taskDescription}`
+      : '',
+  }
+  taskTransactionSelectedFile.value = null
+  taskTransactionImagePreview.value = null
+}
+
+const onTaskTransactionFileSelected = (file) => {
+  if (!file) {
+    taskTransactionImagePreview.value = null
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    taskTransactionImagePreview.value = event?.target?.result || null
+  }
+  reader.readAsDataURL(file)
+}
+
+const resolveTaskCostDecision = (decision) => {
+  showTaskCostPromptDialog.value = false
+  if (taskCostDecisionResolver.value) {
+    taskCostDecisionResolver.value(decision)
+    taskCostDecisionResolver.value = null
+  }
+}
+
+const promptTaskCostDecision = () => {
+  showTaskCostPromptDialog.value = true
+  return new Promise((resolve) => {
+    taskCostDecisionResolver.value = resolve
+  })
+}
+
+const resolveAddAnotherTransaction = (addAnother) => {
+  showAddAnotherTransactionDialog.value = false
+  if (addAnotherTransactionResolver.value) {
+    addAnotherTransactionResolver.value(addAnother)
+    addAnotherTransactionResolver.value = null
+  }
+}
+
+const promptAddAnotherTransaction = () => {
+  showAddAnotherTransactionDialog.value = true
+  return new Promise((resolve) => {
+    addAnotherTransactionResolver.value = resolve
+  })
+}
+
+const openTaskTransactionDialog = ({ context, requireSave }) => {
+  activeTaskTransactionContext.value = context
+  requireTaskTransactionSave.value = Boolean(requireSave)
+  resetTaskTransactionForm(context)
+  showTaskTransactionDialog.value = true
+  return new Promise((resolve) => {
+    taskTransactionResolver.value = resolve
+  })
+}
+
+const cancelTaskTransactionDialog = () => {
+  if (requireTaskTransactionSave.value) return
+  showTaskTransactionDialog.value = false
+  if (taskTransactionResolver.value) {
+    taskTransactionResolver.value(null)
+    taskTransactionResolver.value = null
+  }
+}
+
+const syncTaskCostSummary = async (context) => {
+  if (!context?.propertyId || !context?.taskId) return
+  const count = selectedTaskTransactionRows.value.length
+  const total = Number(taskTransactionsTotal.value || 0)
+
+  try {
+    await updateDocument(`properties/${context.propertyId}/mxrecords`, context.taskId, {
+      cost_transaction_count: count,
+      cost_total_amount: total,
+      cost_last_updated_at: new Date(),
+      updatedAt: new Date(),
+    })
+  } catch (error) {
+    console.error('Failed to sync task cost summary:', error)
+  }
+
+  if (selectedMxRecord.value?.id === context.taskId) {
+    selectedMxRecord.value.cost_transaction_count = count
+    selectedMxRecord.value.cost_total_amount = total
+    selectedMxRecord.value.cost_last_updated_at = new Date().toISOString()
+  }
+}
+
+const saveTaskTransaction = async () => {
+  const context = activeTaskTransactionContext.value
+  if (!context?.propertyId || !context?.taskId) {
+    Notify.create({
+      type: 'negative',
+      message: 'Task context is missing for transaction creation.',
+      position: 'top',
+    })
+    return
+  }
+
+  if (!taskTransactionForm.value.transac_type) {
+    Notify.create({ type: 'negative', message: 'Transaction type is required.', position: 'top' })
+    return
+  }
+  if (!taskTransactionForm.value.transac_from || !taskTransactionForm.value.transac_to) {
+    Notify.create({
+      type: 'negative',
+      message: 'Transaction from/to are required.',
+      position: 'top',
+    })
+    return
+  }
+  if (taskTransactionForm.value.transac_from === taskTransactionForm.value.transac_to) {
+    Notify.create({
+      type: 'negative',
+      message: 'From and To cannot be the same.',
+      position: 'top',
+    })
+    return
+  }
+  if (!taskTransactionForm.value.transac_date) {
+    Notify.create({ type: 'negative', message: 'Transaction date is required.', position: 'top' })
+    return
+  }
+  if (!(Number(taskTransactionForm.value.amount) > 0)) {
+    Notify.create({
+      type: 'negative',
+      message: 'Amount must be greater than 0.',
+      position: 'top',
+    })
+    return
+  }
+
+  savingTaskTransaction.value = true
+  try {
+    let pictureUrl = ''
+    if (taskTransactionSelectedFile.value) {
+      const uploaded = await uploadImages(
+        [taskTransactionSelectedFile.value],
+        context.propertyId,
+        'transaction',
+      )
+      pictureUrl = Array.isArray(uploaded) && uploaded.length > 0 ? uploaded[0] : ''
+    }
+
+    const now = new Date()
+    const transactionPayload = {
+      transac_id: `txn_${Date.now()}`,
+      property_id: context.propertyId,
+      task_id: context.taskId,
+      related_type: 'task',
+      role:
+        normalizeRoleValue(
+          userDataStore.getUserRoleForProperty(context.propertyId)?.role,
+        ) || '',
+      created_by_role:
+        normalizeRoleValue(
+          userDataStore.getUserRoleForProperty(context.propertyId)?.role,
+        ) || '',
+      transac_from: taskTransactionForm.value.transac_from,
+      transac_to: taskTransactionForm.value.transac_to,
+      amount: Number(taskTransactionForm.value.amount),
+      transac_date: taskTransactionForm.value.transac_date,
+      transac_type: taskTransactionForm.value.transac_type,
+      note: taskTransactionForm.value.note || '',
+      picture_url: pictureUrl,
+      created_by: userDataStore.userId,
+      created_by_user_id: userDataStore.userId,
+      created_datetime: now,
+      updatedAt: now,
+    }
+
+    const transactionId = await createDocument(
+      `properties/${context.propertyId}/transactions`,
+      transactionPayload,
+    )
+
+    selectedTaskTransactions.value.unshift({
+      id: transactionId,
+      ...transactionPayload,
+    })
+    await syncTaskCostSummary(context)
+
+    showTaskTransactionDialog.value = false
+
+    if (taskTransactionResolver.value) {
+      taskTransactionResolver.value(transactionId)
+      taskTransactionResolver.value = null
+    }
+
+    Notify.create({
+      type: 'positive',
+      message: 'Task transaction saved successfully.',
+      position: 'top',
+    })
+  } catch (error) {
+    console.error('Failed to create task transaction:', error)
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to save task transaction.',
+      position: 'top',
+    })
+  } finally {
+    savingTaskTransaction.value = false
+  }
+}
+
+const openTaskTransactionEntry = async () => {
+  if (!canManageRecords.value) return
+  const context = getTaskTransactionContextForRecord()
+  if (!context) {
+    Notify.create({
+      type: 'negative',
+      message: 'Unable to open transaction form for this task.',
+      position: 'top',
+    })
+    return
+  }
+  await openTaskTransactionDialog({ context, requireSave: false })
+}
+
+const handleResolutionCostFlow = async () => {
+  const context = getTaskTransactionContextForRecord()
+  if (!context) return
+
+  const decision = await promptTaskCostDecision()
+  if (decision !== 'yes') return
+
+  let continueAdding = true
+  while (continueAdding) {
+    const transactionId = await openTaskTransactionDialog({ context, requireSave: true })
+    if (!transactionId) continue
+    continueAdding = await promptAddAnotherTransaction()
   }
 }
 
@@ -2091,14 +3369,16 @@ const submitComment = async () => {
       user_id: userDataStore.userId,
       user_name: userDataStore.user?.displayName || userDataStore.user?.email || 'Unknown User',
       user_role:
-        userDataStore.getUserRoleForProperty(selectedMxRecord.value.property_id)?.role ||
+        normalizeRoleValue(
+          userDataStore.getUserRoleForProperty(selectedMxRecord.value.property_id)?.role,
+        ) ||
         'Unknown Role',
       action_type: newComment.value.action_type,
       image_urls: commentImageUrls, // Add uploaded comment image URLs
     }
 
     // Add the log entry to the task
-    const updatedLogs = [...(selectedMxRecord.value.logs || []), newLogEntry]
+    const updatedLogs = [...selectedMxRecordLogs.value, newLogEntry]
 
     // Validate IDs before constructing path
     const propertyId = selectedMxRecord.value.property_id
@@ -2154,22 +3434,27 @@ const submitComment = async () => {
       console.log('Local task status updated to closed')
     }
 
-    // Close dialog and reset form
+    const isResolution = newComment.value.action_type === 'resolution'
+
+    // Close comment dialog first, then continue resolution cost flow if needed.
     closeCommentDialog()
 
-    // Refresh data to show updated record
-    await userDataStore.loadMxRecords()
+    if (isResolution) {
+      await handleResolutionCostFlow()
+    }
 
-    // Show success notification
-    const isResolution = newComment.value.action_type === 'resolution'
-    import('quasar').then(({ Notify }) => {
-      Notify.create({
-        type: 'positive',
-        message: isResolution
-          ? 'Resolution comment added and task closed successfully!'
-          : 'Comment added successfully!',
-        position: 'top',
-      })
+    // Refresh task + transaction data for latest linked results.
+    await Promise.all([
+      userDataStore.loadMxRecords(),
+      loadTaskTransactions(),
+    ])
+
+    Notify.create({
+      type: 'positive',
+      message: isResolution
+        ? 'Resolution comment saved successfully.'
+        : 'Comment added successfully!',
+      position: 'top',
     })
   } catch (error) {
     console.error('Error adding comment:', error)
@@ -2189,6 +3474,7 @@ const submitComment = async () => {
 
 // Create task dialog functions
 const openCreateMxRecordDialog = () => {
+  if (!canManageRecords.value) return
   showCreateMxRecordComposer.value = true
 }
 
@@ -2196,8 +3482,12 @@ const closeCreateMxRecordDialog = () => {
   showCreateMxRecordComposer.value = false
 }
 
-const onMxRecordCreated = () => {
+const onMxRecordCreated = (createdRecord) => {
   closeCreateMxRecordDialog()
+  if (createdRecord && canManageRecords.value) {
+    openTaskPublishDialog(createdRecord, 'create')
+    return
+  }
   refreshData()
 }
 
@@ -2687,6 +3977,10 @@ const refreshData = async () => {
   min-height: 34px;
 }
 
+.publish-task-btn {
+  box-shadow: 0 6px 18px rgba(251, 140, 0, 0.28);
+}
+
 .dialog-content {
   padding: 10px 8px;
   max-height: calc(100vh - 80px);
@@ -2695,7 +3989,7 @@ const refreshData = async () => {
 
 .mxrecord-details-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 330px;
   gap: 16px;
   align-items: start;
 }
@@ -2704,6 +3998,7 @@ const refreshData = async () => {
   min-width: 0;
 }
 
+.task-bids-side-panel,
 .sp-recommendations-panel {
   position: sticky;
   top: 8px;
@@ -3003,6 +4298,7 @@ const refreshData = async () => {
     grid-template-columns: 1fr;
   }
 
+  .task-bids-side-panel,
   .sp-recommendations-panel {
     position: static;
     order: 2;

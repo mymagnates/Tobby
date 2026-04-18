@@ -1,9 +1,15 @@
+import { collection, collectionGroup, doc, getDocs, query, setDoc, where } from 'firebase/firestore'
+import { db } from 'src/boot/firebase'
+
 const RAW_API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
 const isUnsafeLocalApiBase =
   /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(RAW_API_BASE_URL) &&
   typeof window !== 'undefined' &&
   !['localhost', '127.0.0.1'].includes(window.location.hostname)
 const API_BASE_URL = (isUnsafeLocalApiBase ? '/api' : RAW_API_BASE_URL).replace(/\/$/, '')
+const RECOMMENDED_SPS_API_ENABLED =
+  String(import.meta.env.VITE_ENABLE_RECOMMENDED_SPS_API || 'false').trim().toLowerCase() ===
+  'true'
 
 const STORAGE_KEYS = {
   SP_CARDS: 'web_sp_cards_snapshot_v1',
@@ -12,15 +18,24 @@ const STORAGE_KEYS = {
   SP_PROJECTS: 'web_sp_projects_v1',
   SP_INVOICES: 'web_sp_invoices_v1',
   SP_DOCUMENTS: 'web_sp_documents_v1',
+  SP_CREDIT_ACCOUNT: 'web_sp_credit_account_v1',
+  SP_CREDIT_LEDGER: 'web_sp_credit_ledger_v1',
+  SP_CREDIT_ORDERS: 'web_sp_credit_orders_v1',
 }
+
+const SP_INITIAL_FREE_CREDITS = 3
+const SP_WEEKLY_FREE_CREDITS = 1
+const SP_FREE_CREDIT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 
 const toUrl = (path) => `${API_BASE_URL}${path}`
 
 const normalizeApiRole = (role) => {
   const next = `${role || ''}`.trim().toLowerCase()
-  if (next === 'pm' || next === 'po' || next === 'pm_po') return 'pm_po'
+  if (next === 'pm' || next === 'po') return next
+  if (next === 'pm_po' || next === 'pm/po' || next === 'manager' || next === 'property manager')
+    return 'pm'
   if (next === 'sp') return 'sp'
-  if (next === 'tt') return 'tt'
+  if (next === 'tt' || next === 'tenant') return 'tt'
   if (next === 'admin') return 'admin'
   return null
 }
@@ -28,7 +43,14 @@ const normalizeApiRole = (role) => {
 const normalizeLeadRow = (row) => {
   const id = row?.id || row?.lead_id
   const leadId = row?.lead_id || id
-  return { ...row, id, lead_id: leadId, lead_doc_id: id }
+  return {
+    ...row,
+    id,
+    lead_id: leadId,
+    lead_doc_id: id,
+    comments: Array.isArray(row?.comments) ? row.comments : [],
+    comment_count: Number(row?.comment_count ?? row?.comments?.length ?? 0),
+  }
 }
 
 const parseJsonSafely = async (response) => {
@@ -83,204 +105,159 @@ const saveJsonArray = (key, rows) => {
   localStorage.setItem(key, JSON.stringify(rows))
 }
 
-const seedSpBids = (spId) => [
-  {
-    bid_id: `bid-${spId}-1`,
-    sp_id: spId,
-    lead_id: `lead-${spId}-0`,
-    lead_title: 'Water heater replacement',
-    task_id: 'task-0891',
-    title: 'Water heater replacement',
-    amount: 780,
-    note: 'Includes 50-gal tank, installation, and old unit disposal. 1-year labor warranty.',
-    status: 'selected',
-    created_at: '2025-11-18T10:00:00.000Z',
-  },
-  {
-    bid_id: `bid-${spId}-2`,
-    sp_id: spId,
-    lead_id: `lead-${spId}-1`,
-    lead_title: 'Drain cleaning',
-    task_id: 'task-0954',
-    title: 'Drain cleaning',
-    amount: 210,
-    note: 'Snake and hydro-jet main kitchen line. Includes camera inspection.',
-    status: 'rejected',
-    created_at: '2025-12-09T12:30:00.000Z',
-  },
-  {
-    bid_id: `bid-${spId}-3`,
-    sp_id: spId,
-    lead_id: `lead-${spId}-2`,
-    lead_title: 'HVAC seasonal maintenance',
-    task_id: 'task-1002',
-    title: 'HVAC seasonal maintenance',
-    amount: 300,
-    note: 'Full tune-up for both units. Filter + coil cleaning included.',
-    status: 'submitted',
-    created_at: '2026-02-16T12:00:00.000Z',
-  },
-  {
-    bid_id: `bid-${spId}-4`,
-    sp_id: spId,
-    lead_id: `lead-${spId}-4`,
-    lead_title: 'Broken garage door spring',
-    task_id: 'task-1004',
-    title: 'Garage door spring repair',
-    amount: 195,
-    note: 'Replace both torsion springs for balanced operation. Same-day service.',
-    status: 'submitted',
-    created_at: '2026-02-17T16:00:00.000Z',
-  },
-]
+const nowIso = () => new Date().toISOString()
+const adSlotEtagCache = new Map()
+const adSlotPayloadCache = new Map()
 
-const seedSpProjects = (spId) => [
-  {
-    project_id: `project-${spId}-1`,
-    task_id: 'task-0901',
-    task_title: 'Roof repair — Building B',
-    title: 'Roof repair — Building B',
-    address: '460 Oak Grove Ave, Building B',
-    location: 'Palo Alto, CA',
-    status: 'in_progress',
-    accepted_at: '2026-02-14T10:00:00.000Z',
-    sp_id: spId,
-    phases: {
-      plan: { done: true, completed_at: '2026-02-14T14:00:00.000Z' },
-      execution: { done: false, completed_at: null },
-      payment: { done: false, completed_at: null },
-      close: { done: false, completed_at: null },
-    },
-    comments: [
-      { text: 'Materials ordered — shingles and underlayment arriving Feb 16.', created_at: '2026-02-14T15:30:00.000Z', author: spId },
-      { text: 'Weather delay — rain expected Wed/Thu. Rescheduling to Friday.', created_at: '2026-02-17T09:00:00.000Z', author: spId },
-    ],
-  },
-  {
-    project_id: `project-${spId}-2`,
-    task_id: 'task-0750',
-    task_title: 'Electrical panel upgrade',
-    title: 'Electrical panel upgrade',
-    address: '1521 Shoreline Blvd, Unit 4',
-    location: 'Mountain View, CA',
-    status: 'completed',
-    accepted_at: '2025-12-21T10:00:00.000Z',
-    sp_id: spId,
-    phases: {
-      plan: { done: true, completed_at: '2025-12-21T12:00:00.000Z' },
-      execution: { done: true, completed_at: '2025-12-28T17:00:00.000Z' },
-      payment: { done: true, completed_at: '2026-01-05T10:00:00.000Z' },
-      close: { done: true, completed_at: '2026-01-06T09:00:00.000Z' },
-    },
-    comments: [
-      { text: 'Panel upgraded from 100A to 200A. All circuits re-labeled.', created_at: '2025-12-28T17:30:00.000Z', author: spId },
-      { text: 'Inspection passed. Final invoice sent to PM.', created_at: '2026-01-06T09:00:00.000Z', author: spId },
-    ],
-  },
-  {
-    project_id: `project-${spId}-3`,
-    task_id: 'task-0631',
-    task_title: 'Garage door sensor replacement',
-    title: 'Garage door sensor replacement',
-    address: '320 El Camino Real, Garage #7',
-    location: 'Santa Clara, CA',
-    status: 'completed',
-    accepted_at: '2025-10-12T09:00:00.000Z',
-    sp_id: spId,
-    phases: {
-      plan: { done: true, completed_at: '2025-10-12T10:00:00.000Z' },
-      execution: { done: true, completed_at: '2025-10-13T14:00:00.000Z' },
-      payment: { done: true, completed_at: '2025-10-20T11:00:00.000Z' },
-      close: { done: true, completed_at: '2025-10-20T11:30:00.000Z' },
-    },
-    comments: [
-      { text: 'Both sensors replaced and aligned. Door tested 10+ cycles.', created_at: '2025-10-13T14:30:00.000Z', author: spId },
-    ],
-  },
-  {
-    project_id: `project-${spId}-4`,
-    task_id: 'task-0891',
-    task_title: 'Water heater replacement',
-    title: 'Water heater replacement',
-    address: '742 Evergreen Terrace, Unit 1A',
-    location: 'San Jose, CA',
-    status: 'active',
-    accepted_at: '2026-02-10T08:00:00.000Z',
-    sp_id: spId,
-    phases: {
-      plan: { done: true, completed_at: '2026-02-10T10:00:00.000Z' },
-      execution: { done: true, completed_at: '2026-02-12T16:00:00.000Z' },
-      payment: { done: false, completed_at: null },
-      close: { done: false, completed_at: null },
-    },
-    comments: [
-      { text: 'Old 40-gal tank removed. New 50-gal Rheem installed and tested.', created_at: '2026-02-12T16:30:00.000Z', author: spId },
-      { text: 'Awaiting payment confirmation from property manager.', created_at: '2026-02-15T09:00:00.000Z', author: spId },
-    ],
-  },
-]
-
-const seedSpInvoices = (spId) => [
-  {
-    invoice_id: `inv-${spId}-1`,
-    sp_id: spId,
-    project_id: `project-${spId}-2`,
-    title: 'Electrical panel upgrade — final',
-    amount: 2450,
-    status: 'paid',
-    issued_date: '2026-01-06T09:00:00.000Z',
-    due_date: '2026-01-20T00:00:00.000Z',
-    paid_date: '2026-01-18T14:00:00.000Z',
-    notes: 'Panel upgrade 100A→200A, labor + materials. Permit fee included.',
-    created_at: '2026-01-06T09:00:00.000Z',
-  },
-  {
-    invoice_id: `inv-${spId}-2`,
-    sp_id: spId,
-    project_id: `project-${spId}-3`,
-    title: 'Garage door sensor replacement',
-    amount: 185,
-    status: 'paid',
-    issued_date: '2025-10-20T11:00:00.000Z',
-    due_date: '2025-11-03T00:00:00.000Z',
-    paid_date: '2025-10-28T10:00:00.000Z',
-    notes: 'Two photo-eye sensors replaced. Parts + 1 hr labor.',
-    created_at: '2025-10-20T11:00:00.000Z',
-  },
-  {
-    invoice_id: `inv-${spId}-3`,
-    sp_id: spId,
-    project_id: `project-${spId}-4`,
-    title: 'Water heater replacement — pending',
-    amount: 780,
-    status: 'submitted',
-    issued_date: '2026-02-15T09:00:00.000Z',
-    due_date: '2026-03-01T00:00:00.000Z',
-    notes: '50-gal Rheem tank, installation, haul-away of old unit. 1-yr warranty.',
-    created_at: '2026-02-15T09:00:00.000Z',
-  },
-  {
-    invoice_id: `inv-${spId}-4`,
-    sp_id: spId,
-    project_id: `project-${spId}-1`,
-    title: 'Roof repair — Building B (deposit)',
-    amount: 1200,
-    status: 'draft',
-    issued_date: null,
-    due_date: null,
-    notes: '50% deposit for materials. Remainder due on completion.',
-    created_at: '2026-02-17T11:00:00.000Z',
-  },
-]
-
-const ensureSeeded = (key, seedRows) => {
-  const rows = loadJsonArray(key)
-  if (rows.length) return rows
-  saveJsonArray(key, seedRows)
-  return seedRows
+const toIsoDateString = (value, fallback = '') => {
+  if (!value) return fallback
+  if (typeof value?.toDate === 'function') {
+    const date = value.toDate()
+    return Number.isNaN(date.getTime()) ? fallback : date.toISOString()
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? fallback : value.toISOString()
+  }
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  const raw = String(value || '').trim()
+  return raw || fallback
 }
 
-const nowIso = () => new Date().toISOString()
+const toBidTimestamp = (value) => {
+  if (!value) return 0
+  if (typeof value?.toDate === 'function') {
+    const date = value.toDate()
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? 0 : value.getTime()
+  }
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime()
+}
+
+const normalizeBidRow = (row = {}, defaults = {}) => {
+  const fallbackLeadDocId = String(defaults?.lead_doc_id || defaults?.lead_id || '').trim()
+  const bidId = String(row?.bid_id || row?.id || defaults?.bid_id || `bid-${Date.now()}`)
+  const leadDocId = String(row?.lead_doc_id || row?.lead_id || fallbackLeadDocId || '').trim()
+  const leadId = String(row?.lead_id || leadDocId || '').trim()
+  const createdAt = toIsoDateString(row?.created_at, toIsoDateString(defaults?.created_at, nowIso()))
+  const updatedAt = toIsoDateString(row?.updated_at, createdAt)
+  const amountRaw = Number(row?.amount ?? defaults?.amount)
+
+  return {
+    ...defaults,
+    ...row,
+    id: String(row?.id || defaults?.id || bidId),
+    bid_id: bidId,
+    lead_doc_id: leadDocId || leadId,
+    lead_id: leadId || leadDocId,
+    sp_id: String(row?.sp_id ?? defaults?.sp_id ?? ''),
+    amount: Number.isFinite(amountRaw) ? amountRaw : 0,
+    note: row?.note ?? row?.notes ?? defaults?.note ?? defaults?.notes ?? '',
+    created_at: createdAt,
+    updated_at: updatedAt,
+  }
+}
+
+const mergeBidRows = (...groups) => {
+  const seen = new Set()
+  return groups
+    .flat()
+    .filter((row) => row && typeof row === 'object')
+    .map((row) => normalizeBidRow(row))
+    .filter((row) => {
+      const key = String(row?.id || row?.bid_id || '').trim()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .sort((a, b) => toBidTimestamp(b?.created_at) - toBidTimestamp(a?.created_at))
+}
+
+const mirrorBidToLeadSubcollection = async (row = {}) => {
+  const bid = normalizeBidRow(row)
+  const leadDocId = String(bid?.lead_doc_id || bid?.lead_id || '').trim()
+  const bidId = String(bid?.bid_id || bid?.id || '').trim()
+  if (!leadDocId || !bidId) return null
+
+  try {
+    const now = nowIso()
+    const next = {
+      ...bid,
+      id: bidId,
+      bid_id: bidId,
+      lead_doc_id: leadDocId,
+      lead_id: String(bid?.lead_id || leadDocId),
+      created_at: bid?.created_at || now,
+      updated_at: now,
+    }
+    await setDoc(doc(db, 'marketplace_leads', leadDocId, 'bids', bidId), next, { merge: true })
+    return next
+  } catch (error) {
+    console.warn('Failed to mirror bid into marketplace_leads/{leadId}/bids:', error)
+    return null
+  }
+}
+
+const listSpBidsFromLeadSubcollections = async (spId) => {
+  const normalizedSpId = String(spId || '').trim()
+  if (!normalizedSpId) return []
+
+  try {
+    const bidsQuery = query(collectionGroup(db, 'bids'), where('sp_id', '==', normalizedSpId))
+    const bidSnapshot = await getDocs(bidsQuery)
+    const rows = bidSnapshot.docs
+      .map((docSnap) => {
+        const parentCollectionId = String(docSnap.ref?.parent?.parent?.parent?.id || '').trim()
+        if (parentCollectionId !== 'marketplace_leads') return null
+        const data = docSnap.data() || {}
+        const leadDocId =
+          String(docSnap.ref?.parent?.parent?.id || data?.lead_doc_id || data?.lead_id || '').trim()
+        return normalizeBidRow(
+          { ...data, id: docSnap.id, bid_id: data?.bid_id || docSnap.id },
+          {
+            lead_doc_id: leadDocId,
+            lead_id: data?.lead_id || leadDocId,
+            sp_id: normalizedSpId,
+          }
+        )
+      })
+      .filter((row) => row && (row?.lead_doc_id || row?.lead_id))
+
+    if (rows.length) return mergeBidRows(rows)
+  } catch (error) {
+    console.warn('Failed reading bids via Firestore collectionGroup:', error)
+  }
+
+  try {
+    const leadSnapshot = await getDocs(collection(db, 'marketplace_leads'))
+    const bidGroups = await Promise.all(
+      leadSnapshot.docs.map(async (leadDoc) => {
+        const bidSnapshot = await getDocs(collection(db, 'marketplace_leads', leadDoc.id, 'bids'))
+        return bidSnapshot.docs.map((docSnap) => {
+          const data = docSnap.data() || {}
+          return normalizeBidRow(
+            { ...data, id: docSnap.id, bid_id: data?.bid_id || docSnap.id },
+            {
+              lead_doc_id: leadDoc.id,
+              lead_id: data?.lead_id || leadDoc.id,
+              sp_id: normalizedSpId,
+            }
+          )
+        })
+      })
+    )
+
+    return mergeBidRows(
+      bidGroups.flat().filter((row) => String(row?.sp_id || '') === normalizedSpId)
+    )
+  } catch (error) {
+    console.warn('Failed reading bids from marketplace lead subcollections:', error)
+    return []
+  }
+}
 
 export const billingApi = {
   async getProfileSummary() {
@@ -288,9 +265,8 @@ export const billingApi = {
       return await request('/billing/profile-summary')
     } catch {
       return {
-        request_id: 'mock-billing-profile-summary',
         plan_name: 'Free',
-        subscription_status: 'active',
+        subscription_status: 'inactive',
         next_renewal_date: null,
         gate_status: 'ok',
       }
@@ -302,13 +278,14 @@ export const billingApi = {
       return await request('/billing/usage')
     } catch {
       return {
-        request_id: 'mock-billing-usage',
         properties_used: 0,
-        properties_limit: 3,
+        properties_limit: 0,
+        ai_tokens_used: 0,
+        ai_tokens_limit: 0,
         voice_used: 0,
         voice_limit: 0,
         storage_used_mb: 0,
-        storage_limit_mb: 512,
+        storage_limit_mb: 0,
       }
     }
   },
@@ -318,7 +295,6 @@ export const billingApi = {
       return await request('/billing/credits')
     } catch {
       return {
-        request_id: 'mock-billing-credits',
         balance: 0,
       }
     }
@@ -329,7 +305,6 @@ export const billingApi = {
       return await request('/billing/history')
     } catch {
       return {
-        request_id: 'mock-billing-history',
         items: [],
       }
     }
@@ -344,6 +319,235 @@ export const billingApi = {
   },
 }
 
+export const agentApi = {
+  intake: (payload) => request('/agent/intake', { method: 'POST', body: payload }),
+  submit: (payload) => request('/agent/submit', { method: 'POST', body: payload }),
+}
+
+const loadJsonObject = (key, fallback = null) => {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const saveJsonObject = (key, value) => {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(key, JSON.stringify(value || {}))
+}
+
+const getSpCreditAccountFallback = (spId) => {
+  const all = loadJsonObject(STORAGE_KEYS.SP_CREDIT_ACCOUNT, {})
+  const current = all?.[spId] || {}
+  return {
+    sp_id: spId,
+    balance: Number(current.balance || 0),
+    lifetime_purchased: Number(current.lifetime_purchased || 0),
+    lifetime_used: Number(current.lifetime_used || 0),
+    lifetime_granted: Number(current.lifetime_granted || 0),
+    last_free_credit_at: current.last_free_credit_at || null,
+  }
+}
+
+const setSpCreditAccountFallback = (spId, patch = {}) => {
+  const all = loadJsonObject(STORAGE_KEYS.SP_CREDIT_ACCOUNT, {})
+  const current = getSpCreditAccountFallback(spId)
+  const next = {
+    ...current,
+    ...patch,
+    balance: Number((patch.balance ?? current.balance) || 0),
+    lifetime_purchased: Number((patch.lifetime_purchased ?? current.lifetime_purchased) || 0),
+    lifetime_used: Number((patch.lifetime_used ?? current.lifetime_used) || 0),
+    lifetime_granted: Number((patch.lifetime_granted ?? current.lifetime_granted) || 0),
+    last_free_credit_at: patch.last_free_credit_at ?? current.last_free_credit_at ?? null,
+  }
+  all[spId] = next
+  saveJsonObject(STORAGE_KEYS.SP_CREDIT_ACCOUNT, all)
+  return next
+}
+
+const appendSpCreditLedgerFallback = (entry) => {
+  const ledger = loadJsonArray(STORAGE_KEYS.SP_CREDIT_LEDGER)
+  ledger.unshift(entry)
+  saveJsonArray(STORAGE_KEYS.SP_CREDIT_LEDGER, ledger)
+  return entry
+}
+
+const applySpFreeCreditPolicyFallback = (spId) => {
+  const account = getSpCreditAccountFallback(spId)
+  const now = nowIso()
+  const next = {
+    ...account,
+    last_free_credit_at: account.last_free_credit_at || null,
+  }
+
+  let granted = 0
+  let grantType = null
+
+  if (!next.last_free_credit_at) {
+    granted = SP_INITIAL_FREE_CREDITS
+    grantType = 'starter'
+    next.last_free_credit_at = now
+  } else {
+    const lastMs = Date.parse(next.last_free_credit_at)
+    const nowMs = Date.parse(now)
+    if (Number.isFinite(lastMs) && Number.isFinite(nowMs)) {
+      const elapsedWeeks = Math.floor((nowMs - lastMs) / SP_FREE_CREDIT_INTERVAL_MS)
+      if (elapsedWeeks > 0) {
+        granted = elapsedWeeks * SP_WEEKLY_FREE_CREDITS
+        grantType = 'weekly'
+        next.last_free_credit_at = now
+      }
+    }
+  }
+
+  if (granted > 0) {
+    const updated = setSpCreditAccountFallback(spId, {
+      balance: Number(next.balance || 0) + granted,
+      lifetime_granted: Number(next.lifetime_granted || 0) + granted,
+      last_free_credit_at: next.last_free_credit_at,
+    })
+    appendSpCreditLedgerFallback({
+      id: `credit-ledger-${Date.now()}`,
+      sp_id: spId,
+      entry_type: 'grant',
+      delta: granted,
+      balance_after: updated.balance,
+      source_type: 'free_credit',
+      source_id: grantType || 'starter',
+      created_at: now,
+      meta: {
+        grant_type: grantType || 'starter',
+      },
+    })
+    return { account: updated, granted, grantType }
+  }
+
+  const updated = setSpCreditAccountFallback(spId, {
+    last_free_credit_at: next.last_free_credit_at,
+  })
+  return { account: updated, granted: 0, grantType: null }
+}
+
+export const spCreditApi = {
+  async getSummary(spId) {
+    try {
+      return await request('/sp/credits/summary', {
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
+    } catch {
+      const { account } = applySpFreeCreditPolicyFallback(String(spId || 'unknown'))
+      return { ...account, storage: 'local' }
+    }
+  },
+
+  async getHistory(spId, limit = 100) {
+    try {
+      return await request(`/sp/credits/history?limit=${encodeURIComponent(String(limit))}`, {
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
+    } catch {
+      applySpFreeCreditPolicyFallback(String(spId || 'unknown'))
+      const ledgerRows = loadJsonArray(STORAGE_KEYS.SP_CREDIT_LEDGER)
+        .filter((row) => row.sp_id === spId)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      const orderRows = loadJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS)
+        .filter((row) => row.sp_id === spId)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      return { items: ledgerRows.slice(0, limit), orders: orderRows.slice(0, limit), storage: 'local' }
+    }
+  },
+
+  async createOrder(spId, payload) {
+    const body = {
+      credits: Number(payload?.credits || 1),
+      amount: Number(payload?.amount || 0),
+      currency: payload?.currency || 'USD',
+      package_id: payload?.package_id || null,
+      provider: payload?.provider || 'manual_placeholder',
+    }
+    try {
+      return await request('/sp/credits/orders', {
+        method: 'POST',
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+        body,
+      })
+    } catch {
+      const order = {
+        id: `credit-order-${Date.now()}`,
+        sp_id: spId,
+        ...body,
+        status: 'pending',
+        created_at: nowIso(),
+        updated_at: nowIso(),
+        paid_at: null,
+      }
+      const rows = loadJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS)
+      rows.unshift(order)
+      saveJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS, rows)
+      return { order, checkout_hint: 'local-fallback' }
+    }
+  },
+
+  async simulatePaidCallback(orderId, payload = {}) {
+    const body = {
+      order_id: orderId,
+      status: payload?.status || 'paid',
+      provider_txn_id: payload?.provider_txn_id || `sim-${Date.now()}`,
+      paid_at: payload?.paid_at || nowIso(),
+    }
+    try {
+      return await request('/sp/credits/payments/callback', { method: 'POST', body })
+    } catch {
+      const orders = loadJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS)
+      const index = orders.findIndex((row) => row.id === orderId)
+      if (index < 0) throw new Error('Order not found')
+      const order = { ...orders[index], ...body, status: body.status, updated_at: nowIso() }
+      orders[index] = order
+      saveJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS, orders)
+      if (body.status === 'paid') {
+        const { account } = applySpFreeCreditPolicyFallback(order.sp_id)
+        const credits = Number(order.credits || 1)
+        const nextBalance = Number(account.balance || 0) + credits
+        setSpCreditAccountFallback(order.sp_id, {
+          balance: nextBalance,
+          lifetime_purchased: Number(account.lifetime_purchased || 0) + credits,
+        })
+        appendSpCreditLedgerFallback({
+          id: `credit-ledger-${Date.now()}`,
+          sp_id: order.sp_id,
+          entry_type: 'purchase',
+          delta: credits,
+          balance_after: nextBalance,
+          source_type: 'credit_order',
+          source_id: order.id,
+          created_at: nowIso(),
+          meta: {
+            amount: Number(order.amount || 0),
+            currency: order.currency || 'USD',
+            provider: order.provider || 'manual_placeholder',
+          },
+        })
+      }
+      return { order_id: order.id, sp_id: order.sp_id, status: order.status, storage: 'local' }
+    }
+  },
+}
+
 export const reportApi = {
   async getAnnualTaxFinance(params) {
     const search = new URLSearchParams()
@@ -351,6 +555,87 @@ export const reportApi = {
       if (v !== null && v !== undefined && String(v).length) search.set(k, String(v))
     })
     return request(`/reports/annual-tax-finance?${search.toString()}`)
+  },
+}
+
+const buildSearch = (params = {}) => {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined) return
+    if (typeof value === 'string' && !value.trim()) return
+    search.set(key, String(value))
+  })
+  const text = search.toString()
+  return text ? `?${text}` : ''
+}
+
+const adminHeaders = {
+  'X-User-Role': 'admin',
+}
+
+export const adminApi = {
+  async getOverview(params = {}) {
+    return request(`/admin/overview${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async getAdSlotStats(params = {}) {
+    return request(`/admin/ad-slot/stats${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async listUsers(params = {}) {
+    return request(`/admin/users${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async getUser(userId) {
+    return request(`/admin/users/${encodeURIComponent(String(userId))}`, { headers: adminHeaders })
+  },
+
+  async freezeUser(userId, payload = {}) {
+    return request(`/admin/users/${encodeURIComponent(String(userId))}/freeze`, {
+      method: 'POST',
+      headers: adminHeaders,
+      body: payload,
+    })
+  },
+
+  async unfreezeUser(userId, payload = {}) {
+    return request(`/admin/users/${encodeURIComponent(String(userId))}/unfreeze`, {
+      method: 'POST',
+      headers: adminHeaders,
+      body: payload,
+    })
+  },
+
+  async getBillingSummary(params = {}) {
+    return request(`/admin/billing/summary${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async listCreditAccounts(params = {}) {
+    return request(`/admin/credits/accounts${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async listCreditOrders(params = {}) {
+    return request(`/admin/credits/orders${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async listCreditLedger(params = {}) {
+    return request(`/admin/credits/ledger${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async adjustCredits(payload = {}) {
+    return request('/admin/credits/adjust', {
+      method: 'POST',
+      headers: adminHeaders,
+      body: payload,
+    })
+  },
+
+  async listEvents(params = {}) {
+    return request(`/admin/logs/events${buildSearch(params)}`, { headers: adminHeaders })
+  },
+
+  async listErrors(params = {}) {
+    return request(`/admin/logs/errors${buildSearch(params)}`, { headers: adminHeaders })
   },
 }
 
@@ -426,6 +711,8 @@ export const marketplaceApi = {
   },
 
   async getRecommendedSps(taskId) {
+    if (!RECOMMENDED_SPS_API_ENABLED) return []
+    if (!taskId) return []
     try {
       const res = await request(`/tasks/${taskId}/recommended-sps`)
       return res.items || []
@@ -474,6 +761,85 @@ export const marketplaceApi = {
 
   assignSp(taskId, payload) {
     return request(`/tasks/${taskId}/assign-sp`, { method: 'POST', body: payload })
+  },
+}
+
+export const adSlotApi = {
+  async getFeed({
+    userId,
+    slotId = 'pm_feed_top',
+    limit = 1,
+    role = 'pm_po',
+    region = {},
+  } = {}) {
+    const key = `${String(userId || '')}|${String(slotId)}|${String(limit)}`
+    const knownEtag = adSlotEtagCache.get(key) || null
+    const response = await fetch(
+      toUrl(`/ad-slots/${encodeURIComponent(String(slotId))}/feed?limit=${encodeURIComponent(String(limit))}`),
+      {
+        method: 'GET',
+        headers: {
+          ...(userId ? { 'X-User-Id': String(userId) } : {}),
+          'X-User-Role': normalizeApiRole(role) || 'pm_po',
+          ...(region?.country ? { 'X-User-Country': String(region.country) } : {}),
+          ...(region?.state ? { 'X-User-State': String(region.state) } : {}),
+          ...(region?.city ? { 'X-User-City': String(region.city) } : {}),
+          ...(knownEtag ? { 'If-None-Match': knownEtag } : {}),
+        },
+      }
+    )
+
+    if (response.status === 304) {
+      const cachedPayload = adSlotPayloadCache.get(key) || { slot_id: slotId, items: [] }
+      return {
+        ...cachedPayload,
+        etag: knownEtag,
+        not_modified: true,
+        cache_status: response.headers.get('x-feed-cache') || 'NOT_MODIFIED',
+      }
+    }
+
+    const payload = await parseJsonSafely(response)
+    if (!response.ok) throw normalizeApiError(payload, `Request failed: ${response.status}`)
+
+    const etag = response.headers.get('etag') || null
+    if (etag) adSlotEtagCache.set(key, etag)
+    adSlotPayloadCache.set(key, payload)
+    return {
+      ...payload,
+      etag,
+      not_modified: false,
+      cache_status: response.headers.get('x-feed-cache') || 'MISS',
+    }
+  },
+
+  async reportImpression({
+    userId,
+    role = 'pm_po',
+    impressionToken,
+    viewportRatio = null,
+    dwellMs = null,
+  }) {
+    return request('/ad-events/impression', {
+      method: 'POST',
+      headers: {
+        ...(userId ? { 'X-User-Id': String(userId) } : {}),
+        'X-User-Role': normalizeApiRole(role) || 'pm_po',
+      },
+      body: {
+        impression_token: impressionToken,
+        viewport_ratio: viewportRatio,
+        dwell_ms: dwellMs,
+      },
+    })
+  },
+
+  resolveClickUrl(clickPath) {
+    const path = String(clickPath || '').trim()
+    if (!path) return ''
+    if (/^https?:\/\//i.test(path)) return path
+    if (path.startsWith('/')) return path
+    return `${API_BASE_URL}/${path}`
   },
 }
 
@@ -545,17 +911,29 @@ export const spPortalApi = {
   },
 
   async listBids(spId) {
+    const normalizedSpId = String(spId || '').trim()
+    let apiRows = []
     try {
       const res = await request('/sp/bids', {
         headers: {
-          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          ...(normalizedSpId ? { 'X-User-Id': normalizedSpId } : {}),
           'X-User-Role': 'sp',
         },
       })
-      return res.items || []
+      apiRows = res.items || []
     } catch {
-      return ensureSeeded(STORAGE_KEYS.SP_BIDS, seedSpBids(spId)).filter((row) => row.sp_id === spId)
+      apiRows = []
     }
+
+    const firestoreRows = await listSpBidsFromLeadSubcollections(normalizedSpId)
+    if (apiRows.length) {
+      return mergeBidRows(apiRows, firestoreRows)
+    }
+
+    const localRows = loadJsonArray(STORAGE_KEYS.SP_BIDS).filter(
+      (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+    )
+    return mergeBidRows(firestoreRows, localRows)
   },
 
   async createBid(payload) {
@@ -564,8 +942,12 @@ export const spPortalApi = {
       ...payload,
       sp_id: payload?.sp_id ? String(payload.sp_id) : '',
       lead_id: payload?.lead_id || payload?.id || '',
+      lead_doc_id: payload?.lead_doc_id || payload?.lead_id || payload?.id || '',
       amount: Number.isFinite(normalizedAmount) ? normalizedAmount : 0,
       note: payload?.note ?? payload?.notes ?? '',
+    }
+    if (!normalizedPayload.lead_doc_id) {
+      normalizedPayload.lead_doc_id = normalizedPayload.lead_id
     }
     if (!normalizedPayload.lead_id) {
       throw new Error('Lead ID is required to submit bid.')
@@ -573,7 +955,7 @@ export const spPortalApi = {
 
     try {
       const spId = normalizedPayload.sp_id
-      return await request('/sp/bids', {
+      const response = await request('/sp/bids', {
         method: 'POST',
         headers: {
           ...(spId ? { 'X-User-Id': spId } : {}),
@@ -581,26 +963,66 @@ export const spPortalApi = {
         },
         body: normalizedPayload,
       })
+      const apiBid = normalizeBidRow(response?.bid || response || {}, normalizedPayload)
+      const mirroredBid = await mirrorBidToLeadSubcollection(apiBid)
+      const finalBid = mirroredBid || apiBid
+
+      const isEnvelope =
+        response &&
+        typeof response === 'object' &&
+        !Array.isArray(response) &&
+        (Object.prototype.hasOwnProperty.call(response, 'bid') ||
+          Object.prototype.hasOwnProperty.call(response, 'credits_balance') ||
+          Object.prototype.hasOwnProperty.call(response, 'credit_cost') ||
+          Object.prototype.hasOwnProperty.call(response, 'storage'))
+      if (isEnvelope) {
+        return { ...response, bid: finalBid }
+      }
+      return finalBid
     } catch {
+      const spId = String(normalizedPayload.sp_id || '')
+      const { account } = applySpFreeCreditPolicyFallback(spId)
+      if (Number(account.balance || 0) < 1) {
+        const error = new Error('Insufficient credits. Your free credit will refresh next week.')
+        error.error_code = 'INSUFFICIENT_CREDITS'
+        throw error
+      }
       const rows = loadJsonArray(STORAGE_KEYS.SP_BIDS)
-      const next = {
+      const next = normalizeBidRow({
         bid_id: `bid-${Date.now()}`,
         status: 'submitted',
         created_at: nowIso(),
         ...normalizedPayload,
-      }
+      })
       rows.unshift(next)
       saveJsonArray(STORAGE_KEYS.SP_BIDS, rows)
-      return next
+      await mirrorBidToLeadSubcollection(next)
+      const nextBalance = Number(account.balance || 0) - 1
+      setSpCreditAccountFallback(spId, {
+        balance: nextBalance,
+        lifetime_used: Number(account.lifetime_used || 0) + 1,
+      })
+      appendSpCreditLedgerFallback({
+        id: `credit-ledger-${Date.now()}`,
+        sp_id: spId,
+        entry_type: 'bid_use',
+        delta: -1,
+        balance_after: nextBalance,
+        source_type: 'bid',
+        source_id: next.bid_id,
+        lead_id: normalizedPayload.lead_id,
+        created_at: nowIso(),
+      })
+      return { bid: next, credits_balance: nextBalance, credit_cost: 1, storage: 'local' }
     }
   },
 
-  async listProjects(spId) {
+  async listProjects() {
     try {
       const res = await request('/sp/projects')
       return res.items || []
     } catch {
-      return ensureSeeded(STORAGE_KEYS.SP_PROJECTS, seedSpProjects(spId)).filter((row) => row.sp_id === spId)
+      return []
     }
   },
 
@@ -617,12 +1039,12 @@ export const spPortalApi = {
     }
   },
 
-  async listInvoices(spId) {
+  async listInvoices() {
     try {
       const res = await request('/sp/invoices')
       return res.items || []
     } catch {
-      return ensureSeeded(STORAGE_KEYS.SP_INVOICES, seedSpInvoices(spId)).filter((row) => row.sp_id === spId)
+      return []
     }
   },
 

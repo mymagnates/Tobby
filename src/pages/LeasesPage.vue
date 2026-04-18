@@ -2,7 +2,15 @@
   <q-page class="q-pa-md">
     <div class="row justify-end q-mb-md">
       <div class="row q-gutter-sm">
-        <q-btn @click="openCreateLeaseDialog" color="primary" icon="add" label="Create New Lease" />
+        <q-btn
+          v-if="canManageRecords"
+          @click="openCreateLeaseDialog"
+          color="primary"
+          text-color="white"
+          unelevated
+          icon="add"
+          label="Create New Lease"
+        />
       </div>
     </div>
 
@@ -204,7 +212,7 @@
                 {{ leaseTenantsMap[lease.id].applicant?.email }}
               </span>
             </div>
-            <div v-else-if="lease.status !== 'Rented'" class="lease-share-compact">
+            <div v-else-if="isLeaseAvailable(lease)" class="lease-share-compact">
               <q-btn
                 flat
                 dense
@@ -237,7 +245,7 @@
       :subtitle="selectedLease?.property_id?.address || ''"
       @close="closeLeaseDialog"
     >
-      <q-card class="full-height">
+      <q-card class="full-height lease-detail-card">
         <!-- Dialog Header -->
         <q-card-section class="dialog-header">
           <div class="dialog-header-layout">
@@ -273,7 +281,7 @@
                 text-color="secondary"
                 icon="inventory"
                 label="Inventory"
-                @click="openInventoryDialog"
+                @click="openInventoryDialog(selectedLease)"
                 class="header-action-btn"
               />
               <q-btn
@@ -286,14 +294,41 @@
                 class="header-action-btn"
               />
               <q-btn
-                v-if="!isEditMode"
+                v-if="canManageRecords && selectedLease && !isEditMode && isLeaseRented(selectedLease)"
+                color="white"
+                text-color="secondary"
+                icon="person_add"
+                label="Invite Tenant"
+                @click="inviteTenantAccount(selectedLease)"
+                class="header-action-btn"
+              />
+              <q-btn
+                v-if="canManageRecords && !isEditMode"
                 color="white"
                 text-color="secondary"
                 label="Edit"
                 @click="toggleEditMode"
                 class="header-action-btn"
               />
-              <div v-if="selectedLease && !isEditMode" class="header-status-control">
+              <q-btn
+                v-if="canManageRecords && selectedLease && !isEditMode"
+                color="white"
+                text-color="secondary"
+                icon="person_add"
+                label="Create Tenant"
+                @click="navigateToCreateTenant(selectedLease)"
+                class="header-action-btn"
+              />
+              <q-btn
+                v-if="canManageRecords && selectedLease && !isEditMode"
+                color="white"
+                text-color="negative"
+                icon="archive"
+                label="Archive"
+                @click="confirmArchiveLease"
+                class="header-action-btn"
+              />
+              <div v-if="canManageRecords && selectedLease && !isEditMode" class="header-status-control">
                   
                   <q-btn-dropdown
                     :label="selectedLease.status || 'Unknown'"
@@ -316,30 +351,6 @@
                     </q-list>
                   </q-btn-dropdown>
                 </div>
-              <q-btn-dropdown
-                v-if="!isEditMode"
-                color="white"
-                text-color="secondary"
-                label="More"
-                no-caps
-                unelevated
-                class="header-action-btn"
-              >
-                <q-list dense style="min-width: 190px">
-                  <q-item clickable v-close-popup @click="navigateToCreateTenant(selectedLease)">
-                    <q-item-section avatar>
-                      <q-icon name="person_add" />
-                    </q-item-section>
-                    <q-item-section>Create Tenant</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup @click="confirmDeleteLease">
-                    <q-item-section avatar>
-                      <q-icon name="delete" color="negative" />
-                    </q-item-section>
-                    <q-item-section class="text-negative">Delete Lease</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
               <q-btn
                 v-if="isEditMode"
                 color="green"
@@ -350,7 +361,7 @@
               />
               <q-btn
                 v-if="isEditMode"
-                color="primary"
+                color="green"
                 label="Cancel"
                 @click="cancelEdit"
                 class="cancel-btn"
@@ -358,7 +369,7 @@
           </div>
           <div class="header-corner-controls">
             <q-btn
-              v-if="!isEditMode && leaseTenants.length === 0"
+              v-if="selectedLease && !isEditMode && isLeaseAvailable(selectedLease)"
               color="white"
               text-color="secondary"
               icon="share"
@@ -471,6 +482,22 @@
                     outlined
                     dense
                     class="detail-input"
+                  />
+                </div>
+
+                <div class="detail-item">
+                  <div class="detail-label">Move-in Date</div>
+                  <div v-if="!isEditMode" class="detail-value">
+                    {{ formatDate(selectedLease.start_date || selectedLease.lease_start_date) }}
+                  </div>
+                  <q-input
+                    v-else
+                    :model-value="getSelectedLeaseMoveInDateInput()"
+                    type="date"
+                    outlined
+                    dense
+                    class="detail-input"
+                    @update:model-value="setSelectedLeaseMoveInDate"
                   />
                 </div>
 
@@ -1240,10 +1267,8 @@
     <!-- Inventory Dialog -->
     <q-dialog v-model="showInventoryDialog" maximized>
       <InventoryList
-        v-if="selectedLease"
-        :lease-id="selectedLease.id"
-        :property-id="selectedLease.property_id"
-        :lease-data="selectedLease"
+        v-if="showInventoryDialog && currentInventoryData"
+        :key="`inventory-${currentInventoryData?.id || 'inventory'}-${inventoryDialogOpenKey}`"
         :initial-data="currentInventoryData"
         @saved="onInventorySaved"
         @cancel="closeInventoryDialog"
@@ -1254,31 +1279,25 @@
     <q-dialog v-model="showDocumentsDialog" maximized>
       <LeaseDocuments
         v-if="selectedLease"
-        :lease-id="selectedLease.id"
-        :property-id="selectedLease.property_id"
+        :lease-id="getLeaseDocId(selectedLease)"
+        :property-id="getLeasePropertyId(selectedLease)"
+        :read-only="!canManageRecords"
         @close="closeDocumentsDialog"
       />
     </q-dialog>
 
     <!-- Create Lease Dialog -->
-    <q-dialog v-model="showCreateLeaseDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
-        <q-card-section class="dialog-header">
-          <div class="row items-center justify-between">
-            <div class="text-h6">Create Lease</div>
-            <q-btn
-              flat
-              round
-              dense
-              icon="close"
-              @click="closeCreateLeaseDialog"
-              class="dialog-close-btn"
-            />
-          </div>
-        </q-card-section>
-        <q-card-section>
+    <q-dialog
+      v-model="showCreateLeaseDialog"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <div class="create-lease-dialog-scroll">
           <CreateLease @lease-created="onLeaseCreated" @cancel="closeCreateLeaseDialog" />
-        </q-card-section>
+        </div>
       </q-card>
     </q-dialog>
   </q-page>
@@ -1303,11 +1322,13 @@ const route = useRoute()
 
 // Store
 const userDataStore = useUserDataStore()
-const { updateDocument, deleteDocument } = useFirebase()
+const { updateDocument, getAllDocuments, getDocument } = useFirebase()
+const PRIMARY_INVENTORY_DOC_ID = 'primary'
 
 // Reactive data
 const searchQuery = ref('')
 const statusFilter = ref(null) // null means show all
+const selectedPropertyId = ref(null)
 const showLeaseDialog = ref(false)
 const selectedLease = ref(null)
 const isEditMode = ref(false)
@@ -1315,10 +1336,15 @@ const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
 const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
 const deepLinkHandled = ref(false)
+const canManageRecords = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  return ['pm', 'admin'].includes(accountType)
+})
 
 // Inventory dialog states
 const showInventoryDialog = ref(false)
 const currentInventoryData = ref(null)
+const inventoryDialogOpenKey = ref(0)
 
 // Documents dialog states
 const showDocumentsDialog = ref(false)
@@ -1339,9 +1365,24 @@ const leaseTenantsMap = ref({})
 // Get leases the user has access to
 const userAccessibleLeases = computed(() => userDataStore.userAccessibleLeases)
 
+const normalizePropertyId = (value) => {
+  if (!value) return ''
+  if (typeof value === 'object') {
+    return String(value.id || value.property_id || '').trim()
+  }
+  return String(value).trim()
+}
+
 // Filter leases based on search query and status filter
 const filteredLeases = computed(() => {
   let leases = userAccessibleLeases.value
+
+  // Apply global property rail filter
+  if (selectedPropertyId.value) {
+    leases = leases.filter(
+      (lease) => normalizePropertyId(lease.property_id) === selectedPropertyId.value,
+    )
+  }
 
   // Apply status filter
   if (statusFilter.value) {
@@ -1437,9 +1478,14 @@ const getHeaderStatusBg = (status) => {
     Pending: '#ef6c00',
     Expired: '#c62828',
     Terminated: '#6a1b9a',
+    Archived: '#546e7a',
   }
   return colors[status] || '#245773'
 }
+
+const normalizeLeaseStatus = (lease) => String(lease?.status || '').trim().toLowerCase()
+const isLeaseAvailable = (lease) => normalizeLeaseStatus(lease) === 'available'
+const isLeaseRented = (lease) => normalizeLeaseStatus(lease) === 'rented'
 
 // Fetch tenants for a lease
 const fetchLeaseTenants = async (leaseId) => {
@@ -1546,6 +1592,30 @@ const formatDate = (date) => {
   }
 }
 
+const toDateInputValue = (date) => {
+  if (!date) return ''
+  const dateObj = date.toDate ? date.toDate() : new Date(date)
+  if (isNaN(dateObj.getTime())) return ''
+  const year = dateObj.getFullYear()
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+  const day = String(dateObj.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getSelectedLeaseMoveInDateInput = () => {
+  if (!selectedLease.value) return ''
+  return toDateInputValue(
+    selectedLease.value.start_date || selectedLease.value.lease_start_date || selectedLease.value.move_in_date
+  )
+}
+
+const setSelectedLeaseMoveInDate = (value) => {
+  if (!selectedLease.value) return
+  selectedLease.value.start_date = value || null
+  selectedLease.value.lease_start_date = value || null
+  selectedLease.value.move_in_date = value || null
+}
+
 // Get document icon based on file type
 const getDocumentIcon = (fileType) => {
   if (!fileType || typeof fileType !== 'string') return 'description'
@@ -1595,6 +1665,40 @@ const navigateToCreateTenant = (lease) => {
     path: '/create-tenant',
     query: query,
   })
+}
+
+const inviteTenantAccount = (lease) => {
+  if (!lease?.id) {
+    Notify.create({
+      type: 'warning',
+      message: 'Unable to generate invite link',
+      position: 'top',
+    })
+    return
+  }
+
+  const inviteLink = `${window.location.origin}/public/tenant-signup/${lease.id}`
+  navigator.clipboard
+    .writeText(inviteLink)
+    .then(() => {
+      Notify.create({
+        type: 'positive',
+        message: 'Invite link copied to clipboard',
+        caption: inviteLink,
+        timeout: 3500,
+        position: 'top',
+      })
+    })
+    .catch((error) => {
+      console.error('Failed to copy invite link:', error)
+      Notify.create({
+        type: 'info',
+        message: 'Invite link generated',
+        caption: inviteLink,
+        timeout: 5000,
+        position: 'top',
+      })
+    })
 }
 
 // Dialog functions
@@ -1660,6 +1764,17 @@ const saveLeaseChanges = async () => {
 
   editLoading.value = true
   try {
+    const canonicalStartDate =
+      selectedLease.value.start_date ||
+      selectedLease.value.lease_start_date ||
+      selectedLease.value.move_in_date ||
+      null
+    if (canonicalStartDate) {
+      selectedLease.value.start_date = canonicalStartDate
+      selectedLease.value.lease_start_date = canonicalStartDate
+      selectedLease.value.move_in_date = canonicalStartDate
+    }
+
     // Update the lease in Firebase
     await updateDocument('leases', selectedLease.value.id, selectedLease.value)
 
@@ -1716,13 +1831,13 @@ const quickChangeStatus = async (newStatus) => {
   }
 }
 
-// Delete lease functions
-const confirmDeleteLease = () => {
+// Archive lease functions
+const confirmArchiveLease = () => {
   if (!selectedLease.value) return
 
   Notify.create({
     type: 'warning',
-    message: `Are you sure you want to delete this lease?`,
+    message: `Archive this lease? You can keep the history without deleting records.`,
     actions: [
       {
         label: 'Cancel',
@@ -1732,10 +1847,10 @@ const confirmDeleteLease = () => {
         },
       },
       {
-        label: 'Delete',
+        label: 'Archive',
         color: 'negative',
         handler: () => {
-          deleteLease()
+          archiveLease()
         },
       },
     ],
@@ -1744,38 +1859,84 @@ const confirmDeleteLease = () => {
   })
 }
 
-const deleteLease = async () => {
+const archiveLease = async () => {
   if (!selectedLease.value) return
 
   try {
-    // Delete the lease from Firebase
-    await deleteDocument('leases', selectedLease.value.id)
+    // Soft archive the lease to preserve historical data
+    await updateDocument('leases', selectedLease.value.id, {
+      status: 'Archived',
+      archived: true,
+      archived_at: new Date().toISOString(),
+    })
 
     // Refresh the leases data
     await userDataStore.refreshLeases()
 
     Notify.create({
       type: 'positive',
-      message: 'Lease deleted successfully',
+      message: 'Lease archived successfully',
     })
 
     // Close the dialog
     await closeLeaseDialog()
   } catch (error) {
-    console.error('Error deleting lease:', error)
+    console.error('Error archiving lease:', error)
     Notify.create({
       type: 'negative',
-      message: 'Failed to delete lease',
+      message: 'Failed to archive lease',
     })
   }
 }
 
 // Inventory dialog functions
-const openInventoryDialog = (lease) => {
-  if (lease) {
-    selectedLease.value = lease
-    currentInventoryData.value = null // Could load existing inventory data here
-    showInventoryDialog.value = true
+const openInventoryDialog = async (lease = selectedLease.value) => {
+  const looksLikeDomEvent =
+    lease &&
+    typeof lease === 'object' &&
+    ('target' in lease || 'currentTarget' in lease || 'preventDefault' in lease)
+  const targetLease = looksLikeDomEvent ? selectedLease.value : lease || selectedLease.value
+  if (targetLease) {
+    const normalizedLeaseDocId = getLeaseDocId(targetLease)
+    if (!normalizedLeaseDocId) {
+      Notify.create({
+        type: 'negative',
+        message: 'Lease reference is missing for this inventory.',
+        position: 'top',
+      })
+      return
+    }
+
+    try {
+      let inventoryRecord = await getDocument(
+        `leases/${normalizedLeaseDocId}/inventories/${PRIMARY_INVENTORY_DOC_ID}`,
+      )
+
+      if (!inventoryRecord) {
+        const inventoryRows = await getAllDocuments(`leases/${normalizedLeaseDocId}/inventories`)
+        inventoryRecord = pickBestInventoryRecord(inventoryRows)
+      }
+
+      if (!inventoryRecord) {
+        Notify.create({
+          type: 'negative',
+          message: 'No inventory record found for this lease.',
+          position: 'top',
+        })
+        return
+      }
+
+      currentInventoryData.value = { ...inventoryRecord }
+      inventoryDialogOpenKey.value += 1
+      showInventoryDialog.value = true
+    } catch (error) {
+      console.error('Error loading inventory:', error)
+      Notify.create({
+        type: 'negative',
+        message: 'Failed to load inventory.',
+        position: 'top',
+      })
+    }
   }
 }
 
@@ -1794,12 +1955,68 @@ const onInventorySaved = (inventoryData) => {
   })
 }
 
+const toInventoryTimestamp = (value) => {
+  if (!value) return 0
+  const next = value?.toDate ? value.toDate() : new Date(value)
+  const time = next instanceof Date ? next.getTime() : NaN
+  return Number.isFinite(time) ? time : 0
+}
+
+const pickBestInventoryRecord = (rows) => {
+  if (!Array.isArray(rows) || rows.length === 0) return null
+
+  return [...rows].sort((a, b) => {
+    const aHasData =
+      (Array.isArray(a?.custom_items) && a.custom_items.length > 0) ||
+      Object.values(a?.ktcs_items || {}).some((item) => (item?.received || 0) > 0 || (item?.returned || 0) > 0)
+    const bHasData =
+      (Array.isArray(b?.custom_items) && b.custom_items.length > 0) ||
+      Object.values(b?.ktcs_items || {}).some((item) => (item?.received || 0) > 0 || (item?.returned || 0) > 0)
+
+    if (aHasData !== bHasData) return aHasData ? -1 : 1
+
+    const aTime = toInventoryTimestamp(a?.updated_datetime) || toInventoryTimestamp(a?.created_datetime)
+    const bTime = toInventoryTimestamp(b?.updated_datetime) || toInventoryTimestamp(b?.created_datetime)
+    return bTime - aTime
+  })[0]
+}
+
 // Documents dialog functions
-const openDocumentsDialog = (lease) => {
-  if (lease) {
-    selectedLease.value = lease
-    showDocumentsDialog.value = true
+const openDocumentsDialog = (lease = selectedLease.value) => {
+  const looksLikeDomEvent =
+    lease &&
+    typeof lease === 'object' &&
+    ('target' in lease || 'currentTarget' in lease || 'preventDefault' in lease)
+  const targetLease = looksLikeDomEvent ? selectedLease.value : lease || selectedLease.value
+  if (!targetLease) return
+
+  const normalizedLeaseDocId = getLeaseDocId(targetLease)
+  if (!normalizedLeaseDocId) {
+    Notify.create({
+      type: 'warning',
+      message: 'Lease reference is missing for documents.',
+      position: 'top',
+    })
+    return
   }
+
+  const normalizedLeaseLsid = normalizeLeaseRefId(
+    targetLease.LSID ||
+    targetLease.lease_lsid ||
+    targetLease.lease_id ||
+    targetLease.lsid ||
+    normalizedLeaseDocId,
+  )
+  selectedLease.value = {
+    ...(selectedLease.value || {}),
+    ...targetLease,
+    id: targetLease.id || normalizedLeaseDocId,
+    lease_doc_id: targetLease.lease_doc_id || normalizedLeaseDocId,
+    lease_id: targetLease.lease_id || normalizedLeaseLsid,
+    lease_lsid: normalizedLeaseLsid,
+    LSID: targetLease.LSID || normalizedLeaseLsid,
+  }
+  showDocumentsDialog.value = true
 }
 
 const closeDocumentsDialog = () => {
@@ -1808,11 +2025,57 @@ const closeDocumentsDialog = () => {
 
 // Create lease dialog functions
 const openCreateLeaseDialog = () => {
+  if (!canManageRecords.value) return
   showCreateLeaseDialog.value = true
 }
 
 const closeCreateLeaseDialog = () => {
   showCreateLeaseDialog.value = false
+}
+
+const normalizeLeaseRefId = (value) => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string' || typeof value === 'number') {
+    const next = String(value).trim()
+    if (!next || next.toLowerCase() === 'null' || next.toLowerCase() === 'undefined') return ''
+    return next
+  }
+  if (typeof value === 'object') {
+    return (
+      normalizeLeaseRefId(value.id) ||
+      normalizeLeaseRefId(value.property_id) ||
+      normalizeLeaseRefId(value.property_string_id) ||
+      normalizeLeaseRefId(value._id) ||
+      ''
+    )
+  }
+  return ''
+}
+
+const getLeasePropertyId = (lease) => {
+  if (!lease || typeof lease !== 'object') return ''
+  return normalizeLeaseRefId(
+    lease.property_string_id ||
+    lease.property_id?.id ||
+    lease.property_id?.property_id ||
+    lease.property_id ||
+    lease.property?.id ||
+    '',
+  )
+}
+
+const getLeaseDocId = (lease) => {
+  if (!lease || typeof lease !== 'object') return ''
+  return normalizeLeaseRefId(
+    lease.id ||
+    lease.lease_doc_id ||
+    lease.leaseId ||
+    lease.lease_id ||
+    lease.lease_lsid ||
+    lease.lsid ||
+    lease.LSID ||
+    '',
+  )
 }
 
 const onLeaseCreated = () => {
@@ -1941,6 +2204,15 @@ watch(
     await tryOpenDeepLinkedLease()
   }
 )
+
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    selectedPropertyId.value = value || null
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -1971,11 +2243,11 @@ watch(
   box-shadow: 0 6px 16px rgba(36, 87, 115, 0.4);
 }
 
-/* Leases Grid - matches tenant card layout */
+/* Leases list - one lease per row */
 .leases-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .lease-card {
@@ -1985,6 +2257,7 @@ watch(
   border: 1px solid var(--neutral-200);
   background: white;
   cursor: pointer;
+  width: 100%;
 }
 
 .lease-card:hover {
@@ -2184,6 +2457,36 @@ watch(
   position: relative;
 }
 
+.create-fullscreen-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+  position: relative;
+}
+
+.create-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-lease-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  padding-bottom: calc(72px + constant(safe-area-inset-bottom));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .dialog-header-layout {
   display: flex;
   justify-content: space-between;
@@ -2346,10 +2649,20 @@ watch(
   opacity: 1 !important;
 }
 
+.lease-detail-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .dialog-content {
   padding: 24px;
-  max-height: calc(100vh - 80px);
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .details-container {

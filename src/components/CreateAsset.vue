@@ -1,24 +1,76 @@
 <template>
   <div class="create-asset">
-    <q-card flat>
-      <q-card-section class="q-pa-sm">
-        <div class="text-h6 text-primary q-mb-xs">
-          <q-icon name="inventory_2" class="q-mr-sm" />
-          Add Asset
-        </div>
-        <div class="text-caption text-grey-7">
-          Property: {{ propertyName || 'Selected Property' }}
+    <q-card class="elevated">
+      <q-card-section class="q-pa-md composer-head">
+        <div class="row items-start justify-between q-col-gutter-sm">
+          <div>
+            <div class="text-h6 text-primary q-mb-xs">
+              <q-icon name="inventory_2" class="q-mr-sm" />
+              Create New Asset
+            </div>
+            <div class="text-caption text-grey-7 q-mb-sm">
+              Track equipment details, tag data, and photos in one step.
+            </div>
+            <div v-if="hasMatchedFixedProperty && !showPropertySelect" class="text-caption text-grey-6 q-mb-xs">
+              Property: {{ resolvedPropertyName || 'Selected Property' }}
+            </div>
+            <div v-else class="section-label q-mb-xs">Property Context</div>
+          </div>
+          <div class="row items-center q-gutter-sm">
+            <q-btn
+              unelevated
+              color="primary"
+              text-color="white"
+              label="Cancel"
+              class="top-action-btn"
+              @click="emit('cancel')"
+            />
+            <q-btn
+              type="submit"
+              form="create-asset-form"
+              color="primary"
+              text-color="white"
+              unelevated
+              :loading="loading"
+              label="Save"
+              class="top-action-btn"
+            />
+          </div>
         </div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form @submit="onSubmit" class="q-gutter-sm">
+        <q-form id="create-asset-form" @submit="onSubmit" class="q-gutter-sm">
+          <q-select
+            v-if="showPropertySelect"
+            v-model="selectedPropertyId"
+            :options="propertyOptions"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            label="Select Property"
+            outlined
+            dense
+            required
+            :rules="[(val) => !!val || 'Property selection is required']"
+            :loading="propertiesLoading"
+            bg-color="grey-1"
+          />
+          <div
+            v-if="showPropertySelect && !propertiesLoading && propertyOptions.length === 0"
+            class="text-caption text-primary"
+          >
+            No properties found. Check console for details.
+          </div>
+          <div class="section-label q-mb-xs q-mt-sm">Asset Details</div>
           <q-input
             v-model="assetData.nickname"
             label="Nickname *"
             outlined
             dense
             :rules="[(val) => !!val || 'Nickname is required']"
+            bg-color="grey-1"
           />
 
           <q-select
@@ -28,6 +80,7 @@
             outlined
             dense
             :rules="[(val) => !!val || 'Type is required']"
+            bg-color="grey-1"
           />
 
           <q-select
@@ -40,6 +93,7 @@
             fill-input
             hide-selected
             input-debounce="0"
+            bg-color="grey-1"
           />
 
           <q-input
@@ -48,23 +102,24 @@
             label="Custom Location"
             outlined
             dense
+            bg-color="grey-1"
           />
 
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-4">
-              <q-input v-model="assetData.brand" label="Brand" outlined dense />
+              <q-input v-model="assetData.brand" label="Brand" outlined dense bg-color="grey-1" />
             </div>
             <div class="col-12 col-md-4">
-              <q-input v-model="assetData.model" label="Model" outlined dense />
+              <q-input v-model="assetData.model" label="Model" outlined dense bg-color="grey-1" />
             </div>
             <div class="col-12 col-md-4">
-              <q-input v-model="assetData.serial" label="Serial Number" outlined dense />
+              <q-input v-model="assetData.serial" label="Serial Number" outlined dense bg-color="grey-1" />
             </div>
           </div>
 
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-6">
-              <q-input v-model="assetData.mfg_date" label="MFG Date" type="date" outlined dense />
+              <q-input v-model="assetData.mfg_date" label="MFG Date" type="date" outlined dense bg-color="grey-1" />
             </div>
             <div class="col-12 col-md-6">
               <q-input
@@ -73,16 +128,17 @@
                 type="date"
                 outlined
                 dense
+                bg-color="grey-1"
               />
             </div>
           </div>
 
-          <q-input v-model="assetData.notes" label="Notes" type="textarea" rows="2" outlined dense />
+          <q-input v-model="assetData.notes" label="Notes" type="textarea" rows="2" outlined dense bg-color="grey-1" />
 
           <q-separator />
 
           <div>
-            <div class="text-subtitle2 q-mb-sm">Product Tag Auto-Fill (Beta)</div>
+            <div class="section-label q-mb-xs">Product Tag Auto-Fill</div>
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-6">
                 <q-file
@@ -92,6 +148,7 @@
                   dense
                   accept="image/*"
                   clearable
+                  bg-color="grey-1"
                 />
               </div>
               <div class="col-12 col-md-6">
@@ -102,6 +159,7 @@
                   outlined
                   dense
                   label="Or paste tag text"
+                  bg-color="grey-1"
                 />
               </div>
             </div>
@@ -118,6 +176,7 @@
 
           <q-separator />
 
+          <div class="section-label q-mb-xs">Asset Images</div>
           <q-file
             v-model="selectedFilesModel"
             accept="image/*"
@@ -126,6 +185,7 @@
             multiple
             label="Asset Images (Optional)"
             clearable
+            bg-color="grey-1"
             @update:model-value="onFilesSelected"
           >
             <template #prepend>
@@ -144,16 +204,6 @@
             </div>
           </div>
 
-          <div class="row justify-end q-gutter-sm q-mt-md">
-            <q-btn flat label="Cancel" @click="emit('cancel')" />
-            <q-btn
-              type="submit"
-              color="primary"
-              :loading="loading"
-              label="Create Asset"
-              icon="add"
-            />
-          </div>
         </q-form>
       </q-card-section>
     </q-card>
@@ -161,25 +211,56 @@
 </template>
 
 <script setup>
-import { onUnmounted, reactive, ref } from 'vue'
+import { onUnmounted, reactive, ref, computed, watch } from 'vue'
 import { Notify } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
+import { extractPropertyId } from '../utils/propertyIdUtils'
 
 const props = defineProps({
   propertyId: {
     type: String,
-    required: true,
+    required: false,
   },
   propertyName: {
     type: String,
     default: '',
+  },
+  allowPropertyEdit: {
+    type: Boolean,
+    default: true,
+  },
+  prefill: {
+    type: Object,
+    default: null,
   },
 })
 
 const emit = defineEmits(['asset-created', 'cancel'])
 const userDataStore = useUserDataStore()
 const { createDocument, uploadImagesWithDetails, loading } = useFirebase()
+const availableProperties = computed(() => userDataStore.userAccessibleProperties || [])
+const propertiesLoading = computed(() => userDataStore.propertiesLoading)
+const selectedPropertyId = ref('')
+const propertyOptions = computed(() =>
+  availableProperties.value.map((property) => ({
+    label: property.nickname || property.displayName || property.address || property.id,
+    value: property.id || property.property_id,
+  }))
+)
+const fixedPropertyId = computed(() => String(props.propertyId || '').trim())
+const hasMatchedFixedProperty = computed(() =>
+  propertyOptions.value.some((option) => String(option.value || '').trim() === fixedPropertyId.value)
+)
+const showPropertySelect = computed(() => props.allowPropertyEdit || !hasMatchedFixedProperty.value)
+const resolvedPropertyName = computed(() => {
+  const selectedId = extractPropertyId(selectedPropertyId.value) || fixedPropertyId.value
+  if (!selectedId) return props.propertyName || ''
+  const match = propertyOptions.value.find(
+    (option) => String(option.value || '').trim() === String(selectedId).trim(),
+  )
+  return match?.label || props.propertyName || ''
+})
 
 const selectedFiles = ref([])
 const selectedFilesModel = ref([])
@@ -439,15 +520,53 @@ const analyzeTagInput = async () => {
   }
 }
 
-const onSubmit = async () => {
-  if (!props.propertyId) return
+watch(
+  () => props.prefill,
+  (value) => {
+    if (!value) return
+    if (typeof value.nickname === 'string') assetData.nickname = value.nickname
+    if (typeof value.type === 'string') assetData.type = value.type
+    if (typeof value.location === 'string') assetData.location = value.location
+    if (typeof value.brand === 'string') assetData.brand = value.brand
+    if (typeof value.model === 'string') assetData.model = value.model
+    if (typeof value.serial === 'string') assetData.serial = value.serial
+    if (typeof value.mfg_date === 'string') assetData.mfg_date = value.mfg_date
+    if (typeof value.acquired_date === 'string') assetData.acquired_date = value.acquired_date
+    if (typeof value.notes === 'string') assetData.notes = value.notes
+    if (value.property_id) selectedPropertyId.value = String(value.property_id)
+  },
+  { immediate: true },
+)
 
+watch(
+  () => props.propertyId,
+  (value) => {
+    if (!selectedPropertyId.value && value) {
+      selectedPropertyId.value = String(value)
+    }
+  },
+  { immediate: true },
+)
+
+const onSubmit = async () => {
   try {
+    const rawPropertyId = selectedPropertyId.value || props.propertyId
+    const finalPropertyId = extractPropertyId(rawPropertyId)
+
+    if (!finalPropertyId) {
+      Notify.create({
+        type: 'negative',
+        message: 'Please select a property',
+        position: 'top',
+      })
+      return
+    }
+
     const now = new Date().toISOString()
     let images = []
 
     if (selectedFiles.value.length > 0) {
-      const uploadResults = await uploadImagesWithDetails(selectedFiles.value, props.propertyId, 'asset')
+      const uploadResults = await uploadImagesWithDetails(selectedFiles.value, finalPropertyId, 'asset')
       images = uploadResults.map((item) => ({
         url: item.url,
         file_name: item.fileName,
@@ -464,7 +583,7 @@ const onSubmit = async () => {
         : assetData.location?.trim() || ''
 
     const payload = {
-      property_id: props.propertyId,
+      property_id: finalPropertyId,
       nickname: assetData.nickname.trim(),
       type: assetData.type,
       location: finalLocation,
@@ -481,7 +600,7 @@ const onSubmit = async () => {
       created_by: userDataStore.userId || '',
     }
 
-    const assetId = await createDocument(`properties/${props.propertyId}/assets`, payload)
+    const assetId = await createDocument(`properties/${finalPropertyId}/assets`, payload)
     emit('asset-created', { id: assetId, ...payload })
   } catch (error) {
     console.error('Error creating asset:', error)
@@ -500,6 +619,45 @@ onUnmounted(() => {
 
 <style scoped>
 .create-asset {
-  max-width: 900px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.elevated {
+  border-radius: 14px;
+  border: 1px solid var(--neutral-200);
+}
+
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
+}
+
+.composer-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+:global(body.body--dark) .q-card__section.composer-head {
+  background: linear-gradient(180deg, #243447 0%, #1b2635 100%) !important;
+}
+
+:global(body.body--dark) .create-asset .elevated,
+:global(body.body--dark) .create-asset .q-card__section:not(.composer-head) {
+  background: #15202b !important;
+  border-color: #2d3f52;
+  color: #e6edf3;
+}
+
+:global(body.body--dark) .create-asset .bg-grey-1,
+:global(body.body--dark) .create-asset .q-field__control {
+  background: #223041 !important;
+}
+
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-600);
 }
 </style>

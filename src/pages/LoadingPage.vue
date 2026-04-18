@@ -30,9 +30,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
+import { normalizeAccountType } from '../utils/roleUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,7 @@ const hasError = ref(false)
 const errorMessage = ref('')
 const isLoading = ref(false)
 const hasRedirected = ref(false) // Prevent multiple redirects
+let unauthRedirectTimer = null
 
 // Get redirect URL from query params
 const redirectUrl = route.query.redirect
@@ -80,12 +82,7 @@ const needsAccountTypeSelection = computed(() => {
 
 const isSpAccount = computed(() => {
   const profile = userDataStore.userProfile || {}
-  return (
-    profile.account_type === 'SP' ||
-    profile.user_category === 'contractor' ||
-    profile.user_category === 'SP' ||
-    profile.user_category === 'sp'
-  )
+  return normalizeAccountType(profile.account_type || profile.user_category) === 'sp'
 })
 
 const spHasServiceArea = computed(() => {
@@ -97,10 +94,10 @@ const spHasServiceArea = computed(() => {
 
 const isTenantAccount = computed(() => {
   const profile = userDataStore.userProfile || {}
-  return (
-    profile.account_type === 'TENANT' ||
-    profile.user_category === 'tenant'
-  )
+  return normalizeAccountType(profile.account_type || profile.user_category) === 'tt'
+})
+const isOwnerWorkspaceOnly = computed(() => {
+  return userDataStore.isOwnerOnlyUser
 })
 
 /**
@@ -113,25 +110,29 @@ const performRedirect = () => {
   
   try {
     if (needsAccountTypeSelection.value) {
-      router.push('/account-type-setup')
+      router.replace('/account-type-setup')
       return
     }
     if (isSpAccount.value && !redirectUrl) {
       if (!spHasServiceArea.value) {
-        router.push('/sp-services')
+        router.replace('/sp-services')
         return
       }
-      router.push('/sp-dashboard')
+      router.replace('/sp-dashboard')
       return
     }
     if (isTenantAccount.value && !redirectUrl) {
-      router.push('/tenant-home')
+      router.replace('/tenant-home')
+      return
+    }
+    if (isOwnerWorkspaceOnly.value && !redirectUrl) {
+      router.replace('/po-dashboard')
       return
     }
     if (redirectUrl) {
-      router.push(redirectUrl)
+      router.replace(String(redirectUrl))
     } else {
-      router.push('/')
+      router.replace('/')
     }
   } catch (error) {
     console.error('LoadingPage - Error during redirect:', error)
@@ -139,6 +140,15 @@ const performRedirect = () => {
     hasError.value = true
     errorMessage.value = 'Failed to redirect. Please try again.'
   }
+}
+
+const scheduleUnauthRedirect = () => {
+  if (unauthRedirectTimer) clearTimeout(unauthRedirectTimer)
+  unauthRedirectTimer = setTimeout(() => {
+    if (!userDataStore.isAuthenticated && !hasRedirected.value) {
+      router.replace('/public/login')
+    }
+  }, 700)
 }
 
 /**
@@ -151,7 +161,7 @@ const retryLoading = async () => {
   isLoading.value = true
 
   if (!userDataStore.isAuthenticated) {
-    router.push('/public/login')
+    router.replace('/public/login')
     return
   }
 
@@ -162,16 +172,8 @@ const retryLoading = async () => {
     // Wait a bit for data to load
     await new Promise((resolve) => setTimeout(resolve, 500))
     
-    if (isDataReady.value) {
-      performRedirect()
-    } else {
-      if (!needsAccountTypeSelection.value && !isSpAccount.value && !isTenantAccount.value) {
-        hasError.value = true
-        errorMessage.value = 'No properties found. Please contact your administrator.'
-      } else {
-        performRedirect()
-      }
-    }
+    // Do not block on property count; route-level pages handle empty-state.
+    performRedirect()
   } catch (error) {
     console.error('LoadingPage - Error loading data:', error)
     hasError.value = true
@@ -194,14 +196,31 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => [userDataStore.isAuthenticated, userDataStore.profileLoading, userDataStore.userProfile],
+  ([isAuth, profileLoading]) => {
+    if (!isAuth || profileLoading || hasRedirected.value) return
+    if (needsAccountTypeSelection.value) {
+      performRedirect()
+    }
+  },
+)
+
 /**
  * Watch for authentication state changes
  */
 watch(
   () => userDataStore.isAuthenticated,
   (authenticated) => {
-    if (!authenticated && !hasRedirected.value) {
-      router.push('/public/login')
+    if (authenticated) {
+      if (unauthRedirectTimer) {
+        clearTimeout(unauthRedirectTimer)
+        unauthRedirectTimer = null
+      }
+      return
+    }
+    if (!hasRedirected.value) {
+      scheduleUnauthRedirect()
     }
   },
 )
@@ -212,7 +231,7 @@ watch(
 onMounted(async () => {
   // Check authentication first
   if (!userDataStore.isAuthenticated) {
-    router.push('/public/login')
+    scheduleUnauthRedirect()
     return
   }
 
@@ -231,17 +250,7 @@ onMounted(async () => {
       // Wait a moment for computed properties to update
       await new Promise((resolve) => setTimeout(resolve, 300))
       
-      if (isDataReady.value) {
-        performRedirect()
-      } else {
-        if (!needsAccountTypeSelection.value && !isSpAccount.value && !isTenantAccount.value) {
-          hasError.value = true
-          errorMessage.value =
-            'No properties found. Please contact your administrator to get access.'
-        } else {
-          performRedirect()
-        }
-      }
+      performRedirect()
     } catch (error) {
       console.error('LoadingPage - Error initializing:', error)
       hasError.value = true
@@ -249,6 +258,13 @@ onMounted(async () => {
     } finally {
       isLoading.value = false
     }
+  }
+})
+
+onBeforeUnmount(() => {
+  if (unauthRedirectTimer) {
+    clearTimeout(unauthRedirectTimer)
+    unauthRedirectTimer = null
   }
 })
 </script>

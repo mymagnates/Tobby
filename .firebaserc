@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "tobbythebutler"
-  }
+  },
+  "targets": {
+    "tobbythebutler": {
+      "hosting": {
+        "admin": [
+          "tobbythebutler-admin"
+        ],
+        "main": [
+          "tobbythebutler"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

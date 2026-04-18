@@ -4,7 +4,7 @@
     <q-drawer
       v-model="leftDrawerOpen"
       side="left"
-      :width="240"
+      :width="280"
       class="dark-drawer"
       :breakpoint="1024"
       overlay
@@ -15,20 +15,26 @@
         <span class="sidebar-app-title">Handout</span>
       </div>
 
-      <!-- Navigation Links -->
-      <q-list class="nav-list">
+      <!-- Navigation Grid -->
+      <div class="nav-grid-wrap">
         <template v-for="(section, sectionIndex) in navSections" :key="section.key">
-          <div class="nav-group">
-            <EssentialLink
+          <div class="nav-grid">
+            <button
               v-for="link in section.links"
               :key="`${section.key}-${link.link}`"
-              v-bind="link"
-              class="nav-child-link"
-            />
+              class="nav-grid-item"
+              :class="{ 'nav-grid-active': isNavActive(link.link) }"
+              @click="navigateTo(link.link)"
+            >
+              <div class="nav-grid-icon" :style="{ background: link.bg || 'rgba(0,0,0,0.06)' }">
+                <q-icon :name="link.icon" size="22px" :color="link.color || 'grey-7'" />
+              </div>
+              <span class="nav-grid-label">{{ link.title }}</span>
+            </button>
           </div>
-          <div v-if="sectionIndex < navSections.length - 1" class="nav-group-gap" />
+          <q-separator v-if="sectionIndex < navSections.length - 1" class="q-my-sm" />
         </template>
-      </q-list>
+      </div>
 
     </q-drawer>
 
@@ -64,6 +70,7 @@
 
           <template v-if="isPmPo">
             <q-btn
+              v-if="showUniversalSearchButton"
               flat
               round
               dense
@@ -73,18 +80,19 @@
             >
               <q-tooltip>Universal Search</q-tooltip>
             </q-btn>
-
+           <!--
             <q-btn
               flat
               round
               dense
-              icon="forum"
+              icon="person"
               class="header-action-btn"
               @click="showGlobalContactsDialog = true"
             >
+
               <q-tooltip>Contacts</q-tooltip>
             </q-btn>
-
+      -->
             <q-btn
               flat
               round
@@ -99,6 +107,7 @@
 
           <!-- Language Switcher -->
           <q-btn
+            v-if="false"
             flat
             dense
             :label="currentLanguageLabel"
@@ -108,7 +117,7 @@
             <q-tooltip>Switch Language</q-tooltip>
           </q-btn>
 
-          <!-- Dark Mode Toggle -->
+          <!-- Dark Mode Toggle
           <q-btn
             flat
             round
@@ -116,10 +125,11 @@
             :icon="isDarkMode ? 'light_mode' : 'dark_mode'"
             @click="toggleDarkMode"
             class="header-action-btn dark-mode-btn"
+           :visible="false"
           >
             <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
           </q-btn>
-
+        -->
           <q-btn-dropdown
             flat
             dense
@@ -129,13 +139,13 @@
             no-icon-animation
           >
             <q-list style="min-width: 180px">
-              <q-item clickable v-close-popup @click="goToProfile">
+              <q-item v-if="!isTenantUser" clickable v-close-popup @click="goToProfile">
                 <q-item-section avatar>
                   <q-icon name="manage_accounts" />
                 </q-item-section>
                 <q-item-section>User Profile</q-item-section>
               </q-item>
-              <q-separator />
+              <q-separator v-if="!isTenantUser" />
               <q-item clickable v-close-popup @click="handleSignOut">
                 <q-item-section avatar>
                   <q-icon name="logout" color="negative" />
@@ -155,28 +165,147 @@
         <div class="loading-text">Loading your data...</div>
       </div>
 
-      <router-view />
+      <div class="content-shell" :class="contentShellClass">
+        <aside v-if="showPropertyRail" class="property-rail">
+          <PropertySidebarPicker
+            class="mainlayout-property-picker"
+            v-model="activePropertyId"
+            :properties="userDataStore.userAccessibleProperties"
+            :include-all="propertyRailIncludeAll"
+          />
+        </aside>
+
+        <div class="content-main">
+          <router-view />
+        </div>
+
+        <aside v-if="showAdRail" class="ad-rail">
+          <q-card flat bordered class="ad-slot-card stats-rail-card">
+            <q-card-section class="stats-rail-header">
+              <div class="text-subtitle2 text-weight-medium">Quick Stats</div>
+              <div class="text-caption text-grey-6 q-mt-xs">This Month</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section class="stats-rail-body">
+              <q-card class="stats-card-compact" flat bordered>
+                <q-card-section class="stats-compact-section">
+                  <div class="stats-compact-row">
+                    <div class="stats-compact-left">
+                      <div class="stats-title">Monthly Income</div>
+                      <div class="stats-meta">
+                        <q-icon name="arrow_circle_up" size="12px" class="q-mr-xs" />
+                        Current month
+                      </div>
+                    </div>
+                    <div class="stats-value-badge stats-value-income">
+                      ${{ formatStatCurrency(monthlyIncome) }}
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+              <q-card class="stats-card-compact" flat bordered>
+                <q-card-section class="stats-compact-section">
+                  <div class="stats-compact-row">
+                    <div class="stats-compact-left">
+                      <div class="stats-title">Monthly Expense</div>
+                      <div class="stats-meta">
+                        <q-icon name="arrow_circle_down" size="12px" class="q-mr-xs" />
+                        Current month
+                      </div>
+                    </div>
+                    <div class="stats-value-badge stats-value-expense">
+                      ${{ formatStatCurrency(monthlyExpense) }}
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+              <q-card class="stats-card-compact" flat bordered>
+                <q-card-section class="stats-compact-section">
+                  <div class="stats-compact-row">
+                    <div class="stats-compact-left">
+                      <div class="stats-title">Open Tasks</div>
+                      <div class="stats-meta">
+                        <q-icon name="assignment" size="12px" class="q-mr-xs" />
+                        Active queue
+                      </div>
+                    </div>
+                    <div class="stats-value-badge stats-value-tasks">{{ openTasks }}</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+              <q-card class="stats-card-compact" flat bordered>
+                <q-card-section class="stats-compact-section">
+                  <div class="stats-compact-row">
+                    <div class="stats-compact-left">
+                      <div class="stats-title">Active Leases</div>
+                      <div class="stats-meta">
+                        <q-icon name="home_work" size="12px" class="q-mr-xs" />
+                        Current units
+                      </div>
+                    </div>
+                    <div class="stats-value-badge stats-value-leases">{{ activeLeases }}</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </q-card-section>
+          </q-card>
+        </aside>
+      </div>
     </q-page-container>
 
     <q-dialog v-model="showGlobalCreateDialog">
-      <q-card style="min-width: 420px">
-        <q-card-section class="row items-center justify-between">
-          <div class="text-h6">Create</div>
-          <q-btn icon="close" flat round dense v-close-popup />
+      <q-card class="global-create-dialog">
+        <q-card-section class="global-create-header">
+          <div class="text-subtitle1 text-weight-bold">Create New</div>
+          <q-btn icon="close" flat round dense size="sm" v-close-popup />
+        </q-card-section>
+        <q-card-section class="global-create-body">
+          <div class="global-create-grid">
+            <button
+              v-for="option in filteredGlobalCreateOptions"
+              :key="option.label"
+              class="global-create-item"
+              @click="handleCreateOption(option)"
+            >
+              <div class="global-create-icon" :style="{ background: option.bg }">
+                <q-icon :name="option.icon" size="24px" :color="option.color" />
+              </div>
+              <span class="global-create-label">{{ option.label }}</span>
+            </button>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Create Form Dialog (embeds create components) -->
+    <q-dialog v-model="showCreateFormDialog" maximized transition-show="slide-up" transition-hide="slide-down">
+      <q-card class="create-form-dialog">
+        <q-card-section class="create-form-dialog-header">
+          <q-btn icon="close" flat round dense @click="showCreateFormDialog = false" />
+          <div class="text-subtitle1 text-weight-bold">{{ activeCreateLabel }}</div>
+          <div style="width: 36px" />
         </q-card-section>
         <q-separator />
-        <q-card-section class="q-gutter-sm">
-          <q-btn
-            v-for="option in globalCreateOptions"
-            :key="option.label"
-            outline
-            color="primary"
-            class="full-width justify-start"
-            :icon="option.icon"
-            :label="option.label"
-            @click="openGlobalCreateOption(option.path)"
-          />
-        </q-card-section>
+        <div class="create-form-dialog-body">
+          <q-layout view="lHh lpr lFf" container>
+            <q-page-container>
+              <component
+                :is="activeCreateComponent"
+                v-if="activeCreateComponent"
+                v-bind="activeCreateProps"
+                @cancel="showCreateFormDialog = false"
+                @property-created="handlePropertyCreated"
+                @mxrecord-created="handleCreateRecordSaved('Task created successfully.')"
+                @transaction-created="handleCreateRecordSaved('Transaction created successfully.')"
+                @reminder-saved="handleCreateRecordSaved('Reminder created successfully.')"
+                @lease-created="handleCreateRecordSaved('Lease created successfully.')"
+                @asset-created="handleCreateRecordSaved('Asset created successfully.')"
+                @document-created="handleCreateRecordSaved('Document saved successfully.')"
+                @service-created="handleCreateRecordSaved('Service saved successfully.')"
+              />
+            </q-page-container>
+          </q-layout>
+        </div>
       </q-card>
     </q-dialog>
 
@@ -207,14 +336,15 @@
     <div class="global-assistant-widget">
       <q-btn
         v-if="!showAssistantPanel"
-        round
+        rounded
         color="primary"
         icon="chat"
         size="md"
         class="assistant-fab"
         @click="showAssistantPanel = true"
       >
-        <q-tooltip>Assistant</q-tooltip>
+        Talk to Tobby
+        <q-tooltip>Talk to Tobby</q-tooltip>
       </q-btn>
 
       <transition name="assistant-slide">
@@ -222,16 +352,62 @@
           <q-card-section class="assistant-panel-header">
             <div class="assistant-panel-title">
               <q-icon name="smart_toy" size="20px" class="q-mr-sm" />
-              Assistant
+              Tobby
             </div>
             <q-btn flat round dense icon="close" size="sm" @click="showAssistantPanel = false" />
           </q-card-section>
           <q-separator />
           <q-card-section class="assistant-panel-body">
-            <div class="assistant-placeholder">
-              <q-icon name="construction" size="48px" color="grey-4" />
-              <div class="assistant-placeholder-text">Coming soon</div>
-              <div class="assistant-placeholder-sub">This space is reserved for the assistant feature.</div>
+            <q-input
+              v-model="assistantInput"
+              type="textarea"
+              outlined
+              autogrow
+              dense
+              label="Describe the issue"
+              :disable="assistantLoading"
+              class="assistant-input"
+            />
+            <div class="assistant-actions">
+              <q-btn
+                unelevated
+                color="primary"
+                label="Enter"
+                :loading="assistantLoading"
+                @click="runAssistantIntake"
+              />
+              <q-btn flat label="Clear" @click="resetAssistant" />
+            </div>
+            <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
+            <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
+
+            <div v-if="assistantDraft" class="assistant-draft">
+              <div class="text-subtitle2 text-weight-bold q-mb-xs">Draft Task</div>
+              <div class="assistant-draft-line">
+                <strong>Description:</strong> {{ assistantDraft.description }}
+              </div>
+              <div class="assistant-draft-line">
+                <strong>Category:</strong> {{ assistantDraft.task_category || 'N/A' }}
+              </div>
+              <div class="assistant-draft-line">
+                <strong>Priority:</strong> {{ assistantDraft.task_priority || 'N/A' }}
+              </div>
+              <div class="assistant-draft-line">
+                <strong>Property:</strong>
+                {{
+                  resolvePropertyLabel(
+                    assistantDraft.property_id,
+                    userDataStore.userAccessibleProperties
+                  ) || 'Not set'
+                }}
+              </div>
+              <q-btn
+                unelevated
+                color="primary"
+                label="Open Task Form"
+                class="q-mt-sm"
+                @click="openTaskCreateWithDraft(assistantDraft)"
+              />
             </div>
           </q-card-section>
         </q-card>
@@ -241,13 +417,27 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
-import EssentialLink from 'components/EssentialLink.vue'
+import { agentApi } from '../services/webApiClient'
+import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
+
+const createComponentMap = {
+  property: defineAsyncComponent(() => import('components/CreateProperty.vue')),
+  task: defineAsyncComponent(() => import('components/CreateMxRecord.vue')),
+  transaction: defineAsyncComponent(() => import('components/CreateTransaction.vue')),
+  reminder: defineAsyncComponent(() => import('components/CreateReminder.vue')),
+  lease: defineAsyncComponent(() => import('components/CreateLease.vue')),
+  asset: defineAsyncComponent(() => import('components/CreateAsset.vue')),
+  document: defineAsyncComponent(() => import('components/CreateDocument.vue')),
+  service: defineAsyncComponent(() => import('components/CreateService.vue')),
+  tenant: defineAsyncComponent(() => import('pages/CreateTenantPage.vue')),
+}
+
 
 const $q = useQuasar()
 const router = useRouter()
@@ -268,10 +458,12 @@ const PAGE_TITLES = {
   '/reminders': 'Reminders',
   '/reports': 'Reports',
   '/documents': 'Documents',
+  '/po-dashboard': 'Handout',
+  '/property-services': 'Property Services',
   '/user-profile': 'User Profile',
   '/tenant-home': 'Tenant Home',
   '/create-tenant': 'Create Tenant',
-  '/sp-profile': 'SP Profile'
+  '/sp-profile': 'SP Profile',
 }
 
 const headerPageTitle = computed(() =>
@@ -284,26 +476,155 @@ const headerPageTitle = computed(() =>
 )
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
-const isPmPo = computed(() => userDataStore.userCategory === 'PM/PO')
+const hasOwnerWorkspaceAccess = computed(() => Boolean(userDataStore.hasOwnerWorkspaceAccess))
+const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUser))
+const isPmPo = computed(() => ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) || hasOwnerWorkspaceAccess.value || userDataStore.isManagerCapableUser)
+const isTenantUser = computed(() => String(userDataStore.userCategory || '').toLowerCase() === 'tt')
+const showUniversalSearchButton = computed(
+  () => isPmPo.value && !isOwnerWorkspaceOnly.value && !String(route.path || '').startsWith('/po-dashboard'),
+)
+const PROPERTY_RAIL_ROUTES = [
+  '/transactions',
+  '/mx-records',
+  '/reminders',
+  '/tenants',
+  '/assets',
+  '/property-services',
+  '/leases',
+  '/documents',
+  '/reports',
+]
+const propertyRailIncludeAll = computed(() => route.path !== '/property-services')
+const showPropertyRail = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  if (!['pm', 'po', 'admin'].includes(accountType)) return false
+  return PROPERTY_RAIL_ROUTES.some((path) => route.path.startsWith(path))
+})
+const showAdRail = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  if (!['pm', 'po', 'admin'].includes(accountType)) return false
+  if (showPropertyRail.value) return true
+  return route.path === '/' || route.path === '/pm-po-feed'
+})
+const getTransactionDate = (transaction) => {
+  const source = transaction?.transac_date || transaction?.created_datetime || transaction?.date
+  if (source?.toDate) return source.toDate()
+  return new Date(source)
+}
+const isIncomeType = (transaction) => {
+  if (transaction?.type === 'income') return true
+  const transacType = String(transaction?.transac_type || '').toLowerCase()
+  return transacType.includes('rent') || transacType.includes('deposit') || transacType.includes('refund')
+}
+const monthlyIncome = computed(() => {
+  const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
+  return (userDataStore.userAccessibleTransactions || [])
+    .filter((transaction) => {
+      const transactionDate = getTransactionDate(transaction)
+      return (
+        !Number.isNaN(transactionDate.getTime()) &&
+        transactionDate.getMonth() === currentMonth &&
+        transactionDate.getFullYear() === currentYear &&
+        isIncomeType(transaction)
+      )
+    })
+    .reduce((sum, transaction) => sum + (parseFloat(transaction.amount) || 0), 0)
+})
+const monthlyExpense = computed(() => {
+  const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
+  return (userDataStore.userAccessibleTransactions || [])
+    .filter((transaction) => {
+      const transactionDate = getTransactionDate(transaction)
+      return (
+        !Number.isNaN(transactionDate.getTime()) &&
+        transactionDate.getMonth() === currentMonth &&
+        transactionDate.getFullYear() === currentYear &&
+        !isIncomeType(transaction)
+      )
+    })
+    .reduce((sum, transaction) => sum + (parseFloat(transaction.amount) || 0), 0)
+})
+const openTasks = computed(() =>
+  (userDataStore.userAccessibleMxRecords || []).filter(
+    (task) => !task?.status || String(task.status).toLowerCase() === 'open',
+  ).length,
+)
+const activeLeases = computed(() =>
+  (userDataStore.userAccessibleLeases || []).filter((lease) => {
+    const status = String(lease?.status || lease?.leasedetail?.status || '').toLowerCase()
+    return status === 'active' || status === 'occupied'
+  }).length,
+)
+const formatStatCurrency = (amount) =>
+  new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount || 0)
+const contentShellClass = computed(() => ({
+  'content-shell--with-rails': showPropertyRail.value,
+  'content-shell--with-ad-rail': !showPropertyRail.value && showAdRail.value,
+}))
+const activePropertyId = computed({
+  get() {
+    const value = String(route.query.propertyId || '').trim()
+    return value || null
+  },
+  set(value) {
+    const nextQuery = { ...route.query }
+    if (value) {
+      nextQuery.propertyId = value
+    } else {
+      delete nextQuery.propertyId
+    }
+    router.replace({ query: nextQuery }).catch(() => {})
+  },
+})
 const showGlobalCreateDialog = ref(false)
 const showGlobalContactsDialog = ref(false)
 const showAssistantPanel = ref(false)
+const showCreateFormDialog = ref(false)
+const activeCreateComponent = shallowRef(null)
+const activeCreateLabel = ref('')
+const activeCreateProps = ref({})
+const assistantInput = ref('')
+const assistantLoading = ref(false)
+const assistantError = ref('')
+const assistantOutOfScope = ref('')
+const assistantDraft = ref(null)
 
 const globalCreateOptions = [
-  { label: 'Create Property', icon: 'home_work', path: '/create-property' },
-  { label: 'Create Task', icon: 'build', path: '/create-mxrecord' },
-  { label: 'Create Transaction', icon: 'receipt_long', path: '/create-transaction' },
-  { label: 'Create Lease', icon: 'description', path: '/create-lease' },
-  { label: 'Create Reminder', icon: 'notifications', path: '/reminders' },
-  { label: 'Create Document', icon: 'folder', path: '/documents' },
-  { label: 'Create Asset', icon: 'inventory_2', path: '/assets' },
+  { label: 'Property', icon: 'home', path: '/create-property', bg: 'rgba(156,39,176,0.1)', color: 'purple' },
+  { label: 'Task', icon: 'dns', key: 'task', bg: 'rgba(33,150,243,0.1)', color: 'primary' },
+  { label: 'Transaction', icon: 'receipt_long', key: 'transaction', bg: 'rgba(76,175,80,0.1)', color: 'positive' },
+  { label: 'Lease', icon: 'event', key: 'lease', bg: 'rgba(255,152,0,0.1)', color: 'warning' },
+  { label: 'Tenant', icon: 'person_add', key: 'tenant', bg: 'rgba(3,169,244,0.1)', color: 'cyan-8' },
+  { label: 'Reminder', icon: 'alarm', key: 'reminder', path: '/reminders?create=true', bg: 'rgba(244,67,54,0.1)', color: 'negative' },
+  { label: 'Asset', icon: 'inventory_2', key: 'asset', bg: 'rgba(121,85,72,0.1)', color: 'brown' },
+  { label: 'Document', icon: 'description', key: 'document', path: '/documents?create=true', bg: 'rgba(0,150,136,0.1)', color: 'teal' },
+  { label: 'Service', icon: 'handyman', key: 'service', path: '/property-services', bg: 'rgba(96,125,139,0.1)', color: 'blue-grey' },
 ]
 
-const globalContacts = [
-  { id: 'c1', name: 'AquaFix LLC', role: 'SP • Plumbing', initials: 'AF' },
-  { id: 'c2', name: 'Westlake Tenant', role: 'TT', initials: 'WT' },
-  { id: 'c3', name: 'Property Owner', role: 'PO', initials: 'PO' },
-]
+const filteredGlobalCreateOptions = computed(() => {
+  if (isOwnerWorkspaceOnly.value) {
+    const allowed = new Set(['task', 'transaction', 'reminder', 'asset'])
+    return globalCreateOptions.filter((option) => allowed.has(option.key))
+  }
+  return globalCreateOptions
+})
+
+const globalContacts = []
+
+const resetCreateDialogState = () => {
+  activeCreateProps.value = {}
+  activeCreateComponent.value = null
+  activeCreateLabel.value = ''
+}
+
+watch(showCreateFormDialog, (value) => {
+  if (!value) resetCreateDialogState()
+})
 
 // Dark mode state
 const isDarkMode = ref(false)
@@ -331,6 +652,507 @@ function toggleLanguage() {
   })
 }
 
+const resetAssistant = () => {
+  assistantInput.value = ''
+  assistantError.value = ''
+  assistantOutOfScope.value = ''
+  assistantDraft.value = null
+}
+
+const handlePropertyCreated = async () => {
+  showCreateFormDialog.value = false
+  try {
+    await Promise.all([
+      userDataStore.loadUserRoles(),
+      userDataStore.loadProperties(),
+      userDataStore.loadMxRecords(),
+      userDataStore.loadTransactions(),
+      userDataStore.loadLeases(),
+    ])
+  } catch (error) {
+    console.error('Failed to refresh data after property creation:', error)
+  }
+}
+
+const handleCreateRecordSaved = async (message) => {
+  showCreateFormDialog.value = false
+  try {
+    await userDataStore.loadAllUserData()
+  } catch (error) {
+    console.error('Failed to refresh data after create action:', error)
+  }
+  if (message) {
+    $q.notify({
+      type: 'positive',
+      message,
+      position: 'top',
+    })
+  }
+}
+
+const openTaskCreateWithDraft = (draft) => {
+  activeCreateComponent.value = createComponentMap.task
+  activeCreateLabel.value = 'Task'
+  activeCreateProps.value = {
+    allowPropertyEdit: true,
+    prefill: {
+      description: draft?.description || '',
+      status: draft?.status || 'open',
+      report_date: new Date().toISOString().split('T')[0],
+      property_id: draft?.property_id || null,
+    },
+  }
+  showCreateFormDialog.value = true
+}
+
+const openTransactionCreateWithDraft = (draft) => {
+  activeCreateComponent.value = createComponentMap.transaction
+  activeCreateLabel.value = 'Transaction'
+  activeCreateProps.value = {
+    allowPropertyEdit: true,
+    propertyName: draft?.property_name || '',
+    prefill: {
+      property_id: draft?.property_id || null,
+      transac_type: draft?.transac_type || '',
+      transac_from: draft?.transac_from || '',
+      transac_to: draft?.transac_to || '',
+      amount: draft?.amount ?? null,
+      transac_date: draft?.transac_date || new Date().toISOString().split('T')[0],
+      note: draft?.note || '',
+    },
+  }
+  showCreateFormDialog.value = true
+}
+
+const openAssetCreateWithDraft = (draft) => {
+  activeCreateComponent.value = createComponentMap.asset
+  activeCreateLabel.value = 'Asset'
+  activeCreateProps.value = {
+    allowPropertyEdit: true,
+    propertyName: draft?.property_name || '',
+    prefill: {
+      property_id: draft?.property_id || null,
+      nickname: draft?.nickname || '',
+      type: draft?.type || '',
+      location: draft?.location || '',
+      brand: draft?.brand || '',
+      model: draft?.model || '',
+      serial: draft?.serial || '',
+      mfg_date: draft?.mfg_date || '',
+      acquired_date: draft?.acquired_date || '',
+      notes: draft?.notes || '',
+    },
+  }
+  showCreateFormDialog.value = true
+}
+
+const openReminderCreateWithDraft = (draft) => {
+  activeCreateComponent.value = createComponentMap.reminder
+  activeCreateLabel.value = 'Reminder'
+  activeCreateProps.value = {
+    allowPropertyEdit: true,
+    propertyName: draft?.property_name || '',
+    prefill: {
+      property_id: draft?.property_id || null,
+      category: draft?.category || '',
+      start_date: draft?.start_date || new Date().toISOString().split('T')[0],
+      due_date: draft?.due_date || draft?.start_date || new Date().toISOString().split('T')[0],
+      repeat_by: draft?.repeat_by || 'one-time',
+      amount: draft?.amount ?? null,
+      note: draft?.note || '',
+      status: draft?.status !== false,
+    },
+  }
+  showCreateFormDialog.value = true
+}
+
+const normalizeMatchValue = (value) => String(value || '').toLowerCase().trim()
+
+const extractStreetParts = (value) => {
+  const text = normalizeMatchValue(value)
+  if (!text) return { streetNumber: '', streetName: '' }
+
+  const beforeComma = text.split(',')[0]?.trim() || text
+  const numberMatch = beforeComma.match(/^\s*(\d+)\b/)
+  const streetNumber = numberMatch ? numberMatch[1] : ''
+
+  const nameMatch = beforeComma.match(/^\s*\d+\s+(.+)$/)
+  const streetName = nameMatch ? nameMatch[1].trim() : ''
+
+  return { streetNumber, streetName }
+}
+
+const TRANSACTION_TYPE_OPTIONS = [
+  'Rent',
+  'Deposit',
+  'Tax',
+  'Insurance',
+  'Utility',
+  'Maintenance',
+  'Labor',
+  'HOA',
+  'Fee',
+  'Refund',
+  'Other',
+]
+
+const TRANSACTION_ROLE_OPTIONS = [
+  'Property Owner',
+  'Property Manager',
+  'Tenant',
+  'Service Provider',
+  'Government',
+  'HOA',
+]
+
+const REMINDER_CATEGORY_OPTIONS = ['fee', 'hoa', 'rent', 'maintenance', 'labor', 'tax', 'other']
+const ASSET_TYPE_OPTIONS = ['Appliance', 'HVAC', 'Pool/Spa', 'Electrical', 'Plumbing', 'Safety', 'Exterior', 'Furniture', 'Other']
+
+const detectAssetTypeLocal = (message) => {
+  const text = normalizeMatchValue(message)
+  if (!text) return 'Other'
+  if (/water heater|heater|ac|hvac|furnace|thermostat|air handler|compressor/.test(text)) return 'HVAC'
+  if (/dishwasher|washer|dryer|fridge|refrigerator|stove|oven|microwave|appliance/.test(text)) return 'Appliance'
+  if (/outlet|breaker|panel|switch|electrical|light|wiring/.test(text)) return 'Electrical'
+  if (/toilet|sink|faucet|pipe|plumbing|drain|garbage disposal/.test(text)) return 'Plumbing'
+  if (/camera|alarm|detector|safety|sensor|extinguisher/.test(text)) return 'Safety'
+  if (/gate|door|window|roof|gutter|fence|garage/.test(text)) return 'Exterior'
+  if (/sofa|chair|table|bed|furniture/.test(text)) return 'Furniture'
+  if (/pool|spa|hot tub/.test(text)) return 'Pool/Spa'
+  return 'Other'
+}
+
+const detectAssetLocationLocal = (message) => {
+  const text = normalizeMatchValue(message)
+  if (!text) return ''
+  const knownLocations = [
+    'Kitchen',
+    'Laundry Room',
+    'Garage',
+    'Basement',
+    'Bathroom',
+    'Primary Bathroom',
+    'Guest Bathroom',
+    'Living Room',
+    'Dining Room',
+    'Bedroom 2',
+    'Bedroom 3',
+    'Bedroom 4',
+    'Main Bedroom',
+    'Office',
+    'Patio',
+    'Deck',
+    'Roof',
+    'Back Yard',
+    'Front Yard',
+    'HVAC Closet',
+    'Utility Room',
+    'Mechanical Room',
+    'Water Heater Closet',
+  ]
+  const match = knownLocations.find((location) => text.includes(normalizeMatchValue(location)))
+  return match || ''
+}
+
+const detectReminderCategoryLocal = (message) => {
+  const text = normalizeMatchValue(message)
+  if (!text) return ''
+  if (/rent/.test(text)) return 'rent'
+  if (/hoa/.test(text)) return 'hoa'
+  if (/tax/.test(text)) return 'tax'
+  if (/maintenance|repair|fix/.test(text)) return 'maintenance'
+  if (/labor|service/.test(text)) return 'labor'
+  if (/fee|charge/.test(text)) return 'fee'
+  return 'other'
+}
+
+const detectReminderRepeatLocal = (message) => {
+  const text = normalizeMatchValue(message)
+  if (!text) return 'one-time'
+  if (/daily|every day/.test(text)) return 'daily'
+  if (/weekly|every week/.test(text)) return 'weekly'
+  if (/monthly|every month/.test(text)) return 'monthly'
+  if (/yearly|annual|annually|every year/.test(text)) return 'yearly'
+  return 'one-time'
+}
+
+const detectTransactionTypeLocal = (message) => {
+  const text = normalizeMatchValue(message)
+  if (!text) return ''
+  if (/rent/.test(text)) return 'Rent'
+  if (/deposit/.test(text)) return 'Deposit'
+  if (/tax/.test(text)) return 'Tax'
+  if (/insurance/.test(text)) return 'Insurance'
+  if (/utility|electric|water|gas|trash|sewer/.test(text)) return 'Utility'
+  if (/maintenance|repair|fix/.test(text)) return 'Maintenance'
+  if (/labor|service/.test(text)) return 'Labor'
+  if (/hoa/.test(text)) return 'HOA'
+  if (/refund/.test(text)) return 'Refund'
+  if (/fee|charge/.test(text)) return 'Fee'
+  return ''
+}
+
+const resolveTransactionRole = (value) => {
+  const normalized = normalizeMatchValue(value)
+  if (!normalized) return ''
+
+  const synonyms = [
+    { match: /landlord|owner|po/, role: 'Property Owner' },
+    { match: /pm|manager|management/, role: 'Property Manager' },
+    { match: /tenant|renter/, role: 'Tenant' },
+    { match: /sp|service\s*provider|vendor|contractor|handyman/, role: 'Service Provider' },
+    { match: /gov|government|city|county|state/, role: 'Government' },
+    { match: /hoa/, role: 'HOA' },
+  ]
+
+  const synonym = synonyms.find((entry) => entry.match.test(normalized))
+  if (synonym) return synonym.role
+
+  const direct = TRANSACTION_ROLE_OPTIONS.find(
+    (option) => normalizeMatchValue(option) === normalized
+  )
+  if (direct) return direct
+
+  const partial = TRANSACTION_ROLE_OPTIONS.find((option) =>
+    normalizeMatchValue(option).includes(normalized)
+  )
+  return partial || ''
+}
+
+const normalizePropertyIdValue = (value) => {
+  if (!value) return ''
+  if (typeof value === 'object') {
+    return String(value.id || value.property_id || '').trim()
+  }
+  return String(value).trim()
+}
+
+const resolvePropertyLabel = (propertyId, properties) => {
+  const normalizedId = normalizePropertyIdValue(propertyId)
+  if (!normalizedId) return ''
+  const match = (properties || []).find(
+    (property) => String(property.id || property.property_id || '').trim() === normalizedId
+  )
+  if (!match) return ''
+  return match.nickname || match.displayName || match.address || match.id || ''
+}
+
+const inferTransactionRoles = (message, transacType) => {
+  const text = normalizeMatchValue(message)
+  const type = normalizeMatchValue(transacType)
+  const roleFromHints = resolveTransactionRole(text)
+  let fromRole = roleFromHints || ''
+  let toRole = ''
+
+  if (type === 'rent' || type === 'deposit') {
+    fromRole = 'Tenant'
+    toRole = 'Property Owner'
+  } else if (type) {
+    fromRole = fromRole || 'Property Owner'
+  }
+
+  if (type === 'refund') {
+    if (/tenant|renter/.test(text)) {
+      fromRole = 'Property Owner'
+      toRole = 'Tenant'
+    }
+  }
+
+  if (type === 'fee') {
+    if (/tenant|renter/.test(text)) {
+      fromRole = 'Tenant'
+      toRole = 'Property Owner'
+    }
+  }
+
+  if (/hoa/.test(text)) {
+    if (!toRole) toRole = 'HOA'
+  }
+
+  if (/government|city|county|state/.test(text)) {
+    if (!toRole) toRole = 'Government'
+  }
+
+  if (/tenant|renter/.test(text) && !fromRole) {
+    fromRole = 'Tenant'
+  }
+
+  if (!toRole && fromRole === 'Tenant') {
+    const hinted = resolveTransactionRole(text)
+    toRole = hinted && hinted !== 'Tenant' ? hinted : 'Property Owner'
+  } else if (!toRole && fromRole === 'Property Owner') {
+    const hinted = resolveTransactionRole(text)
+    toRole = hinted && hinted !== 'Property Owner' ? hinted : 'Tenant'
+  }
+
+  if (fromRole === 'Tenant' && (!toRole || toRole === 'Tenant')) {
+    toRole = 'Property Owner'
+  }
+
+  return { transac_from: fromRole, transac_to: toRole }
+}
+
+const findPropertyMatch = (message, properties) => {
+  const haystack = normalizeMatchValue(message)
+  if (!haystack) return null
+
+  let best = null
+  const choose = (property, matchedValue, score) => {
+    if (!best || score > best.score) {
+      best = { id: property.id || property.property_id, matchedValue, score }
+    }
+  }
+
+  properties.forEach((property) => {
+    const addressSource = property.street || property.address || ''
+    const { streetNumber, streetName } = extractStreetParts(addressSource)
+    const fields = [property.nickname, streetNumber, streetName]
+    fields.forEach((field) => {
+      const value = normalizeMatchValue(field)
+      if (!value) return
+      if (haystack === value) {
+        choose(property, value, 1000 + value.length)
+      } else if (haystack.includes(value)) {
+        choose(property, value, 100 + value.length)
+      } else if (value.includes(haystack) && haystack.length > 3) {
+        choose(property, value, 10 + haystack.length)
+      }
+    })
+  })
+
+  return best?.id || null
+}
+
+const runAssistantIntake = async () => {
+  const message = String(assistantInput.value || '').trim()
+  if (!message) {
+    assistantError.value = 'Please enter a short description of the issue.'
+    return
+  }
+  assistantLoading.value = true
+  assistantError.value = ''
+  assistantOutOfScope.value = ''
+  assistantDraft.value = null
+  try {
+    if (userDataStore.userRoles.length === 0 && !userDataStore.userRolesLoading) {
+      await userDataStore.loadUserRoles()
+    }
+    if (userDataStore.userAccessibleProperties.length === 0 && !userDataStore.propertiesLoading) {
+      await userDataStore.loadProperties()
+    }
+    const properties = userDataStore.userAccessibleProperties || []
+    const matchedPropertyId = findPropertyMatch(message, properties)
+    const matchedTransactionType = detectTransactionTypeLocal(message)
+    const matchedAssetType = detectAssetTypeLocal(message)
+    const matchedAssetLocation = detectAssetLocationLocal(message)
+    const matchedReminderCategory = detectReminderCategoryLocal(message)
+    const matchedReminderRepeat = detectReminderRepeatLocal(message)
+    const matchedPropertyLabel = resolvePropertyLabel(matchedPropertyId, properties)
+    const propertyList = (userDataStore.userAccessibleProperties || []).map((p) => ({
+      id: p.id || p.property_id,
+      nickname: p.nickname || p.displayName || '',
+      displayName: p.displayName || '',
+      address: p.address || '',
+    }))
+    const response = await agentApi.intake({
+      raw_text: message,
+      context: {
+        property_id: matchedPropertyId || null,
+        property_list: propertyList,
+        transaction_type_hint: matchedTransactionType || null,
+        transaction_type_options: TRANSACTION_TYPE_OPTIONS,
+        transaction_role_options: TRANSACTION_ROLE_OPTIONS,
+        asset_type_hint: matchedAssetType || null,
+        asset_type_options: ASSET_TYPE_OPTIONS,
+        asset_location_hint: matchedAssetLocation || null,
+        reminder_category_hint: matchedReminderCategory || null,
+        reminder_category_options: REMINDER_CATEGORY_OPTIONS,
+        reminder_repeat_hint: matchedReminderRepeat || null,
+      },
+    })
+    if (response?.capability === 'out_of_scope' || response?.entity_type === 'out_of_scope') {
+      assistantOutOfScope.value = response?.message || 'This request is outside the assistant scope.'
+      return
+    }
+    if (!response?.draft) {
+      assistantError.value = 'No draft was returned. Please try again.'
+      return
+    }
+    assistantDraft.value = { ...response.draft }
+    const entityType = response?.entity_type || 'task'
+    if (entityType === 'transaction' && matchedTransactionType) {
+      assistantDraft.value.transac_type = matchedTransactionType
+    }
+    if (entityType === 'reminder') {
+      if (!assistantDraft.value.category && matchedReminderCategory) {
+        assistantDraft.value.category = matchedReminderCategory
+      }
+      if (!assistantDraft.value.repeat_by && matchedReminderRepeat) {
+        assistantDraft.value.repeat_by = matchedReminderRepeat
+      }
+      if (!assistantDraft.value.property_name) {
+        assistantDraft.value.property_name =
+          resolvePropertyLabel(assistantDraft.value.property_id, properties) || ''
+      }
+    }
+    if (entityType === 'asset') {
+      if (!assistantDraft.value.type && matchedAssetType) {
+        assistantDraft.value.type = matchedAssetType
+      }
+      if (!assistantDraft.value.location && matchedAssetLocation) {
+        assistantDraft.value.location = matchedAssetLocation
+      }
+      if (!assistantDraft.value.property_name) {
+        assistantDraft.value.property_name =
+          resolvePropertyLabel(assistantDraft.value.property_id, properties) || ''
+      }
+    }
+    if (entityType === 'transaction' && !assistantDraft.value.property_name) {
+      assistantDraft.value.property_name =
+        resolvePropertyLabel(assistantDraft.value.property_id, properties) || ''
+    }
+    if (entityType === 'transaction') {
+      const normalizedFrom = resolveTransactionRole(assistantDraft.value.transac_from)
+      const normalizedTo = resolveTransactionRole(assistantDraft.value.transac_to)
+      if (normalizedFrom) assistantDraft.value.transac_from = normalizedFrom
+      if (normalizedTo) assistantDraft.value.transac_to = normalizedTo
+      if (!assistantDraft.value.transac_from || !assistantDraft.value.transac_to) {
+        const inferred = inferTransactionRoles(message, assistantDraft.value.transac_type)
+        if (!assistantDraft.value.transac_from && inferred.transac_from) {
+          assistantDraft.value.transac_from = inferred.transac_from
+        }
+        if (!assistantDraft.value.transac_to && inferred.transac_to) {
+          assistantDraft.value.transac_to = inferred.transac_to
+        }
+      }
+    }
+    if (entityType === 'transaction') {
+      openTransactionCreateWithDraft({
+        ...assistantDraft.value,
+        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
+      })
+    } else if (entityType === 'reminder') {
+      openReminderCreateWithDraft({
+        ...assistantDraft.value,
+        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
+      })
+    } else if (entityType === 'asset') {
+      openAssetCreateWithDraft({
+        ...assistantDraft.value,
+        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
+      })
+    } else {
+      openTaskCreateWithDraft(assistantDraft.value)
+    }
+    assistantInput.value = ''
+    assistantDraft.value = null
+  } catch (error) {
+    assistantError.value = error?.message || 'Failed to analyze the request.'
+  } finally {
+    assistantLoading.value = false
+  }
+}
+
 // Initialize dark mode from localStorage
 onMounted(() => {
   const savedDarkMode = localStorage.getItem('handout-dark-mode')
@@ -340,15 +1162,14 @@ onMounted(() => {
     applyDarkModeClass(isDarkMode.value)
   }
 })
-
+/*
 // Toggle dark mode
 function toggleDarkMode() {
   isDarkMode.value = !isDarkMode.value
   $q.dark.set(isDarkMode.value)
   localStorage.setItem('handout-dark-mode', isDarkMode.value.toString())
   applyDarkModeClass(isDarkMode.value)
-}
-
+}*/
 // Apply dark mode class to body for custom styling
 function applyDarkModeClass(isDark) {
   if (isDark) {
@@ -361,103 +1182,104 @@ function applyDarkModeClass(isDark) {
 const allLinksList = computed(() => [
   {
     title: t('dashboard'),
-    caption: t('mainPage'),
     icon: 'dashboard',
     link: '/',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'], // Not for tenants
+    bg: 'rgba(33,150,243,0.1)',
+    color: 'primary',
+    allowedFor: ['pm', 'admin'],
   },
   {
     title: t('reports'),
-    caption: t('viewReportsAnalytics'),
     icon: 'assessment',
     link: '/reports',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(255,87,34,0.1)',
+    color: 'deep-orange',
+    allowedFor: ['pm', 'po', 'admin'],
   },
   {
-    title: 'SP Dashboard',
-    caption: 'SP workspace',
-    icon: 'handyman',
-    link: '/sp-dashboard',
-    allowedFor: ['contractor', 'SP', 'sp', 'owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-  {
-    title: 'SP Profile',
-    caption: 'Manage SP info',
-    icon: 'badge',
-    link: '/sp-profile',
-    allowedFor: ['contractor', 'SP', 'sp'],
+    title: 'SP Credits',
+    icon: 'token',
+    link: '/sp-credits',
+    bg: 'rgba(25,118,210,0.12)',
+    color: 'primary',
+    allowedFor: ['sp', 'admin'],
   },
   {
     title: t('Properties'),
-    caption: t('viewYourProperties'),
     icon: 'home',
     link: '/my-properties',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(156,39,176,0.1)',
+    color: 'purple',
+    allowedFor: ['pm', 'admin'],
   },
   {
     title: t('tasks'),
-    caption: t('viewAllTasks'),
     icon: 'dns',
     link: '/mx-records',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(33,150,243,0.1)',
+    color: 'primary',
+    allowedFor: ['pm', 'po', 'admin'],
   },
-
   {
     title: t('transactions'),
-    caption: t('viewAllTransactions'),
     icon: 'receipt_long',
     link: '/transactions',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-  {
-    title: t('reminders'),
-    caption: t('manageReminders'),
-    icon: 'notifications',
-    link: '/reminders',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(76,175,80,0.1)',
+    color: 'positive',
+    allowedFor: ['pm', 'po', 'admin'],
   },
   {
     title: t('documents'),
-    caption: t('viewAllDocuments'),
     icon: 'folder',
     link: '/documents',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(0,150,136,0.1)',
+    color: 'teal',
+    allowedFor: ['pm', 'admin'],
   },
   {
     title: t('assets'),
-    caption: t('viewAllAssets'),
     icon: 'inventory_2',
     link: '/assets',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(121,85,72,0.1)',
+    color: 'brown',
+    allowedFor: ['pm', 'po', 'admin'],
+  },
+  {
+    title: 'Services',
+    icon: 'handyman',
+    link: '/property-services',
+    bg: 'rgba(96,125,139,0.1)',
+    color: 'blue-grey',
+    allowedFor: ['pm', 'admin'],
   },
   {
     title: t('leases'),
-    caption: t('viewAllLeases'),
     icon: 'description',
     link: '/leases',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(255,152,0,0.1)',
+    color: 'warning',
+    allowedFor: ['pm', 'admin'],
   },
   {
     title: t('tenants'),
-    caption: t('manageAllTenants'),
     icon: 'people',
     link: '/tenants',
-    allowedFor: ['owner', 'manager', 'admin', 'PM', 'PO'],
+    bg: 'rgba(3,169,244,0.1)',
+    color: 'cyan-8',
+    allowedFor: ['pm', 'admin'],
   },
-  {
-    title: t('tenantHome'),
-    caption: t('tenantHomePage'),
-    icon: 'home_work',
-    link: '/tenant-home',
-    allowedFor: ['tenant', 'owner', 'manager', 'admin', 'PM', 'PO'],
-  },
-
-
 ])
+
+const hasReportsData = computed(() => {
+  const transactionCount = userDataStore.userAccessibleTransactions.length
+  const taskCount = userDataStore.userAccessibleMxRecords.length
+  return transactionCount + taskCount > 0
+})
 
 // Computed property to filter links based on user category
 const linksList = computed(() => {
-  const userCategory = userDataStore.userCategory
+  const userCategory = String(userDataStore.userCategory || '').toLowerCase()
+  const currentPath = String(route.path || '')
   console.log('MainLayout - Filtering menu for user category:', userCategory)
 
   // If no user category yet (still loading), show nothing
@@ -467,10 +1289,14 @@ const linksList = computed(() => {
 
   // Filter links based on user category
   const filtered = allLinksList.value.filter((link) => {
-    // Handle "PM/PO" as a single category
-    if (userCategory === 'PM/PO') {
-      // PM/PO users should see all property management pages
-      return link.allowedFor.includes('PM') || link.allowedFor.includes('PO')
+    if (link.link === '/reports' && !hasReportsData.value && !hasOwnerWorkspaceAccess.value) {
+      return false
+    }
+    if (isOwnerWorkspaceOnly.value) {
+      return link.allowedFor.includes('po')
+    }
+    if (userCategory === 'pm' || userCategory === 'po') {
+      return link.allowedFor.includes(userCategory)
     }
 
     // For other categories, check direct match
@@ -481,17 +1307,38 @@ const linksList = computed(() => {
     'MainLayout - Filtered links:',
     filtered.map((l) => l.title),
   )
+  if (currentPath === '/') {
+    const remindersLink = {
+      title: t('reminders'),
+      icon: 'notifications',
+      link: '/reminders',
+      bg: 'rgba(244,67,54,0.1)',
+      color: 'negative',
+      allowedFor: ['pm', 'po', 'admin'],
+    }
+    if (isOwnerWorkspaceOnly.value) {
+      return filtered
+    }
+    if (userCategory === 'pm' || userCategory === 'po') {
+      if (!remindersLink.allowedFor.includes(userCategory)) return filtered
+      return [...filtered, remindersLink]
+    }
+    if (remindersLink.allowedFor.includes(userCategory)) {
+      return [...filtered, remindersLink]
+    }
+  }
+
   return filtered
 })
 
 const getSectionKey = (link) => {
   const path = link?.link || ''
-  if (['/', '/reports'].includes(path)) return 'dashboard'
-  if (['/my-properties', '/assets', '/documents'].includes(path)) return 'propertyAssetDocuments'
+  if (['/', '/po-dashboard', '/reports'].includes(path)) return 'dashboard'
+  if (['/my-properties', '/assets', '/documents', '/property-services'].includes(path)) return 'propertyAssetDocuments'
   if (['/mx-records', '/transactions', '/reminders', '/leases', '/tenants'].includes(path))
     return 'taskTransactionReminderLeaseTenants'
   if (['/sp-cards'].includes(path)) return 'reportBizCard'
-  if (['/sp-dashboard'].includes(path)) return 'spPortal'
+  if (['/sp-dashboard', '/sp-credits'].includes(path)) return 'spPortal'
   if (['/tenant-home'].includes(path)) return 'tenant'
   return 'other'
 }
@@ -645,6 +1492,17 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
+function isNavActive(link) {
+  const currentPath = route.path || ''
+  if (link === '/') return currentPath === '/'
+  return currentPath === link || currentPath.startsWith(`${link}/`)
+}
+
+function navigateTo(link) {
+  leftDrawerOpen.value = false
+  router.push(link)
+}
+
 function goHome() {
   router.push('/')
 }
@@ -680,17 +1538,48 @@ async function handleSignOut() {
 }
 
 function goToProfile() {
-  router.push('/user-profile')
+  if (isTenantUser.value) {
+    router.push('/tenant-home')
+    return
+  }
+  const profile = userDataStore.userProfile || {}
+  const accountType = String(profile.account_type || '').toLowerCase()
+  const userCategory = String(profile.user_category || '').toLowerCase()
+  const isSp = accountType === 'sp' || userCategory === 'sp'
+  router.push(isSp ? '/sp-profile' : '/user-profile')
 }
 
 function goToUniversalSearch() {
   router.push('/universal-search')
 }
 
-function openGlobalCreateOption(path) {
+function handleCreateOption(option) {
   showGlobalCreateDialog.value = false
-  router.push(path)
+  if (option.key && createComponentMap[option.key]) {
+    activeCreateLabel.value = `Create ${option.label}`
+    activeCreateComponent.value = createComponentMap[option.key]
+    activeCreateProps.value = option.key === 'property' ? { autoNavigate: false } : {}
+    showCreateFormDialog.value = true
+  } else if (option.path) {
+    router.push(option.path)
+  }
 }
+
+watch(
+  () => route.query.create,
+  (value) => {
+    if (value === 'property') {
+      activeCreateLabel.value = 'Create Property'
+      activeCreateComponent.value = createComponentMap.property
+      activeCreateProps.value = { autoNavigate: false }
+      showCreateFormDialog.value = true
+      const nextQuery = { ...route.query }
+      delete nextQuery.create
+      router.replace({ query: nextQuery }).catch(() => {})
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -762,24 +1651,77 @@ function openGlobalCreateOption(path) {
   transform: scale(1.05);
 }
 
-.nav-list {
-  padding: 14px 12px;
+.nav-grid-wrap {
+  padding: 12px 16px 24px;
   flex: 1;
 }
 
-.nav-child-link {
-  margin: 0 0 3px;
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.nav-group {
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-drawer);
-  background: var(--bg-surface);
-  padding: 5px;
+.nav-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--border-radius-card, 14px);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.nav-grid-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+:global(body.body--dark) .nav-grid-item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.nav-group-gap {
-  height: 6px;
+.nav-grid-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+.nav-grid-item:hover .nav-grid-icon {
+  transform: scale(1.08);
+}
+
+.nav-grid-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--neutral-700, #424242);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:global(body.body--dark) .nav-grid-label {
+  color: #bbb;
+}
+
+.nav-grid-active {
+  background: rgba(20, 184, 166, 0.12);
+  border-radius: var(--border-radius-card, 14px);
+}
+.nav-grid-active .nav-grid-label {
+  color: var(--primary-dark, #1565c0);
+  font-weight: 700;
+}
+:global(body.body--dark) .nav-grid-active {
+  background: rgba(45, 212, 191, 0.18);
+}
+:global(body.body--dark) .nav-grid-active .nav-grid-label {
+  color: #ecfeff;
 }
 
 /* ========================================
@@ -1006,6 +1948,134 @@ function openGlobalCreateOption(path) {
   display: none; /* Chrome, Safari, Opera */
 }
 
+.content-shell {
+  min-height: calc(100vh - 72px);
+}
+
+.content-shell--with-rails {
+  display: grid;
+  grid-template-columns: 260px 1fr 260px;
+  gap: 12px;
+  align-items: start;
+}
+
+.content-shell--with-ad-rail {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 12px;
+  align-items: start;
+}
+
+.property-rail {
+  position: sticky;
+  top: 90px;
+}
+
+.ad-rail {
+  position: sticky;
+  top: 0;
+}
+
+.mainlayout-property-picker,
+.ad-slot-card {
+  border-radius: 12px;
+}
+
+.stats-rail-card {
+  overflow: hidden;
+}
+
+.stats-rail-header {
+  padding: 12px 14px 10px !important;
+}
+
+.stats-rail-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  padding: 10px !important;
+}
+
+.stats-card-compact {
+  border-radius: var(--border-radius-card);
+  box-shadow: none !important;
+  cursor: default;
+  transition: background 0.15s ease;
+  border: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
+}
+
+.stats-card-compact:hover {
+  background: var(--neutral-50, #f8f9fa) !important;
+}
+
+.stats-compact-section {
+  padding: 8px 10px !important;
+}
+
+.stats-compact-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stats-compact-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.stats-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--neutral-900);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-meta {
+  font-size: 0.72rem;
+  color: var(--neutral-500);
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.stats-value-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.stats-value-income {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stats-value-expense {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.stats-value-tasks {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.stats-value-leases {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.content-main {
+  min-width: 0;
+}
+
 /* Loading Overlay */
 .data-loading-overlay {
   position: fixed;
@@ -1087,6 +2157,16 @@ function openGlobalCreateOption(path) {
 
   .action-btn {
     size: sm;
+  }
+
+  .content-shell--with-rails,
+  .content-shell--with-ad-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .property-rail,
+  .ad-rail {
+    position: static;
   }
 }
 
@@ -1280,8 +2360,8 @@ function openGlobalCreateOption(path) {
 
 .assistant-panel {
   width: 260px;
-  height: calc(100vh - 260px);
-  max-height: 560px;
+  height: min(560px, calc(100vh - var(--ad-rail-reserve, 320px) - 20px));
+  max-height: min(560px, calc(100vh - var(--ad-rail-reserve, 320px) - 20px));
   min-height: 300px;
   border-radius: var(--border-radius-card, 10px);
   display: flex;
@@ -1310,26 +2390,37 @@ function openGlobalCreateOption(path) {
 .assistant-panel-body {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 10px !important;
+}
+
+.assistant-input {
+  margin-bottom: 8px;
+}
+
+.assistant-actions {
+  display: flex;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
-  padding: 8px !important;
+  margin-bottom: 8px;
 }
 
-.assistant-placeholder {
-  text-align: center;
+.assistant-draft {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--neutral-200);
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.assistant-placeholder-text {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--neutral-600);
-  margin-top: 12px;
-}
-
-.assistant-placeholder-sub {
-  font-size: 0.76rem;
-  color: var(--neutral-400);
-  margin-top: 4px;
+.assistant-draft-line {
+  font-size: 0.85rem;
+  color: var(--neutral-700);
 }
 
 .assistant-slide-enter-active,
@@ -1353,5 +2444,100 @@ function openGlobalCreateOption(path) {
     width: calc(100vw - 44px);
     height: 55vh;
   }
+}
+
+/* Global Create Dialog — 3x3 grid */
+.global-create-dialog {
+  border-radius: var(--border-radius-card, 14px);
+  min-width: 340px;
+  max-width: 380px;
+}
+
+.global-create-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 8px !important;
+}
+
+.global-create-body {
+  padding: 8px 18px 18px !important;
+}
+
+.global-create-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.global-create-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--border-radius-card, 14px);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.global-create-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+:global(body.body--dark) .global-create-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.global-create-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.global-create-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--neutral-700, #424242);
+  text-align: center;
+  line-height: 1.2;
+}
+:global(body.body--dark) .global-create-label {
+  color: #ccc;
+}
+
+/* Create Form Dialog (maximized) */
+.create-form-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.create-form-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px !important;
+  flex-shrink: 0;
+}
+
+.create-form-dialog-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.create-form-dialog-body .q-layout {
+  height: 100%;
+}
+
+.create-form-dialog-body .q-page-container {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 </style>

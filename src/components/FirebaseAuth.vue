@@ -23,7 +23,7 @@
                 :rules="[(val) => !!val || 'Password is required']"
               />
 
-              <div class="auth-inline-row">
+              <div class="auth-primary-row">
                 <q-btn
                   flat
                   dense
@@ -32,16 +32,16 @@
                   label="Forgot password"
                   @click="openForgotPasswordDialog"
                 />
+                <q-btn
+                  color="primary"
+                  text-color="white"
+                  unelevated
+                  :loading="loading"
+                  label="Sign in"
+                  type="submit"
+                  class="auth-submit-btn"
+                />
               </div>
-
-              <q-btn
-                color="primary"
-                text-color="white"
-                :loading="loading"
-                label="Sign in"
-                type="submit"
-                class="full-width auth-submit-btn"
-              />
 
               <q-btn
                 outline
@@ -51,6 +51,7 @@
                 :loading="socialLoading === 'google'"
                 @click="handleGoogleSignIn"
                 class="full-width q-mt-md"
+                v-if="enableGoogleSignIn"
               />
 
               <div class="auth-signup-row">
@@ -194,18 +195,26 @@ const showSignUp = ref(false)
 const showForgotPassword = ref(false)
 const resetEmail = ref('')
 const socialLoading = ref('')
+const redirectingAfterAuth = ref(false)
+const enableGoogleSignIn = ref(false)
+
+const goToLoadingOnce = () => {
+  if (redirectingAfterAuth.value) return
+  if (route.path !== '/public/login') return
+  redirectingAfterAuth.value = true
+  const redirectUrl = route.query.redirect
+  if (redirectUrl) {
+    router.replace({ path: '/loading', query: { redirect: redirectUrl } })
+  } else {
+    router.replace('/loading')
+  }
+}
 
 watch(
   isAuthenticated,
   (authenticated) => {
     if (!authenticated) return
-    if (route.path !== '/public/login') return
-    const redirectUrl = route.query.redirect
-    if (redirectUrl) {
-      router.push({ path: '/loading', query: { redirect: redirectUrl } })
-    } else {
-      router.push('/loading')
-    }
+    goToLoadingOnce()
   },
   { immediate: true },
 )
@@ -215,24 +224,8 @@ const handleSignIn = async () => {
     await signIn(email.value, password.value)
     email.value = ''
     password.value = ''
-
-    const redirectUrl = route.query.redirect
-    if (redirectUrl) {
-      router.push({ path: '/loading', query: { redirect: redirectUrl } })
-    } else {
-      router.push('/loading')
-    }
   } catch (err) {
     console.error('Sign in error:', err)
-  }
-}
-
-const redirectAfterLogin = () => {
-  const redirectUrl = route.query.redirect
-  if (redirectUrl) {
-    router.push({ path: '/loading', query: { redirect: redirectUrl } })
-  } else {
-    router.push('/loading')
   }
 }
 
@@ -243,7 +236,7 @@ const handleSignUp = async () => {
     signUpPassword.value = ''
     displayName.value = ''
     showSignUp.value = false
-    router.push('/loading')
+    goToLoadingOnce()
   } catch (err) {
     console.error('Sign up error:', err)
   }
@@ -278,10 +271,10 @@ const handleForgotPassword = async () => {
 }
 
 const handleGoogleSignIn = async () => {
+  if (!enableGoogleSignIn.value) return
   try {
     socialLoading.value = 'google'
     await signInWithGoogle()
-    redirectAfterLogin()
   } catch (err) {
     console.error('Google sign-in error:', err)
   } finally {
@@ -352,16 +345,18 @@ const formatErrorMessage = (errorMsg) => {
   margin: auto;
 }
 
-.auth-inline-row {
+.auth-primary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .auth-submit-btn {
   border-radius: 8px;
   min-height: 44px;
+  min-width: 132px;
 }
 
 .auth-signup-row {

@@ -3,7 +3,7 @@
     <div class="signup-container">
       <div class="header-section">
         <h1 class="app-title">Handout</h1>
-        <p class="signup-role-tag">Property Manager / Owner</p>
+
       </div>
 
       <div v-if="isCreatingProfile" class="loading-section">
@@ -12,7 +12,7 @@
       </div>
 
       <q-form v-else @submit="handleSignUp" class="signup-form">
-        <div class="form-section-title">Account</div>
+        <div class="form-section-title"></div>
         <q-input
           v-model="form.email"
           type="email"
@@ -59,35 +59,11 @@
         </q-input>
 
         <q-separator class="q-my-sm" />
-        <div class="form-section-title">About Your Properties</div>
+        <div class="form-section-title">Profile</div>
 
         <q-input v-model="form.companyName" label="Company / Business Name" outlined>
           <template v-slot:prepend><q-icon name="business" /></template>
         </q-input>
-
-        <div class="form-field-label">Are you managing properties for others?</div>
-        <q-btn-toggle
-          v-model="form.managementType"
-          spread
-          no-caps
-          rounded
-          unelevated
-          toggle-color="primary"
-          :options="[
-            { label: 'Yes — I manage for others (PM)', value: 'PM' },
-            { label: 'No — I own them (Owner)', value: 'PO' },
-          ]"
-          class="q-mb-md"
-        />
-
-        <q-select
-          v-model="form.propertyCount"
-          :options="['1–5', '6–20', '20+']"
-          label="Number of properties"
-          outlined
-        >
-          <template v-slot:prepend><q-icon name="domain" /></template>
-        </q-select>
 
         <q-input v-model="form.phone" label="Phone Number" outlined type="tel">
           <template v-slot:prepend><q-icon name="phone" /></template>
@@ -141,8 +117,6 @@ const form = ref({
   confirmPassword: '',
   fullName: '',
   companyName: '',
-  managementType: 'PO',
-  propertyCount: '1–5',
   phone: '',
 })
 
@@ -161,19 +135,18 @@ const handleSignUp = async () => {
       full_name: form.value.fullName,
       phone: form.value.phone || '',
       company_name: form.value.companyName || '',
-      management_type: form.value.managementType,
-      property_count_range: form.value.propertyCount,
-      account_type: 'MANAGER_OWNER',
+      account_type: 'pm',
       account_type_locked: true,
       account_type_selected_at: new Date(),
-      user_category: 'PM/PO',
+      user_category: 'pm',
+      owner_workspace_only: false,
       created_at: new Date(),
       updated_at: new Date(),
     }, userId)
 
     await userDataStore.loadUserProfile()
 
-    Notify.create({ type: 'positive', message: 'Account created successfully!', position: 'top' })
+    Notify.create({ type: 'positive', message: 'Manager account created successfully.', position: 'top' })
     router.push('/loading')
   } catch (err) {
     errorMessage.value = err.message || 'Failed to create account.'

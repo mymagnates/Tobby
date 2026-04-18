@@ -4,7 +4,10 @@
       <div class="row justify-end q-mb-lg">
         <div>
           <q-btn
+            v-if="canManageRecords"
             color="primary"
+            text-color="white"
+            unelevated
             icon="person_add"
             label="Create Tenant"
             @click="navigateToCreateTenant"
@@ -16,48 +19,36 @@
       <q-card flat bordered class="q-mb-lg">
         <q-card-section>
           <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-6">
-              <q-input
-                v-model="searchQuery"
-                outlined
-                dense
-                placeholder="Search tenants by name, email, or phone..."
-                clearable
-              >
-                <template v-slot:prepend>
-                  <q-icon name="search" />
-                </template>
-              </q-input>
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="filterProperty"
-                :options="propertyFilterOptions"
-                outlined
-                dense
-                label="Filter by Property"
-                clearable
-                emit-value
-                map-options
-              >
-                <template v-slot:prepend>
-                  <q-icon name="home" />
-                </template>
-              </q-select>
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="filterStatus"
-                :options="statusOptions"
-                outlined
-                dense
-                label="Filter by Status"
-                clearable
-              >
-                <template v-slot:prepend>
-                  <q-icon name="filter_list" />
-                </template>
-              </q-select>
+            <div class="col-12">
+              <div class="row q-col-gutter-md">
+                <div class="col-12 col-md-8">
+                  <q-input
+                    v-model="searchQuery"
+                    outlined
+                    dense
+                    placeholder="Search tenants by name, email, or phone..."
+                    clearable
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-select
+                    v-model="filterStatus"
+                    :options="statusOptions"
+                    outlined
+                    dense
+                    label="Filter by Status"
+                    clearable
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="filter_list" />
+                    </template>
+                  </q-select>
+                </div>
+              </div>
             </div>
           </div>
         </q-card-section>
@@ -85,8 +76,10 @@
           {{ searchQuery || filterProperty || filterStatus ? 'Try adjusting your search or filters' : 'Create your first tenant to get started' }}
         </div>
         <q-btn
-          v-if="!searchQuery && !filterProperty && !filterStatus"
+          v-if="canManageRecords && !searchQuery && !filterProperty && !filterStatus"
           color="primary"
+          text-color="white"
+          unelevated
           icon="person_add"
           label="Create Tenant"
           @click="navigateToCreateTenant"
@@ -155,14 +148,14 @@
                       </q-item-section>
                       <q-item-section>View Details</q-item-section>
                     </q-item>
-                    <q-item clickable v-close-popup @click.stop="editTenant(tenant)">
+                    <q-item v-if="canManageRecords" clickable v-close-popup @click.stop="editTenant(tenant)">
                       <q-item-section avatar>
                         <q-icon name="edit" color="secondary" />
                       </q-item-section>
                       <q-item-section>Edit Tenant</q-item-section>
                     </q-item>
                     <q-separator />
-                    <q-item clickable v-close-popup @click.stop="confirmDeleteTenant(tenant)">
+                    <q-item v-if="canManageRecords" clickable v-close-popup @click.stop="confirmDeleteTenant(tenant)">
                       <q-item-section avatar>
                         <q-icon name="delete" color="negative" />
                       </q-item-section>
@@ -272,7 +265,7 @@
             <div class="text-caption">{{ getPropertyName(selectedTenant.property_id) }}</div>
           </q-toolbar-title>
           <q-btn 
-            v-if="!isEditMode"
+            v-if="!isEditMode && canManageRecords"
             flat 
             round 
             icon="edit" 
@@ -294,7 +287,7 @@
 
         <!-- Dialog Content -->
         <q-card-section class="q-pa-lg scroll">
-          <q-form v-if="isEditMode" @submit.prevent="saveTenant" class="tenant-detail-content">
+          <q-form v-if="isEditMode && canManageRecords" @submit.prevent="saveTenant" class="tenant-detail-content">
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
               <q-card-section class="tenant-section-header">
@@ -740,8 +733,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { collection, query, where, getDocs } from 'firebase/firestore'
@@ -749,6 +742,7 @@ import { db } from '../boot/firebase'
 import { useFirebase } from '../composables/useFirebase'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
 const { updateDocument } = useFirebase()
@@ -773,15 +767,9 @@ const filterStatus = ref(null)
 const statusOptions = ['Active', 'Inactive', 'Past']
 
 // Computed
-const propertyFilterOptions = computed(() => {
-  const options = [{ label: 'All Properties', value: null }]
-  userDataStore.userAccessibleProperties.forEach(prop => {
-    options.push({
-      label: prop.name || prop.address || 'Unnamed Property',
-      value: prop.id
-    })
-  })
-  return options
+const canManageRecords = computed(() => {
+  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  return ['pm', 'admin'].includes(accountType)
 })
 
 const filteredTenants = computed(() => {
@@ -893,6 +881,7 @@ const maskSensitiveSsn = (ssn) => {
 }
 
 const navigateToCreateTenant = () => {
+  if (!canManageRecords.value) return
   router.push('/create-tenant')
 }
 
@@ -911,6 +900,7 @@ const viewTenantDetails = (tenant) => {
 }
 
 const enterEditMode = () => {
+  if (!canManageRecords.value) return
   if (!selectedTenant.value) return
   
   // Deep clone tenant data for editing
@@ -957,6 +947,7 @@ const cancelEdit = () => {
 }
 
 const saveTenant = async () => {
+  if (!canManageRecords.value) return
   if (!selectedTenant.value || !editFormData.value) return
   
   try {
@@ -1018,12 +1009,14 @@ const onDialogHide = () => {
 }
 
 const editTenant = async (tenant) => {
+  if (!canManageRecords.value) return
   viewTenantDetails(tenant)
   await nextTick()
   enterEditMode()
 }
 
 const confirmDeleteTenant = (tenant) => {
+  if (!canManageRecords.value) return
   $q.dialog({
     title: 'Delete Tenant',
     message: `Are you sure you want to delete ${tenant.personal_info?.first_name} ${tenant.personal_info?.last_name}?`,
@@ -1048,6 +1041,15 @@ const deleteTenant = async (tenant) => {
 onMounted(() => {
   fetchTenants()
 })
+
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    filterProperty.value = value || null
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>

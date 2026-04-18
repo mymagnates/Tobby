@@ -1,6 +1,7 @@
 export const ROLES = Object.freeze({
   TT: 'tt',
-  PM_PO: 'pm_po',
+  PM: 'pm',
+  PO: 'po',
   SP: 'sp',
   ADMIN: 'admin',
   SYSTEM: 'system',
@@ -80,4 +81,3 @@ export const ASSIGNMENT_STATUS = Object.freeze({
 
 export const ALLOWED_INVOICE_ATTACHMENT_TYPES = Object.freeze(['PDF', 'JPG', 'PNG'])
 export const MAX_INVOICE_ATTACHMENT_SIZE_MB = 5
-

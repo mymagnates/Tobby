@@ -3,9 +3,18 @@ const routes = [
   // PUBLIC ROUTES (GuestLayout - No Sidebar)
   // ============================================
   {
+    path: '/public/owner-invite/:token',
+    component: () => import('pages/OwnerInvitePage.vue'),
+    meta: { isPublic: true },
+  },
+  {
     path: '/public',
     component: () => import('layouts/GuestLayout.vue'),
     children: [
+      {
+        path: '',
+        redirect: '/landing',
+      },
       {
         path: 'login',
         component: () => import('components/FirebaseAuth.vue'),
@@ -32,7 +41,7 @@ const routes = [
         meta: { isPublic: true },
       },
       {
-        path: 'tenant-signup/:propertyId?',
+        path: 'tenant-signup/:leaseId?',
         component: () => import('pages/TenantSignUpPage.vue'),
         meta: { isPublic: true },
       },
@@ -55,6 +64,19 @@ const routes = [
         path: 'terms',
         component: () => import('pages/TermsOfUsePage.vue'),
         meta: { isPublic: true },
+      },
+      {
+        path: 'handout/:spSlug',
+        component: () => import('pages/SpShowcasePage.vue'),
+        meta: { isPublic: true },
+      },
+      {
+        path: 'posts/:spSlug',
+        redirect: (to) => `/public/handout/${to.params.spSlug}`,
+      },
+      {
+        path: 'sp/:spId',
+        redirect: (to) => `/public/handout/${to.params.spId}`,
       },
     ],
   },
@@ -91,7 +113,12 @@ const routes = [
       { path: 'sp-projects', component: () => import('pages/SpProjectsPage.vue') },
       { path: 'sp-invoices', component: () => import('pages/SpInvoicesPage.vue') },
       { path: 'sp-services', component: () => import('pages/SpServicesPage.vue') },
+      { path: 'sp-credits', component: () => import('pages/SpCreditsPage.vue') },
+      { path: 'sp-payment-method', component: () => import('pages/SpPaymentMethodPage.vue') },
       { path: 'sp-profile', component: () => import('pages/SpProfilePage.vue') },
+      { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
+      { path: 'po-dashboard', component: () => import('pages/PoDashboardPage.vue') },
+      { path: 'create-property', component: () => import('pages/CreatePropertyPage.vue') },
       {
         path: '',
         component: () => import('pages/IndexPage.vue'),
@@ -99,7 +126,6 @@ const routes = [
           { path: '/pm-po-feed', redirect: '/' },
           { path: '/universal-search', component: () => import('pages/UniversalSearchPage.vue') },
           { path: '/firebase-test', component: () => import('pages/FirebaseTestPage.vue') },
-          { path: '/create-property', component: () => import('components/CreateProperty.vue') },
           { path: '/edit-property/:propertyId', component: () => import('pages/EditPropertyPage.vue') },
           { path: '/create-mxrecord', component: () => import('components/CreateMxRecord.vue') },
           {
@@ -127,8 +153,8 @@ const routes = [
           { path: '/assets/:propertyId?', component: () => import('pages/AssetsPage.vue') },
           { path: '/reports', component: () => import('pages/ReportsPage.vue') },
           { path: '/account-type-setup', component: () => import('pages/AccountTypeSetupPage.vue') },
-          { path: '/tenant-home', component: () => import('pages/TenantHomePage.vue') },
           { path: '/create-tenant', component: () => import('pages/CreateTenantPage.vue') },
+          { path: '/property-services', component: () => import('pages/PropertyServicesPage.vue') },
           { path: '/user-profile', component: () => import('pages/UserProfilePage.vue') },
           {
             path: '/application-detail/:applicationId',
@@ -141,11 +167,32 @@ const routes = [
   },
 
   // ============================================
+  // ADMIN ROUTES (AdminLayout - Admin only)
+  // ============================================
+  {
+    path: '/admin',
+    component: () => import('layouts/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      { path: '', redirect: '/admin/overview' },
+      { path: 'overview', component: () => import('pages/AdminOverviewPage.vue') },
+      { path: 'users', component: () => import('pages/AdminUsersPage.vue') },
+      { path: 'billing', component: () => import('pages/AdminBillingPage.vue') },
+      { path: 'logs', component: () => import('pages/AdminLogsPage.vue') },
+    ],
+  },
+
+  // ============================================
   // STANDALONE ROUTES (No Layout)
   // ============================================
   {
     path: '/loading',
     component: () => import('pages/LoadingPage.vue'),
+  },
+  {
+    path: '/landing',
+    component: () => import('pages/LandingPage.vue'),
+    meta: { isPublic: true },
   },
   {
     path: '/logout-success',
@@ -168,7 +215,11 @@ const routes = [
     redirect: (to) => `/apply/lease-application/${to.params.leaseId || ''}`,
   },
   {
-    path: '/tenant-signup/:propertyId',
+    path: '/tenant-signup/:leaseId',
+    redirect: (to) => `/public/tenant-signup/${to.params.leaseId}`,
+  },
+  {
+    path: '/tenant-signup-legacy/:propertyId',
     redirect: (to) => `/public/tenant-signup/${to.params.propertyId}`,
   },
   {
@@ -182,6 +233,22 @@ const routes = [
   {
     path: '/contact-support',
     redirect: '/public/contact-support',
+  },
+  {
+    path: '/posts/:spSlug',
+    redirect: (to) => `/public/handout/${to.params.spSlug}`,
+  },
+  {
+    path: '/handout/:spSlug',
+    redirect: (to) => `/public/handout/${to.params.spSlug}`,
+  },
+  {
+    path: '/sp/:spId',
+    redirect: (to) => `/public/handout/${to.params.spId}`,
+  },
+  {
+    path: '/sp-showcase/:spId',
+    redirect: (to) => `/public/handout/${to.params.spId}`,
   },
   {
     path: '/privacy',

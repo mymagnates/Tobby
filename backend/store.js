@@ -5,6 +5,12 @@ const nowIso = () => new Date().toISOString()
 const createUser = (id, role, plan = 'free') => ({
   id,
   role,
+  email: `${id}@handout.local`,
+  account_type: role,
+  status: 'active',
+  is_paid: plan !== 'free',
+  last_active_at: nowIso(),
+  created_at: nowIso(),
   billing: {
     plan_name: plan,
     subscription_status: 'active',
@@ -49,14 +55,7 @@ const seedSpProfile = (id, overrides = {}) => ({
 })
 
 export const createInMemoryStore = () => {
-  const users = new Map([
-    ['u-tt-1', createUser('u-tt-1', 'tt', 'free')],
-    ['u-pm-1', createUser('u-pm-1', 'pm_po', 'pro')],
-    ['u-sp-1', createUser('u-sp-1', 'sp', 'free')],
-    ['u-sp-2', createUser('u-sp-2', 'sp', 'free')],
-    ['u-sp-3', createUser('u-sp-3', 'sp', 'free')],
-    ['u-admin-1', createUser('u-admin-1', 'admin', 'pro')],
-  ])
+  const users = new Map()
 
   const tasks = new Map()
   const inventories = new Map()
@@ -69,62 +68,25 @@ export const createInMemoryStore = () => {
   const conversations = new Map()
   const messages = new Map()
   const assignments = new Map()
-  const spProfiles = new Map([
-    [
-      'u-sp-1',
-      seedSpProfile('u-sp-1', {
-        business_name: 'FixFast Plumbing',
-        service_categories: ['plumbing', 'water-heater'],
-        service_area: 'San Jose, CA',
-        semantic_tags: ['plumbing', 'pipe-repair', 'water-heater', 'drain-cleaning'],
-        budget_band: 'mid',
-        urgency_capability: 'urgent',
-        match_preferences: {
-          min_budget: null,
-          max_distance_km: 60,
-          categories: ['plumbing', 'water-heater'],
-          urgency_accept: ['normal', 'urgent'],
-          availability: 'available',
-        },
-      }),
-    ],
-    [
-      'u-sp-2',
-      seedSpProfile('u-sp-2', {
-        business_name: 'Prime Electric',
-        service_categories: ['electrical', 'hvac'],
-        service_area: 'Sunnyvale, CA',
-        semantic_tags: ['electrical', 'panel-upgrade', 'hvac', 'wiring'],
-        budget_band: 'high',
-        urgency_capability: 'normal',
-        match_preferences: {
-          min_budget: 200,
-          max_distance_km: 40,
-          categories: ['electrical', 'hvac'],
-          urgency_accept: ['normal'],
-          availability: 'available',
-        },
-      }),
-    ],
-    [
-      'u-sp-3',
-      seedSpProfile('u-sp-3', {
-        business_name: 'AllPro Maintenance',
-        service_categories: ['painting', 'tile', 'general'],
-        service_area: 'Mountain View, CA',
-        semantic_tags: ['painting', 'tile', 'grouting', 'drywall', 'general-maintenance'],
-        budget_band: 'mid',
-        urgency_capability: 'normal',
-        match_preferences: {
-          min_budget: null,
-          max_distance_km: 30,
-          categories: ['painting', 'tile', 'general'],
-          urgency_accept: ['normal', 'urgent'],
-          availability: 'available',
-        },
-      }),
-    ],
-  ])
+  const spCreditAccounts = new Map()
+  const spCreditLedger = new Map()
+  const spCreditOrders = new Map()
+  const spProfiles = new Map()
+  const adminMetricsDaily = new Map()
+  const adminEvents = new Map()
+  const adminErrors = new Map()
+  const agentEvents = new Map()
+  const spSources = new Map()
+  const adPosts = new Map()
+  const adPostTargetRegions = new Map()
+  const adPostSourceIndex = new Map()
+  const adSlotConfigs = new Map()
+  const adDeliveryLogs = new Map()
+  const adDeliveryByToken = new Map()
+  const adImpressionEvents = new Map()
+  const adClickEvents = new Map()
+  const userRegionProfiles = new Map()
+  const promoCampaigns = new Map()
 
   const ensureUser = (id = 'u-tt-1', roleHint = null) => {
     const existing = users.get(id)
@@ -146,21 +108,53 @@ export const createInMemoryStore = () => {
     return created
   }
 
+  const ensureUserRegion = (userId, fallback = {}) => {
+    const existing = userRegionProfiles.get(userId)
+    if (existing) return existing
+    const created = {
+      user_id: userId,
+      country_code: String(fallback.country_code || 'US').toUpperCase(),
+      state_code: String(fallback.state_code || 'CA').toUpperCase(),
+      city_code: String(fallback.city_code || 'US-CA-SJC').toUpperCase(),
+      updated_at: nowIso(),
+    }
+    userRegionProfiles.set(userId, created)
+    return created
+  }
+
   const createTask = ({ actor, body }) => {
+    const title = body?.title || body?.task_title || 'Untitled task'
+    const description = body?.description || body?.task_description || ''
+    const category = body?.task_category || body?.category || null
+    const priority = body?.task_priority || body?.priority || null
+    const unitId = body?.unit_id || null
+    const photos = Array.isArray(body?.photos) ? body.photos : []
+    const videos = Array.isArray(body?.videos) ? body.videos : []
+    const attachments = Array.isArray(body?.attachments) ? body.attachments : []
+    const now = nowIso()
     const id = `task-${randomUUID()}`
     const record = {
       id,
-      title: body?.title || 'Untitled task',
-      description: body?.description || '',
+      title,
+      task_title: title,
+      description,
+      task_description: description,
+      task_category: category,
+      task_priority: priority,
       status: body?.status || 'open',
       creator_user_id: actor.id,
       lease_id: body?.lease_id || null,
       property_id: body?.property_id || null,
+      unit_id: unitId,
+      photos,
+      photo_count: photos.length,
+      videos,
+      attachments,
       comments: [],
       assigned_sp_id: null,
       lead_id: null,
-      created_at: nowIso(),
-      updated_at: nowIso(),
+      created_at: now,
+      updated_at: now,
     }
     tasks.set(id, record)
     return record
@@ -169,12 +163,40 @@ export const createInMemoryStore = () => {
   const createLead = ({ actor, task, body }) => {
     const id = `lead-${randomUUID()}`
     const mxId = body?.mx_id || task.mx_id || task.id
+    const comments = Array.isArray(body?.comments) ? body.comments : []
+    const imageUrls = Array.isArray(body?.image_urls)
+      ? body.image_urls
+      : Array.isArray(body?.photos)
+        ? body.photos
+        : Array.isArray(task?.photos)
+          ? task.photos
+          : Array.isArray(task?.image_urls)
+            ? task.image_urls
+            : []
     const record = {
       id,
       mx_id: mxId,
       task_id: mxId,
       task_doc_id: task.id,
       property_id: task.property_id || body?.property_id || null,
+      property_name:
+        body?.property_name ||
+        body?.property_address_line1 ||
+        task.property_name ||
+        task.property_address_line1 ||
+        task.property?.address?.street ||
+        task.property?.address?.line1 ||
+        task.property?.name ||
+        '',
+      property_address_line1: body?.property_address_line1 || task.property_address_line1 || task.property?.address?.street || task.property?.address?.line1 || task.property?.address?.address1 || '',
+      property_address_line2: body?.property_address_line2 || task.property_address_line2 || task.property?.address?.line2 || task.property?.address?.unit || '',
+      property_city: body?.property_city || body?.city || task.property_city || task.city || task.property?.address?.city || task.property?.city || '',
+      property_state: body?.property_state || body?.state || task.property_state || task.state || task.property?.address?.state || task.property?.state || '',
+      property_zip: body?.property_zip || body?.zip_code || body?.postal_code || body?.zip || task.property_zip || task.zip || task.zip_code || task.postal_code || task.property?.address?.zip || task.property?.zip || '',
+      city: body?.city || body?.property_city || task.city || task.property_city || task.property?.address?.city || task.property?.city || '',
+      state: body?.state || body?.property_state || task.state || task.property_state || task.property?.address?.state || task.property?.state || '',
+      zip_code: body?.zip_code || body?.property_zip || body?.postal_code || body?.zip || task.zip_code || task.property_zip || task.postal_code || task.zip || task.property?.address?.zip || task.property?.zip || '',
+      postal_code: body?.postal_code || body?.property_zip || body?.zip_code || body?.zip || task.postal_code || task.property_zip || task.zip_code || task.zip || task.property?.address?.zip || task.property?.zip || '',
       creator_id: actor.id,
       title: body?.title || task.title,
       description: body?.description || task.description,
@@ -185,6 +207,10 @@ export const createInMemoryStore = () => {
       urgency: body?.urgency || 'normal',
       due_date: body?.due_date || null,
       semantic_tags: body?.semantic_tags || [],
+      image_urls: imageUrls,
+      photo_count: Number(body?.photo_count ?? imageUrls.length ?? 0),
+      comments,
+      comment_count: Number(body?.comment_count ?? comments.length ?? 0),
       status: 'open',
       visibility_mode: body?.visibility_mode || 'public',
       bid_deadline: body?.bid_deadline || null,
@@ -341,6 +367,28 @@ export const createInMemoryStore = () => {
     return record
   }
 
+  adSlotConfigs.set('pm_feed_top', {
+    slot_id: 'pm_feed_top',
+    status: 'active',
+    card_width_px: 320,
+    card_height_px: 180,
+    image_aspect_ratio: '16:9',
+    max_items: 1,
+    sponsored_ratio_numerator: 1,
+    sponsored_ratio_denominator: 5,
+    frequency_cap_window_hours: 24,
+    frequency_cap_per_post: 1,
+    fallback_post_id: null,
+    updated_at: nowIso(),
+  })
+
+  ensureUserRegion('u-pm-1', { country_code: 'US', state_code: 'CA', city_code: 'US-CA-SJC' })
+  ensureUserRegion('u-po-1', { country_code: 'US', state_code: 'CA', city_code: 'US-CA-SJC' })
+  ensureUserRegion('u-tt-1', { country_code: 'US', state_code: 'CA', city_code: 'US-CA-SJC' })
+  ensureUserRegion('u-sp-1', { country_code: 'US', state_code: 'CA', city_code: 'US-CA-SJC' })
+  ensureUserRegion('u-sp-2', { country_code: 'US', state_code: 'TX', city_code: 'US-TX-AUS' })
+  ensureUserRegion('u-sp-3', { country_code: 'US', state_code: 'CA', city_code: 'US-CA-SFO' })
+
   return {
     users,
     tasks,
@@ -353,8 +401,27 @@ export const createInMemoryStore = () => {
     conversations,
     messages,
     assignments,
+    spCreditAccounts,
+    spCreditLedger,
+    spCreditOrders,
     spProfiles,
+    adminMetricsDaily,
+    adminEvents,
+    adminErrors,
+    agentEvents,
+    spSources,
+    adPosts,
+    adPostTargetRegions,
+    adPostSourceIndex,
+    adSlotConfigs,
+    adDeliveryLogs,
+    adDeliveryByToken,
+    adImpressionEvents,
+    adClickEvents,
+    userRegionProfiles,
+    promoCampaigns,
     ensureUser,
+    ensureUserRegion,
     createTask,
     createLead,
     createBid,

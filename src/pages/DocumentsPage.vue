@@ -58,6 +58,7 @@
           </div>
           <div class="col-12 col-sm-6 col-md-3 flex items-center justify-end">
             <q-btn
+              v-if="canCreateDocuments"
               color="primary"
               unelevated
               icon="add"
@@ -132,9 +133,23 @@
             </q-td>
           </template>
 
-          <template #body-cell-source_type="props">
+          <template #body-cell-description="props">
             <q-td :props="props">
-              <span class="text-body2 text-capitalize">{{ props.row.source_type || '—' }}</span>
+              <span class="text-body2">{{ getDocumentDescription(props.row) }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-purpose="props">
+            <q-td :props="props">
+              <span class="text-body2">{{ getDocumentPurpose(props.row) }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-uploaded_by_role="props">
+            <q-td :props="props">
+              <q-chip dense size="sm" :color="getUploaderRoleColor(props.row)" text-color="white">
+                {{ getUploaderRoleLabel(props.row) }}
+              </q-chip>
             </q-td>
           </template>
 
@@ -157,17 +172,6 @@
                   @click="openViewDocument(props.row)"
                 >
                   <q-tooltip>View document</q-tooltip>
-                </q-btn>
-                <q-btn
-                  flat
-                  dense
-                  round
-                  size="sm"
-                  color="primary"
-                  icon="link"
-                  @click="openViewSourceRecord(props.row)"
-                >
-                  <q-tooltip>View source record</q-tooltip>
                 </q-btn>
               </div>
             </q-td>
@@ -233,144 +237,26 @@
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Close" color="primary" v-close-popup />
-          <q-btn
-            v-if="selectedDocument"
-            flat
-            label="View source record"
-            color="primary"
-            icon="link"
-            @click="showViewDocument = false; openViewSourceRecord(selectedDocument)"
-          />
         </q-card-actions>
       </q-card>
     </q-dialog>
 
-    <!-- Dialog: View source record (no redirect) -->
-    <q-dialog v-model="showViewSourceRecord" position="standard" class="source-record-dialog">
-      <q-card class="source-record-card" style="min-width: 360px; max-width: 560px;">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6 row items-center">
-            <q-icon :name="getSourceIcon(selectedDocument?.source_type)" class="q-mr-sm" color="primary" />
-            Source record
-          </div>
-          <q-space />
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
-        <q-card-section class="source-record-body">
-          <template v-if="selectedDocument && sourceRecordSummary">
-            <!-- Property source -->
-            <template v-if="selectedDocument.source_type === 'property'">
-              <div class="source-summary">
-                <div class="text-subtitle1 text-weight-medium">{{ sourceRecordSummary.nickname || sourceRecordSummary.address || 'Property' }}</div>
-                <div class="text-body2 text-grey-7 q-mt-xs">{{ sourceRecordSummary.address }}</div>
-                <div v-if="sourceRecordSummary.city" class="text-caption text-grey-6">
-                  {{ sourceRecordSummary.city }}{{ sourceRecordSummary.state ? `, ${sourceRecordSummary.state}` : '' }}
-                  {{ sourceRecordSummary.zip ? sourceRecordSummary.zip : '' }}
-                </div>
-              </div>
-            </template>
-            <!-- Lease source -->
-            <template v-else-if="selectedDocument.source_type === 'lease'">
-              <div class="source-summary">
-                <div class="text-subtitle1 text-weight-medium">Lease {{ sourceRecordSummary.lease_id || selectedDocument.source_id }}</div>
-                <div class="text-body2 text-grey-7 q-mt-xs">
-                  Property: {{ sourceRecordSummary.property_name || '—' }}
-                </div>
-                <div class="text-caption text-grey-6 q-mt-xs">
-                  Status: {{ sourceRecordSummary.status || '—' }} •
-                  Rent: {{ sourceRecordSummary.monthly_rent ? `$${formatCurrency(sourceRecordSummary.monthly_rent)}` : '—' }}
-                </div>
-                <div v-if="sourceRecordSummary.start_date" class="text-caption text-grey-6">
-                  {{ formatDate(sourceRecordSummary.start_date) }} – {{ formatDate(sourceRecordSummary.end_date) }}
-                </div>
-              </div>
-            </template>
-            <!-- Fallback -->
-            <template v-else>
-              <div class="source-summary">
-                <div class="text-body2">{{ sourceRecordSummary.label || selectedDocument.source_label }}</div>
-              </div>
-            </template>
-          </template>
-          <div v-else-if="selectedDocument" class="text-body2 text-grey-6">
-            Source: {{ selectedDocument.source_label }}
-          </div>
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Close" color="primary" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="showCreateDialog">
-      <q-card style="min-width: 420px; max-width: 640px; width: 100%">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Create New Document</div>
-          <q-space />
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
-
-        <q-card-section class="q-gutter-sm">
-          <q-select
-            v-model="createForm.source_type"
-            :options="sourceFilterOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            outlined
-            dense
-            label="Source Type"
-          />
-
-          <q-select
-            v-model="createForm.source_id"
-            :options="createTargetOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            outlined
-            dense
-            label="Source"
-          />
-
-          <q-input
-            v-model="createForm.name"
-            outlined
-            dense
-            label="Document Name (optional)"
-          />
-
-          <q-input
-            v-model="createForm.description"
-            outlined
-            dense
-            type="textarea"
-            autogrow
-            label="Description (optional)"
-          />
-
-          <q-file
-            v-model="createForm.file"
-            outlined
-            dense
-            clearable
-            label="Upload File"
-            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt"
+    <q-dialog
+      v-if="canCreateDocuments"
+      v-model="showCreateDialog"
+      persistent
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <q-card class="create-fullscreen-card">
+        <q-card-section class="create-fullscreen-body">
+          <CreateDocument
+            :allow-lease-source="true"
+            @document-created="onDocumentCreated"
+            @cancel="showCreateDialog = false"
           />
         </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn
-            color="primary"
-            unelevated
-            label="Create"
-            :loading="creatingDocument"
-            @click="createNewDocument"
-          />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -379,28 +265,30 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
+import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
+import CreateDocument from '../components/CreateDocument.vue'
 
+const route = useRoute()
+const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
-const { getAllDocuments, createDocument, uploadFile } = useFirebase()
+const { getAllDocuments } = useFirebase()
 
 const loading = ref(false)
 const allDocuments = ref([])
+const selectedPropertyId = ref(null)
 const searchQuery = ref('')
 const sourceFilter = ref(null)
 const showViewDocument = ref(false)
-const showViewSourceRecord = ref(false)
 const selectedDocument = ref(null)
 const showCreateDialog = ref(false)
-const creatingDocument = ref(false)
-const createForm = ref({
-  source_type: 'property',
-  source_id: '',
-  name: '',
-  description: '',
-  file: null,
+
+const canCreateDocuments = computed(() => {
+  const category = String(userDataStore.userCategory || userDataStore.accountType || '').toLowerCase()
+  return ['pm', 'admin'].includes(category)
 })
 
 const pagination = ref({
@@ -414,21 +302,28 @@ const sourceFilterOptions = [
 ]
 
 const columns = [
+  { name: 'uploaded_by_role', label: 'Uploaded By', field: 'uploaded_by_role', align: 'left' },
+  { name: 'purpose', label: 'Purpose', field: 'purpose', align: 'left' },
+  { name: 'description', label: 'Description', field: 'description', align: 'left' },
   { name: 'name', label: 'Document', field: 'name', align: 'left', sortable: true },
   { name: 'source', label: 'Source', field: 'source_label', align: 'left' },
-  { name: 'source_type', label: 'Source type', field: 'source_type', align: 'left' },
   { name: 'date', label: 'Date', field: 'upload_date', align: 'left' },
   { name: 'actions', label: 'Actions', align: 'center', sortable: false },
 ]
 
-function formatDate(val) {
-  if (!val) return '—'
-  return new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function toDateObject(val) {
+  if (!val) return null
+  if (val instanceof Date) return val
+  if (val?.toDate && typeof val.toDate === 'function') return val.toDate()
+  const parsed = new Date(val)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-function formatCurrency(num) {
-  if (num == null) return '—'
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+function formatDate(val) {
+  if (!val) return '—'
+  const dateObj = toDateObject(val)
+  if (!dateObj) return '—'
+  return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function getFileIcon(row) {
@@ -453,6 +348,31 @@ function getSourceChipColor(sourceType) {
   return sourceType === 'property' ? 'primary' : sourceType === 'lease' ? 'teal' : 'grey-7'
 }
 
+function getUploaderRoleLabel(row) {
+  const normalized = normalizeRoleValue(row?.uploaded_by_role || row?.role)
+  if (normalized) return roleLabel(normalized)
+  return row?.source_type === 'lease' ? 'Lease Flow' : 'Property Flow'
+}
+
+function getUploaderRoleColor(row) {
+  const normalized = normalizeRoleValue(row?.uploaded_by_role || row?.role)
+  if (normalized === 'tt') return 'blue'
+  if (normalized === 'po') return 'deep-purple'
+  if (normalized === 'pm') return 'indigo'
+  if (normalized === 'sp') return 'orange'
+  return 'grey-7'
+}
+
+function getDocumentPurpose(row) {
+  const value = String(row?.purpose || row?.category || row?.document_purpose || '').trim()
+  return value || '—'
+}
+
+function getDocumentDescription(row) {
+  const value = String(row?.description || row?.note || '').trim()
+  return value || '—'
+}
+
 function isImageType(doc) {
   const type = (doc.file_type || doc.original_filename || '').toLowerCase()
   const ext = type || (doc.original_filename || '').split('.').pop()?.toLowerCase()
@@ -461,6 +381,10 @@ function isImageType(doc) {
 
 const filteredDocuments = computed(() => {
   let list = allDocuments.value
+
+  if (selectedPropertyId.value) {
+    list = list.filter((d) => String(d.property_id || '').trim() === selectedPropertyId.value)
+  }
 
   const q = (searchQuery.value || '').trim().toLowerCase()
   if (q) {
@@ -480,61 +404,6 @@ const filteredDocuments = computed(() => {
   return list
 })
 
-const sourceRecordSummary = computed(() => {
-  if (!selectedDocument.value) return null
-  const doc = selectedDocument.value
-  if (doc.source_type === 'property') {
-    const prop = userDataStore.getPropertyById(doc.source_id) || {}
-    return {
-      nickname: prop.nickname,
-      address: prop.address,
-      city: prop.city,
-      state: prop.state,
-      zip: prop.zip,
-    }
-  }
-  if (doc.source_type === 'lease') {
-    const lease = userDataStore.userAccessibleLeases.find((l) => l.id === doc.source_id)
-    if (!lease) return { label: doc.source_label }
-    const propId = lease.property_id?.id ?? lease.property_id
-    return {
-      lease_id: lease.lease_id || lease.id,
-      property_name: userDataStore.getPropertyName(propId),
-      status: lease.status,
-      monthly_rent: lease.monthly_rent,
-      start_date: lease.start_date,
-      end_date: lease.end_date,
-    }
-  }
-  return { label: doc.source_label }
-})
-
-const createTargetOptions = computed(() => {
-  if (createForm.value.source_type === 'lease') {
-    const leases = userDataStore.userAccessibleLeases || []
-    return leases.map((lease) => {
-      const propId = lease.property?.id || lease.property_id?.id || lease.property_id
-      return {
-        label: `Lease ${lease.lease_id || lease.id} (${userDataStore.getPropertyName(propId)})`,
-        value: lease.id,
-      }
-    })
-  }
-
-  const properties = userDataStore.userAccessibleProperties || []
-  return properties.map((prop) => ({
-    label: prop.nickname || prop.address || prop.id,
-    value: prop.id,
-  }))
-})
-
-watch(
-  () => createForm.value.source_type,
-  () => {
-    createForm.value.source_id = ''
-  },
-)
-
 async function loadAllDocuments() {
   loading.value = true
   const flat = []
@@ -543,11 +412,13 @@ async function loadAllDocuments() {
     const properties = userDataStore.userAccessibleProperties || []
     for (const prop of properties) {
       try {
+        // property media collection
         const photos = await getAllDocuments(`properties/${prop.id}/property_photos`)
         const list = (photos || []).map((p) => ({
           id: `property_${prop.id}_${p.id}`,
           name: p.description || p.original_filename || 'Property document',
           description: p.description || null,
+          purpose: p.purpose || p.category || null,
           upload_date: p.upload_date || p.created_datetime,
           file_url: p.image_url,
           image_url: p.image_url,
@@ -555,11 +426,40 @@ async function loadAllDocuments() {
           file_type: (p.original_filename || '').split('.').pop()?.toLowerCase(),
           source_type: 'property',
           source_id: prop.id,
+          property_id: prop.id,
           source_label: `Property: ${prop.nickname || prop.address || prop.id}`,
         }))
         flat.push(...list)
       } catch (e) {
         console.warn('DocumentsPage: failed to load property_photos for', prop.id, e)
+      }
+
+      try {
+        // property documents collection (includes tenant uploads)
+        const docs = await getAllDocuments(`properties/${prop.id}/documents`)
+        const list = (docs || []).map((d) => ({
+          id: `property_doc_${prop.id}_${d.id}`,
+          name: d.name || d.description || d.original_filename || 'Property document',
+          description: d.note || d.description || null,
+          purpose: d.purpose || d.category || d.document_purpose || null,
+          upload_date: d.upload_date || d.created_at || d.created_datetime,
+          file_url: d.url || d.file_url || d.image_url,
+          image_url: d.url || d.file_url || d.image_url,
+          original_filename: d.original_filename || d.name,
+          file_type:
+            d.file_type ||
+            d.content_type?.split('/')?.pop()?.toLowerCase() ||
+            (d.original_filename || d.name || '').split('.').pop()?.toLowerCase(),
+          file_size: d.file_size || d.size || null,
+          uploaded_by_role: d.uploaded_by_role || null,
+          source_type: 'property',
+          source_id: prop.id,
+          property_id: prop.id,
+          source_label: `Property: ${prop.nickname || prop.address || prop.id}`,
+        }))
+        flat.push(...list)
+      } catch (e) {
+        console.warn('DocumentsPage: failed to load documents for', prop.id, e)
       }
     }
 
@@ -573,6 +473,7 @@ async function loadAllDocuments() {
           id: `lease_${lease.id}_${d.id}`,
           name: d.name || d.original_filename || 'Lease document',
           description: d.description || null,
+          purpose: d.purpose || d.category || d.document_purpose || null,
           upload_date: d.upload_date || d.created_datetime,
           file_url: d.file_url,
           image_url: d.file_url,
@@ -581,6 +482,7 @@ async function loadAllDocuments() {
           file_size: d.file_size,
           source_type: 'lease',
           source_id: lease.id,
+          property_id: String(propId),
           source_label: `Lease: ${lease.lease_id || lease.id} (${userDataStore.getPropertyName(propId)})`,
         }))
         flat.push(...list)
@@ -589,7 +491,9 @@ async function loadAllDocuments() {
       }
     }
 
-    flat.sort((a, b) => new Date(b.upload_date || 0) - new Date(a.upload_date || 0))
+    flat.sort(
+      (a, b) => (toDateObject(b.upload_date)?.getTime() || 0) - (toDateObject(a.upload_date)?.getTime() || 0),
+    )
     allDocuments.value = flat
   } finally {
     loading.value = false
@@ -605,99 +509,42 @@ function openViewDocument(doc) {
   showViewDocument.value = true
 }
 
-function openViewSourceRecord(doc) {
-  selectedDocument.value = doc
-  showViewSourceRecord.value = true
-}
-
 function openCreateDialog() {
-  createForm.value = {
-    source_type: 'property',
-    source_id: '',
-    name: '',
-    description: '',
-    file: null,
-  }
+  if (!canCreateDocuments.value) return
   showCreateDialog.value = true
 }
 
-const getFileExtension = (fileName = '') => {
-  const ext = fileName.split('.').pop()
-  return ext ? ext.toLowerCase() : ''
-}
-
-const getLeasePropertyId = (leaseId) => {
-  const lease = (userDataStore.userAccessibleLeases || []).find((item) => item.id === leaseId)
-  if (!lease) return null
-  return lease.property?.id || lease.property_id?.id || lease.property_id || null
-}
-
-async function createNewDocument() {
-  if (!createForm.value.source_id) {
-    $q.notify({ type: 'warning', message: 'Please select source.', position: 'top' })
-    return
-  }
-  if (!createForm.value.file) {
-    $q.notify({ type: 'warning', message: 'Please upload a file.', position: 'top' })
-    return
-  }
-
-  creatingDocument.value = true
-  try {
-    const now = new Date().toISOString()
-    const file = createForm.value.file
-    const extension = getFileExtension(file.name)
-    const safeName = (file.name || 'document').replace(/[^a-zA-Z0-9._-]/g, '_')
-
-    if (createForm.value.source_type === 'lease') {
-      const leaseId = createForm.value.source_id
-      const propertyId = getLeasePropertyId(leaseId)
-      if (!propertyId) {
-        throw new Error('Selected lease is invalid.')
-      }
-
-      const storagePath = `properties/${propertyId}/leases/${leaseId}/lease_docs/${Date.now()}_${safeName}`
-      const fileUrl = await uploadFile(storagePath, file)
-      await createDocument(`properties/${propertyId}/leases/${leaseId}/lease_docs`, {
-        name: createForm.value.name || file.name,
-        description: createForm.value.description || null,
-        file_url: fileUrl,
-        original_filename: file.name,
-        file_type: extension,
-        file_size: file.size,
-        upload_date: now,
-        created_datetime: now,
-      })
-    } else {
-      const propertyId = createForm.value.source_id
-      const storagePath = `properties/${propertyId}/property_photos/${Date.now()}_${safeName}`
-      const fileUrl = await uploadFile(storagePath, file)
-      await createDocument(`properties/${propertyId}/property_photos`, {
-        description: createForm.value.description || createForm.value.name || file.name,
-        image_url: fileUrl,
-        original_filename: file.name,
-        upload_date: now,
-        created_datetime: now,
-      })
-    }
-
-    $q.notify({ type: 'positive', message: 'Document created successfully.', position: 'top' })
-    showCreateDialog.value = false
-    await loadAllDocuments()
-  } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: error?.message || 'Failed to create document.',
-      position: 'top',
-    })
-  } finally {
-    creatingDocument.value = false
-  }
+async function onDocumentCreated() {
+  $q.notify({ type: 'positive', message: 'Document created successfully.', position: 'top' })
+  showCreateDialog.value = false
+  await loadAllDocuments()
 }
 
 onMounted(() => {
   loadAllDocuments()
 })
+
+watch(
+  [() => route.query.create, canCreateDocuments],
+  ([val, canCreate]) => {
+    if (val === 'true' && canCreate) {
+      openCreateDialog()
+      const nextQuery = { ...route.query }
+      delete nextQuery.create
+      router.replace({ query: nextQuery }).catch(() => {})
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.propertyId,
+  (propertyId) => {
+    const value = String(propertyId || '').trim()
+    selectedPropertyId.value = value || null
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -720,14 +567,21 @@ onMounted(() => {
   min-height: 200px;
 }
 
+.create-fullscreen-card {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-fullscreen-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .doc-preview-image {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.source-record-card .source-summary {
-  padding: 4px 0;
 }
 
 .text-ellipsis {

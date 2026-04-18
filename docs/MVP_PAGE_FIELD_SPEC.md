@@ -17,6 +17,8 @@
     - `role` (`PO` | `PM`)
     - `status`
   - `active_property_id` (client-selected current property context)
+  - `manages_own_only` (boolean, from registration question)
+  - `company_name` (optional)
 
 ## 1) TT Page Field Spec
 
@@ -200,6 +202,15 @@
 - `date`
 - `method`
 - `notes`
+ - `created_by_user_id`
+ - `created_by_role` (PM/PO)
+
+### 2.x Permission Constraints (PM vs PO)
+- PM: full CRUD across PM/PO entities.
+- PO: view-only across PM/PO entities except:
+  - `Transaction`: PO can `create`, `edit`, `delete` only if `created_by_user_id == current_user_id`.
+  - PO can export reports.
+  - PO can view billing/plan/credits (read-only).
 
 #### Inventory (Move-out support)
 - `inventory_list_id`

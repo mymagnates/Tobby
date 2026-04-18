@@ -101,10 +101,10 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
     if (requiresAuth && !isAuthenticated) {
-      console.log('Router Guard - Authentication required, redirecting to login')
+      console.log('Router Guard - Authentication required, redirecting to landing')
       // Save the intended destination to redirect after login
       next({
-        path: '/public/login',
+        path: '/landing',
         query: { redirect: to.fullPath },
       })
       return
@@ -140,11 +140,24 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // ============================================
     // 3. ROLE-BASED ACCESS CONTROL
     // ============================================
+    const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
+    const profile = userDataStore.userProfile || {}
+    const rawRole = String(profile.account_type || profile.user_category || userCategory || '').toLowerCase()
+    const isAdmin = rawRole === 'admin'
+    if (requiresAdmin) {
+      if (!isAdmin) {
+        next('/')
+        return
+      }
+    }
+    if (isAdmin && to.path === '/') {
+      next('/admin/overview')
+      return
+    }
     
     // Define tenant-allowed routes (only for tenants)
     const tenantAllowedRoutes = [
       '/tenant-home',
-      '/user-profile',
       '/application-detail',
       '/documents',
     ]
@@ -153,7 +166,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const isTenantAllowed = tenantAllowedRoutes.some(route => to.path.startsWith(route))
 
     // If user is a tenant and trying to access a non-allowed route
-    if (userCategory === 'tenant' && !isTenantAllowed) {
+    if (String(userCategory || '').toLowerCase() === 'tt' && !isTenantAllowed) {
       console.log('Router Guard - Tenant attempting to access restricted route:', to.path)
       console.log('Router Guard - Redirecting to /tenant-home')
       next('/tenant-home')
@@ -164,6 +177,8 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const spAllowedRoutes = [
       '/',
       '/sp-dashboard',
+      '/sp-credits',
+      '/sp-payment-method',
       '/sp-leads',
       '/sp-bids',
       '/sp-documents',
@@ -171,9 +186,10 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       '/sp-projects',
       '/sp-invoices',
       '/sp-services',
+      '/sp-profile',
       '/user-profile',
     ]
-    const isServiceProvider = ['contractor', 'SP', 'sp'].includes(userCategory)
+    const isServiceProvider = ['sp'].includes(String(userCategory || '').toLowerCase())
     if (isServiceProvider) {
       if (to.path === '/') {
         if (!hasSpServiceAreaConfigured()) {
@@ -192,6 +208,41 @@ export default defineRouter(function (/* { store, ssrContext } */) {
         next('/sp-leads')
         return
       }
+    }
+
+    const normalizedAccountType = String(userDataStore.accountType || userCategory || '').toLowerCase()
+    const hasPoMembership = Boolean(userDataStore.hasPoMembership)
+    const hasPmMembership = Boolean(userDataStore.hasPmMembership)
+    const hasLegacyPoAccount = Boolean(userDataStore.hasLegacyPoAccount)
+    const isOwnerWorkspaceOnly = Boolean(userDataStore.isOwnerOnlyUser)
+    const canAccessOwnerWorkspace = Boolean(userDataStore.hasOwnerWorkspaceAccess)
+
+    if (canAccessOwnerWorkspace && (isOwnerWorkspaceOnly || to.path.startsWith('/po-dashboard'))) {
+      if (to.path === '/') {
+        next('/po-dashboard')
+        return
+      }
+      const poAllowedRoutes = ['/po-dashboard']
+      const isPoAllowed = poAllowedRoutes.some((route) =>
+        route === '/' ? to.path === '/' : to.path.startsWith(route),
+      )
+      if (isOwnerWorkspaceOnly && !isPoAllowed) {
+        console.log('Router Guard - PO attempting to access restricted route:', to.path)
+        next('/po-dashboard')
+        return
+      }
+    }
+
+    if (normalizedAccountType === 'pm' && !hasPmMembership && !hasPoMembership && to.path === '/po-dashboard') {
+      next('/')
+      return
+    }
+
+    // Migration-only redirect for legacy PO accounts. New owner access should be
+    // driven by PO membership instead of account_type/user_category.
+    if (hasLegacyPoAccount && !to.path.startsWith('/po-dashboard') && to.path === '/') {
+      next('/po-dashboard')
+      return
     }
 
     // NOTE: PM/PO tenant-home block removed for cross-role testing

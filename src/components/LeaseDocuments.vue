@@ -1,7 +1,7 @@
 <template>
   <div class="lease-documents">
-    <q-card class="documents-card">
-      <q-card-section class="documents-header">
+    <div class="documents-shell">
+      <div class="documents-header">
         <div class="row items-center justify-between">
           <div>
             <div class="text-h6 text-weight-bold text-primary">
@@ -14,11 +14,11 @@
           </div>
           <q-btn flat round dense icon="close" @click="emit('close')" class="dialog-close-btn" />
         </div>
-      </q-card-section>
+      </div>
 
-      <q-card-section class="documents-content">
+      <div class="documents-content">
         <!-- Upload Section -->
-        <div class="upload-section q-mb-lg">
+          <div v-if="!readOnly" class="upload-section q-mb-lg">
           <div class="section-header">
             <div class="text-subtitle1 text-weight-medium">Upload New Document</div>
           </div>
@@ -142,6 +142,7 @@
                     icon="delete"
                     size="sm"
                     color="negative"
+                    v-if="!readOnly"
                     @click="confirmDeleteDocument(doc)"
                   >
                     <q-tooltip>Delete</q-tooltip>
@@ -214,16 +215,18 @@
           <div v-else class="empty-documents">
             <q-icon name="description" size="48px" color="grey-4" />
             <div class="text-body2 text-grey-6 q-mt-sm">No documents uploaded yet</div>
-            <div class="text-caption text-grey-5">Upload documents and pictures for this lease</div>
+            <div class="text-caption text-grey-5">
+              {{ readOnly ? 'No documents available for this lease.' : 'Upload documents and pictures for this lease' }}
+            </div>
           </div>
         </div>
-      </q-card-section>
+      </div>
 
       <!-- Actions -->
-      <q-card-actions class="documents-actions">
+      <div class="documents-actions">
         <q-btn flat label="Close" @click="emit('close')" />
-      </q-card-actions>
-    </q-card>
+      </div>
+    </div>
 
     <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" persistent>
@@ -286,6 +289,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  readOnly: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Emits
@@ -295,8 +302,7 @@ const emit = defineEmits(['close'])
 const {
   createDocument,
   deleteDocument: deleteFirestoreDocument,
-  // uploadImages,
-  uploadImagesWithDetails,
+  uploadFile: uploadStorageFile,
   deleteFile,
   getAllDocuments,
 } = useFirebase()
@@ -331,27 +337,23 @@ const onFileSelected = (file) => {
   }
 }
 
+const sanitizeFileSegment = (value) =>
+  String(value || 'file')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+
 // Upload document
 const uploadDocument = async () => {
+  if (props.readOnly) return
   if (!uploadFile.value) return
 
   try {
     uploading.value = true
 
-    // Upload file to Firebase Storage
-    const uploadResults = await uploadImagesWithDetails(
-      [uploadFile.value],
-      props.propertyId,
-      'lease_docs',
-    )
-
-    if (!uploadResults || uploadResults.length === 0) {
-      throw new Error('Failed to upload file')
-    }
-
-    const uploadResult = uploadResults[0]
-    const fileUrl = uploadResult.url
-    const storagePath = uploadResult.storagePath
+    const selectedFile = uploadFile.value
+    const safeFileName = sanitizeFileSegment(selectedFile.name || documentData.value.name || 'document')
+    const storagePath = `images/leases/${props.leaseId}/documents/${Date.now()}_${safeFileName}`
+    const fileUrl = await uploadStorageFile(storagePath, selectedFile)
     const fileExtension = uploadFile.value.name.split('.').pop()?.toLowerCase() || 'unknown'
 
     // Create document metadata
@@ -376,7 +378,8 @@ const uploadDocument = async () => {
     )
 
     // Add to local array
-    documents.value.push({ id: result.id, ...docData })
+    const newDocId = typeof result === 'string' ? result : result?.id
+    documents.value.push({ id: newDocId || `doc-${Date.now()}`, ...docData })
 
     // Reset form
     uploadFile.value = null
@@ -425,6 +428,7 @@ const loadDocuments = async () => {
 
 // Confirm delete document
 const confirmDeleteDocument = (doc) => {
+  if (props.readOnly) return
   documentToDelete.value = doc
   showDeleteDialog.value = true
 }
@@ -571,14 +575,40 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.documents-card {
-  max-width: 1000px;
-  margin: 0 auto;
+.lease-documents {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.documents-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface);
 }
 
 .documents-header {
   border-bottom: 1px solid var(--neutral-200);
   background: var(--bg-secondary);
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.documents-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px;
+  padding-bottom: calc(84px + constant(safe-area-inset-bottom));
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
 .section-header {
@@ -730,10 +760,14 @@ onMounted(() => {
 }
 
 .documents-actions {
-  padding: 16px 24px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--neutral-200);
   background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 /* Image viewer styles */

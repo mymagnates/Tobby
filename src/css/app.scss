@@ -71,6 +71,9 @@
   --info-dark: #115e59;
   --info-glow: rgba(15, 118, 110, 0.16);
 
+  // Layout reserve for right-rail ad so the AI dialog doesn't overlap it
+  --ad-rail-reserve: 320px;
+
   // Status Tone Tokens (chips, badges, inline status labels)
   --status-positive-bg: #eafaf1;
   --status-positive-text: #166534;
@@ -264,6 +267,63 @@ body.body--dark {
   color: #ffffff;
   --field-title-color: #ffffff;
   --field-content-color: #ffffff;
+}
+
+// Dark mode buttons: force outline-only (no fill), regardless of unelevated/filled classes
+body.body--dark {
+  .q-btn,
+  .q-btn.unelevated,
+  .q-btn.q-btn--unelevated,
+  .q-btn.btn-filled {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .q-btn.bg-primary,
+  .q-btn[color="primary"] {
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
+  }
+
+  .q-btn.bg-secondary,
+  .q-btn[color="secondary"] {
+    color: var(--secondary-color) !important;
+    border: 1px solid var(--secondary-color) !important;
+  }
+
+  .q-btn.bg-accent,
+  .q-btn[color="accent"] {
+    color: var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
+  }
+
+  .q-btn.bg-positive,
+  .q-btn[color="positive"] {
+    color: var(--success-color) !important;
+    border: 1px solid var(--success-color) !important;
+  }
+
+  .q-btn.bg-negative,
+  .q-btn[color="negative"] {
+    color: var(--error-color) !important;
+    border: 1px solid var(--error-color) !important;
+  }
+
+  .q-btn.bg-warning,
+  .q-btn[color="warning"] {
+    color: var(--warning-color) !important;
+    border: 1px solid var(--warning-color) !important;
+  }
+
+  .q-btn.bg-info,
+  .q-btn[color="info"] {
+    color: var(--info-color) !important;
+    border: 1px solid var(--info-color) !important;
+  }
+
+  .q-btn .q-icon {
+    color: currentColor !important;
+  }
 }
 
 // Global Typography - Modern, Readable Font Stack
@@ -1605,11 +1665,11 @@ h1, h2, h3, h4, h5, h6,
   }
 }
 
-// Standardized Dialog Header - Primary Gradient
+// Standardized Dialog Header - Solid Dark (match Create Task dialog)
 .q-dialog .q-card-section:first-child,
 .q-dialog .dialog-header,
 .dialog-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+  background: #1f2937 !important;
   color: white !important;
   padding: 16px 24px !important;
   border-bottom: none !important;
@@ -1652,7 +1712,9 @@ h1, h2, h3, h4, h5, h6,
 
 // Dialog Close Button Styling
 .q-dialog .dialog-close-btn,
-.q-dialog .q-card-section:first-child .q-btn[icon="close"] {
+.q-dialog .close-btn,
+.q-dialog .q-card-section:first-child .q-btn[icon="close"],
+.q-dialog .q-card-section:first-child .q-btn[icon="close"] .q-icon {
   color: white !important;
   opacity: 0.9 !important;
   transition: var(--transition) !important;

@@ -6,7 +6,6 @@ import {
   getDoc,
   query,
   orderBy,
-  onSnapshot,
   addDoc,
   updateDoc,
   getDocs,
@@ -18,6 +17,7 @@ import {
   extractPropertyId,
   debugPropertyIdComparison,
 } from '../utils/propertyIdUtils'
+import { normalizeAccountType, normalizeRoleValue } from '../utils/roleUtils'
 
 // LocalStorage keys for data persistence
 const STORAGE_KEYS = {
@@ -62,7 +62,43 @@ export const useUserDataStore = defineStore('userData', () => {
   // Computed properties
   const userId = computed(() => user.value?.uid)
   const isAuthenticated = computed(() => !!user.value)
-  const userCategory = computed(() => userProfile.value?.user_category || null)
+  const userCategory = computed(() =>
+    normalizeAccountType(userProfile.value?.user_category || userProfile.value?.account_type || null),
+  )
+  const accountType = computed(() => normalizeAccountType(userProfile.value?.account_type || null))
+  const ownerWorkspaceOnlyFlag = computed(() => Boolean(userProfile.value?.owner_workspace_only))
+  // Migration-only compatibility for legacy PO accounts created before PO moved to
+  // property-level membership. New owner access should come from active PO roles.
+  const hasLegacyPoAccount = computed(() => {
+    const normalizedCategory = normalizeAccountType(
+      userProfile.value?.user_category || userProfile.value?.account_type || null,
+    )
+    return normalizedCategory === 'po'
+  })
+  const hasPoMembership = computed(() =>
+    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'po' && (role?.status || 'active') === 'active'),
+  )
+  const hasPmMembership = computed(() =>
+    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'pm' && (role?.status || 'active') === 'active'),
+  )
+  // Owner workspace access should be driven by PO membership; the legacy PO
+  // account fallback stays only to preserve pre-restructure users during migration.
+  const hasOwnerWorkspaceAccess = computed(() => hasPoMembership.value || hasLegacyPoAccount.value)
+  const isOwnerOnlyUser = computed(() => {
+    const normalizedAccountType = accountType.value || userCategory.value
+    return hasOwnerWorkspaceAccess.value && (
+      ownerWorkspaceOnlyFlag.value ||
+      hasLegacyPoAccount.value ||
+      !hasPmMembership.value ||
+      normalizedAccountType === 'po'
+    )
+  })
+  const isManagerCapableUser = computed(() => {
+    const normalizedAccountType = accountType.value || userCategory.value
+    if (normalizedAccountType === 'admin') return true
+    if (normalizedAccountType !== 'pm') return false
+    return !ownerWorkspaceOnlyFlag.value || hasPmMembership.value
+  })
 
   const userAccessibleProperties = computed(() => {
     console.log('=== userDataStore - Computing userAccessibleProperties ===')
@@ -265,6 +301,17 @@ export const useUserDataStore = defineStore('userData', () => {
     )
   }
 
+  const canShareProperty = (propertyId) => {
+    const normalizedSearchId = normalizePropertyId(propertyId)
+    if (!normalizedSearchId) return false
+    return userRoles.value.some((role) => {
+      const active = String(role?.status || 'active').trim().toLowerCase() === 'active'
+      const sameProperty = comparePropertyIds(role?.property_id, normalizedSearchId)
+      const normalizedRole = normalizeRoleValue(role?.role)
+      return active && sameProperty && ['pm', 'po'].includes(normalizedRole)
+    })
+  }
+
   /**
    * Save data to localStorage for persistence
    */
@@ -355,17 +402,18 @@ export const useUserDataStore = defineStore('userData', () => {
    * Handles both new logins and page refreshes
    * Prevents duplicate initialization for the same user
    */
-  const initialize = async (newUser) => {
+  const initialize = async (newUser, options = {}) => {
     if (!newUser) {
       // No user, clear everything
       clearAllData()
       return
     }
+    const { forceFresh = false } = options
 
     const previousUser = user.value
 
-    // If already initialized with the same user, skip
-    if (isInitialized.value && previousUser && previousUser.uid === newUser.uid) {
+    // If already initialized with the same user, skip unless a forced refresh was requested.
+    if (!forceFresh && isInitialized.value && previousUser && previousUser.uid === newUser.uid) {
       return
     }
 
@@ -377,19 +425,19 @@ export const useUserDataStore = defineStore('userData', () => {
     user.value = newUser
 
     // Try to load from cache first
-    const cacheLoaded = loadFromStorage(newUser.uid)
+    const cacheLoaded = !forceFresh && loadFromStorage(newUser.uid)
     
     if (cacheLoaded && userRoles.value.length > 0 && properties.value.length > 0) {
-      // Cache is valid, set up listeners to keep data fresh
+      // Cache is valid, but refresh dependent data sequentially so new roles/properties
+      // added in another flow (for example, accepting another property invite) are not missed.
       isInitialized.value = true
-      // Set up listeners without blocking
-      Promise.all([
-        loadUserProfile(),
-        loadUserRoles(),
-        loadProperties(),
-      ]).catch((error) => {
-        console.error('UserDataStore - Error setting up listeners:', error)
-      })
+      await loadUserProfile()
+      await loadUserRoles()
+      await loadProperties()
+      await loadMxRecords()
+      await loadTransactions()
+      await loadLeases()
+      saveToStorage()
     } else {
       // No cache or cache invalid, load fresh data
       isInitialized.value = false
@@ -551,31 +599,23 @@ export const useUserDataStore = defineStore('userData', () => {
         collection(db, 'users', user.value.uid, 'roles'),
         orderBy('role_date', 'desc'),
       )
-
-      unsubscribeUserRoles.value = onSnapshot(
-        userRolesQuery,
-        (snapshot) => {
-          console.log(
-            'UserDataStore - User roles snapshot received with',
-            snapshot.docs.length,
-            'roles',
-          )
-
-          userRoles.value = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-
-          console.log('UserDataStore - User roles loaded:', userRoles.value)
-          userRolesLoading.value = false
-        },
-        (error) => {
-          console.error('UserDataStore - Error loading user roles:', error)
-          // If there's an error, try to set empty array to prevent blocking
-          userRoles.value = []
-          userRolesLoading.value = false
-        },
+      const snapshot = await getDocs(userRolesQuery)
+      console.log(
+        'UserDataStore - User roles snapshot received with',
+        snapshot.docs.length,
+        'roles',
       )
+      userRoles.value = snapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          role: normalizeRoleValue(data?.role) || data?.role || null,
+        }
+      })
+      console.log('UserDataStore - User roles loaded:', userRoles.value)
+      unsubscribeUserRoles.value = null
+      userRolesLoading.value = false
     } catch (error) {
       console.error('UserDataStore - Error setting up user roles listener:', error)
       // If there's an error, try to set empty array to prevent blocking
@@ -585,7 +625,12 @@ export const useUserDataStore = defineStore('userData', () => {
   }
 
   const loadProperties = async () => {
-    if (!user.value || userRoles.value.length === 0) return
+    if (!user.value) return
+    if (userRoles.value.length === 0) {
+      properties.value = []
+      propertiesLoading.value = false
+      return
+    }
 
     try {
       propertiesLoading.value = true
@@ -601,51 +646,31 @@ export const useUserDataStore = defineStore('userData', () => {
         return
       }
 
-      // Set up individual property listeners
-      const unsubscribes = accessiblePropertyIds.map((propertyId) => {
-        console.log(`UserDataStore - Setting up listener for property ${propertyId}`)
-
-        return onSnapshot(
-          doc(db, 'properties', propertyId),
-          (docSnapshot) => {
-            if (docSnapshot.exists()) {
-              const propertyData = {
-                id: docSnapshot.id,
-                ...docSnapshot.data(),
-              }
-              console.log('UserDataStore - Property loaded:', propertyData)
-
-              // Update properties array
-              const existingIndex = properties.value.findIndex((p) => p.id === propertyId)
-              if (existingIndex >= 0) {
-                properties.value[existingIndex] = propertyData
-              } else {
-                properties.value.push(propertyData)
-              }
-
-              // Sort by nickname
-              properties.value.sort((a, b) => {
-                const nicknameA = (a.nickname || '').toLowerCase()
-                const nicknameB = (b.nickname || '').toLowerCase()
-                return nicknameA.localeCompare(nicknameB)
-              })
-            } else {
-              console.log(`UserDataStore - Property ${propertyId} no longer exists`)
-              // Remove from properties array
-              properties.value = properties.value.filter((p) => p.id !== propertyId)
+      const propertyDocs = await Promise.all(
+        accessiblePropertyIds.map(async (propertyId) => {
+          console.log(`UserDataStore - Loading property ${propertyId}`)
+          try {
+            const snap = await getDoc(doc(db, 'properties', propertyId))
+            if (!snap.exists()) return null
+            return {
+              id: snap.id,
+              ...snap.data(),
             }
-
-            propertiesLoading.value = false
-          },
-          (error) => {
+          } catch (error) {
             console.error(`UserDataStore - Error loading property ${propertyId}:`, error)
-          },
-        )
-      })
+            return null
+          }
+        })
+      )
 
-      unsubscribeProperties.value = () => {
-        unsubscribes.forEach((unsubscribe) => unsubscribe())
-      }
+      properties.value = propertyDocs.filter(Boolean)
+      properties.value.sort((a, b) => {
+        const nicknameA = (a.nickname || '').toLowerCase()
+        const nicknameB = (b.nickname || '').toLowerCase()
+        return nicknameA.localeCompare(nicknameB)
+      })
+      unsubscribeProperties.value = null
+      propertiesLoading.value = false
     } catch (error) {
       console.error('UserDataStore - Error setting up properties listener:', error)
       propertiesLoading.value = false
@@ -661,6 +686,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       if (userRoles.value.length === 0 || properties.value.length === 0) {
         console.log('UserDataStore - Waiting for user roles and properties to load first...')
+        mxRecords.value = []
         mxRecordsLoading.value = false
         return
       }
@@ -681,25 +707,21 @@ export const useUserDataStore = defineStore('userData', () => {
         accessiblePropertyIds,
       )
 
-      const unsubscribes = accessiblePropertyIds.map((propertyId) => {
-        console.log(
-          `UserDataStore - Setting up listener for property ${propertyId} mxrecords subcollection`,
-        )
-        console.log(`UserDataStore - Full collection path: properties/${propertyId}/mxrecords`)
-
-        // Start with a simple query without orderBy to avoid potential issues
-        const mxRecordsQuery = collection(db, 'properties', propertyId, 'mxrecords')
-
-        return onSnapshot(
-          mxRecordsQuery,
-          (snapshot) => {
+      const mxGroups = await Promise.all(
+        accessiblePropertyIds.map(async (propertyId) => {
+          console.log(
+            `UserDataStore - Loading property ${propertyId} mxrecords subcollection`,
+          )
+          console.log(`UserDataStore - Full collection path: properties/${propertyId}/mxrecords`)
+          try {
+            const mxRecordsQuery = collection(db, 'properties', propertyId, 'mxrecords')
+            const snapshot = await getDocs(mxRecordsQuery)
             console.log(
               `UserDataStore - Property ${propertyId} mxrecords snapshot received with`,
               snapshot.docs.length,
               'tasks',
             )
-
-            const newMxRecords = snapshot.docs.map((doc) => {
+            return snapshot.docs.map((doc) => {
               const data = {
                 id: doc.id,
                 ...doc.data(),
@@ -707,37 +729,22 @@ export const useUserDataStore = defineStore('userData', () => {
               console.log('UserDataStore - Task loaded for property', propertyId, ':', data)
               return data
             })
-
-            // Update the main mxRecords array by combining all property results
-            // Remove old records for this property and add new ones
-            mxRecords.value = mxRecords.value.filter((record) => record.property_id !== propertyId)
-            mxRecords.value.push(...newMxRecords)
-
-            // Sort by creation date (newest first) after loading
-            mxRecords.value.sort((a, b) => {
-              const dateA = a.createAt?.toDate?.() || new Date(a.createAt)
-              const dateB = b.createAt?.toDate?.() || new Date(b.createAt)
-              return dateB - dateA
-            })
-
-            console.log(
-              'UserDataStore - Total tasks after property',
-              propertyId,
-              ':',
-              mxRecords.value.length,
-            )
-            mxRecordsLoading.value = false
-          },
-          (error) => {
+          } catch (error) {
             console.error(`UserDataStore - Error loading tasks for property ${propertyId}:`, error)
-            mxRecordsLoading.value = false
-          },
-        )
-      })
+            return []
+          }
+        })
+      )
 
-      unsubscribeMxRecords.value = () => {
-        unsubscribes.forEach((unsubscribe) => unsubscribe())
-      }
+      mxRecords.value = mxGroups.flat()
+      mxRecords.value.sort((a, b) => {
+        const dateA = a.createAt?.toDate?.() || new Date(a.createAt)
+        const dateB = b.createAt?.toDate?.() || new Date(b.createAt)
+        return dateB - dateA
+      })
+      console.log('UserDataStore - Total tasks loaded:', mxRecords.value.length)
+      unsubscribeMxRecords.value = null
+      mxRecordsLoading.value = false
     } catch (error) {
       console.error('UserDataStore - Error setting up tasks listener:', error)
       mxRecordsLoading.value = false
@@ -751,6 +758,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       if (userRoles.value.length === 0 || properties.value.length === 0) {
         console.log('UserDataStore - Waiting for user roles and properties to load first...')
+        transactions.value = []
         transactionsLoading.value = false
         return
       }
@@ -770,26 +778,23 @@ export const useUserDataStore = defineStore('userData', () => {
 
       transactions.value = [] // Clear existing transactions
 
-      const unsubscribes = accessiblePropertyIds.map((propertyId) => {
-        console.log(
-          `UserDataStore - Setting up listener for property ${propertyId} transactions subcollection`,
-        )
-
-        const transactionsQuery = query(
-          collection(db, 'properties', propertyId, 'transactions'),
-          orderBy('created_datetime', 'desc'),
-        )
-
-        return onSnapshot(
-          transactionsQuery,
-          (snapshot) => {
+      const transactionGroups = await Promise.all(
+        accessiblePropertyIds.map(async (propertyId) => {
+          console.log(
+            `UserDataStore - Loading property ${propertyId} transactions subcollection`,
+          )
+          try {
+            const transactionsQuery = query(
+              collection(db, 'properties', propertyId, 'transactions'),
+              orderBy('created_datetime', 'desc'),
+            )
+            const snapshot = await getDocs(transactionsQuery)
             console.log(
               `UserDataStore - Property ${propertyId} transactions snapshot received with`,
               snapshot.docs.length,
               'transactions',
             )
-
-            const newTransactions = snapshot.docs.map((doc) => {
+            return snapshot.docs.map((doc) => {
               const data = {
                 id: doc.id,
                 ...doc.data(),
@@ -797,41 +802,25 @@ export const useUserDataStore = defineStore('userData', () => {
               console.log('UserDataStore - Transaction loaded for property', propertyId, ':', data)
               return data
             })
-
-            // Update the main transactions array by combining all property results
-            // Remove old transactions for this property and add new ones
-            transactions.value = transactions.value.filter(
-              (transaction) => transaction.property_id !== propertyId,
-            )
-            transactions.value.push(...newTransactions)
-
-            // Sort by creation date (newest first)
-            transactions.value.sort((a, b) => {
-              const dateA = a.created_datetime?.toDate?.() || new Date(a.created_datetime)
-              const dateB = b.created_datetime?.toDate?.() || new Date(b.created_datetime)
-              return dateB - dateA
-            })
-
-            console.log(
-              'UserDataStore - Total transactions after property',
-              propertyId,
-              ':',
-              transactions.value.length,
-            )
-            transactionsLoading.value = false
-          },
-          (error) => {
+          } catch (error) {
             console.error(
               `UserDataStore - Error loading transactions for property ${propertyId}:`,
               error,
             )
-          },
-        )
-      })
+            return []
+          }
+        })
+      )
 
-      unsubscribeTransactions.value = () => {
-        unsubscribes.forEach((unsubscribe) => unsubscribe())
-      }
+      transactions.value = transactionGroups.flat()
+      transactions.value.sort((a, b) => {
+        const dateA = a.created_datetime?.toDate?.() || new Date(a.created_datetime)
+        const dateB = b.created_datetime?.toDate?.() || new Date(b.created_datetime)
+        return dateB - dateA
+      })
+      console.log('UserDataStore - Total transactions loaded:', transactions.value.length)
+      unsubscribeTransactions.value = null
+      transactionsLoading.value = false
     } catch (error) {
       console.error('UserDataStore - Error setting up transactions listener:', error)
       transactionsLoading.value = false
@@ -847,6 +836,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       if (userRoles.value.length === 0 || properties.value.length === 0) {
         console.log('UserDataStore - Waiting for user roles and properties to load first...')
+        leases.value = []
         leasesLoading.value = false
         return
       }
@@ -854,63 +844,49 @@ export const useUserDataStore = defineStore('userData', () => {
       // Clear existing leases
       leases.value = []
 
-      // Set up listener for main leases collection
+      // Load main leases collection
       const leasesQuery = query(collection(db, 'leases'), orderBy('created_datetime', 'desc'))
-      console.log('UserDataStore - Setting up leases listener for collection: leases')
+      console.log('UserDataStore - Loading leases collection: leases')
+      const snapshot = await getDocs(leasesQuery)
+      console.log('=== UserDataStore - Leases snapshot received ===')
+      console.log('UserDataStore - Total leases in snapshot:', snapshot.docs.length)
 
-      unsubscribeLeases.value = onSnapshot(
-        leasesQuery,
-        (snapshot) => {
-          console.log('=== UserDataStore - Leases snapshot received ===')
-          console.log('UserDataStore - Total leases in snapshot:', snapshot.docs.length)
+      snapshot.docs.forEach((doc, index) => {
+        const data = doc.data()
+        const leasePropertyId = data.property?.id || data.property_id?.id || data.property_id
+        console.log(`Lease ${index}:`, {
+          id: doc.id,
+          property: data.property,
+          property_id: data.property_id,
+          property_id_extracted: leasePropertyId,
+          status: data.status,
+          rate_amount: data.rate_amount,
+          created_datetime: data.created_datetime,
+        })
+      })
 
-          // Log each lease document for debugging
-          snapshot.docs.forEach((doc, index) => {
-            const data = doc.data()
-            // Handle new property structure: data.property.id or fallback to old structure
-            const leasePropertyId = data.property?.id || data.property_id?.id || data.property_id
-            console.log(`Lease ${index}:`, {
-              id: doc.id,
-              property: data.property,
-              property_id: data.property_id, // Keep for backward compatibility
-              property_id_extracted: leasePropertyId,
-              status: data.status,
-              rate_amount: data.rate_amount,
-              created_datetime: data.created_datetime,
-            })
-          })
+      const allLeases = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
 
-          // Load all leases without filtering - computed property will handle filtering
-          const allLeases = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
+      console.log('UserDataStore - All leases loaded:', allLeases.length)
+      console.log('UserDataStore - Sample lease data:', allLeases[0] || 'No leases')
 
-          console.log('UserDataStore - All leases loaded:', allLeases.length)
-          console.log('UserDataStore - Sample lease data:', allLeases[0] || 'No leases')
+      leases.value = allLeases
+      leases.value.sort((a, b) => {
+        const dateA = a.created_datetime?.toDate?.() || new Date(a.created_datetime)
+        const dateB = b.created_datetime?.toDate?.() || new Date(b.created_datetime)
+        return dateB - dateA
+      })
 
-          // Update the leases array
-          leases.value = allLeases
-
-          // Sort by creation date (newest first)
-          leases.value.sort((a, b) => {
-            const dateA = a.created_datetime?.toDate?.() || new Date(a.created_datetime)
-            const dateB = b.created_datetime?.toDate?.() || new Date(b.created_datetime)
-            return dateB - dateA
-          })
-
-          console.log('UserDataStore - Total leases loaded and sorted:', leases.value.length)
-          console.log(
-            'UserDataStore - Current accessible properties count:',
-            userAccessibleProperties.value.length,
-          )
-          leasesLoading.value = false
-        },
-        (error) => {
-          console.error('UserDataStore - Error loading leases:', error)
-          leasesLoading.value = false
-        },
+      console.log('UserDataStore - Total leases loaded and sorted:', leases.value.length)
+      console.log(
+        'UserDataStore - Current accessible properties count:',
+        userAccessibleProperties.value.length,
       )
+      unsubscribeLeases.value = null
+      leasesLoading.value = false
     } catch (error) {
       console.error('UserDataStore - Error setting up leases listener:', error)
       leasesLoading.value = false
@@ -1004,7 +980,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
   // Note: Property ID utilities are now imported from ../utils/propertyIdUtils.js
 
-  const getUserRoleForProperty = (propertyId) => {
+  const getUserRolesForProperty = (propertyId) => {
     console.log('=== getUserRoleForProperty - Universal Strategy ===')
     console.log('Step 1: Retrieving all roles of current user')
     console.log('All user roles:', userRoles.value)
@@ -1021,7 +997,7 @@ export const useUserDataStore = defineStore('userData', () => {
     console.log('Normalized search ID:', normalizedSearchId)
 
     // Search through all user roles to find matching property_id
-    const matchingRole = userRoles.value.find((role) => {
+    const matchingRoles = userRoles.value.filter((role) => {
       const rolePropertyId = extractPropertyId(role.property_id)
       const isMatch = comparePropertyIds(rolePropertyId, propertyId) // Use original propertyId, not normalized
 
@@ -1037,10 +1013,10 @@ export const useUserDataStore = defineStore('userData', () => {
       return isMatch
     })
 
-    console.log('Step 3: Return matching role')
-    if (matchingRole) {
-      console.log('✅ Found matching role:', matchingRole.role)
-      return matchingRole
+    console.log('Step 3: Return matching roles')
+    if (matchingRoles.length) {
+      console.log('✅ Found matching roles:', matchingRoles.map((role) => role.role))
+      return matchingRoles
     } else {
       console.log('❌ No matching role found for property ID:', propertyId)
       console.log(
@@ -1056,6 +1032,42 @@ export const useUserDataStore = defineStore('userData', () => {
       debugPropertyIdComparison(propertyId, 'Available roles', 'getUserRoleForProperty')
       return null
     }
+  }
+
+  const getUserRoleForProperty = (propertyId) => {
+    const rolesForProperty = getUserRolesForProperty(propertyId) || []
+    if (!rolesForProperty.length) return null
+    const prioritizedRoles = [...rolesForProperty].sort((left, right) => {
+      const leftRole = normalizeRoleValue(left?.role)
+      const rightRole = normalizeRoleValue(right?.role)
+      if (leftRole === rightRole) return 0
+      if (leftRole === 'pm') return -1
+      if (rightRole === 'pm') return 1
+      return 0
+    })
+    return prioritizedRoles[0]
+  }
+
+  const activePropertyRole = computed(() => {
+    const activeId = userProfile.value?.active_property_id
+    if (activeId) {
+      return getUserRoleForProperty(activeId)
+    }
+    return userRoles.value[0] || null
+  })
+
+  const activePropertyRoleName = computed(() =>
+    normalizeRoleValue(activePropertyRole.value?.role) || null,
+  )
+  const isActiveRolePo = computed(() => activePropertyRoleName.value === 'po')
+  const isActiveRolePm = computed(() => activePropertyRoleName.value === 'pm')
+
+  const canManageProperty = (propertyId) =>
+    (getUserRolesForProperty(propertyId) || []).some((role) => normalizeRoleValue(role?.role) === 'pm')
+
+  const canCreateTransactionsForProperty = (propertyId) => {
+    const role = normalizeRoleValue(getUserRoleForProperty(propertyId)?.role)
+    return role === 'pm' || role === 'po'
   }
 
   const addMxRecord = (mxRecordData) => {
@@ -1133,6 +1145,7 @@ export const useUserDataStore = defineStore('userData', () => {
     userId,
     isAuthenticated,
     userCategory,
+    accountType,
     userAccessibleProperties,
     userAccessibleMxRecords,
     userAccessibleTransactions,
@@ -1159,7 +1172,22 @@ export const useUserDataStore = defineStore('userData', () => {
     getPropertyById,
     getPropertyName,
     hasPropertyAccess,
+    canShareProperty,
     getUserRoleForProperty,
+    getUserRolesForProperty,
+    activePropertyRole,
+    activePropertyRoleName,
+    isActiveRolePo,
+    isActiveRolePm,
+    ownerWorkspaceOnlyFlag,
+    hasLegacyPoAccount,
+    hasPoMembership,
+    hasPmMembership,
+    hasOwnerWorkspaceAccess,
+    isOwnerOnlyUser,
+    isManagerCapableUser,
+    canManageProperty,
+    canCreateTransactionsForProperty,
     addMxRecord,
     checkLeasesCollection,
   }

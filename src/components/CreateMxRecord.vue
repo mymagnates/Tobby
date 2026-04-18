@@ -2,19 +2,43 @@
   <div class="create-mxrecord animate-fade-in">
     <q-card class="elevated">
       <q-card-section class="q-pa-md composer-head">
-        <div class="text-h6 text-weight-bold text-primary q-mb-sm">
-          <q-icon name="dns" class="q-mr-sm" />
-          Create New Task
+        <div class="row items-start justify-between q-col-gutter-sm">
+          <div class="col">
+            <div class="text-h6 text-weight-bold text-primary q-mb-sm">
+              <q-icon name="dns" class="q-mr-sm" />
+              Create New Task
+            </div>
+          </div>
+          <div class="col-auto row items-center q-gutter-sm">
+            <q-btn
+              unelevated
+              color="primary"
+              text-color="white"
+              label="Cancel"
+              class="top-action-btn"
+              @click="handleCancel"
+            />
+            <q-btn
+              type="submit"
+              form="create-mxrecord-form"
+              class="top-action-btn"
+              color="primary"
+              text-color="white"
+              :loading="loading"
+              label="Save"
+              unelevated
+            />
+          </div>
         </div>
         <div class="text-caption text-grey-7 q-mb-sm">
           Capture task details and optional evidence photos in one step.
         </div>
-        <div v-if="hasMatchedFixedProperty" class="text-caption text-grey-6 q-mb-xs">
+        <div v-if="hasMatchedFixedProperty && !showPropertySelect" class="text-caption text-grey-6 q-mb-xs">
           Property: {{ resolvedFixedPropertyName }}
         </div>
         <div v-else class="section-label q-mb-xs">Property Context</div>
         <q-select
-          v-if="!hasMatchedFixedProperty"
+          v-if="showPropertySelect"
           v-model="selectedPropertyId"
           :options="propertyOptions"
           option-label="label"
@@ -34,7 +58,7 @@
             <q-icon name="home" color="primary" />
           </template>
         </q-select>
-        <div v-if="!hasMatchedFixedProperty" class="text-caption text-grey-6 q-mb-xs">
+        <div v-if="showPropertySelect" class="text-caption text-grey-6 q-mb-xs">
           <div v-if="fixedPropertyId && !hasMatchedFixedProperty" class="text-warning q-mb-xs">
             Fixed property context is invalid, please choose from your accessible properties.
           </div>
@@ -46,7 +70,7 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form @submit="onSubmit" class="q-gutter-sm">
+        <q-form id="create-mxrecord-form" @submit="onSubmit" class="q-gutter-sm">
           <div class="section-label q-mb-xs">Task Details</div>
           <div class="row q-gutter-sm">
             <q-input
@@ -157,21 +181,6 @@
             </div>
           </div>
 
-          <div class="row q-mt-sm">
-            <q-btn
-              type="submit"
-              color="primary"
-              :loading="loading"
-              label="Create Task"
-              class="col-12 col-md-6"
-              size="md"
-              unelevated
-            >
-              <template v-slot:prepend>
-                <q-icon name="add" />
-              </template>
-            </q-btn>
-          </div>
         </q-form>
       </q-card-section>
     </q-card>
@@ -193,6 +202,14 @@ const props = defineProps({
   propertyName: {
     type: String,
     default: '',
+  },
+  prefill: {
+    type: Object,
+    default: null,
+  },
+  allowPropertyEdit: {
+    type: Boolean,
+    default: true,
   },
 })
 
@@ -226,6 +243,7 @@ const matchedFixedProperty = computed(() =>
   ) || null,
 )
 const hasMatchedFixedProperty = computed(() => Boolean(matchedFixedProperty.value))
+const showPropertySelect = computed(() => props.allowPropertyEdit || !hasMatchedFixedProperty.value)
 const resolvedFixedPropertyName = computed(() =>
   matchedFixedProperty.value
     ? matchedFixedProperty.value.nickname ||
@@ -309,6 +327,26 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => props.prefill,
+  (value) => {
+    if (!value) return
+    if (typeof value.description === 'string') {
+      mxRecordData.description = value.description
+    }
+    if (typeof value.status === 'string') {
+      mxRecordData.status = value.status
+    }
+    if (typeof value.report_date === 'string') {
+      mxRecordData.report_date = value.report_date
+    }
+    if (value.property_id) {
+      selectedPropertyId.value = String(value.property_id)
+    }
+  },
+  { immediate: true },
+)
+
 const onSubmit = async () => {
   loading.value = true
   try {
@@ -385,6 +423,15 @@ const onSubmit = async () => {
       reported_by: userDataStore.user?.displayName || userDataStore.user?.email || 'Unknown User',
       reported_role: userDataStore.getUserRoleForProperty(finalPropertyId)?.role || 'Unknown Role',
       image_urls: imageUrls, // Add the uploaded image URLs array
+      sp_published: false,
+      sp_publish_status: 'draft',
+      sp_publish_source: null,
+      sp_publish_includes_comments: false,
+      sp_published_at: null,
+      sp_published_by: null,
+      sp_published_by_role: null,
+      sp_publish_count: 0,
+      sp_lead_id: null,
       updatedAt: currentTimestamp,
     }
 
@@ -417,8 +464,9 @@ const onSubmit = async () => {
     // Reset image upload fields
     removeAllImages()
 
-    // Navigate back to tasks page
-    router.push('/mx-records')
+    if (String(route.path || '').startsWith('/create-mxrecord')) {
+      router.push('/mx-records')
+    }
   } catch (error) {
     console.error('=== Task Creation Failed ===')
     console.error('Error creating task:', error)
@@ -436,12 +484,24 @@ const onSubmit = async () => {
     loading.value = false
   }
 }
+
+const handleCancel = () => {
+  emit('cancel')
+  if (String(route.path || '').startsWith('/create-mxrecord')) {
+    router.back()
+  }
+}
 </script>
 
 <style scoped>
 .create-mxrecord {
-  max-width: 760px;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.top-action-btn {
+  min-width: 112px;
+  height: 36px;
 }
 
 .elevated {
@@ -451,6 +511,24 @@ const onSubmit = async () => {
 
 .composer-head {
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+:global(body.body--dark) .q-card__section.composer-head {
+  background: linear-gradient(180deg, #243447 0%, #1b2635 100%) !important;
+}
+
+:global(body.body--dark) .create-mxrecord .elevated,
+:global(body.body--dark) .create-mxrecord .q-card__section:not(.composer-head) {
+  background: #15202b !important;
+  border-color: #2d3f52;
+  color: #e6edf3;
+}
+
+:global(body.body--dark) .create-mxrecord .bg-grey-1,
+:global(body.body--dark) .create-mxrecord .q-field__control,
+:global(body.body--dark) .create-mxrecord .picture-upload-section {
+  background: #223041 !important;
+  border-color: #35506a;
 }
 
 .section-label {

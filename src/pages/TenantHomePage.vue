@@ -37,18 +37,27 @@
 
     <!-- 3-column Feed Layout -->
     <div v-else class="feed-shell">
-      <!-- Left Rail: Lease Info -->
+      <!-- Left Rail: User + Lease Info -->
       <aside class="feed-reminders">
         <q-card class="rail-card">
           <q-card-section class="q-pa-sm">
-            <div class="rail-title">My Lease</div>
+            <div class="section-header">
+              <div class="rail-title">My Lease</div>
+              <q-btn
+                flat
+                dense
+                round
+                :icon="isLeaseExpanded ? 'expand_less' : 'expand_more'"
+                @click="isLeaseExpanded = !isLeaseExpanded"
+              />
+            </div>
 
             <div v-if="!currentLease" class="lease-empty">
               <q-icon name="info" size="32px" color="grey-4" />
               <div class="lease-empty-text">No active lease</div>
             </div>
 
-            <div v-else class="lease-info-list">
+            <div v-else-if="isLeaseExpanded" class="lease-info-list">
               <div class="lease-info-item">
                 <q-icon name="home" size="16px" color="primary" class="q-mr-xs" />
                 <div class="lease-info-detail">
@@ -95,7 +104,7 @@
                 <q-icon name="calendar_today" size="16px" color="grey-7" class="q-mr-xs" />
                 <div class="lease-info-detail">
                   <div class="lease-info-label">Start</div>
-                  <div class="lease-info-value">{{ formatDate(currentLease.lease_start_date) }}</div>
+                  <div class="lease-info-value">{{ formatDate(currentLease.lease_start_date || currentLease.start_date || currentLease.move_in_date) }}</div>
                 </div>
               </div>
               <div class="lease-info-item">
@@ -103,6 +112,35 @@
                 <div class="lease-info-detail">
                   <div class="lease-info-label">End</div>
                   <div class="lease-info-value">{{ formatDate(currentLease.lease_end_date) }}</div>
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <q-card class="rail-card q-mt-sm">
+          <q-card-section class="q-pa-sm">
+            <div class="section-header">
+              <div class="rail-title">Lease Tenants</div>
+            </div>
+            <div v-if="leaseTenantsLoading" class="text-center q-py-sm">
+              <q-spinner-dots size="24px" color="primary" />
+            </div>
+            <div v-else-if="!leaseTenantsList.length" class="lease-empty">
+              <q-icon name="groups" size="28px" color="grey-4" />
+              <div class="lease-empty-text">No tenant records</div>
+            </div>
+            <div v-else class="doc-list">
+              <div
+                v-for="tenant in leaseTenantsList"
+                :key="tenant.id"
+                class="doc-item"
+                @click="openLeaseTenantDialog(tenant)"
+              >
+                <q-icon name="person" size="16px" color="grey-7" class="q-mr-xs" />
+                <div class="doc-item-info">
+                  <div class="doc-item-name">{{ tenant.name }}</div>
+                  <div class="doc-item-meta">{{ tenant.email }} · {{ tenant.phone }}</div>
                 </div>
               </div>
             </div>
@@ -195,7 +233,17 @@
         <q-card class="create-new-card q-mb-md">
           <q-card-section class="create-new-section">
             <div class="create-new-actions">
-              <q-btn flat dense no-caps icon="add_task" label="New Task" @click="showCreateTaskDialog = true" />
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                icon="add_task"
+                label="New Task"
+                color="primary"
+                text-color="white"
+                class="create-action-btn"
+                @click="showCreateTaskDialog = true"
+              />
               <q-btn flat dense no-caps icon="upload_file" label="Upload" @click="showUploadDialog = true" />
 
               <div class="feed-sort-group">
@@ -381,15 +429,6 @@
         </div>
       </div>
 
-      <!-- Right Rail: Ad Slot -->
-      <aside class="feed-rail">
-        <q-card class="rail-card">
-          <q-card-section class="q-pa-sm">
-            <div class="rail-title q-mb-sm">Ad Slot</div>
-            <div class="ad-placeholder">Reserved for future ad placement</div>
-          </q-card-section>
-        </q-card>
-      </aside>
     </div>
 
     <!-- Upload Document Dialog -->
@@ -476,15 +515,185 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showLeaseTenantDialog">
+      <q-card class="lease-tenant-detail-dialog">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Tenant Detail</div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-separator class="q-mt-sm" />
+        <q-card-section v-if="leaseTenantDialogLoading" class="text-center q-py-lg">
+          <q-spinner-dots size="28px" color="primary" />
+        </q-card-section>
+        <q-card-section v-else class="tenant-detail-content q-gutter-md">
+          <q-card flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Personal Information</q-card-section>
+            <q-separator />
+            <q-card-section class="row q-col-gutter-md">
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="selectedLeaseTenantName" label="Name" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input
+                  :model-value="displayTenantValue(selectedLeaseTenantData.personal_info?.marital_status)"
+                  label="Marital Status"
+                  outlined
+                  dense
+                  readonly
+                />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input v-model="leaseTenantForm.email" label="Email" outlined dense />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input v-model="leaseTenantForm.phone" label="Phone" outlined dense />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="formatDate(selectedLeaseTenantData.personal_info?.date_of_birth)" label="Date of Birth" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.personal_info?.gender)" label="Gender" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="maskSensitiveSsn(selectedLeaseTenantData.personal_info?.ssn)" label="SSN" outlined dense readonly />
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Address</q-card-section>
+            <q-separator />
+            <q-card-section class="row q-col-gutter-md">
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.street)" label="Street" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.city)" label="City" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.state)" label="State" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.zipCode)" label="ZIP" outlined dense readonly />
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.employment" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Employment</q-card-section>
+            <q-separator />
+            <q-card-section class="row q-col-gutter-md">
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.employer_name)" label="Employer" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.position)" label="Position" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.monthly_income)" label="Monthly Income" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.years_employed)" label="Years Employed" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.employer_phone)" label="Employer Phone" outlined dense readonly />
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.emergency_contact" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Emergency Contact</q-card-section>
+            <q-separator />
+            <q-card-section class="row q-col-gutter-md">
+              <div class="col-12 col-sm-4">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.name)" label="Name" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-4">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.relationship)" label="Relationship" outlined dense readonly />
+              </div>
+              <div class="col-12 col-sm-4">
+                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.phone)" label="Phone" outlined dense readonly />
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.vehicles?.length" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Vehicles ({{ selectedLeaseTenantData.vehicles.length }})</q-card-section>
+            <q-separator />
+            <q-list dense>
+              <q-item v-for="(vehicle, idx) in selectedLeaseTenantData.vehicles" :key="`vehicle-${idx}`">
+                <q-item-section>
+                  <q-item-label>{{ [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'Vehicle' }}</q-item-label>
+                  <q-item-label caption>{{ displayTenantValue(vehicle.license_plate || vehicle.plate || vehicle.color) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.pets?.length" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Pets ({{ selectedLeaseTenantData.pets.length }})</q-card-section>
+            <q-separator />
+            <q-list dense>
+              <q-item v-for="(pet, idx) in selectedLeaseTenantData.pets" :key="`pet-${idx}`">
+                <q-item-section>
+                  <q-item-label>{{ pet.type || pet.name || 'Pet' }}</q-item-label>
+                  <q-item-label caption>{{ displayTenantValue([pet.breed, pet.weight].filter(Boolean).join(' · ')) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.co_applicants?.length" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Additional Occupants ({{ selectedLeaseTenantData.co_applicants.length }})</q-card-section>
+            <q-separator />
+            <q-list dense>
+              <q-item v-for="(occupant, idx) in selectedLeaseTenantData.co_applicants" :key="`occupant-${idx}`">
+                <q-item-section>
+                  <q-item-label>{{ occupant.name || [occupant.first_name, occupant.last_name].filter(Boolean).join(' ') || 'Occupant' }}</q-item-label>
+                  <q-item-label caption>{{ displayTenantValue(occupant.relationship || occupant.email || occupant.phone) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+
+          <q-card v-if="selectedLeaseTenantData.notes" flat bordered>
+            <q-card-section class="text-subtitle2 text-weight-medium">Notes</q-card-section>
+            <q-separator />
+            <q-card-section class="text-body2">{{ selectedLeaseTenantData.notes }}</q-card-section>
+          </q-card>
+        </q-card-section>
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Save"
+            :loading="savingLeaseTenant"
+            @click="saveLeaseTenantContact"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db } from '../boot/firebase'
 import { storage } from '../boot/firebase'
@@ -496,6 +705,18 @@ const currentLease = ref(null)
 const transactions = ref([])
 const tasks = ref([])
 const pastLeases = ref([])
+const isLeaseExpanded = ref(true)
+const leaseTenantsList = ref([])
+const leaseTenantsLoading = ref(false)
+const showLeaseTenantDialog = ref(false)
+const selectedLeaseTenant = ref(null)
+const selectedLeaseTenantDetails = ref(null)
+const leaseTenantDialogLoading = ref(false)
+const savingLeaseTenant = ref(false)
+const leaseTenantForm = ref({
+  email: '',
+  phone: '',
+})
 
 // Upload dialog
 const showUploadDialog = ref(false)
@@ -523,6 +744,7 @@ const leaseLoading = ref(true)
 const transactionsLoading = ref(true)
 const tasksLoading = ref(true)
 const pastLeasesLoading = ref(true)
+const leaseLinkRepairing = ref(false)
 
 const loadingStep = computed(() => {
   if (!userDataStore.isAuthenticated) return 0
@@ -539,6 +761,15 @@ const dataLoaded = computed(() => {
 })
 
 // Helpers
+const pickFirstNonEmpty = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue
+    const text = String(value).trim()
+    if (text) return text
+  }
+  return ''
+}
+
 const formatDate = (date) => {
   if (!date) return 'N/A'
   try {
@@ -580,9 +811,36 @@ const leasePropertyName = computed(() => {
   return p?.nickname || p?.displayName || p?.address || 'My Property'
 })
 
+const selectedLeaseTenantData = computed(() => selectedLeaseTenantDetails.value || selectedLeaseTenant.value?.raw || {})
+
+const selectedLeaseTenantName = computed(() => {
+  const personalInfo = selectedLeaseTenantData.value?.personal_info || {}
+  return pickFirstNonEmpty(
+    personalInfo.full_name,
+    [personalInfo.first_name, personalInfo.middle_name, personalInfo.last_name].filter(Boolean).join(' '),
+    selectedLeaseTenant.value?.name,
+    selectedLeaseTenantData.value?.full_name,
+    selectedLeaseTenantData.value?.email,
+    'Tenant',
+  )
+})
+
 const leaseRemainingDays = computed(() => {
   if (!currentLease.value) return '—'
-  const endDate = currentLease.value.lease_end_date
+
+  const moveInRaw = currentLease.value.lease_start_date || currentLease.value.start_date
+  const leaseTermMonths = Number(currentLease.value.lease_term || 0)
+  const moveInDate = moveInRaw?.toDate ? moveInRaw.toDate() : new Date(moveInRaw)
+  if (!isNaN(moveInDate.getTime()) && leaseTermMonths > 0) {
+    const renewalDate = new Date(moveInDate)
+    renewalDate.setMonth(renewalDate.getMonth() + leaseTermMonths)
+    const now = new Date()
+    const diffMs = renewalDate.getTime() - now.getTime()
+    const days = Math.ceil(diffMs / (24 * 60 * 60 * 1000))
+    return days > 0 ? days : 0
+  }
+
+  const endDate = currentLease.value.lease_end_date || currentLease.value.end_date
   if (!endDate) return '—'
   const end = endDate?.toDate ? endDate.toDate() : new Date(endDate)
   if (isNaN(end.getTime())) return '—'
@@ -598,6 +856,19 @@ const docIcon = (contentType) => {
   if (contentType.includes('image')) return 'image'
   if (contentType.includes('word') || contentType.includes('doc')) return 'description'
   return 'insert_drive_file'
+}
+
+const maskSensitiveSsn = (ssn) => {
+  const raw = String(ssn || '').trim()
+  if (!raw) return 'N/A'
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 4) return '***'
+  return `***-**-${digits.slice(-4)}`
+}
+
+const displayTenantValue = (value) => {
+  const text = pickFirstNonEmpty(value)
+  return text || 'N/A'
 }
 
 const openDocument = (doc) => {
@@ -689,7 +960,7 @@ const documentFeedItems = computed(() =>
     avatarColor: 'purple-2',
     avatarIcon: docIcon(doc.content_type),
     title: doc.name || 'Document',
-    brief: `${doc.category || 'General'} · ${doc.uploaded_by_role === 'tenant' ? 'Uploaded by you' : 'Shared with you'}`,
+    brief: `${doc.category || 'General'} · ${doc.uploaded_by_role === 'tt' ? 'Uploaded by you' : 'Shared with you'}`,
     badge: doc.category || null,
     sub: null,
     subIcon: 'folder',
@@ -745,16 +1016,128 @@ const fetchCurrentLease = async () => {
   try {
     const userId = userDataStore.userId
     if (!userId) return
+
+    // Primary lookup: lease linked by tenant_id
     const leasesRef = collection(db, 'leases')
-    const q = query(leasesRef, where('tenant_id', '==', userId), where('status', '==', 'Rented'))
+    const q = query(leasesRef, where('tenant_id', '==', userId))
     const snap = await getDocs(q)
     if (!snap.empty) {
-      currentLease.value = { id: snap.docs[0].id, ...snap.docs[0].data() }
+      const leases = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const rentedLease =
+        leases.find((lease) => String(lease.status || '').toLowerCase() === 'rented') || leases[0]
+      currentLease.value = rentedLease
+      return
+    }
+
+    // Fallback lookup: lease_id stored on tenant profile
+    const fallbackLeaseId = userDataStore.userProfile?.lease_id
+    if (fallbackLeaseId) {
+      const leaseDoc = await getDoc(doc(db, 'leases', String(fallbackLeaseId)))
+      if (leaseDoc.exists()) {
+        currentLease.value = { id: leaseDoc.id, ...leaseDoc.data() }
+      }
     }
   } catch (error) {
     console.error('Error fetching current lease:', error)
   } finally {
     leaseLoading.value = false
+  }
+}
+
+const syncTenantLeaseLink = async () => {
+  if (leaseLinkRepairing.value) return
+  if (currentLease.value) return
+
+  const userId = userDataStore.userId
+  if (!userId) return
+
+  const profile = userDataStore.userProfile || {}
+  const profileEmail = String(profile.email || userDataStore.user?.email || '').trim().toLowerCase()
+
+  leaseLinkRepairing.value = true
+  try {
+    let matchedLease = null
+
+    const leaseIdFromProfile = String(profile.lease_id || '').trim()
+    if (leaseIdFromProfile) {
+      const leaseDoc = await getDoc(doc(db, 'leases', leaseIdFromProfile))
+      if (leaseDoc.exists()) {
+        matchedLease = { id: leaseDoc.id, ...leaseDoc.data() }
+      }
+    }
+
+    if (!matchedLease && profileEmail) {
+      const leasesRef = collection(db, 'leases')
+      const leaseByEmailQuery = query(leasesRef, where('tenant_email', '==', profileEmail))
+      const leaseByEmailSnap = await getDocs(leaseByEmailQuery)
+      if (!leaseByEmailSnap.empty) {
+        matchedLease = { id: leaseByEmailSnap.docs[0].id, ...leaseByEmailSnap.docs[0].data() }
+      }
+    }
+
+    if (!matchedLease && profileEmail) {
+      const tenantsRef = collection(db, 'tenants')
+      const tenantByEmailQuery = query(tenantsRef, where('personal_info.email', '==', profileEmail))
+      const tenantByEmailSnap = await getDocs(tenantByEmailQuery)
+      if (!tenantByEmailSnap.empty) {
+        const tenantDocData = tenantByEmailSnap.docs[0].data()
+        const candidateLeaseId = String(tenantDocData.lease_id || '').trim()
+        if (candidateLeaseId) {
+          const leaseDoc = await getDoc(doc(db, 'leases', candidateLeaseId))
+          if (leaseDoc.exists()) {
+            matchedLease = { id: leaseDoc.id, ...leaseDoc.data() }
+          }
+        }
+      }
+    }
+
+    if (!matchedLease) return
+
+    const propertyId = matchedLease.property_id?.id || matchedLease.property_id || null
+    const leaseSnapshot = {
+      lease_id: matchedLease.id,
+      status: matchedLease.status || null,
+      rate_amount: matchedLease.rate_amount || null,
+      rate_type: matchedLease.rate_type || null,
+      lease_term: matchedLease.lease_term || null,
+      lease_start_date: matchedLease.lease_start_date || null,
+      lease_end_date: matchedLease.lease_end_date || null,
+      property_id: propertyId,
+    }
+
+    await setDoc(
+      doc(db, 'users', userId),
+      {
+        lease_id: matchedLease.id,
+        property_id: propertyId,
+        lease_snapshot: leaseSnapshot,
+        updated_at: new Date(),
+      },
+      { merge: true },
+    )
+
+    await setDoc(
+      doc(db, 'tenants', userId),
+      {
+        lease_id: matchedLease.id,
+        property_id: propertyId,
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true },
+    )
+
+    await updateDoc(doc(db, 'leases', matchedLease.id), {
+      tenant_id: userId,
+      tenant_email: profileEmail || null,
+      updated_at: new Date(),
+    })
+
+    currentLease.value = matchedLease
+  } catch (error) {
+    console.error('Tenant lease auto-link failed:', error)
+  } finally {
+    leaseLinkRepairing.value = false
   }
 }
 
@@ -803,18 +1186,143 @@ const fetchTasks = async () => {
   try {
     if (!currentLease.value) { tasksLoading.value = false; return }
     const propertyId = currentLease.value.property_string_id || currentLease.value.property_id?.id
-    if (!propertyId) { tasksLoading.value = false; return }
-    const remindersRef = collection(db, 'properties', propertyId, 'reminders')
-    const snap = await getDocs(remindersRef)
+    const userId = userDataStore.userId
+    if (!propertyId || !userId) { tasksLoading.value = false; return }
+    const mxRecordsRef = collection(db, 'properties', propertyId, 'mxrecords')
+    const snap = await getDocs(mxRecordsRef)
     const list = snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((t) => t.status !== 'completed')
-    list.sort((a, b) => getTimestamp(a.due_date) - getTimestamp(b.due_date))
+      .filter((t) => {
+        const createdBy = String(t.created_by || '').trim()
+        const tenantId = String(t.tenant_id || '').trim()
+        return createdBy === userId || tenantId === userId
+      })
+      .filter((t) => !['closed', 'cancel'].includes(String(t.status || '').toLowerCase()))
+      .map((t) => ({
+        ...t,
+        // Keep compatibility with tenant feed/reminder UI fields
+        note: t.note || t.description || '',
+        category: t.category || 'Task',
+        due_date: t.due_date || t.report_date || null,
+        start_date: t.start_date || t.report_date || null,
+      }))
+    list.sort((a, b) => getTimestamp(a.due_date || a.report_date) - getTimestamp(b.due_date || b.report_date))
     tasks.value = list
   } catch (error) {
     console.error('Error fetching tasks:', error)
   } finally {
     tasksLoading.value = false
+  }
+}
+
+const fetchLeaseTenants = async () => {
+  try {
+    if (!currentLease.value?.id) {
+      leaseTenantsList.value = []
+      return
+    }
+
+    leaseTenantsLoading.value = true
+    const tenantsRef = collection(db, 'tenants')
+    const tenantsQuery = query(tenantsRef, where('lease_id', '==', currentLease.value.id))
+    const snap = await getDocs(tenantsQuery)
+
+    leaseTenantsList.value = snap.docs.map((tenantDoc) => {
+      const data = tenantDoc.data()
+      const personalInfo = data.personal_info || {}
+      const name = String(
+        personalInfo.full_name ||
+        [personalInfo.first_name, personalInfo.last_name].filter(Boolean).join(' ') ||
+        data.full_name ||
+        data.user_name ||
+        data.email ||
+        'Tenant'
+      ).trim()
+
+      return {
+        id: tenantDoc.id,
+        name,
+        email: personalInfo.email || data.email || 'N/A',
+        phone: personalInfo.phone || data.phone || data.phone_number || 'N/A',
+        raw: data,
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching lease tenants:', error)
+    leaseTenantsList.value = []
+  } finally {
+    leaseTenantsLoading.value = false
+  }
+}
+
+const openLeaseTenantDialog = async (tenant) => {
+  selectedLeaseTenant.value = tenant
+  selectedLeaseTenantDetails.value = tenant?.raw || null
+  leaseTenantForm.value.email = tenant?.email === 'N/A' ? '' : (tenant?.email || '')
+  leaseTenantForm.value.phone = tenant?.phone === 'N/A' ? '' : (tenant?.phone || '')
+  showLeaseTenantDialog.value = true
+  leaseTenantDialogLoading.value = true
+  try {
+    if (!tenant?.id) return
+    const tenantDoc = await getDoc(doc(db, 'tenants', tenant.id))
+    if (tenantDoc.exists()) {
+      const fullData = tenantDoc.data()
+      selectedLeaseTenantDetails.value = fullData
+      const personalInfo = fullData.personal_info || {}
+      leaseTenantForm.value.email = pickFirstNonEmpty(personalInfo.email, fullData.email)
+      leaseTenantForm.value.phone = pickFirstNonEmpty(personalInfo.phone, fullData.phone, fullData.phone_number)
+    }
+  } catch (error) {
+    console.error('Error loading tenant detail:', error)
+  } finally {
+    leaseTenantDialogLoading.value = false
+  }
+}
+
+const saveLeaseTenantContact = async () => {
+  if (!selectedLeaseTenant.value?.id) return
+  savingLeaseTenant.value = true
+  try {
+    const tenantId = selectedLeaseTenant.value.id
+    const email = String(leaseTenantForm.value.email || '').trim()
+    const phone = String(leaseTenantForm.value.phone || '').trim()
+    const prevPersonal = selectedLeaseTenantData.value?.personal_info || {}
+
+    await setDoc(
+      doc(db, 'tenants', tenantId),
+      {
+        email: email || '',
+        phone: phone || '',
+        personal_info: {
+          ...prevPersonal,
+          email: email || '',
+          phone: phone || '',
+        },
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true },
+    )
+
+    Notify.create({ type: 'positive', message: 'Tenant contact updated.', position: 'top' })
+    if (selectedLeaseTenantDetails.value) {
+      selectedLeaseTenantDetails.value = {
+        ...selectedLeaseTenantDetails.value,
+        email,
+        phone,
+        personal_info: {
+          ...prevPersonal,
+          email,
+          phone,
+        },
+      }
+    }
+    showLeaseTenantDialog.value = false
+    await fetchLeaseTenants()
+  } catch (error) {
+    console.error('Error saving tenant contact:', error)
+    Notify.create({ type: 'negative', message: error.message || 'Failed to update tenant contact.', position: 'top' })
+  } finally {
+    savingLeaseTenant.value = false
   }
 }
 
@@ -826,7 +1334,8 @@ const handleUpload = async () => {
     const propertyId = currentLease.value?.property_string_id || currentLease.value?.property_id?.id || 'general'
 
     for (const file of uploadFiles.value) {
-      const filePath = `tenant-documents/${userId}/${propertyId}/${Date.now()}_${file.name}`
+      // Use the same storage namespace pattern as other in-app uploads to match existing rules.
+      const filePath = `images/tenants/${propertyId}/${userId}/${Date.now()}_${file.name}`
       const fileRef = storageRef(storage, filePath)
       await uploadBytes(fileRef, file)
       const downloadURL = await getDownloadURL(fileRef)
@@ -838,9 +1347,11 @@ const handleUpload = async () => {
         url: downloadURL,
         storage_path: filePath,
         uploaded_by: userId,
-        uploaded_by_role: 'tenant',
+        uploaded_by_role: 'tt',
         tenant_id: userId,
         lease_id: currentLease.value?.id || null,
+        source_type: 'tenant_upload',
+        source_page: 'tenant_home',
         content_type: file.type,
         size: file.size,
         created_at: serverTimestamp(),
@@ -887,19 +1398,36 @@ const handleCreateTask = async () => {
   creatingTask.value = true
   try {
     const propertyId = currentLease.value?.property_string_id || currentLease.value?.property_id?.id
+    const reporterId = userDataStore.userId
+    const reporterName =
+      userDataStore.userProfile?.full_name ||
+      userDataStore.userProfile?.user_name ||
+      userDataStore.user?.displayName ||
+      userDataStore.user?.email ||
+      'Tenant'
     if (!propertyId) throw new Error('No active lease to create task for')
 
-    await addDoc(collection(db, 'properties', propertyId, 'reminders'), {
-      title: newTaskTitle.value,
+    const mxId = `mx_${Date.now()}`
+
+    await addDoc(collection(db, 'properties', propertyId, 'mxrecords'), {
+      mx_id: mxId,
+      task_title: newTaskTitle.value,
       description: newTaskDescription.value || '',
       category: newTaskCategory.value,
       priority: newTaskPriority.value,
       due_date: newTaskDueDate.value ? new Date(newTaskDueDate.value) : null,
-      status: 'pending',
-      created_by: userDataStore.userId,
-      created_by_role: 'tenant',
+      report_date: newTaskDueDate.value || new Date().toISOString().split('T')[0],
+      status: 'open',
+      created_by: reporterId,
+      created_by_name: reporterName,
+      created_by_role: 'tt',
+      reported_by: reporterName,
+      reported_by_id: reporterId,
+      reported_role: 'tt',
       lease_id: currentLease.value.id,
       property_id: propertyId,
+      createAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       created_date: serverTimestamp(),
     })
 
@@ -921,8 +1449,31 @@ const handleCreateTask = async () => {
 
 onMounted(async () => {
   await fetchCurrentLease()
-  await Promise.all([fetchPastLeases(), fetchTransactions(), fetchTasks(), fetchDocuments()])
+  if (!currentLease.value) {
+    await syncTenantLeaseLink()
+  }
+  await Promise.all([fetchPastLeases(), fetchTransactions(), fetchTasks(), fetchDocuments(), fetchLeaseTenants()])
 })
+
+watch(
+  () => [userDataStore.userId, userDataStore.userProfile?.lease_id],
+  async () => {
+    if (!currentLease.value && userDataStore.userId) {
+      await fetchCurrentLease()
+      if (!currentLease.value) {
+        await syncTenantLeaseLink()
+      }
+    }
+  },
+  { immediate: false }
+)
+
+watch(
+  () => currentLease.value?.id,
+  async () => {
+    await fetchLeaseTenants()
+  },
+)
 </script>
 
 <style scoped>
@@ -974,18 +1525,26 @@ onMounted(async () => {
   color: #2e7d32;
 }
 
-/* 3-column grid */
+/* 2-column grid */
 .feed-shell {
   max-width: 1580px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 12px;
 }
 
 .feed-reminders,
 .feed-main {
   min-width: 0;
+}
+
+.feed-reminders {
+  grid-column: 1;
+}
+
+.feed-main {
+  grid-column: 2;
 }
 
 /* Stats */
@@ -1155,16 +1714,21 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.create-new-actions > .q-btn {
+.create-new-actions > .q-btn.feed-sort-btn {
   font-size: 0.8rem;
   color: var(--neutral-700) !important;
   border: none !important;
   background: transparent !important;
 }
 
-.create-new-actions > .q-btn:hover {
+.create-new-actions > .q-btn.feed-sort-btn:hover {
   background: var(--neutral-100) !important;
   color: var(--primary-color) !important;
+}
+
+.create-new-actions > .q-btn.create-action-btn {
+  font-size: 0.8rem;
+  border-radius: 8px;
 }
 
 .feed-sort-group {
@@ -1288,32 +1852,16 @@ onMounted(async () => {
   color: var(--primary-color);
 }
 
-/* Ad placeholder */
-.ad-placeholder {
-  min-height: 120px;
-  border-radius: 10px;
-  border: 1px dashed var(--neutral-300);
-  background: var(--bg-secondary);
-  color: var(--neutral-500);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-}
-
 /* Responsive */
 @media (max-width: 1440px) {
   .feed-shell {
-    grid-template-columns: 240px minmax(0, 1fr) 260px;
+    grid-template-columns: 240px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 1280px) {
   .feed-shell {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-  .feed-rail {
-    grid-column: 1 / -1;
+    grid-template-columns: 220px minmax(0, 1fr);
   }
   .feed-stats-row {
     grid-template-columns: repeat(2, 1fr);
@@ -1325,7 +1873,7 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
   .feed-reminders,
-  .feed-rail {
+  .feed-main {
     grid-column: auto;
   }
   .feed-list {
@@ -1367,6 +1915,17 @@ onMounted(async () => {
   min-width: 380px;
   max-width: 480px;
   border-radius: var(--border-radius-card, 10px);
+}
+
+.lease-tenant-detail-dialog {
+  width: min(960px, 96vw);
+  max-height: 90vh;
+  border-radius: var(--border-radius-card, 10px);
+}
+
+.tenant-detail-content {
+  max-height: calc(90vh - 140px);
+  overflow: auto;
 }
 
 /* Expand icon */

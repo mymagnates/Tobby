@@ -12,7 +12,7 @@
       </div>
 
       <q-form v-else @submit="handleSignUp" class="signup-form">
-        <div class="form-section-title">Account</div>
+        <div class="form-section-title"></div>
         <q-input
           v-model="form.email"
           type="email"
@@ -212,10 +212,11 @@ const handleSignUp = async () => {
       },
       registered_business_address: registeredAddress,
       license_number: form.value.licenseNumber || '',
-      account_type: 'SP',
+      account_type: 'sp',
       account_type_locked: true,
       account_type_selected_at: now,
-      user_category: 'SP',
+      user_category: 'sp',
+      manage_scope: ['NA'],
       created_at: now,
       updated_at: now,
     }, userId)

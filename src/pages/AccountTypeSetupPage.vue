@@ -28,6 +28,23 @@
         </q-card>
       </div>
 
+      <div v-if="selectedType === 'MANAGER'" class="q-mt-md">
+        <q-card flat bordered class="q-pa-md">
+          <div class="text-subtitle2 text-weight-medium">Property Manager Details</div>
+          <div class="text-body2 text-grey-7 q-mt-xs">
+            All property managers start with the same base permissions. Ownership is set when you create or join a property.
+          </div>
+
+          <q-input
+            v-model="companyName"
+            outlined
+            dense
+            label="Company Name (Optional)"
+            class="q-mt-md"
+          />
+        </q-card>
+      </div>
+
       <q-banner v-if="errorMessage" class="bg-red-1 text-red-10 q-mt-md" rounded>
         {{ errorMessage }}
       </q-banner>
@@ -37,7 +54,7 @@
           color="primary"
           unelevated
           label="Confirm Account Type"
-          :disable="!selectedType"
+          :disable="!canConfirm"
           :loading="saving"
           @click="openConfirmDialog"
         />
@@ -71,7 +88,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
@@ -84,14 +101,15 @@ const selectedType = ref('')
 const saving = ref(false)
 const errorMessage = ref('')
 const showConfirmDialog = ref(false)
+const companyName = ref('')
 
 const ACCOUNT_TYPE_OPTIONS = Object.freeze([
   {
-    value: 'MANAGER_OWNER',
-    label: 'Manager / Owner',
+    value: 'MANAGER',
+    label: 'Property Manager',
     shape: 'square',
     description:
-      'Manage properties, tasks, transactions, reminders, leases, tenants, and reports.',
+      'Manage properties and operations. You can manage your own properties and/or properties for others.',
   },
   {
     value: 'SP',
@@ -111,11 +129,12 @@ const availableOptions = computed(() => ACCOUNT_TYPE_OPTIONS)
 const selectedTypeLabel = computed(
   () => availableOptions.value.find((opt) => opt.value === selectedType.value)?.label || selectedType.value
 )
+const canConfirm = computed(() => Boolean(selectedType.value))
 
-const mapAccountTypeToUserCategory = (accountType) => {
-  if (accountType === 'MANAGER_OWNER') return 'PM/PO'
-  if (accountType === 'SP') return 'contractor'
-  return 'other'
+const resolveAccountType = () => {
+  if (selectedType.value === 'SP') return 'sp'
+  if (selectedType.value === 'MANAGER') return 'pm'
+  return null
 }
 
 const confirmSelection = async () => {
@@ -132,6 +151,7 @@ const confirmSelection = async () => {
   try {
     const now = new Date()
     const currentProfile = userDataStore.userProfile || {}
+    const accountType = resolveAccountType()
     await createDocument(
       'users',
       {
@@ -139,10 +159,15 @@ const confirmSelection = async () => {
         user_id: userDataStore.userId,
         email: currentProfile.email || userDataStore.user?.email || '',
         user_name: currentProfile.user_name || userDataStore.user?.displayName || '',
-        account_type: selectedType.value,
+        account_type: accountType,
         account_type_locked: true,
         account_type_selected_at: now,
-        user_category: currentProfile.user_category || mapAccountTypeToUserCategory(selectedType.value),
+        user_category: accountType,
+        owner_workspace_only: selectedType.value === 'MANAGER' ? false : currentProfile.owner_workspace_only || false,
+        company_name:
+          selectedType.value === 'MANAGER'
+            ? (companyName.value || currentProfile.company_name || '')
+            : currentProfile.company_name || '',
         updatedAt: now,
         createdAt: currentProfile.createdAt || now,
       },
@@ -163,6 +188,12 @@ const openConfirmDialog = () => {
   if (!selectedType.value) return
   showConfirmDialog.value = true
 }
+
+watch(selectedType, (next) => {
+  if (next !== 'MANAGER') {
+    companyName.value = ''
+  }
+})
 
 onMounted(async () => {
   if (!userDataStore.isAuthenticated) {

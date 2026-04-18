@@ -1,7 +1,7 @@
 <template>
   <div class="inventory-list">
-    <q-card class="inventory-card">
-      <q-card-section class="inventory-header">
+    <div class="inventory-shell">
+      <div class="inventory-header">
         <div class="row items-center justify-between">
           <div>
             <div class="text-h6 text-weight-bold text-primary">
@@ -14,20 +14,19 @@
           </div>
           <q-btn flat round dense icon="close" @click="emit('cancel')" class="dialog-close-btn" />
         </div>
-      </q-card-section>
-
-      <q-card-section class="inventory-content">
+      </div>
+      <div class="inventory-content">
         <!-- Lease Information (Read-only) -->
         <div class="lease-info-section q-mb-lg">
           <div class="text-subtitle1 text-weight-medium q-mb-sm">Lease Information</div>
           <div class="lease-info-grid">
             <div class="info-item">
               <div class="info-label">Lease ID</div>
-              <div class="info-value">{{ leaseId }}</div>
+              <div class="info-value">{{ displayLeaseIdentifier }}</div>
             </div>
             <div class="info-item">
               <div class="info-label">Property Address</div>
-              <div class="info-value">{{ inventoryData.property_address }}</div>
+              <div class="info-value">{{ displayPropertyAddress }}</div>
             </div>
           </div>
         </div>
@@ -186,20 +185,39 @@
                 :key="index"
                 class="custom-item-card"
               >
-                <div class="custom-item-header">
-                  <q-icon name="inventory_2" class="custom-item-icon" />
-                  <div class="custom-item-title">Item {{ index + 1 }}</div>
+                <div class="custom-item-header" @click="toggleCustomItem(index)">
+                  <div class="custom-item-header-main">
+                    <q-icon name="inventory_2" class="custom-item-icon" />
+                    <div class="custom-item-title-block">
+                      <div class="custom-item-title">
+                        {{ item.item || `Item ${index + 1}` }}
+                      </div>
+                      <div v-if="item.created_datetime" class="custom-item-meta">
+                        Created {{ formatDateTime(item.created_datetime) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="custom-item-header-actions">
+                    <q-btn
+                      flat
+                      round
+                      :icon="item.collapsed ? 'expand_more' : 'expand_less'"
+                      color="grey-7"
+                      size="sm"
+                      @click.stop="toggleCustomItem(index)"
+                    />
                   <q-btn
                     flat
                     round
                     icon="delete"
                     color="negative"
                     size="sm"
-                    @click="removeCustomItem(index)"
+                    @click.stop="removeCustomItem(index)"
                   />
+                  </div>
                 </div>
 
-                <div class="custom-item-content">
+                <div v-show="!item.collapsed" class="custom-item-content">
                   <!-- Area and Item Name in the same row -->
                   <div class="row q-mb-sm">
                     <div class="col-6 custom-item-field">
@@ -264,18 +282,30 @@
                         />
                       </div>
                       <div class="custom-item-field">
-                        <q-uploader
-                          v-model="item.move_in_photos"
+                        <q-file
+                          v-model="item.move_in_photo_file"
+                          class="inventory-photo-input"
                           label="Move-in Photos"
                           accept="image/*"
-                          multiple
-                          max-files="5"
-                          style="width: 100%"
-                          :auto-upload="false"
-                          :hide-upload-btn="true"
-                          :hide-upload-progress="true"
-                          :hide-thumbnails="false"
-                        />
+                          outlined
+                          dense
+                          clearable
+                        >
+                          <template v-slot:prepend>
+                            <q-icon name="photo_camera" />
+                          </template>
+                        </q-file>
+                        <div v-if="item.move_in_photo_url" class="inventory-photo-preview q-mt-sm">
+                          <q-img
+                            :src="item.move_in_photo_url"
+                            class="inventory-photo-thumb"
+                            fit="cover"
+                            @click="showImageFullscreen(item.move_in_photo_url, `${item.item || 'Item'} Move-in Photo`)"
+                          />
+                          <div v-if="item.move_in_photo_uploaded_at" class="inventory-photo-meta">
+                            Uploaded {{ formatDateTime(item.move_in_photo_uploaded_at) }}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <!-- Move-out -->
@@ -292,18 +322,30 @@
                         />
                       </div>
                       <div class="custom-item-field">
-                        <q-uploader
-                          v-model="item.move_out_photos"
+                        <q-file
+                          v-model="item.move_out_photo_file"
+                          class="inventory-photo-input"
                           label="Move-out Photos"
                           accept="image/*"
-                          multiple
-                          max-files="5"
-                          style="width: 100%"
-                          :auto-upload="false"
-                          :hide-upload-btn="true"
-                          :hide-upload-progress="true"
-                          :hide-thumbnails="false"
-                        />
+                          outlined
+                          dense
+                          clearable
+                        >
+                          <template v-slot:prepend>
+                            <q-icon name="photo_camera" />
+                          </template>
+                        </q-file>
+                        <div v-if="item.move_out_photo_url" class="inventory-photo-preview q-mt-sm">
+                          <q-img
+                            :src="item.move_out_photo_url"
+                            class="inventory-photo-thumb"
+                            fit="cover"
+                            @click="showImageFullscreen(item.move_out_photo_url, `${item.item || 'Item'} Move-out Photo`)"
+                          />
+                          <div v-if="item.move_out_photo_uploaded_at" class="inventory-photo-meta">
+                            Uploaded {{ formatDateTime(item.move_out_photo_uploaded_at) }}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -319,37 +361,50 @@
             </div>
           </div>
         </div>
-      </q-card-section>
+      </div>
 
       <!-- Actions -->
-      <q-card-actions class="inventory-actions">
+      <div class="inventory-actions">
         <q-btn flat label="Cancel" @click="$emit('cancel')" />
         <q-btn color="primary" label="Save Inventory" :loading="saving" @click="saveInventory" />
-      </q-card-actions>
-    </q-card>
+      </div>
+    </div>
+
+    <q-dialog v-model="showImageViewer" maximized>
+      <q-card class="image-viewer-card">
+        <q-card-section class="image-viewer-header">
+          <div class="row items-center justify-between">
+            <div class="text-h6 text-weight-bold">{{ currentImageTitle }}</div>
+            <q-btn flat round icon="close" @click="closeImageViewer" class="close-btn" />
+          </div>
+        </q-card-section>
+        <q-card-section class="image-viewer-content">
+          <q-img :src="currentImageUrl" class="fullscreen-image" fit="contain">
+            <template v-slot:loading>
+              <q-spinner-gears color="primary" size="50px" />
+            </template>
+            <template v-slot:error>
+              <div class="absolute-full flex flex-center bg-negative text-white">
+                <div class="text-center">
+                  <q-icon name="broken_image" size="64px" />
+                  <div class="q-mt-sm">Failed to load image</div>
+                </div>
+              </div>
+            </template>
+          </q-img>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { useUserDataStore } from '../stores/userDataStore'
+import { computed, ref, watch } from 'vue'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 
 // Props
 const props = defineProps({
-  leaseId: {
-    type: String,
-    required: true,
-  },
-  propertyId: {
-    type: String,
-    required: true,
-  },
-  leaseData: {
-    type: Object,
-    required: true,
-  },
   initialData: {
     type: Object,
     default: () => null,
@@ -358,65 +413,25 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(['saved', 'cancel'])
+const PRIMARY_INVENTORY_DOC_ID = 'primary'
 
 // Composables
-const userDataStore = useUserDataStore()
-const { createDocument, updateDocument } = useFirebase()
+const { createDocument, updateDocument, uploadFile } = useFirebase()
 
 // Reactive data
 const saving = ref(false)
+const showImageViewer = ref(false)
+const currentImageUrl = ref('')
+const currentImageTitle = ref('')
 
 // Initialize inventory data
 const initializeInventoryData = () => {
-  // Debug: Log the lease data structure
-  console.log('=== INVENTORY DEBUG: Lease Data Structure ===')
-  console.log('Full leaseData:', props.leaseData)
-  console.log('leaseData.property_address:', props.leaseData.property_address)
-  console.log('leaseData.property?.address:', props.leaseData.property?.address)
-  console.log('leaseData.property_nickname:', props.leaseData.property_nickname)
-  console.log('leaseData.property?.nickname:', props.leaseData.property?.nickname)
-  console.log('propertyId:', props.propertyId)
-  console.log('leaseId:', props.leaseId)
-  console.log('=== END DEBUG ===')
-
-  // Get property address from lease data (same logic as LeasesPage)
-  let propertyAddress = 'No Address'
-
-  // Try flattened structure first
-  if (props.leaseData.property_address) {
-    propertyAddress = props.leaseData.property_address
-    console.log('Using property_address:', propertyAddress)
-  } else if (props.leaseData.property_nickname) {
-    propertyAddress = props.leaseData.property_nickname
-    console.log('Using property_nickname as address:', propertyAddress)
-  }
-  // Try nested structure
-  else if (props.leaseData.property?.address) {
-    propertyAddress = props.leaseData.property.address
-    console.log('Using property.address:', propertyAddress)
-  } else if (props.leaseData.property?.nickname) {
-    propertyAddress = props.leaseData.property.nickname
-    console.log('Using property.nickname as address:', propertyAddress)
-  }
-  // Fallback to property lookup by ID
-  else {
-    const extractedPropertyId =
-      props.leaseData.property_id || props.leaseData.property?.id || props.propertyId
-    console.log('Fallback: Extracted property ID:', extractedPropertyId)
-    const property = userDataStore.getPropertyById(extractedPropertyId)
-    console.log('Fallback: Found property by ID:', property)
-    if (property) {
-      propertyAddress = property.address || property.nickname || 'No Address'
-      console.log('Fallback: Using property data:', propertyAddress)
-    }
-  }
-
-  console.log('Final resolved propertyAddress:', propertyAddress)
-
   return {
-    property_id: props.propertyId,
-    property_address: propertyAddress,
-    lease_id: props.leaseId,
+    id: '',
+    property_id: '',
+    property_address: 'No Address',
+    lease_doc_id: '',
+    lease_lsid: '',
     // Main inventory record - only metadata
     created_datetime: new Date().toISOString(),
     updated_datetime: new Date().toISOString(),
@@ -433,6 +448,14 @@ const initializeInventoryData = () => {
 }
 
 const inventoryData = ref(initializeInventoryData())
+
+const displayLeaseIdentifier = computed(
+  () => String(inventoryData.value?.lease_lsid || '').trim() || 'N/A',
+)
+
+const displayPropertyAddress = computed(
+  () => String(inventoryData.value?.property_address || '').trim() || 'No Address',
+)
 
 // Item suggestions grouped by area
 const itemSuggestionsByArea = {
@@ -549,13 +572,34 @@ const createNewItem = (val, done) => {
   }
 }
 
+const formatDateTime = (value) => {
+  if (!value) return ''
+  try {
+    const next = value?.toDate ? value.toDate() : new Date(value)
+    if (!(next instanceof Date) || Number.isNaN(next.getTime())) return ''
+    return next.toLocaleString()
+  } catch {
+    return ''
+  }
+}
+
 // Add custom item
 const addCustomItem = () => {
   inventoryData.value.custom_items.push({
     area: '',
     item: '',
+    collapsed: false,
+    created_datetime: new Date().toISOString(),
     move_in_comment: '',
     move_out_comment: '',
+    move_in_photo_file: null,
+    move_out_photo_file: null,
+    move_in_photo_url: '',
+    move_out_photo_url: '',
+    move_in_photo_uploaded_at: '',
+    move_out_photo_uploaded_at: '',
+    move_in_photo_storage_path: '',
+    move_out_photo_storage_path: '',
   })
 }
 
@@ -564,41 +608,41 @@ const removeCustomItem = (index) => {
   inventoryData.value.custom_items.splice(index, 1)
 }
 
-// Save ktcs items (keys, tokens, cards, security, user-added other items)
-const saveKtcsItems = async (inventoryId) => {
-  const ktcsPath = `properties/${props.propertyId}/inventories/${inventoryId}/ktcs`
-
-  // Save standard items
-  const standardItems = [
-    { type: 'door_keys', ...inventoryData.value.ktcs_items.door_keys },
-    { type: 'garage_tokens', ...inventoryData.value.ktcs_items.garage_tokens },
-    { type: 'security_card', ...inventoryData.value.ktcs_items.security_card },
-    { type: 'mailbox_keys', ...inventoryData.value.ktcs_items.mailbox_keys },
-  ]
-
-  // Save each standard item
-  for (const item of standardItems) {
-    await createDocument(ktcsPath, {
-      ...item,
-      category: 'standard',
-      created_datetime: new Date().toISOString(),
-    })
-  }
+const toggleCustomItem = (index) => {
+  const targetItem = inventoryData.value.custom_items[index]
+  if (!targetItem) return
+  targetItem.collapsed = !targetItem.collapsed
 }
 
-// Save custom items (area-based items with comments) to separate subcollection
-const saveCustomItems = async (inventoryId) => {
-  const customItemsPath = `properties/${props.propertyId}/inventories/${inventoryId}/custom_items`
+const getLeaseInventoriesPath = (leaseDocId) => `leases/${leaseDocId}/inventories`
 
-  // Save each custom item
-  for (const item of inventoryData.value.custom_items) {
-    await createDocument(customItemsPath, {
-      area: item.area,
-      item: item.item,
-      move_in_comment: item.move_in_comment,
-      move_out_comment: item.move_out_comment,
-      created_datetime: new Date().toISOString(),
-    })
+const showImageFullscreen = (imageUrl, title) => {
+  currentImageUrl.value = imageUrl
+  currentImageTitle.value = title
+  showImageViewer.value = true
+}
+
+const closeImageViewer = () => {
+  showImageViewer.value = false
+  currentImageUrl.value = ''
+  currentImageTitle.value = ''
+}
+
+const sanitizeFileSegment = (value) =>
+  String(value || 'file')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+
+const uploadCustomItemPhoto = async (file, leaseDocId, context, itemLabel) => {
+  if (!file || !leaseDocId) return null
+  const extension = String(file.name || '').split('.').pop() || 'jpg'
+  const safeItemLabel = sanitizeFileSegment(itemLabel || 'item')
+  const fileName = `${Date.now()}_${safeItemLabel}.${extension}`
+  const storagePath = `images/leases/${leaseDocId}/inventory/${context}/${fileName}`
+  const url = await uploadFile(storagePath, file)
+  return {
+    url,
+    storagePath,
   }
 }
 
@@ -606,6 +650,16 @@ const saveCustomItems = async (inventoryId) => {
 const saveInventory = async () => {
   try {
     saving.value = true
+    const activeLeaseDocId = String(inventoryData.value.lease_doc_id || '').trim()
+    const activePropertyId = String(inventoryData.value.property_id || '').trim()
+    if (!activeLeaseDocId) {
+      Notify.create({
+        type: 'negative',
+        message: 'Lease reference is missing for this inventory.',
+        position: 'top',
+      })
+      return
+    }
 
     // Validate custom items
     for (const item of inventoryData.value.custom_items) {
@@ -621,11 +675,69 @@ const saveInventory = async () => {
 
     inventoryData.value.updated_datetime = new Date().toISOString()
 
-    // Prepare main inventory record (without ktcs_items)
+    const normalizedCustomItems = []
+    for (const item of inventoryData.value.custom_items) {
+      const nextItem = {
+        area: item.area || '',
+        item: item.item || '',
+        collapsed: Boolean(item.collapsed),
+        created_datetime: item.created_datetime || new Date().toISOString(),
+        move_in_comment: item.move_in_comment || '',
+        move_out_comment: item.move_out_comment || '',
+        move_in_photo_url: item.move_in_photo_url || '',
+        move_out_photo_url: item.move_out_photo_url || '',
+        move_in_photo_uploaded_at: item.move_in_photo_uploaded_at || '',
+        move_out_photo_uploaded_at: item.move_out_photo_uploaded_at || '',
+        move_in_photo_storage_path: item.move_in_photo_storage_path || '',
+        move_out_photo_storage_path: item.move_out_photo_storage_path || '',
+      }
+
+      const moveInFile = item.move_in_photo_file || null
+      if (moveInFile) {
+        const uploadedMoveIn = await uploadCustomItemPhoto(
+          moveInFile,
+          activeLeaseDocId,
+          'inventory_move_in',
+          item.item,
+        )
+        if (uploadedMoveIn) {
+          nextItem.move_in_photo_url = uploadedMoveIn.url || ''
+          nextItem.move_in_photo_storage_path = uploadedMoveIn.storagePath || ''
+          nextItem.move_in_photo_uploaded_at = new Date().toISOString()
+        }
+      }
+
+      const moveOutFile = item.move_out_photo_file || null
+      if (moveOutFile) {
+        const uploadedMoveOut = await uploadCustomItemPhoto(
+          moveOutFile,
+          activeLeaseDocId,
+          'inventory_move_out',
+          item.item,
+        )
+        if (uploadedMoveOut) {
+          nextItem.move_out_photo_url = uploadedMoveOut.url || ''
+          nextItem.move_out_photo_storage_path = uploadedMoveOut.storagePath || ''
+          nextItem.move_out_photo_uploaded_at = new Date().toISOString()
+        }
+      }
+
+      normalizedCustomItems.push(nextItem)
+    }
+
+    // Persist the full inventory in the main inventory document.
     const mainInventoryData = {
-      property_id: inventoryData.value.property_id,
-      property_address: inventoryData.value.property_address,
-      lease_id: inventoryData.value.lease_id,
+      property_id: activePropertyId || '',
+      property_address: String(inventoryData.value.property_address || '').trim() || '',
+      lease_doc_id: activeLeaseDocId,
+      lease_lsid: String(inventoryData.value.lease_lsid || '').trim() || '',
+      ktcs_items: {
+        door_keys: { ...inventoryData.value.ktcs_items.door_keys },
+        garage_tokens: { ...inventoryData.value.ktcs_items.garage_tokens },
+        security_card: { ...inventoryData.value.ktcs_items.security_card },
+        mailbox_keys: { ...inventoryData.value.ktcs_items.mailbox_keys },
+      },
+      custom_items: normalizedCustomItems,
       created_datetime: inventoryData.value.created_datetime,
       updated_datetime: inventoryData.value.updated_datetime,
     }
@@ -637,22 +749,30 @@ const saveInventory = async () => {
       // Update existing inventory
       inventoryId = inventoryData.value.id
       await updateDocument(
-        `properties/${props.propertyId}/inventories`,
+        getLeaseInventoriesPath(activeLeaseDocId),
         inventoryId,
         mainInventoryData,
       )
     } else {
-      // Create new inventory
-      result = await createDocument(`properties/${props.propertyId}/inventories`, mainInventoryData)
-      inventoryId = result.id
+      // Legacy fallback: if the primary inventory doc is missing, recreate it under the fixed id.
+      result = await createDocument(
+        getLeaseInventoriesPath(activeLeaseDocId),
+        mainInventoryData,
+        PRIMARY_INVENTORY_DOC_ID,
+      )
+      inventoryId = String(result?.id || result || '').trim()
       inventoryData.value.id = inventoryId
     }
 
-    // Save KTCS items (keys, tokens, cards, security, other items) to ktcs subcollection
-    await saveKtcsItems(inventoryId)
+    if (!inventoryId) {
+      throw new Error('Failed to resolve inventory ID while saving inventory record.')
+    }
 
-    // Save custom items (area-based items with comments) to custom_items subcollection
-    await saveCustomItems(inventoryId)
+    inventoryData.value.custom_items = normalizedCustomItems.map((item) => ({
+      ...item,
+      move_in_photo_file: null,
+      move_out_photo_file: null,
+    }))
 
     Notify.create({
       type: 'positive',
@@ -674,38 +794,89 @@ const saveInventory = async () => {
 }
 
 // Load existing inventory data
-const loadInventoryData = async () => {
-  if (props.initialData) {
-    inventoryData.value = { ...inventoryData.value, ...props.initialData }
+const loadInventoryData = () => {
+  const base = initializeInventoryData()
+  if (props.initialData && typeof props.initialData === 'object') {
+    inventoryData.value = {
+      ...base,
+      ...props.initialData,
+      id: props.initialData.id || base.id,
+      property_id: props.initialData.property_id || base.property_id,
+      property_address: props.initialData.property_address || base.property_address,
+      lease_doc_id: props.initialData.lease_doc_id || base.lease_doc_id,
+      lease_lsid: props.initialData.lease_lsid || base.lease_lsid,
+      ktcs_items: {
+        ...base.ktcs_items,
+        ...(props.initialData.ktcs_items || {}),
+      },
+      custom_items: Array.isArray(props.initialData.custom_items)
+        ? props.initialData.custom_items.map((item) => ({
+            area: item.area || '',
+            item: item.item || '',
+            collapsed: Boolean(item.collapsed),
+            created_datetime: item.created_datetime || '',
+            move_in_comment: item.move_in_comment || '',
+            move_out_comment: item.move_out_comment || '',
+            move_in_photo_file: null,
+            move_out_photo_file: null,
+            move_in_photo_url: item.move_in_photo_url || '',
+            move_out_photo_url: item.move_out_photo_url || '',
+            move_in_photo_uploaded_at: item.move_in_photo_uploaded_at || '',
+            move_out_photo_uploaded_at: item.move_out_photo_uploaded_at || '',
+            move_in_photo_storage_path: item.move_in_photo_storage_path || '',
+            move_out_photo_storage_path: item.move_out_photo_storage_path || '',
+          }))
+        : base.custom_items,
+    }
+    return
   }
+  inventoryData.value = base
 }
 
-// Initialize
-onMounted(() => {
-  loadInventoryData()
-})
-
-// Watch for prop changes
 watch(
   () => props.initialData,
-  (newData) => {
-    if (newData) {
-      inventoryData.value = { ...inventoryData.value, ...newData }
-    }
+  () => {
+    loadInventoryData()
   },
-  { deep: true },
+  { deep: true, immediate: true },
 )
 </script>
 
 <style scoped>
-.inventory-card {
-  max-width: 1000px;
-  margin: 0 auto;
+.inventory-list {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.inventory-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface);
 }
 
 .inventory-header {
   border-bottom: 1px solid var(--neutral-200);
   background: var(--bg-secondary);
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.inventory-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px;
+  padding-bottom: calc(84px + constant(safe-area-inset-bottom));
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Subcollection Headers */
@@ -842,7 +1013,27 @@ watch(
 .custom-item-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.custom-item-header-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.custom-item-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.custom-item-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .custom-item-icon {
@@ -858,6 +1049,12 @@ watch(
   flex: 1;
 }
 
+.custom-item-meta {
+  font-size: 0.75rem;
+  color: var(--neutral-500);
+  margin-top: 2px;
+}
+
 .custom-item-content {
   display: grid;
   grid-template-columns: 1fr;
@@ -866,6 +1063,57 @@ watch(
 
 .custom-item-field {
   width: 100%;
+}
+
+.inventory-photo-input {
+  background: #fff;
+  border: 1px solid var(--neutral-200);
+  border-radius: 12px;
+}
+
+.inventory-photo-input :deep(.q-field__control) {
+  background: #fff;
+  border-radius: 12px;
+}
+
+.inventory-photo-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.inventory-photo-thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  border: 1px solid var(--neutral-200);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.inventory-photo-meta {
+  font-size: 0.75rem;
+  color: var(--neutral-500);
+  margin-top: 6px;
+}
+
+.image-viewer-card {
+  background: var(--bg-surface);
+}
+
+.image-viewer-header {
+  border-bottom: 1px solid var(--neutral-200);
+  background: var(--bg-secondary);
+}
+
+.image-viewer-content {
+  height: calc(100vh - 72px);
+  background: #fff;
+}
+
+.fullscreen-image {
+  width: 100%;
+  height: 100%;
 }
 
 /* Custom Other Items Styles */
@@ -956,10 +1204,14 @@ watch(
 }
 
 .inventory-actions {
-  padding: 16px 24px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--neutral-200);
   background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

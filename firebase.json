@@ -1,28 +1,57 @@
 {
+  "storage": {
+    "rules": "storage.rules"
+  },
   "functions": {
     "source": "backend",
-    "runtime": "nodejs22"
+    "runtime": "nodejs20"
   },
-  "hosting": {
-    "public": "dist/spa",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "headers": [
-      {
-        "source": "**/*.@(ico|svg|png)",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=3600" }
-        ]
-      }
-    ],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "function": "mkpl"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "main",
+      "public": "dist/spa",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "headers": [
+        {
+          "source": "**/*.@(ico|svg|png)",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=3600" }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": "mkpl"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "admin",
+      "public": "admin-console/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "headers": [
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            { "key": "Cache-Control", "value": "public,max-age=300" }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": "mkpl"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
 }

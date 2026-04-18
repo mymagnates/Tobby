@@ -152,7 +152,7 @@
                 </div>
               </div>
               <div class="col-12 col-md-3">
-                <div class="detail-label">Landlord</div>
+                <div class="detail-label">Property Owner</div>
                 <div class="detail-value">
                   {{ application.applicant.current_address.landlord_name || 'N/A' }}
                 </div>
@@ -286,6 +286,7 @@
                 Supporting Documents ({{ application.documents?.length || 0 }})
               </div>
               <q-btn
+                v-if="!isPoUser"
                 flat
                 dense
                 color="white"
@@ -521,7 +522,7 @@
 
             <!-- Action Buttons (for property managers/owners) -->
             <div
-              v-if="application.status === 'pending' || application.status === 'under review'"
+              v-if="!isPoUser && (application.status === 'pending' || application.status === 'under review')"
               class="row justify-center q-gutter-md q-mt-lg"
             >
               <q-btn
@@ -661,7 +662,7 @@
                 </div>
               </div>
               <div class="col-12 col-md-3">
-                <div class="detail-label">Landlord</div>
+                <div class="detail-label">Property Owner</div>
                 <div class="detail-value">
                   {{ application.applicant.current_address.landlord_name || 'N/A' }}
                 </div>
@@ -795,6 +796,7 @@
                 Supporting Documents ({{ application.documents?.length || 0 }})
               </div>
               <q-btn
+                v-if="!isPoUser"
                 flat
                 dense
                 color="white"
@@ -1319,10 +1321,12 @@ const approveApplication = async () => {
       updated_at: new Date().toISOString(),
     })
 
-    // Update lease status to "Rented" and set start_date
+    // Update lease status to "Rented" and keep start/move-in fields aligned
     await updateDocument('leases', leaseId, {
       status: 'Rented',
       start_date: leaseStartDate.value, // Save the start date to the lease
+      lease_start_date: leaseStartDate.value,
+      move_in_date: leaseStartDate.value,
       rented_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
