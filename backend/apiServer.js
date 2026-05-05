@@ -195,6 +195,9 @@ let firestoreDb = null
 let firebaseAuth = null
 
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+const DEFAULT_LLM_PROVIDER = 'vertex'
+const DEFAULT_VERTEX_LOCATION = 'us-central1'
+const DEFAULT_VERTEX_PUBLISHER = 'google'
 const DEFAULT_INVITE_EMAIL_FROM = 'onboarding@resend.dev'
 const OWNER_INVITE_PENDING = 'pending'
 
@@ -286,9 +289,18 @@ const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
 
 const classifyIssueCategory = (text = '') => {
   const value = String(text || '').toLowerCase()
+  if (
+    /floor|flooring|spc|vinyl plank|lvp|laminate|tile|carpet|hardwood|baseboard|quarter round|trim|shoe molding|molding/.test(
+      value
+    )
+  ) {
+    return 'flooring_finish'
+  }
   if (/leak|drip|pipe|toilet|sink|faucet|water|plumbing/.test(value)) return 'plumbing'
   if (/sparks|outlet|breaker|power|electrical|wiring|light/.test(value)) return 'electrical'
-  if (/ac|air\s*conditioning|hvac|heat|heater|thermostat/.test(value)) return 'hvac'
+  if (/\bac\b|air\s*conditioning|hvac|heat\b|heater|thermostat|furnace|cooling/.test(value)) {
+    return 'hvac'
+  }
   if (/washer|dryer|dishwasher|fridge|refrigerator|stove|oven/.test(value)) return 'appliance'
   return 'general_maintenance'
 }
@@ -409,6 +421,407 @@ const extractAmount = (text = '') => {
   return Number.isNaN(value) ? null : value
 }
 
+const detectSafetyFlags = (text = '') => {
+  const value = String(text || '').toLowerCase()
+  const flags = []
+  if (/gas/.test(value)) flags.push('Gas risk')
+  if (/smoke/.test(value)) flags.push('Smoke reported')
+  if (/burning smell|burnt smell/.test(value)) flags.push('Burning smell reported')
+  if (/sparking|spark/.test(value)) flags.push('Sparking reported')
+  if (/shock|electrical shock/.test(value)) flags.push('Shock risk')
+  if (/flood|flooding|burst pipe/.test(value)) flags.push('Water damage risk')
+  return flags
+}
+
+const mapIssueCategoryToServiceType = (category = '') => {
+  const value = String(category || '').toLowerCase()
+  if (value.includes('floor')) return 'flooring'
+  if (value.includes('plumb')) return 'plumbing'
+  if (value.includes('elect')) return 'electrical'
+  if (value.includes('hvac') || value.includes('heat') || value.includes('cool')) return 'hvac'
+  if (value.includes('pest')) return 'pest_control'
+  if (value.includes('clean')) return 'cleaning'
+  if (value.includes('lawn')) return 'lawn'
+  if (value.includes('pool')) return 'pool'
+  if (value.includes('security') || value.includes('lock') || value.includes('alarm')) return 'security'
+  return 'maintenance'
+}
+
+const estimateRegionalPriceRange = ({ category = '', urgency = '', city = '', state = '' }) => {
+  const normalizedCategory = String(category || '').toLowerCase()
+  const normalizedUrgency = String(urgency || '').toLowerCase()
+  const regionLabel = [String(city || '').trim(), String(state || '').trim()].filter(Boolean).join(', ') || 'the local market'
+  const multiplier = /(ca|ny|ma|wa|il|co|dc)/i.test(String(state || '').trim()) ? 1.2 : 1
+  const baseRanges = {
+    flooring_finish: [3000, 12000],
+    plumbing: [180, 650],
+    electrical: [200, 700],
+    hvac: [220, 900],
+    appliance: [160, 550],
+    pest: [150, 500],
+    roof: [300, 1500],
+    maintenance: [150, 600],
+    general: [150, 500],
+  }
+  const key =
+    baseRanges[normalizedCategory]
+      ? normalizedCategory
+      : normalizedCategory.includes('floor')
+        ? 'flooring_finish'
+      : normalizedCategory.includes('plumb')
+        ? 'plumbing'
+        : normalizedCategory.includes('elect')
+          ? 'electrical'
+          : normalizedCategory.includes('hvac')
+            ? 'hvac'
+            : normalizedCategory.includes('appliance')
+              ? 'appliance'
+              : normalizedCategory.includes('pest')
+                ? 'pest'
+                : normalizedCategory.includes('roof')
+                  ? 'roof'
+                  : 'general'
+  const [baseLow, baseHigh] = baseRanges[key]
+  const urgencyMultiplier = normalizedUrgency === 'high' ? 1.2 : normalizedUrgency === 'medium' ? 1.05 : 1
+  const low = Math.round((baseLow * multiplier * urgencyMultiplier) / 10) * 10
+  const high = Math.round((baseHigh * multiplier * urgencyMultiplier) / 10) * 10
+  return `Typical ${regionLabel} price range is about $${low}-$${high} for initial service or common repair scope. Final pricing depends on cause, parts, access, and severity.`
+}
+
+const normalizeStringList = (value, { max = 3 } = {}) => {
+  if (!Array.isArray(value)) return []
+  const seen = new Set()
+  return value
+    .map((item) => String(item || '').trim())
+    .filter((item) => item.length >= 6 && item.length <= 220)
+    .filter((item) => {
+      const key = item.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, max)
+}
+
+const isNonEmptyString = (value, min = 4) => String(value || '').trim().length >= min
+const truncateForLog = (value, max = 1200) => {
+  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  if (!text) return ''
+  return text.length > max ? `${text.slice(0, max)}…` : text
+}
+
+const parseFirebaseProjectId = () => {
+  try {
+    const config = JSON.parse(process.env.FIREBASE_CONFIG || '{}')
+    return String(config.projectId || '').trim() || null
+  } catch {
+    return null
+  }
+}
+
+const resolveVertexProjectId = (config = {}) =>
+  String(
+    config.vertexProjectId ||
+      process.env.VERTEX_PROJECT_ID ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GCLOUD_PROJECT ||
+      parseFirebaseProjectId() ||
+      '',
+  ).trim() || null
+
+const getGoogleAccessToken = async () => {
+  const response = await fetch(
+    'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+    {
+      headers: { 'Metadata-Flavor': 'Google' },
+    }
+  )
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    throw new Error(`metadata_token_failed:${response.status}:${truncateForLog(errorText, 400)}`)
+  }
+  const data = await response.json().catch(() => null)
+  return String(data?.access_token || '').trim() || null
+}
+
+const extractModelText = (data = null) => data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+const callGeminiDeveloperGenerateContent = async ({
+  systemInstruction,
+  contents,
+  apiKey,
+  model,
+  generationConfig,
+  tools,
+}) => {
+  if (!apiKey) {
+    return { parsed: null, raw_text: '', status: null, ok: false, error_text: 'missing_gemini_api_key', provider: 'gemini' }
+  }
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      model || DEFAULT_GEMINI_MODEL
+    )}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents,
+        generationConfig,
+        ...(Array.isArray(tools) && tools.length ? { tools } : {}),
+      }),
+    }
+  )
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    return {
+      parsed: null,
+      raw_text: '',
+      status: response.status,
+      ok: false,
+      error_text: truncateForLog(errorText, 800),
+      provider: 'gemini',
+    }
+  }
+  const data = await response.json().catch(() => null)
+  const text = extractModelText(data)
+  return {
+    parsed: parseJsonLoose(text),
+    raw_text: text,
+    status: response.status,
+    ok: true,
+    error_text: '',
+    provider: 'gemini',
+  }
+}
+
+const callVertexGenerateContent = async ({
+  systemInstruction,
+  contents,
+  model,
+  generationConfig,
+  tools,
+  vertexProjectId,
+  vertexLocation,
+  vertexPublisher,
+}) => {
+  const projectId = String(vertexProjectId || '').trim()
+  if (!projectId) {
+    return { parsed: null, raw_text: '', status: null, ok: false, error_text: 'missing_vertex_project_id', provider: 'vertex' }
+  }
+  let accessToken = null
+  try {
+    accessToken = await getGoogleAccessToken()
+  } catch (error) {
+    return {
+      parsed: null,
+      raw_text: '',
+      status: null,
+      ok: false,
+      error_text: truncateForLog(error?.message || 'vertex_auth_failed', 400),
+      provider: 'vertex',
+    }
+  }
+  const location = String(vertexLocation || DEFAULT_VERTEX_LOCATION).trim()
+  const publisher = String(vertexPublisher || DEFAULT_VERTEX_PUBLISHER).trim()
+  const response = await fetch(
+    `https://${encodeURIComponent(location)}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(
+      projectId
+    )}/locations/${encodeURIComponent(location)}/publishers/${encodeURIComponent(
+      publisher
+    )}/models/${encodeURIComponent(model || DEFAULT_GEMINI_MODEL)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents,
+        generationConfig,
+        ...(Array.isArray(tools) && tools.length ? { tools } : {}),
+      }),
+    }
+  )
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    return {
+      parsed: null,
+      raw_text: '',
+      status: response.status,
+      ok: false,
+      error_text: truncateForLog(errorText, 800),
+      provider: 'vertex',
+    }
+  }
+  const data = await response.json().catch(() => null)
+  const text = extractModelText(data)
+  return {
+    parsed: parseJsonLoose(text),
+    raw_text: text,
+    status: response.status,
+    ok: true,
+    error_text: '',
+    provider: 'vertex',
+  }
+}
+
+const callStructuredModel = async ({
+  provider = DEFAULT_LLM_PROVIDER,
+  systemInstruction,
+  contents,
+  generationConfig,
+  tools,
+  geminiApiKey,
+  model,
+  vertexProjectId,
+  vertexLocation,
+  vertexPublisher,
+}) => {
+  const normalizedProvider = String(provider || DEFAULT_LLM_PROVIDER).trim().toLowerCase()
+  if (normalizedProvider === 'gemini') {
+    return callGeminiDeveloperGenerateContent({
+      systemInstruction,
+      contents,
+      apiKey: geminiApiKey,
+      model,
+      generationConfig,
+      tools,
+    })
+  }
+  if (normalizedProvider === 'vertex') {
+    return callVertexGenerateContent({
+      systemInstruction,
+      contents,
+      model,
+      generationConfig,
+      tools,
+      vertexProjectId,
+      vertexLocation,
+      vertexPublisher,
+    })
+  }
+  if (normalizedProvider === 'auto') {
+    const vertexResult = await callVertexGenerateContent({
+      systemInstruction,
+      contents,
+      model,
+      generationConfig,
+      tools,
+      vertexProjectId,
+      vertexLocation,
+      vertexPublisher,
+    })
+    if (vertexResult.ok) return vertexResult
+    const geminiResult = await callGeminiDeveloperGenerateContent({
+      systemInstruction,
+      contents,
+      apiKey: geminiApiKey,
+      model,
+      generationConfig,
+      tools,
+    })
+    if (geminiResult.ok) return geminiResult
+    return {
+      ...geminiResult,
+      error_text: truncateForLog(
+        `vertex_error=${vertexResult.error_text || 'unknown'} | gemini_error=${geminiResult.error_text || 'unknown'}`,
+        800
+      ),
+      provider: 'auto',
+    }
+  }
+  return {
+    parsed: null,
+    raw_text: '',
+    status: null,
+    ok: false,
+    error_text: `unsupported_provider:${normalizedProvider}`,
+    provider: normalizedProvider,
+  }
+}
+
+const buildTaskInsightFallback = (task = {}) => {
+  const description = String(task?.description || '').trim()
+  const safetyFlags = detectSafetyFlags(description)
+  const city = String(task?.property_city || task?.city || '').trim()
+  const state = String(task?.property_state || task?.state || '').trim()
+  const suggestSp = safetyFlags.length > 0 || description.length >= 12
+  return {
+    capability: 'task_insight',
+    likely_causes: ['The exact trade and work scope need to be confirmed from the task description and on-site conditions.'],
+    knowledge_points: [
+      'The key first step is confirming the actual scope, access conditions, and any hidden constraints before pricing or scheduling.',
+      'Final trade selection and pricing usually depend on material, quantity, condition, and whether demolition or prep work is required.',
+    ],
+    possible_scope_of_work: [
+      'Review the described work, confirm site conditions, and define the actual labor and material scope before proceeding.',
+    ],
+    safety_flags: safetyFlags,
+    regional_price_range: `Typical ${[city, state].filter(Boolean).join(', ') || 'the local market'} pricing depends on the final trade, quantity, material, access, and prep scope. A reliable range requires the correct project type first.`,
+    recommended_next_step: safetyFlags.length
+      ? 'Review the task promptly and consider contacting a service provider due to the reported safety risk.'
+      : 'Review the task details, confirm the project type, and then decide whether to publish to the appropriate service provider.',
+    suggest_sp: suggestSp,
+    suggested_service_type: '',
+    confidence: 0.35,
+  }
+}
+
+const normalizeTaskInsightOutput = ({ task = {}, modelOutput = null }) => {
+  const fallback = buildTaskInsightFallback(task)
+  if (!modelOutput || modelOutput.capability !== 'task_insight') {
+    return { output: fallback, fallback_reason: 'missing_or_invalid_capability' }
+  }
+
+  const suggestedServiceType = String(modelOutput?.suggested_service_type || '').trim().toLowerCase()
+  const modelLikelyCauses = normalizeStringList(modelOutput?.likely_causes, { max: 3 })
+  const modelKnowledgePoints = normalizeStringList(modelOutput?.knowledge_points, { max: 3 })
+  const modelScopes = normalizeStringList(modelOutput?.possible_scope_of_work, { max: 3 })
+  const modelSafetyFlags = normalizeStringList(modelOutput?.safety_flags, { max: 3 })
+  const mergedSafetyFlags = normalizeStringList(
+    [...(fallback.safety_flags || []), ...modelSafetyFlags],
+    { max: 4 }
+  )
+
+  const output = {
+    capability: 'task_insight',
+    likely_causes: modelLikelyCauses.length ? modelLikelyCauses : fallback.likely_causes,
+    knowledge_points: modelKnowledgePoints.length ? modelKnowledgePoints : fallback.knowledge_points,
+    possible_scope_of_work: modelScopes.length ? modelScopes : fallback.possible_scope_of_work,
+    safety_flags: mergedSafetyFlags,
+    regional_price_range:
+      isNonEmptyString(modelOutput?.regional_price_range, 12) && /\$\d|\bprice\b/i.test(String(modelOutput.regional_price_range))
+        ? String(modelOutput.regional_price_range).trim()
+        : fallback.regional_price_range,
+    recommended_next_step: isNonEmptyString(modelOutput?.recommended_next_step, 8)
+      ? String(modelOutput.recommended_next_step).trim()
+      : fallback.recommended_next_step,
+    suggest_sp:
+      typeof modelOutput?.suggest_sp === 'boolean'
+        ? modelOutput.suggest_sp
+        : fallback.suggest_sp,
+    suggested_service_type:
+      isNonEmptyString(suggestedServiceType, 3) ? suggestedServiceType : fallback.suggested_service_type,
+    confidence:
+      Number.isFinite(Number(modelOutput?.confidence))
+        ? Math.max(0, Math.min(1, Number(modelOutput.confidence)))
+        : fallback.confidence,
+  }
+  const usedFallbackContent =
+    output.likely_causes === fallback.likely_causes &&
+    output.knowledge_points === fallback.knowledge_points &&
+    output.possible_scope_of_work === fallback.possible_scope_of_work &&
+    output.regional_price_range === fallback.regional_price_range &&
+    output.recommended_next_step === fallback.recommended_next_step &&
+    output.suggested_service_type === fallback.suggested_service_type
+  return {
+    output,
+    fallback_reason: usedFallbackContent ? 'normalized_to_generic_fallback' : 'model_output_used',
+  }
+}
+
 const isMaintenanceRelated = (text = '') => {
   const value = String(text || '').toLowerCase()
   return /(leak|drip|pipe|toilet|sink|faucet|water|plumbing|electrical|outlet|breaker|power|wiring|light|ac|air\s*conditioning|hvac|heat|heater|thermostat|washer|dryer|dishwasher|fridge|refrigerator|stove|oven|clog|mold|pest|roof|window|door|lock|garage|vent|transaction|payment|paid|pay|invoice|rent|deposit|refund|fee|charge|transfer|remind|reminder|due|renewal|renew|schedule|scheduled|recurring|monthly|weekly|yearly|annual)/.test(
@@ -416,38 +829,13 @@ const isMaintenanceRelated = (text = '') => {
   )
 }
 
-const buildAgentIntakePrompt = ({ rawText, context }) => {
-  const payload = {
-    raw_text: rawText,
-    context: {
-      property_id: context?.property_id || null,
-      lease_id: context?.lease_id || null,
-      unit_id: context?.unit_id || null,
-      property_list: Array.isArray(context?.property_list) ? context.property_list : [],
-      transaction_type_hint: context?.transaction_type_hint || null,
-      transaction_type_options: Array.isArray(context?.transaction_type_options)
-        ? context.transaction_type_options
-        : [],
-      transaction_role_options: Array.isArray(context?.transaction_role_options)
-        ? context.transaction_role_options
-        : [],
-      asset_type_hint: context?.asset_type_hint || null,
-      asset_type_options: Array.isArray(context?.asset_type_options)
-        ? context.asset_type_options
-        : [],
-      asset_location_hint: context?.asset_location_hint || null,
-      reminder_category_hint: context?.reminder_category_hint || null,
-      reminder_category_options: Array.isArray(context?.reminder_category_options)
-        ? context.reminder_category_options
-        : [],
-      reminder_repeat_hint: context?.reminder_repeat_hint || null,
-    },
-  }
-
-  return [
-    'You are a task-intake agent for property maintenance.',
+const buildAgentIntakeSystemInstruction = () =>
+  [
+    'You are Tobby, a senior general contractor and expert of property maintenance working as a constrained structured intake agent.',
     'Return JSON only. No markdown, no extra text.',
     'Do not provide DIY instructions. Only summarize the issue and draft a record.',
+    'Do not guess unsupported facts. If a field is unclear, leave it empty or omit it.',
+    'Prefer provided context and hints over speculation.',
     'Output schema:',
     '{',
     '  "entity_type": "task"|"transaction"|"asset"|"reminder",',
@@ -469,11 +857,34 @@ const buildAgentIntakePrompt = ({ rawText, context }) => {
     'If entity_type is "asset", use asset_type_options and asset_type_hint when relevant.',
     'If entity_type is "reminder", use reminder_category_options and reminder_category_hint when relevant.',
     'If entity_type is "reminder", use reminder_repeat_hint when relevant.',
-    '',
-    'User input:',
-    JSON.stringify(payload),
   ].join('\n')
-}
+
+const buildAgentIntakeUserPayload = ({ rawText, context }) => ({
+  raw_text: rawText,
+  context: {
+    property_id: context?.property_id || null,
+    lease_id: context?.lease_id || null,
+    unit_id: context?.unit_id || null,
+    property_list: Array.isArray(context?.property_list) ? context.property_list : [],
+    transaction_type_hint: context?.transaction_type_hint || null,
+    transaction_type_options: Array.isArray(context?.transaction_type_options)
+      ? context.transaction_type_options
+      : [],
+    transaction_role_options: Array.isArray(context?.transaction_role_options)
+      ? context.transaction_role_options
+      : [],
+    asset_type_hint: context?.asset_type_hint || null,
+    asset_type_options: Array.isArray(context?.asset_type_options)
+      ? context.asset_type_options
+      : [],
+    asset_location_hint: context?.asset_location_hint || null,
+    reminder_category_hint: context?.reminder_category_hint || null,
+    reminder_category_options: Array.isArray(context?.reminder_category_options)
+      ? context.reminder_category_options
+      : [],
+    reminder_repeat_hint: context?.reminder_repeat_hint || null,
+  },
+})
 
 const parseJsonLoose = (value) => {
   if (!value) return null
@@ -495,26 +906,294 @@ const parseJsonLoose = (value) => {
   }
 }
 
-const callGeminiIntake = async ({ rawText, context, apiKey, model }) => {
-  if (!apiKey) return null
-  const prompt = buildAgentIntakePrompt({ rawText, context })
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      model || DEFAULT_GEMINI_MODEL
-    )}:generateContent?key=${encodeURIComponent(apiKey)}`,
+const callModelIntake = async ({
+  rawText,
+  context,
+  apiKey,
+  model,
+  provider,
+  vertexProjectId,
+  vertexLocation,
+  vertexPublisher,
+}) => {
+  const systemInstruction = buildAgentIntakeSystemInstruction()
+  const payload = buildAgentIntakeUserPayload({ rawText, context })
+  const result = await callStructuredModel({
+    provider,
+    systemInstruction,
+    contents: [{ role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' },
+    geminiApiKey: apiKey,
+    model,
+    vertexProjectId,
+    vertexLocation,
+    vertexPublisher,
+  })
+  return result?.parsed || null
+}
+
+const buildTaskInsightSystemInstruction = () =>
+  [
+    'You are Tobby, a senior general contractor and expert of property maintenance working as a constrained task insight agent.',
+    'Return valid JSON only. No markdown, no prose outside the JSON object, no code fences.',
+    'Do not provide DIY instructions or repair steps.',
+    'Answer from the perspective of helping the user understand how to complete this project at a high level and who can get this job done.',
+    'Every answer must stay tightly grounded in the exact task description, comments, and local hints provided in the input.',
+    'If the evidence is weak or ambiguous, say that inspection is needed instead of inventing a specific diagnosis.',
+    'Provide relevant knowledge for understanding the task, estimate likely work scope, and give a regional price range.',
+    'For regional_price_range, use property_zip as the strongest local market anchor when provided; otherwise use city and state.',
+    'When search grounding is available and a ZIP/city/state is provided, use it to estimate current local market pricing for the described trade and scope.',
+    'regional_price_range must include a practical dollar range, per-unit price, or both. Avoid generic pricing language without numbers.',
+    'For quantity-based work such as flooring, painting, roofing, landscaping, and gardening, include an approximate per-unit range and a rough total range when the task gives quantity.',
+    'Do not hallucinate precise construction details that are not grounded in the task description.',
+    'Knowledge should help the user understand the task, not perform the work themselves.',
+    'Use local_hints only for safety and context. Do not treat them as a pre-classified project type.',
+    'Use task comments as additional context for task history, failed attempts, worsening symptoms, and recent updates.',
+    'Prioritize the most recent comments when they conflict with older comments.',
+    'If request_context.refresh_mode is "regenerate", generate a fresh response from scratch instead of repeating prior wording by habit.',
+    'Keep each array concise. Prefer 1-2 strong, relevant items over broad generic lists.',
+    'The recommended trade and scope must match the maintenance problem actually described by the user.',
+    'Keep answers short, product-oriented, and cautious.',
+    'For construction, renovation, finish, flooring, painting, trim, cabinet, door, window, roofing, landscaping, gardening, and similar project descriptions, identify the actual project scope rather than falling back to generic maintenance language.',
+    'Use these rules:',
+    '- likely_causes: 1-2 plain statements of what this project or issue actually is.',
+    '- knowledge_points: 1-2 concise facts that help the user understand pricing, trade selection, or scope drivers.',
+    '- possible_scope_of_work: 1-2 concise statements of the likely labor/material scope.',
+    '- safety_flags: only include real safety concerns from the input; otherwise return [].',
+    '- regional_price_range: always provide a useful plain-English local price range with dollar numbers; mention ZIP/city/state when available.',
+    '- suggested_service_type: a short trade label such as plumbing, electrical, hvac, flooring, painting, roofing, landscaping, gardening, finish_carpentry, appliance, handyman, general_contractor.',
+    '- suggest_sp: true when a professional trade is likely needed.',
+    'Output schema:',
+    '{',
+    '  "capability": "task_insight",',
+    '  "likely_causes": string[],',
+    '  "knowledge_points": string[],',
+    '  "possible_scope_of_work": string[],',
+    '  "safety_flags": string[],',
+    '  "regional_price_range": string,',
+    '  "recommended_next_step": string,',
+    '  "suggest_sp": boolean,',
+    '  "suggested_service_type": string,',
+    '  "confidence": number',
+    '}',
+  ].join('\n')
+
+const TASK_INSIGHT_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    capability: { type: 'STRING' },
+    likely_causes: { type: 'ARRAY', items: { type: 'STRING' } },
+    knowledge_points: { type: 'ARRAY', items: { type: 'STRING' } },
+    possible_scope_of_work: { type: 'ARRAY', items: { type: 'STRING' } },
+    safety_flags: { type: 'ARRAY', items: { type: 'STRING' } },
+    regional_price_range: { type: 'STRING' },
+    recommended_next_step: { type: 'STRING' },
+    suggest_sp: { type: 'BOOLEAN' },
+    suggested_service_type: { type: 'STRING' },
+    confidence: { type: 'NUMBER' },
+  },
+  required: [
+    'capability',
+    'likely_causes',
+    'knowledge_points',
+    'possible_scope_of_work',
+    'safety_flags',
+    'regional_price_range',
+    'recommended_next_step',
+    'suggest_sp',
+    'suggested_service_type',
+    'confidence',
+  ],
+}
+
+const buildTaskInsightUserPayload = ({ task }) => {
+  const description = String(task?.description || '').trim()
+  const localSafetyFlags = detectSafetyFlags(description)
+  const commentSummary = Array.isArray(task?.comments)
+    ? task.comments
+        .filter((comment) => comment && typeof comment === 'object' && String(comment.comment || '').trim())
+        .slice(-6)
+        .map((comment) => ({
+          created_at: comment.created_at || null,
+          action_type: comment.action_type || 'comment',
+          user_role: comment.user_role || '',
+          comment: String(comment.comment || '').trim(),
+        }))
+    : []
+  const payload = {
+    task: {
+      id: task?.id || null,
+      property_id: task?.property_id || null,
+      description: task?.description || '',
+      status: task?.status || 'open',
+      report_date: task?.report_date || null,
+      property_city: task?.property_city || task?.city || null,
+      property_state: task?.property_state || task?.state || null,
+      property_zip: task?.property_zip || task?.zip_code || task?.postal_code || task?.zip || null,
+      comments: commentSummary,
+    },
+    request_context: {
+      refresh_nonce: task?.ai_refresh_nonce || null,
+      refresh_mode: task?.ai_refresh_nonce ? 'regenerate' : 'default',
+    },
+    local_hints: {
+      safety_flags: localSafetyFlags,
+    },
+  }
+
+  return payload
+}
+
+const buildTaskInsightFewShotContents = () => {
+  const flooringExampleInput = {
+    task: {
+      id: 'example-flooring-1',
+      property_id: null,
+      description:
+        'replace flooring with SPC material, install base board and quarter round, about 1500 sqft',
+      status: 'open',
+      report_date: null,
+      property_city: 'Dallas',
+      property_state: 'TX',
+      property_zip: '75201',
+      comments: [],
+    },
+    request_context: { refresh_nonce: null, refresh_mode: 'default' },
+    local_hints: { safety_flags: [] },
+  }
+
+  const flooringExampleOutput = {
+    capability: 'task_insight',
+    likely_causes: [
+      'This is a flooring replacement project with finish trim work, not an equipment repair issue.',
+      'The main scope is SPC flooring installation plus baseboard and quarter round finishing.',
+    ],
+    knowledge_points: [
+      'SPC flooring scope usually depends on demolition needs, subfloor flatness, layout complexity, and transition details.',
+      'Square footage, trim removal or replacement, and furniture or appliance moving can materially change labor cost.',
+    ],
+    possible_scope_of_work: [
+      'Remove existing flooring if required, prepare the subfloor, and install new SPC flooring across the stated area.',
+      'Install or reinstall baseboard and quarter round, then complete transitions and finish details.',
+    ],
+    safety_flags: [],
+    regional_price_range:
+      'For ZIP 75201 / Dallas, TX, a 1500 sqft SPC flooring project with baseboard and quarter round often prices around $4-$10 per sqft for labor and common install scope, or roughly $6,000-$15,000 before unusual demolition, subfloor repair, premium materials, or access constraints.',
+    recommended_next_step:
+      'Confirm whether demolition, subfloor prep, and trim replacement are included, then publish to a flooring or finish carpentry service provider for quoting.',
+    suggest_sp: true,
+    suggested_service_type: 'flooring',
+    confidence: 0.9,
+  }
+
+  const plumbingExampleInput = {
+    task: {
+      id: 'example-plumbing-1',
+      property_id: null,
+      description: 'Kitchen sink is leaking under the cabinet and water is dripping onto the floor',
+      status: 'open',
+      report_date: null,
+      property_city: 'Chicago',
+      property_state: 'IL',
+      property_zip: '60614',
+      comments: [],
+    },
+    request_context: { refresh_nonce: null, refresh_mode: 'default' },
+    local_hints: { safety_flags: ['Water damage risk'] },
+  }
+
+  const plumbingExampleOutput = {
+    capability: 'task_insight',
+    likely_causes: [
+      'This likely points to a plumbing leak at the drain connection, supply line, or faucet-related fitting under the sink.',
+    ],
+    knowledge_points: [
+      'Under-sink leaks often require confirming whether the source is the drain assembly, water supply, shutoff valve, or fixture body.',
+    ],
+    possible_scope_of_work: [
+      'Inspect the leak source, then tighten, reseal, or replace the failed plumbing connection or component.',
+    ],
+    safety_flags: ['Water damage risk'],
+    regional_price_range:
+      'For ZIP 60614 / Chicago, IL, an under-sink leak repair commonly starts around $175-$450 for a basic service call and minor repair, with higher totals if parts, cabinet access, or water damage work is needed.',
+    recommended_next_step:
+      'Confirm whether the leak is active now and publish to a plumbing service provider if immediate repair is needed.',
+    suggest_sp: true,
+    suggested_service_type: 'plumbing',
+    confidence: 0.88,
+  }
+
+  return [
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 512 },
-      }),
-    }
+      role: 'user',
+      parts: [{ text: JSON.stringify(flooringExampleInput) }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: JSON.stringify(flooringExampleOutput) }],
+    },
+    {
+      role: 'user',
+      parts: [{ text: JSON.stringify(plumbingExampleInput) }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: JSON.stringify(plumbingExampleOutput) }],
+    },
+  ]
+}
+
+const callModelTaskInsight = async ({
+  task,
+  apiKey,
+  model,
+  provider,
+  vertexProjectId,
+  vertexLocation,
+  vertexPublisher,
+}) => {
+  const systemInstruction = buildTaskInsightSystemInstruction()
+  const payload = buildTaskInsightUserPayload({ task })
+  const fewShotContents = buildTaskInsightFewShotContents()
+  const hasLocalMarket = Boolean(
+    payload?.task?.property_zip || (payload?.task?.property_city && payload?.task?.property_state)
   )
-  if (!response.ok) return null
-  const data = await response.json().catch(() => null)
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
-  return parseJsonLoose(text)
+  const searchTools = hasLocalMarket ? [{ googleSearch: {} }] : null
+  const request = {
+    provider,
+    systemInstruction,
+    contents: [...fewShotContents, { role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+      responseSchema: TASK_INSIGHT_RESPONSE_SCHEMA,
+    },
+    geminiApiKey: apiKey,
+    model,
+    vertexProjectId,
+    vertexLocation,
+    vertexPublisher,
+  }
+
+  if (!searchTools) return callStructuredModel(request)
+
+  const groundedResult = await callStructuredModel({
+    ...request,
+    tools: searchTools,
+  })
+  if (groundedResult?.ok) return groundedResult
+
+  const ungroundedResult = await callStructuredModel(request)
+  return {
+    ...ungroundedResult,
+    error_text: ungroundedResult?.ok
+      ? groundedResult?.error_text || ''
+      : truncateForLog(
+          `grounding_error=${groundedResult?.error_text || 'unknown'} | retry_error=${ungroundedResult?.error_text || 'unknown'}`,
+          800
+        ),
+  }
 }
 
 const withIdempotency = ({ store, key, resolver }) => {
@@ -531,6 +1210,12 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const rateLimits = new Map()
   const geminiApiKey = config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ''
   const geminiModel = config.geminiModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
+  const llmProvider = config.llmProvider || process.env.LLM_PROVIDER || DEFAULT_LLM_PROVIDER
+  const vertexProjectId = resolveVertexProjectId(config)
+  const vertexLocation =
+    config.vertexLocation || process.env.VERTEX_LOCATION || DEFAULT_VERTEX_LOCATION
+  const vertexPublisher =
+    config.vertexPublisher || process.env.VERTEX_PUBLISHER || DEFAULT_VERTEX_PUBLISHER
   const resendApiKey = config.resendApiKey || process.env.RESEND_API_KEY || ''
   const inviteEmailFrom = String(
     config.inviteEmailFrom || process.env.INVITE_EMAIL_FROM || DEFAULT_INVITE_EMAIL_FROM,
@@ -638,9 +1323,37 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       if (actor.role === 'sp') query = query.where('status', '==', 'open')
       if (actor.role === 'pm_po') query = query.where('creator_id', '==', actor.id)
       const snap = await query.get()
-      return snap.docs
+      let items = snap.docs
         .map((doc) => normalizeLead({ id: doc.id, ...(doc.data() || {}) }))
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      if (actor.role === 'sp') {
+        let spProfile = store.spProfiles.get(actor.id) || null
+        if (!spProfile) {
+          try {
+            const userSnap = await db.collection('users').doc(actor.id).get()
+            const userData = userSnap.exists ? userSnap.data() || {} : {}
+            const nested = userData?.sp_service_profile || null
+            if (nested && typeof nested === 'object') {
+              spProfile = {
+                id: actor.id,
+                user_id: actor.id,
+                ...nested,
+              }
+            }
+          } catch {
+            spProfile = null
+          }
+        }
+        if (!spProfile) return []
+        items = items.filter((lead) => {
+          const explicitlyPublished =
+            lead?.sp_published === true ||
+            String(lead?.sp_publish_status || '').trim().toLowerCase() === 'published'
+          if (!explicitlyPublished) return false
+          return isSpEligibleForLead(lead, spProfile)
+        })
+      }
+      return items
     } catch {
       return []
     }
@@ -764,11 +1477,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const safePropertyAddress = escapeHtml(propertyAddress || '')
     const safeInviterName = escapeHtml(inviterName || 'A property manager')
     return {
-      subject: `You’ve been invited to access ${propertyName || 'a property'} in Tobby`,
+      subject: `You’ve been invited to access ${propertyName || 'a property'} in HANDOUT`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#111827;">
           <h2 style="margin:0 0 16px;">Property Access Invitation</h2>
-          <p style="margin:0 0 12px;">${safeInviterName} invited you to access <strong>${safePropertyName}</strong> in Tobby.</p>
+          <p style="margin:0 0 12px;">${safeInviterName} invited you to access <strong>${safePropertyName}</strong> in HANDOUT.</p>
           ${safePropertyAddress ? `<p style="margin:0 0 20px;color:#4b5563;">${safePropertyAddress}</p>` : ''}
           <p style="margin:0 0 24px;">Use the button below to accept the invitation.</p>
           <p style="margin:0 0 24px;">
@@ -781,7 +1494,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         </div>
       `,
       text: [
-        `${inviterName || 'A property manager'} invited you to access ${propertyName || 'this property'} in Tobby.`,
+        `${inviterName || 'A property manager'} invited you to access ${propertyName || 'this property'} in HANDOUT.`,
         propertyAddress ? `Property: ${propertyAddress}` : null,
         '',
         `Accept invitation: ${inviteUrl}`,
@@ -795,6 +1508,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
     if (!inviteEmailFrom) {
       return { emailSent: false, reason: 'missing_invite_email_from' }
+    }
+    if (inviteEmailFrom === DEFAULT_INVITE_EMAIL_FROM) {
+      return { emailSent: false, reason: 'invite_email_sender_not_configured' }
     }
 
     const payload = renderOwnerInviteEmail({
@@ -3487,11 +4203,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     let output = null
     if (result?.rawText) {
       try {
-        output = await callGeminiIntake({
+        output = await callModelIntake({
           rawText: result.rawText,
           context: result.context,
           apiKey: geminiApiKey,
           model: geminiModel,
+          provider: llmProvider,
+          vertexProjectId,
+          vertexLocation,
+          vertexPublisher,
         })
       } catch {
         output = null
@@ -3578,6 +4298,83 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       actor,
       requestId,
       metadata: { capability: output?.capability || null },
+    })
+
+    ok(res, requestId, output)
+  })
+
+  route('POST', '/agent/task-insight', async ({ actor, body, req, res, requestId }) => {
+    if (!isAllowedOrigin(req)) {
+      return sendError(res, requestId, 403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed')
+    }
+    const rateKey = `agent:task-insight:${actor?.id || 'anonymous'}`
+    if (hitRateLimit({ key: rateKey, limit: agentRateLimitPerMin })) {
+      return sendError(res, requestId, 429, 'RATE_LIMITED', 'Too many requests', true)
+    }
+
+    const task = body?.task || {}
+    const description = String(task?.description || '').trim()
+    if (!description || description.length < 3) {
+      return sendError(res, requestId, 400, 'INVALID_INPUT', 'task.description is required')
+    }
+    if (!isMaintenanceRelated(description)) {
+      return ok(res, requestId, {
+        capability: 'out_of_scope',
+        message: 'I can help explain maintenance tasks and suggest whether contacting a service provider makes sense.',
+      })
+    }
+
+    let modelResult = null
+    try {
+      modelResult = await callModelTaskInsight({
+        task,
+        apiKey: geminiApiKey,
+        model: geminiModel,
+        provider: llmProvider,
+        vertexProjectId,
+        vertexLocation,
+        vertexPublisher,
+      })
+    } catch {
+      modelResult = null
+    }
+
+    const normalized = normalizeTaskInsightOutput({
+      task,
+      modelOutput: modelResult?.parsed || null,
+    })
+    const output = {
+      ...normalized.output,
+      generated_by_model: normalized.fallback_reason === 'model_output_used',
+      fallback_reason: normalized.fallback_reason,
+      model_provider: modelResult?.provider || llmProvider,
+      model_status: modelResult?.status ?? null,
+    }
+
+    console.log(
+      JSON.stringify({
+        tag: 'task_insight_debug',
+        request_id: requestId,
+        task_id: task?.id || null,
+        description: truncateForLog(description, 240),
+        model_status: modelResult?.status ?? null,
+        model_ok: modelResult?.ok ?? false,
+        model_error_text: modelResult?.error_text || '',
+        model_raw_text: truncateForLog(modelResult?.raw_text || '', 2000),
+        model_parsed: modelResult?.parsed || null,
+        fallback_reason: normalized.fallback_reason,
+        final_output: output,
+      })
+    )
+
+    await appendAgentEvent({
+      eventType: 'agent_task_insight',
+      actor,
+      requestId,
+      metadata: {
+        task_id: task?.id || null,
+        fallback_reason: normalized.fallback_reason,
+      },
     })
 
     ok(res, requestId, output)
@@ -3910,6 +4707,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         comments,
         comment_count: Number(body?.comment_count ?? comments.length ?? existing.comment_count ?? 0),
         visibility_mode: body?.visibility_mode || existing.visibility_mode || 'public',
+        sp_published: true,
+        sp_publish_status: 'published',
+        sp_published_at: body?.sp_published_at || existing.sp_published_at || now,
         bid_deadline: body?.bid_deadline || existing.bid_deadline || null,
         image_urls: imageUrls,
         photo_count: Number(body?.photo_count ?? imageUrls.length ?? existing.photo_count ?? 0),
@@ -3970,6 +4770,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       photo_count: Number(body?.photo_count ?? imageUrls.length ?? 0),
       status: 'open',
       visibility_mode: 'public',
+      sp_published: true,
+      sp_publish_status: 'published',
+      sp_published_at: body?.sp_published_at || now,
       bid_deadline: body?.bid_deadline || null,
       bid_count: 0,
       assigned_sp_id: null,

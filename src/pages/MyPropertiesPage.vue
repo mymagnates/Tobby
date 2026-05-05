@@ -645,6 +645,9 @@
           <div class="text-body2 text-grey-7 q-mb-sm">
             Email was not sent. Share this link manually.
           </div>
+          <div v-if="inviteLinkReason" class="text-caption text-warning q-mb-sm">
+            {{ inviteLinkReason }}
+          </div>
           <q-input
             :model-value="inviteLinkValue"
             outlined
@@ -669,6 +672,7 @@ import { Notify } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
+import { formatOwnerInviteFallbackReason } from '../utils/ownerInviteEmailFeedback'
 import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
 import { sendOwnerInviteEmailRequest } from '../services/ownerInviteApi'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
@@ -687,6 +691,7 @@ const isEditMode = ref(false)
 const editLoading = ref(false)
 const showInviteLinkDialog = ref(false)
 const inviteLinkValue = ref('')
+const inviteLinkReason = ref('')
 
 // Create form dialogs
 const showCreateMxRecordDialog = ref(false)
@@ -694,8 +699,9 @@ const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
 const selectedPropertyForDialog = ref(null)
 
-const openInviteLinkDialog = (link) => {
+const openInviteLinkDialog = (link, reason = '') => {
   inviteLinkValue.value = String(link || '').trim()
+  inviteLinkReason.value = String(reason || '').trim()
   showInviteLinkDialog.value = true
 }
 
@@ -867,22 +873,26 @@ const promptOwnerInvite = (property) => {
       }
 
       const inviteLink = String(response?.invite_url || '').trim()
-      openInviteLinkDialog(inviteLink || response?.fallback_reason || '')
+      const reasonMessage = formatOwnerInviteFallbackReason(response?.fallback_reason)
+      openInviteLinkDialog(inviteLink, reasonMessage)
       Notify.create({
         type: 'warning',
         message: 'Email was not sent. Invite link is shown for manual copy.',
-        caption: inviteLink || response?.fallback_reason || '',
+        caption: reasonMessage,
         position: 'top',
         timeout: 6000,
       })
     } catch (error) {
       try {
         const inviteLink = await createOwnerInvite(property, email)
-        openInviteLinkDialog(inviteLink)
+        const reasonMessage = formatOwnerInviteFallbackReason(
+          error?.payload?.message || error?.message || 'resend_request_failed',
+        )
+        openInviteLinkDialog(inviteLink, reasonMessage)
         Notify.create({
           type: 'warning',
           message: 'Email service unavailable. Invite link is shown for manual copy.',
-          caption: inviteLink,
+          caption: reasonMessage,
           position: 'top',
           timeout: 6000,
         })

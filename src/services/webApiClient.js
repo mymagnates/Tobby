@@ -321,6 +321,7 @@ export const billingApi = {
 
 export const agentApi = {
   intake: (payload) => request('/agent/intake', { method: 'POST', body: payload }),
+  taskInsight: (task) => request('/agent/task-insight', { method: 'POST', body: { task } }),
   submit: (payload) => request('/agent/submit', { method: 'POST', body: payload }),
 }
 

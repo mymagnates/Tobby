@@ -517,6 +517,113 @@
           </div>
           </div>
 
+          <div class="mxrecord-side-column">
+          <q-card class="task-insight-panel" flat bordered>
+            <q-card-section>
+              <div class="sp-panel-header q-mb-sm">
+                <div>
+                  <div class="text-subtitle1 text-weight-bold">Tobby Insight</div>
+                  <div class="text-caption text-grey-7">
+                    AI summary of the current task. No DIY guidance.
+                  </div>
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  round
+                  color="primary"
+                  icon="refresh"
+                  :loading="loadingTaskInsight"
+                  @click="refreshTaskInsight()"
+                />
+              </div>
+
+              <div v-if="loadingTaskInsight" class="text-center q-pa-md">
+                <q-spinner-dots size="28px" color="primary" />
+              </div>
+              <div v-else-if="taskInsightError" class="text-caption text-negative">
+                {{ taskInsightError }}
+              </div>
+              <div v-else-if="taskInsight" class="q-gutter-sm">
+                <div class="detail-item">
+                  <div class="detail-label">Likely Meaning</div>
+                  <ul class="task-insight-list q-ma-none">
+                    <li
+                      v-for="(cause, causeIndex) in taskInsight.likely_causes || []"
+                      :key="`${cause}-${causeIndex}`"
+                    >
+                      {{ cause }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="taskInsight.knowledge_points?.length" class="detail-item">
+                  <div class="detail-label">Task Knowledge</div>
+                  <ul class="task-insight-list q-ma-none">
+                    <li
+                      v-for="(point, pointIndex) in taskInsight.knowledge_points"
+                      :key="`${point}-${pointIndex}`"
+                    >
+                      {{ point }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="taskInsight.possible_scope_of_work?.length" class="detail-item">
+                  <div class="detail-label">Possible Scope</div>
+                  <ul class="task-insight-list q-ma-none">
+                    <li
+                      v-for="(scopeItem, scopeIndex) in taskInsight.possible_scope_of_work"
+                      :key="`${scopeItem}-${scopeIndex}`"
+                    >
+                      {{ scopeItem }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="taskInsight.regional_price_range" class="detail-item">
+                  <div class="detail-label">Regional Price Range</div>
+                  <div class="detail-value">{{ taskInsight.regional_price_range }}</div>
+                </div>
+                <div v-if="taskInsight.safety_flags?.length" class="detail-item">
+                  <div class="detail-label">Safety Flags</div>
+                  <div class="row q-gutter-xs q-mt-xs">
+                    <q-chip
+                      v-for="(flag, flagIndex) in taskInsight.safety_flags"
+                      :key="`${flag}-${flagIndex}`"
+                      color="negative"
+                      text-color="white"
+                      size="sm"
+                    >
+                      {{ flag }}
+                    </q-chip>
+                  </div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">Next Step</div>
+                  <div class="detail-value">{{ taskInsight.recommended_next_step || 'N/A' }}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">Suggested Service</div>
+                  <div class="detail-value">
+                    {{ taskInsight.suggest_sp ? (taskInsight.suggested_service_type || 'service review') : 'Not necessary yet' }}
+                  </div>
+                </div>
+                <div v-if="taskInsight.suggest_sp && canManageRecords && selectedMxRecord" class="row q-gutter-sm">
+                  <q-btn
+                    color="primary"
+                    text-color="white"
+                    unelevated
+                    icon="publish"
+                    :label="getPublishTaskButtonLabel(selectedMxRecord)"
+                    :loading="publishingTaskToSp"
+                    @click="openTaskPublishDialog(selectedMxRecord, 'detail')"
+                  />
+                </div>
+              </div>
+              <div v-else class="text-caption text-grey-6">
+                No insight available for this task yet.
+              </div>
+            </q-card-section>
+          </q-card>
+
           <q-card v-if="loadingTaskBids || taskBids.length > 0" class="task-bids-side-panel" flat bordered>
             <q-card-section>
               <div class="sp-panel-header q-mb-xs">
@@ -759,6 +866,7 @@
               </template>
             </q-card-section>
           </q-card>
+          </div>
         </div>
     </div>
   </DetailShell>
@@ -1446,7 +1554,7 @@ import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import { Notify } from 'quasar'
-import { marketplaceApi, spCardsApi } from '../services/webApiClient'
+import { agentApi, marketplaceApi, spCardsApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, createDocument, uploadImages, getCollectionData } = useFirebase()
@@ -1472,6 +1580,9 @@ const canManageRecords = computed(() => {
 })
 const showMxRecordDialog = ref(false)
 const selectedMxRecord = ref(null)
+const taskInsight = ref(null)
+const loadingTaskInsight = ref(false)
+const taskInsightError = ref('')
 const recommendedSps = ref([])
 const loadingRecommendedSps = ref(false)
 const taskBids = ref([])
@@ -1861,6 +1972,46 @@ const buildTaskIdCandidates = (mxRecord) => {
     .map((value) => String(value).trim()))]
 }
 
+const getSavedTaskInsight = (mxRecord) => {
+  const insight = mxRecord?.tobby_insight || mxRecord?.ai_insight || null
+  if (!insight || typeof insight !== 'object') return null
+  if (insight.capability && insight.capability !== 'task_insight') return null
+  if (insight.generated_by_model === false) return null
+  return insight
+}
+
+const getTaskFirestoreId = (mxRecord) => buildTaskIdCandidates(mxRecord)[0] || ''
+
+const saveTaskInsightToRecord = async (mxRecord, insight) => {
+  if (!mxRecord || !insight || typeof insight !== 'object') return
+  if (insight.capability && insight.capability !== 'task_insight') return
+  if (insight.generated_by_model === false) return
+
+  const propertyId = extractTaskPropertyId(mxRecord.property_id)
+  const mxRecordId = getTaskFirestoreId(mxRecord)
+  if (!propertyId || !mxRecordId) return
+
+  const now = new Date().toISOString()
+  const payload = {
+    tobby_insight: insight,
+    tobby_insight_updated_at: now,
+    updatedAt: new Date(),
+  }
+
+  try {
+    await updateDocument(`properties/${propertyId}/mxrecords`, mxRecordId, payload)
+    if (selectedMxRecord.value && getTaskFirestoreId(selectedMxRecord.value) === mxRecordId) {
+      selectedMxRecord.value = {
+        ...selectedMxRecord.value,
+        ...payload,
+      }
+    }
+    Object.assign(mxRecord, payload)
+  } catch (error) {
+    console.error('Failed saving task insight:', error)
+  }
+}
+
 const formatTransactionAmount = (value) => {
   const amount = Number(value || 0)
   if (!Number.isFinite(amount)) return '0.00'
@@ -2124,11 +2275,14 @@ const confirmTaskPublishDialog = async () => {
 const viewMxRecord = (mxRecord) => {
   if (!mxRecord || typeof mxRecord !== 'object') return
   selectedMxRecord.value = mxRecord
+  taskInsight.value = null
+  taskInsightError.value = ''
   selectedBidFilterId.value = normalizeId(mxRecord?.selected_bid_id, mxRecord?.assigned_sp?.bid_id)
   showOnlySelectedBid.value = Boolean(selectedBidFilterId.value)
   showMxRecordDialog.value = true
   selectedTaskBidDetail.value = null
   showTaskBidDetailDialog.value = false
+  loadTaskInsight(mxRecord)
   loadTaskBids(mxRecord)
   if (showSpRecommendationPanel.value) loadRecommendedSps(mxRecord)
   loadTaskTransactions(mxRecord)
@@ -2203,6 +2357,9 @@ watch(
 const closeMxRecordDialog = () => {
   showMxRecordDialog.value = false
   selectedMxRecord.value = null
+  taskInsight.value = null
+  loadingTaskInsight.value = false
+  taskInsightError.value = ''
   recommendedSps.value = []
   taskBids.value = []
   selectedTaskBidDetail.value = null
@@ -2217,6 +2374,85 @@ const closeMxRecordDialog = () => {
   if (taskPublishDialogSource.value === 'detail') {
     clearTaskPublishDialogState()
   }
+}
+
+async function loadTaskInsight(mxRecord = selectedMxRecord.value, options = {}) {
+  if (!mxRecord || !String(mxRecord?.description || '').trim()) {
+    taskInsight.value = null
+    taskInsightError.value = ''
+    return
+  }
+
+  const forceRefresh = Boolean(options.forceRefresh)
+  const savedInsight = getSavedTaskInsight(mxRecord)
+  if (!forceRefresh && savedInsight) {
+    taskInsight.value = savedInsight
+    taskInsightError.value = ''
+    loadingTaskInsight.value = false
+    return
+  }
+
+  loadingTaskInsight.value = true
+  taskInsightError.value = ''
+  try {
+    const commentContext = Array.isArray(mxRecord.logs)
+      ? mxRecord.logs
+          .filter((log) => log && typeof log === 'object' && String(log.comment || '').trim())
+          .slice(-6)
+          .map((log) => ({
+            created_at: log.log_timestamp || null,
+            action_type: log.action_type || 'comment',
+            user_role: log.user_role || '',
+            comment: String(log.comment || '').trim(),
+          }))
+      : []
+
+    const property = userDataStore.getPropertyById(extractTaskPropertyId(mxRecord.property_id)) || {}
+    const propertyAddress = getTaskPropertyAddress(mxRecord, property)
+
+    const response = await agentApi.taskInsight({
+      id: mxRecord.id || mxRecord.task_id || mxRecord.mx_id || null,
+      property_id: mxRecord.property_id || null,
+      description: mxRecord.description || '',
+      status: mxRecord.status || 'open',
+      report_date: mxRecord.report_date || null,
+      property_city: mxRecord.property_city || mxRecord.city || propertyAddress.city || null,
+      property_state: mxRecord.property_state || mxRecord.state || propertyAddress.state || null,
+      property_zip:
+        mxRecord.property_zip ||
+        mxRecord.zip_code ||
+        mxRecord.postal_code ||
+        mxRecord.zip ||
+        propertyAddress.zip ||
+        null,
+      comments: commentContext,
+    })
+
+    if (response?.capability === 'out_of_scope') {
+      taskInsight.value = null
+      taskInsightError.value = response?.message || 'This task is outside the supported insight scope.'
+      return
+    }
+
+    taskInsight.value = response
+    await saveTaskInsightToRecord(mxRecord, response)
+  } catch (error) {
+    console.error('Failed loading task insight:', error)
+    taskInsight.value = null
+    taskInsightError.value = error?.message || 'Failed to load AI insight.'
+  } finally {
+    loadingTaskInsight.value = false
+  }
+}
+
+async function refreshTaskInsight(mxRecord = selectedMxRecord.value) {
+  if (!mxRecord) return
+  taskInsight.value = null
+  taskInsightError.value = ''
+  await loadTaskInsight({
+    ...mxRecord,
+    ai_refresh_nonce: Date.now(),
+  }, { forceRefresh: true })
 }
 
 async function loadTaskTransactions(mxRecord = selectedMxRecord.value) {
@@ -3998,10 +4234,25 @@ const refreshData = async () => {
   min-width: 0;
 }
 
+.mxrecord-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-insight-panel,
 .task-bids-side-panel,
 .sp-recommendations-panel {
   position: sticky;
   top: 8px;
+}
+
+.task-insight-list {
+  padding-left: 18px;
+}
+
+.task-insight-list li + li {
+  margin-top: 4px;
 }
 
 .assigned-sp-banner {
@@ -4298,10 +4549,14 @@ const refreshData = async () => {
     grid-template-columns: 1fr;
   }
 
+  .mxrecord-side-column {
+    order: 2;
+  }
+
+  .task-insight-panel,
   .task-bids-side-panel,
   .sp-recommendations-panel {
     position: static;
-    order: 2;
   }
 
   .sp-recommendation-list {

@@ -117,7 +117,6 @@
             <q-tooltip>Switch Language</q-tooltip>
           </q-btn>
 
-          <!-- Dark Mode Toggle
           <q-btn
             flat
             round
@@ -125,11 +124,9 @@
             :icon="isDarkMode ? 'light_mode' : 'dark_mode'"
             @click="toggleDarkMode"
             class="header-action-btn dark-mode-btn"
-           :visible="false"
           >
             <q-tooltip>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</q-tooltip>
           </q-btn>
-        -->
           <q-btn-dropdown
             flat
             dense
@@ -1162,14 +1159,13 @@ onMounted(() => {
     applyDarkModeClass(isDarkMode.value)
   }
 })
-/*
 // Toggle dark mode
 function toggleDarkMode() {
   isDarkMode.value = !isDarkMode.value
   $q.dark.set(isDarkMode.value)
   localStorage.setItem('handout-dark-mode', isDarkMode.value.toString())
   applyDarkModeClass(isDarkMode.value)
-}*/
+}
 // Apply dark mode class to body for custom styling
 function applyDarkModeClass(isDark) {
   if (isDark) {

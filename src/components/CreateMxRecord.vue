@@ -72,20 +72,7 @@
       <q-card-section class="q-pt-none">
         <q-form id="create-mxrecord-form" @submit="onSubmit" class="q-gutter-sm">
           <div class="section-label q-mb-xs">Task Details</div>
-          <div class="row q-gutter-sm">
-            <q-input
-              v-model="mxRecordData.description"
-              label="Task Description"
-              outlined
-              autogrow
-              required
-              :rules="[(val) => !!String(val || '').trim() || 'Description is required']"
-              type="textarea"
-              :input-style="{ minHeight: '110px' }"
-              class="col-12"
-              bg-color="grey-1"
-            />
-          </div>
+
 
           <div class="row q-gutter-sm">
             <q-input
@@ -96,7 +83,7 @@
               required
               :rules="[(val) => !!val || 'Report date is required']"
               type="date"
-              class="col-12 col-md-6"
+              class="col-5 col-md-5"
               bg-color="grey-1"
             >
               <template v-slot:prepend>
@@ -111,7 +98,7 @@
               dense
               required
               :rules="[(val) => !!val || 'Status is required']"
-              class="col-12 col-md-6"
+              class="col-5 col-md-5"
               bg-color="grey-1"
             >
               <template v-slot:prepend>
@@ -119,7 +106,20 @@
               </template>
             </q-select>
           </div>
-
+          <div class="row q-gutter-sm">
+            <q-input
+              v-model="mxRecordData.description"
+              label="Task Description"
+              outlined
+              autogrow
+              required
+              :rules="[(val) => !!String(val || '').trim() || 'Description is required']"
+              type="textarea"
+              :input-style="{ minHeight: '110px' }"
+              class="col-12"
+              bg-color="grey-1"
+            />
+          </div>
           <!-- Picture Upload Section -->
           <div class="picture-upload-section">
             <div class="text-subtitle2 q-mb-sm">

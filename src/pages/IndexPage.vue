@@ -2931,8 +2931,11 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  overflow: visible;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .create-inline-btn {
@@ -2961,7 +2964,7 @@ watch(
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .feed-controls-right {
@@ -2969,8 +2972,9 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .feed-view-group {
@@ -2978,7 +2982,7 @@ watch(
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .feed-sort-label {
@@ -3067,19 +3071,14 @@ watch(
   }
   .create-new-actions {
     gap: 6px;
-    align-items: flex-start;
+    align-items: center;
   }
   .feed-sort-group {
     margin-left: 0;
-    width: 100%;
   }
   .feed-controls-right {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .feed-view-group {
-    width: 100%;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 }
 

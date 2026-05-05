@@ -15,8 +15,65 @@ Server default: `http://localhost:8787`
 Config:
 
 - `RESEND_API_KEY`
-- `INVITE_EMAIL_FROM` (optional, defaults to `onboarding@resend.dev`)
+- `INVITE_EMAIL_FROM` (required for real delivery; must use a verified sender/domain in Resend)
 - `APP_BASE_URL` (recommended, example: `https://app.example.com`)
+- `GEMINI_API_KEY` (required for AI intake and task insight in production)
+
+For Firebase Functions v2 deployment, these values must be available to the `mkpl` function runtime.
+The project now binds them as function secrets/params in [`backend/index.js`](/Users/MacAirEZ/Desktop/projectTobby/backend/index.js).
+
+Typical setup:
+
+```bash
+firebase functions:secrets:set RESEND_API_KEY
+firebase functions:secrets:set INVITE_EMAIL_FROM
+firebase functions:secrets:set APP_BASE_URL
+firebase functions:secrets:set GEMINI_API_KEY
+firebase deploy --only functions:mkpl --project tobbythebutler
+```
+
+## AI Provider Routing
+
+The backend now supports provider routing for AI calls.
+
+Env/config knobs:
+
+- `LLM_PROVIDER` = `vertex` | `gemini` | `auto`
+- `VERTEX_PROJECT_ID` (optional if `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `FIREBASE_CONFIG.projectId` is present)
+- `VERTEX_LOCATION` (default `us-central1`)
+- `VERTEX_PUBLISHER` (default `google`)
+- `GEMINI_MODEL` (default `gemini-2.5-flash`)
+
+Current default:
+
+```bash
+LLM_PROVIDER=vertex
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+`auto` means:
+- try Vertex AI first
+- if Vertex fails, try Gemini Developer API next
+
+## Logs
+
+Function logs:
+
+```bash
+firebase functions:log --only mkpl --project tobbythebutler
+```
+
+The AI task insight debug marker is:
+
+- `task_insight_debug`
+
+Important debug fields:
+
+- `model_status`
+- `model_error_text`
+- `model_raw_text`
+- `model_parsed`
+- `fallback_reason`
 
 ## Auth Context (Mock)
 

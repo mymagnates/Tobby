@@ -5,6 +5,10 @@ import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
 
 export default defineConfig((ctx) => {
+  const apiProxyTarget = String(
+    process.env.API_PROXY_TARGET || 'https://mkpl-e6jd52xojq-uc.a.run.app',
+  ).trim()
+
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -96,9 +100,9 @@ export default defineConfig((ctx) => {
       open: true, // opens browser window automatically
       proxy: {
         '/api': {
-          target: 'https://mkpl-e6jd52xojq-uc.a.run.app',
+          target: apiProxyTarget,
           changeOrigin: true,
-          secure: true,
+          secure: apiProxyTarget.startsWith('https://'),
         },
       },
     },

@@ -1,14 +1,31 @@
 import { onRequest } from 'firebase-functions/v2/https'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
+import { defineSecret } from 'firebase-functions/params'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { createApiServer } from './apiServer.js'
 import { extractSemanticTags } from './marketplace.js'
 
+const resendApiKeySecret = defineSecret('RESEND_API_KEY')
+const inviteEmailFromSecret = defineSecret('INVITE_EMAIL_FROM')
+const appBaseUrlSecret = defineSecret('APP_BASE_URL')
+const geminiApiKeySecret = defineSecret('GEMINI_API_KEY')
+
 let cachedHandler = null
 const getHandler = () => {
   if (cachedHandler) return cachedHandler
-  const { handler } = createApiServer()
+  const { handler } = createApiServer({
+    config: {
+      resendApiKey: resendApiKeySecret.value() || process.env.RESEND_API_KEY || '',
+      inviteEmailFrom: inviteEmailFromSecret.value() || process.env.INVITE_EMAIL_FROM || '',
+      appBaseUrl: appBaseUrlSecret.value() || process.env.APP_BASE_URL || '',
+      geminiApiKey:
+        geminiApiKeySecret.value() ||
+        process.env.GEMINI_API_KEY ||
+        process.env.GOOGLE_API_KEY ||
+        '',
+    },
+  })
   cachedHandler = handler
   return cachedHandler
 }
@@ -17,6 +34,7 @@ export const mkpl = onRequest(
   {
     region: 'us-central1',
     cors: true,
+    secrets: [resendApiKeySecret, inviteEmailFromSecret, appBaseUrlSecret, geminiApiKeySecret],
   },
   (req, res) => getHandler()(req, res),
 )
@@ -66,6 +84,9 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
       currentLead.title ||
       (description ? description.slice(0, 80) : 'New Task Lead')
   )
+  const isPublishedToSp =
+    taskData?.sp_published === true ||
+    String(taskData?.sp_publish_status || '').trim().toLowerCase() === 'published'
 
   return {
     lead_id: currentLead.lead_id || currentLead.id || `lead-task-${taskId}`,
@@ -135,6 +156,10 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
     semantic_tags: extractSemanticTags(`${title} ${description}`),
     status: nextLeadStatus,
     visibility_mode: currentLead.visibility_mode || 'public',
+    sp_published: isPublishedToSp,
+    sp_publish_status: isPublishedToSp ? 'published' : 'draft',
+    sp_published_at:
+      taskData?.sp_published_at || currentLead.sp_published_at || null,
     bid_deadline: currentLead.bid_deadline || null,
     bid_count: currentLead.bid_count || 0,
     assigned_sp_id: currentLead.assigned_sp_id || null,
@@ -156,6 +181,18 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
 const upsertLeadFromTask = async ({ propertyId, taskId, taskData }) => {
   const leadDocId = `task-${taskId}`
   const leadRef = db.collection('marketplace_leads').doc(leadDocId)
+  const isPublishedToSp =
+    taskData?.sp_published === true ||
+    String(taskData?.sp_publish_status || '').trim().toLowerCase() === 'published'
+
+  if (!isPublishedToSp) {
+    const existingLeadSnap = await leadRef.get()
+    if (existingLeadSnap.exists) {
+      await leadRef.delete()
+    }
+    return
+  }
+
   const existingLeadSnap = await leadRef.get()
   const existingLead = existingLeadSnap.exists ? existingLeadSnap.data() || {} : null
   const patch = buildLeadPatchFromTask({
