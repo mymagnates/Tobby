@@ -97,6 +97,416 @@ const routes = [
   },
 
   // ============================================
+  // MOBILE ROUTES (MobileLayout - Role-specific mobile terminal)
+  // ============================================
+  {
+    path: '/mobile',
+    component: () => import('layouts/MobileLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        component: () => import('pages/mobile/MobileRoleRedirect.vue'),
+      },
+      {
+        path: 'pm',
+        redirect: '/mobile/pm/home',
+      },
+      {
+        path: 'pm/home',
+        component: () => import('pages/mobile/pm/PmMobileHomePage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage',
+        component: () => import('pages/mobile/pm/PmMobileManagePage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/task',
+        component: () => import('pages/mobile/pm/PmMobileTaskFormPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/bids',
+        component: () => import('pages/mobile/pm/PmMobileBidsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/:action',
+        component: () => import('pages/mobile/pm/PmMobileManageActionPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property',
+        component: () => import('pages/mobile/pm/PmMobilePropertyPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId',
+        component: () => import('pages/mobile/pm/PmMobilePropertyRecordsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId/inventory',
+        component: () => import('pages/mobile/pm/PmMobilePropertyRecordsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'pm', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/tobby',
+        component: () => import('pages/mobile/pm/PmMobileTobbyPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/account',
+        component: () => import('pages/mobile/pm/PmMobileAccountPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'owner',
+        redirect: '/mobile/owner/home',
+      },
+      {
+        path: 'owner/home',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: { pageKey: 'home' },
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/manage',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: { pageKey: 'manage' },
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/manage/:action',
+        component: () => import('pages/mobile/owner/OwnerMobileManageActionPage.vue'),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/property',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: { pageKey: 'property' },
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/property/:propertyId/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'owner', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/financial',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: { pageKey: 'financial' },
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/account',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: { pageKey: 'account' },
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'sp',
+        redirect: '/mobile/sp/home',
+      },
+      {
+        path: 'sp/home',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: { pageKey: 'home' },
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/leads/:leadId/bid',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: 'new', leadId: route.params.leadId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/bids',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: { pageKey: 'bids' },
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/bids/:bidId/revision',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: 'revisions', bidId: route.params.bidId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/bids/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: { pageKey: 'projects' },
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:projectId/detail',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: 'detail', projectId: route.params.projectId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:projectId/invoice',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: 'invoice', projectId: route.params.projectId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/handout',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: { pageKey: 'handout' },
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/handout/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'handout', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/account',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: { pageKey: 'account' },
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'tenant',
+        redirect: '/mobile/tenant/home',
+      },
+      {
+        path: 'tenant/home',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: { pageKey: 'home' },
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/requests',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: { pageKey: 'requests' },
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/requests/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'requests', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/lease',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: { pageKey: 'lease' },
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/documents',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: { pageKey: 'documents' },
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/documents/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'documents', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/lease/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'lease', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/account',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: { pageKey: 'account' },
+        meta: { mobileRole: 'tenant' },
+      },
+    ],
+  },
+
+  // Development-only visual preview for mobile pages without auth redirects.
+  {
+    path: '/mobile-preview',
+    component: () => import('layouts/MobileLayout.vue'),
+    children: [
+      { path: '', redirect: '/mobile-preview/pm/home' },
+      {
+        path: 'pm/home',
+        component: () => import('pages/mobile/pm/PmMobileHomePage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage',
+        component: () => import('pages/mobile/pm/PmMobileManagePage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/task',
+        component: () => import('pages/mobile/pm/PmMobileTaskFormPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/bids',
+        component: () => import('pages/mobile/pm/PmMobileBidsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/:action',
+        component: () => import('pages/mobile/pm/PmMobileManageActionPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property',
+        component: () => import('pages/mobile/pm/PmMobilePropertyPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId',
+        component: () => import('pages/mobile/pm/PmMobilePropertyRecordsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId/inventory',
+        component: () => import('pages/mobile/pm/PmMobilePropertyRecordsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/property/:propertyId/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'pm', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/tobby',
+        component: () => import('pages/mobile/pm/PmMobileTobbyPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/account',
+        component: () => import('pages/mobile/pm/PmMobileAccountPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'owner/:pageKey',
+        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
+        props: (route) => ({ pageKey: route.params.pageKey }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/manage/:action',
+        component: () => import('pages/mobile/owner/OwnerMobileManageActionPage.vue'),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/property/:propertyId/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'owner', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'sp/leads/:leadId/bid',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: 'new', leadId: route.params.leadId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/:pageKey',
+        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
+        props: (route) => ({ pageKey: route.params.pageKey }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/bids/:bidId/revision',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: 'revisions', bidId: route.params.bidId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/bids/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'bids', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:projectId/detail',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: 'detail', projectId: route.params.projectId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:projectId/invoice',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: 'invoice', projectId: route.params.projectId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/projects/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'projects', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/handout/:action',
+        component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
+        props: (route) => ({ section: 'handout', action: route.params.action }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'tenant/:pageKey',
+        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
+        props: (route) => ({ pageKey: route.params.pageKey }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/requests/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'requests', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/documents/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'documents', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: 'tenant/lease/:action',
+        component: () => import('pages/mobile/tenant/TenantMobileActionPage.vue'),
+        props: (route) => ({ section: 'lease', action: route.params.action }),
+        meta: { mobileRole: 'tenant' },
+      },
+      {
+        path: ':role/:pageKey',
+        component: () => import('pages/mobile/MobileRolePage.vue'),
+        props: (route) => ({
+          role: route.params.role,
+          pageKey: route.params.pageKey,
+        }),
+      },
+    ],
+  },
+
+  // ============================================
   // AUTHENTICATED ROUTES (MainLayout - With Sidebar)
   // ============================================
   {
