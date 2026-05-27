@@ -190,6 +190,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  prefill: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['service-created', 'cancel'])
@@ -253,6 +257,32 @@ const serviceDisabled = computed(() => {
   const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
   return !['pm', 'admin'].includes(accountType)
 })
+
+const applyPrefill = (value) => {
+  if (!value) return
+  const propertyId = String(value.property_id || value.propertyId || '').trim()
+  if (propertyId) {
+    selectedPropertyId.value = propertyId
+    selectedServicePropertyIds.value = Array.from(
+      new Set([
+        propertyId,
+        ...(Array.isArray(value.selectedServicePropertyIds) ? value.selectedServicePropertyIds : []),
+        ...(Array.isArray(value.property_ids) ? value.property_ids : []),
+      ].map((id) => String(id || '').trim()).filter(Boolean)),
+    )
+  }
+  serviceForm.value = {
+    service_type: value.service_type || serviceForm.value.service_type || 'loan',
+    company_name: value.company_name || '',
+    company_website: value.company_website || '',
+    agent_company: value.agent_company || value.agent?.company || '',
+    agent_name: value.agent_name || value.agent?.name || '',
+    agent_phone: value.agent_phone || value.agent?.phone || '',
+    agent_email: value.agent_email || value.agent?.email || '',
+    service_start_date: value.service_start_date || '',
+    term: value.term || '',
+  }
+}
 
 const onSubmit = async () => {
   if (serviceDisabled.value) return
@@ -320,6 +350,14 @@ watch(
     if (!selectedServicePropertyIds.value.includes(normalized)) {
       selectedServicePropertyIds.value = [...selectedServicePropertyIds.value, normalized]
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.prefill,
+  (value) => {
+    applyPrefill(value)
   },
   { immediate: true },
 )

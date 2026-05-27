@@ -22,7 +22,7 @@
 
       <section class="legal-section">
         <p>
-          Handout was created to solve those operational gaps. Our goal is to help homeowners and
+          Handout was created to solve those operational gaps. Our goal is to help property owners and
           property managers run smarter, cleaner workflows with one practical system that supports
           day-to-day execution and long-term visibility.
         </p>
@@ -31,7 +31,7 @@
       <section class="legal-section">
         <p>
           The platform is designed to organize property data, standardize recurring processes, support
-          better communication, and connect service resources when help is needed. We focus on useful,
+          better communication, and connect service providers when help is needed. We focus on useful,
           reliable features that reduce friction and improve decision quality.
         </p>
       </section>

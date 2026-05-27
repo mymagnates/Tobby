@@ -30,78 +30,17 @@
     </div>
 
     <div v-else>
-      <div class="row justify-end q-mb-md">
-        <q-btn
-          v-if="canManageRecords"
-          color="primary"
-          text-color="white"
-          unelevated
-          icon="add"
-          label="Create Property"
-          @click="openCreatePropertyDialog"
-        />
-      </div>
-
       <div class="property-view-container">
         <!-- Left Sidebar - Property Selection -->
         <div class="property-sidebar">
-
-
-        <PropertySidebarPicker
-          class="property-list-card"
-          :model-value="selectedPropertyId"
-          :properties="userProperties"
-          :include-all="false"
-          @update:model-value="handleSidebarPropertySelect"
-        />
-
-        <q-card v-if="getCurrentLease()" class="lease-status-card q-mt-sm">
-          <q-card-section>
-            <div class="text-subtitle1 q-mb-sm">
-              <q-icon name="home_work" class="q-mr-sm" />
-              Current Lease Status
-            </div>
-
-            <div class="lease-info">
-              <div class="lease-item">
-                <div class="lease-label">Tenant</div>
-                <div class="lease-value">{{ getLeaseDisplayTenantName(getCurrentLease()) }}</div>
-              </div>
-              <div class="lease-item">
-                <div class="lease-label">Rent Amount</div>
-                <div class="lease-value">
-                  ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
-                    getCurrentLease().rate_type || 'month'
-                  }}
-                </div>
-              </div>
-              <div class="lease-item">
-                <div class="lease-label">Lease Start</div>
-                <div class="lease-value">
-                  {{ formatDate(getCurrentLease().lease_start_date || getCurrentLease().start_date || getCurrentLease().move_in_date) }}
-                </div>
-              </div>
-              <div class="lease-item">
-                <div class="lease-label">Lease End</div>
-                <div class="lease-value">{{ formatDate(getCurrentLease().lease_end_date || getCurrentLease().end_date) }}</div>
-              </div>
-              <div class="lease-item">
-                <div class="lease-label">Status</div>
-                <div class="lease-value">
-                  <q-chip
-                    :color="getLeaseStatusColor(getCurrentLease().status)"
-                    text-color="white"
-                    size="sm"
-                  >
-                    {{ getCurrentLease().status }}
-                  </q-chip>
-                </div>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-
-      </div>
+          <PropertySidebarPicker
+            class="property-list-card"
+            :model-value="selectedPropertyId"
+            :properties="userProperties"
+            :include-all="false"
+            @update:model-value="handleSidebarPropertySelect"
+          />
+        </div>
 
       <!-- Right Content - Property Details -->
       <div class="property-content" style="padding-right: 5px">
@@ -125,26 +64,12 @@
             </q-img>
           </q-card>
 
-          <!-- Current Lease (moved to left sidebar) -->
-
-
-
           <!-- Basic Information Card -->
           <q-card class="property-info-card" clickable @click="viewProperty(selectedProperty.id)">
             <q-card-section>
               <div class="text-h6 q-mb-md">
                 <q-icon name="info" class="q-mr-sm" />
                 Basic Information
-              </div>
-              <div class="row justify-end q-mb-md">
-                <q-btn
-                  v-if="canInviteOwner(selectedProperty)"
-                  color="primary"
-                  text-color="white"
-                  unelevated
-                  label="Invite Owner / Co-Owner To This Property"
-                  @click.stop="promptOwnerInvite(selectedProperty)"
-                />
               </div>
 
               <div class="info-grid">
@@ -201,6 +126,178 @@
                   </div>
                 </div>
               </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="getCurrentLease()" class="lease-status-card">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="home_work" class="q-mr-sm" />
+                Current Lease Status
+              </div>
+
+              <div class="lease-info">
+                <div class="lease-item">
+                  <div class="lease-label">Tenant</div>
+                  <div class="lease-value">{{ getLeaseDisplayTenantName(getCurrentLease()) }}</div>
+                </div>
+                <div class="lease-item">
+                  <div class="lease-label">Rent Amount</div>
+                  <div class="lease-value">
+                    ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
+                      getCurrentLease().rate_type || 'month'
+                    }}
+                  </div>
+                </div>
+                <div class="lease-item">
+                  <div class="lease-label">Lease Start</div>
+                  <div class="lease-value">
+                    {{ formatDate(getCurrentLease().lease_start_date || getCurrentLease().start_date || getCurrentLease().move_in_date) }}
+                  </div>
+                </div>
+                <div class="lease-item">
+                  <div class="lease-label">Lease End</div>
+                  <div class="lease-value">{{ formatDate(getCurrentLease().lease_end_date || getCurrentLease().end_date) }}</div>
+                </div>
+                <div class="lease-item">
+                  <div class="lease-label">Status</div>
+                  <div class="lease-value">
+                    <q-chip
+                      :color="getLeaseStatusColor(getCurrentLease().status)"
+                      text-color="white"
+                      size="sm"
+                    >
+                      {{ getCurrentLease().status }}
+                    </q-chip>
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <q-card class="property-history-card">
+            <q-card-section>
+              <div class="history-card-header">
+                <div>
+                  <div class="history-card-title">
+                    <q-icon name="receipt_long" class="q-mr-sm" />
+                    Transaction History
+                  </div>
+                  <div class="history-card-caption">{{ propertyTransactions.length }} records</div>
+                </div>
+                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/transactions')">
+                  <q-tooltip>View transactions</q-tooltip>
+                </q-btn>
+              </div>
+              <q-list v-if="displayedPropertyTransactions.length" dense separator class="history-list">
+                <q-item v-for="transaction in displayedPropertyTransactions" :key="transaction.id">
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ getTransactionTitle(transaction) }}</q-item-label>
+                    <q-item-label caption>{{ formatDate(getTransactionDate(transaction)) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="history-amount">{{ formatAmount(transaction.amount) }}</div>
+                    <div class="history-status">{{ normalizeStatus(transaction.status) }}</div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="history-empty">No transactions recorded.</div>
+            </q-card-section>
+          </q-card>
+
+          <q-card class="property-history-card">
+            <q-card-section>
+              <div class="history-card-header">
+                <div>
+                  <div class="history-card-title">
+                    <q-icon name="task_alt" class="q-mr-sm" />
+                    Task History
+                  </div>
+                  <div class="history-card-caption">{{ propertyTasks.length }} records</div>
+                </div>
+                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/mx-records')">
+                  <q-tooltip>View tasks</q-tooltip>
+                </q-btn>
+              </div>
+              <q-list v-if="displayedPropertyTasks.length" dense separator class="history-list">
+                <q-item v-for="task in displayedPropertyTasks" :key="task.id">
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ getTaskTitle(task) }}</q-item-label>
+                    <q-item-label caption>{{ formatDate(getTaskDate(task)) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip dense :color="getRecordStatusColor(task.status)" text-color="white">
+                      {{ normalizeStatus(task.status || 'open') }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="history-empty">No tasks recorded.</div>
+            </q-card-section>
+          </q-card>
+
+          <q-card class="property-history-card">
+            <q-card-section>
+              <div class="history-card-header">
+                <div>
+                  <div class="history-card-title">
+                    <q-icon name="description" class="q-mr-sm" />
+                    Lease History
+                  </div>
+                  <div class="history-card-caption">{{ propertyLeases.length }} records</div>
+                </div>
+                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/leases')">
+                  <q-tooltip>View leases</q-tooltip>
+                </q-btn>
+              </div>
+              <q-list v-if="displayedPropertyLeases.length" dense separator class="history-list">
+                <q-item v-for="lease in displayedPropertyLeases" :key="lease.id">
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ getLeaseDisplayTenantName(lease) }}</q-item-label>
+                    <q-item-label caption>
+                      {{ formatDate(lease.lease_start_date || lease.start_date || lease.move_in_date) }}
+                      - {{ formatDate(lease.lease_end_date || lease.end_date) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip dense :color="getLeaseStatusColor(lease.status)" text-color="white">
+                      {{ normalizeStatus(lease.status) }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="history-empty">No lease history recorded.</div>
+            </q-card-section>
+          </q-card>
+
+          <q-card class="property-history-card">
+            <q-card-section>
+              <div class="history-card-header">
+                <div>
+                  <div class="history-card-title">
+                    <q-icon name="notifications" class="q-mr-sm" />
+                    Reminders
+                  </div>
+                  <div class="history-card-caption">{{ propertyReminders.length }} records</div>
+                </div>
+                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/reminders')">
+                  <q-tooltip>View reminders</q-tooltip>
+                </q-btn>
+              </div>
+              <q-list v-if="displayedPropertyReminders.length" dense separator class="history-list">
+                <q-item v-for="reminder in displayedPropertyReminders" :key="reminder.id">
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ getReminderTitle(reminder) }}</q-item-label>
+                    <q-item-label caption>{{ formatDate(getReminderDate(reminder)) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip dense :color="reminder.status ? 'positive' : 'grey-6'" text-color="white">
+                      {{ reminder.status ? 'Active' : 'Inactive' }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="history-empty">No reminders recorded.</div>
             </q-card-section>
           </q-card>
 
@@ -540,6 +637,99 @@
 
         </div>
         </div>
+        <aside class="property-action-rail">
+          <q-card flat bordered class="property-action-card">
+            <q-card-section>
+              <div class="property-action-title">Property Actions</div>
+              <div class="property-action-subtitle">
+                {{ selectedProperty?.nickname || selectedProperty?.address || 'Select a property' }}
+              </div>
+              <q-btn
+                v-if="selectedProperty && canInviteOwner(selectedProperty)"
+                color="primary"
+                text-color="white"
+                unelevated
+                no-caps
+                icon="person_add"
+                label="Invite Owner"
+                class="full-width q-mt-sm"
+                @click="promptOwnerInvite(selectedProperty)"
+              />
+              <q-btn
+                v-if="canManageRecords"
+                color="primary"
+                text-color="white"
+                unelevated
+                no-caps
+                icon="add"
+                label="Create Property"
+                class="full-width q-mt-md"
+                @click="openCreatePropertyDialog"
+              />
+            </q-card-section>
+          </q-card>
+
+          <q-card v-if="hasPropertyOwnerContext" flat bordered class="property-action-card property-owner-card">
+            <q-card-section>
+              <div class="property-action-title">
+                <q-icon name="person" size="18px" class="q-mr-xs" />
+                Owner
+              </div>
+              <div class="property-action-subtitle">
+                Owner contact and invitation status for this property.
+              </div>
+
+              <div v-if="loadingOwnerInfo" class="owner-info-loading">
+                <q-spinner-dots size="24px" color="primary" />
+              </div>
+
+              <div v-else class="owner-info-list">
+                <div
+                  v-for="owner in propertyOwnerProfiles"
+                  :key="owner.id || owner.email"
+                  class="owner-info-card"
+                >
+                  <div class="owner-info-name">{{ getOwnerDisplayName(owner) }}</div>
+                  <div class="owner-info-status">Accepted owner</div>
+                  <div class="owner-info-row" v-if="getOwnerEmail(owner)">
+                    <q-icon name="mail" size="14px" />
+                    <span>{{ getOwnerEmail(owner) }}</span>
+                  </div>
+                  <div class="owner-info-row" v-if="getOwnerPhone(owner)">
+                    <q-icon name="call" size="14px" />
+                    <span>{{ getOwnerPhone(owner) }}</span>
+                  </div>
+                  <div class="owner-info-row" v-if="getOwnerCompany(owner)">
+                    <q-icon name="business" size="14px" />
+                    <span>{{ getOwnerCompany(owner) }}</span>
+                  </div>
+                  <div class="owner-info-row" v-if="getOwnerMailingAddress(owner)">
+                    <q-icon name="home" size="14px" />
+                    <span>{{ getOwnerMailingAddress(owner) }}</span>
+                  </div>
+                </div>
+
+                <div
+                  v-for="invite in pendingOwnerInvites"
+                  :key="invite.id || invite.owner_email"
+                  class="owner-info-card owner-info-card--pending"
+                >
+                  <div class="owner-info-name">{{ invite.owner_email || 'Pending owner' }}</div>
+                  <div class="owner-info-status">Invite pending</div>
+                  <div class="owner-info-row" v-if="invite.owner_email">
+                    <q-icon name="mail" size="14px" />
+                    <span>{{ invite.owner_email }}</span>
+                  </div>
+                  <div class="owner-info-row" v-if="invite.created_at || invite.updated_at">
+                    <q-icon name="schedule" size="14px" />
+                    <span>Sent {{ formatDate(invite.created_at || invite.updated_at) }}</span>
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+        </aside>
       </div>
     </div>
 
@@ -1390,6 +1580,7 @@ const promptOwnerInvite = (property) => {
       })
 
       if (response?.email_sent) {
+        await loadPropertyOwnerInfo()
         Notify.create({
           type: 'positive',
           message: 'Owner invitation email sent successfully.',
@@ -1402,6 +1593,7 @@ const promptOwnerInvite = (property) => {
       const inviteLink = String(response?.invite_url || '').trim()
       const reasonMessage = formatOwnerInviteFallbackReason(response?.fallback_reason)
       openInviteLinkDialog(inviteLink, reasonMessage)
+      await loadPropertyOwnerInfo()
       Notify.create({
         type: 'warning',
         message: 'Email was not sent. Invite link is shown for manual copy.',
@@ -1416,6 +1608,7 @@ const promptOwnerInvite = (property) => {
           error?.payload?.message || error?.message || 'resend_request_failed',
         )
         openInviteLinkDialog(inviteLink, reasonMessage)
+        await loadPropertyOwnerInfo()
         Notify.create({
           type: 'warning',
           message: 'Email service unavailable. Invite link is shown for manual copy.',
@@ -1514,6 +1707,9 @@ const propertyPhotos = ref([])
 const propertyDocuments = ref([])
 const propertyAssets = ref([])
 const propertyServices = ref([])
+const propertyReminders = ref([])
+const propertyOwnerProfiles = ref([])
+const propertyOwnerInvites = ref([])
 const uploadFiles = ref(null)
 const snapshotUploadFile = ref(null)
 const snapshotUploading = ref(false)
@@ -1521,6 +1717,8 @@ const uploading = ref(false)
 const loadingPhotos = ref(false)
 const loadingDocuments = ref(false)
 const loadingAssets = ref(false)
+const loadingReminders = ref(false)
+const loadingOwnerInfo = ref(false)
 const deletingPhoto = ref(false)
 const photoToDelete = ref(null)
 const currentPhotoUrl = ref('')
@@ -1626,6 +1824,52 @@ const displayedPropertyAssets = computed(() =>
         (toDateObject(a?.updated_at || a?.created_at || a?.created_datetime)?.getTime() || 0),
     )
     .slice(0, 6),
+)
+
+const getEntityPropertyId = (item) => item?.property_id?.id || item?.property_id || item?.property?.id || null
+
+const propertyTransactions = computed(() => {
+  if (!selectedProperty.value) return []
+  return (userDataStore.userAccessibleTransactions || [])
+    .filter((transaction) => String(getEntityPropertyId(transaction) || '') === String(selectedProperty.value.id || ''))
+    .slice()
+    .sort((a, b) => (toDateObject(getTransactionDate(b))?.getTime() || 0) - (toDateObject(getTransactionDate(a))?.getTime() || 0))
+})
+
+const displayedPropertyTransactions = computed(() => propertyTransactions.value.slice(0, 6))
+
+const propertyTasks = computed(() => {
+  if (!selectedProperty.value) return []
+  return (userDataStore.userAccessibleMxRecords || [])
+    .filter((task) => String(getEntityPropertyId(task) || '') === String(selectedProperty.value.id || ''))
+    .slice()
+    .sort((a, b) => (toDateObject(getTaskDate(b))?.getTime() || 0) - (toDateObject(getTaskDate(a))?.getTime() || 0))
+})
+
+const displayedPropertyTasks = computed(() => propertyTasks.value.slice(0, 6))
+
+const propertyLeases = computed(() =>
+  (userDataStore.userAccessibleLeases || [])
+    .filter((lease) => isLeaseForSelectedProperty(lease))
+    .slice()
+    .sort((a, b) => (toDateObject(getLeaseSortDate(b))?.getTime() || 0) - (toDateObject(getLeaseSortDate(a))?.getTime() || 0)),
+)
+
+const displayedPropertyLeases = computed(() => propertyLeases.value.slice(0, 6))
+
+const displayedPropertyReminders = computed(() =>
+  (propertyReminders.value || [])
+    .slice()
+    .sort((a, b) => (toDateObject(getReminderDate(b))?.getTime() || 0) - (toDateObject(getReminderDate(a))?.getTime() || 0))
+    .slice(0, 6),
+)
+
+const pendingOwnerInvites = computed(() =>
+  propertyOwnerInvites.value.filter((invite) => String(invite?.status || '').toLowerCase() === 'pending'),
+)
+
+const hasPropertyOwnerContext = computed(
+  () => propertyOwnerProfiles.value.length > 0 || propertyOwnerInvites.value.length > 0,
 )
 
 const userProperties = computed(() => {
@@ -1750,8 +1994,83 @@ const loadPropertyServices = async () => {
   }
 }
 
+const loadPropertyReminders = async () => {
+  if (!selectedProperty.value) return
+
+  try {
+    loadingReminders.value = true
+    const reminders = await getAllDocuments(`properties/${selectedProperty.value.id}/reminders`)
+    propertyReminders.value = (reminders || []).map((reminder) => ({
+      ...reminder,
+      property_id: selectedProperty.value.id,
+    }))
+  } catch (error) {
+    console.error('Error loading property reminders:', error)
+    propertyReminders.value = []
+  } finally {
+    loadingReminders.value = false
+  }
+}
+
+const loadPropertyOwnerInfo = async () => {
+  if (!selectedProperty.value?.id) return
+
+  try {
+    loadingOwnerInfo.value = true
+    const propertyId = selectedProperty.value.id
+    const ownerIds = new Set(
+      (Array.isArray(selectedProperty.value.owner_user_ids)
+        ? selectedProperty.value.owner_user_ids
+        : []
+      ).filter(Boolean),
+    )
+    if (selectedProperty.value.primary_owner_user_id) {
+      ownerIds.add(selectedProperty.value.primary_owner_user_id)
+    }
+
+    const invites = await getAllDocuments('owner_invites')
+    const propertyInvites = (invites || [])
+      .filter((invite) => String(invite?.property_id || '') === String(propertyId))
+      .sort((a, b) => (toDateObject(b?.updated_at || b?.created_at)?.getTime() || 0) - (toDateObject(a?.updated_at || a?.created_at)?.getTime() || 0))
+
+    propertyInvites.forEach((invite) => {
+      if (invite.accepted_by_user_id) ownerIds.add(invite.accepted_by_user_id)
+    })
+
+    propertyOwnerInvites.value = propertyInvites
+
+    const ownerProfiles = await Promise.all(
+      [...ownerIds].map(async (ownerId) => {
+        try {
+          const profile = await getDocument(`users/${ownerId}`)
+          return profile ? { id: ownerId, ...profile } : { id: ownerId }
+        } catch (error) {
+          console.warn('Failed to load owner profile:', ownerId, error)
+          return { id: ownerId }
+        }
+      }),
+    )
+
+    propertyOwnerProfiles.value = ownerProfiles
+  } catch (error) {
+    console.error('Error loading property owner info:', error)
+    propertyOwnerProfiles.value = []
+    propertyOwnerInvites.value = []
+  } finally {
+    loadingOwnerInfo.value = false
+  }
+}
+
+const normalizeFileSelection = (files) => {
+  if (!files) return []
+  if (Array.isArray(files)) return files.filter(Boolean)
+  if (files instanceof File) return [files]
+  if (typeof files.length === 'number') return Array.from(files).filter(Boolean)
+  return []
+}
+
 const onPhotosSelected = (files) => {
-  console.log('Photos selected:', files?.length || 0)
+  console.log('Files selected:', normalizeFileSelection(files).length)
 }
 
 const onSnapshotSelected = async (file) => {
@@ -1824,15 +2143,24 @@ const uploadPhotos = async () => {
     })
     return
   }
-  if (!uploadFiles.value || uploadFiles.value.length === 0) return
+  const filesToUpload = normalizeFileSelection(uploadFiles.value)
+  if (filesToUpload.length === 0) return
+  if (!selectedProperty.value?.id) {
+    Notify.create({
+      type: 'warning',
+      message: 'Select a property before uploading.',
+      position: 'top',
+    })
+    return
+  }
 
   try {
     uploading.value = true
-    console.log('Uploading photos:', uploadFiles.value.length)
+    console.log('Uploading property files:', filesToUpload.length)
 
     // Upload files to Firebase Storage
     const uploadResults = await uploadImagesWithDetails(
-      uploadFiles.value,
+      filesToUpload,
       selectedProperty.value.id,
       'property_photos',
     )
@@ -1881,7 +2209,13 @@ const uploadPhotos = async () => {
     console.error('Error uploading photos:', error)
     Notify.create({
       type: 'negative',
-      message: 'Failed to upload photos. Please try again.',
+      message: error?.code === 'storage/unauthorized'
+        ? 'Upload blocked by Firebase Storage permissions.'
+        : error?.code === 'storage/unauthenticated'
+          ? 'Your login session is not available for uploads. Please sign in again.'
+        : error?.code === 'permission-denied'
+          ? 'Upload record blocked by Firestore permissions.'
+          : error?.message || 'Failed to upload files. Please try again.',
       position: 'top',
     })
   } finally {
@@ -2189,9 +2523,14 @@ watch(
       loadPropertyDocuments()
       loadPropertyAssets()
       loadPropertyServices()
+      loadPropertyReminders()
+      loadPropertyOwnerInfo()
     } else {
       propertyAssets.value = []
       propertyServices.value = []
+      propertyReminders.value = []
+      propertyOwnerProfiles.value = []
+      propertyOwnerInvites.value = []
     }
   },
   { immediate: true },
@@ -2254,6 +2593,110 @@ const formatDate = (date) => {
   })
 }
 
+const normalizeStatus = (status) => {
+  const text = String(status || '').trim()
+  if (!text) return 'Unknown'
+  return text
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+const getRecordStatusColor = (status) => {
+  const normalized = String(status || '').toLowerCase()
+  if (['open', 'pending', 'in progress', 'in_progress'].includes(normalized)) return 'primary'
+  if (['completed', 'complete', 'done', 'closed', 'resolved'].includes(normalized)) return 'positive'
+  if (['cancelled', 'canceled', 'inactive'].includes(normalized)) return 'grey-6'
+  if (['urgent', 'overdue'].includes(normalized)) return 'negative'
+  return 'grey-7'
+}
+
+const formatAmount = (amount) => {
+  const value = Number.parseFloat(amount)
+  if (Number.isNaN(value)) return '$0'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+const getTransactionDate = (transaction) =>
+  transaction?.transac_date || transaction?.transaction_date || transaction?.created_datetime || transaction?.date || transaction?.created_at
+
+const getTransactionTitle = (transaction) =>
+  transaction?.description || transaction?.transac_type || transaction?.type || 'Transaction'
+
+const getTaskDate = (task) => task?.report_date || task?.created_datetime || task?.created_at || task?.createAt || task?.date
+
+const getTaskTitle = (task) =>
+  task?.task_title || task?.description || task?.task_category || task?.category || 'Task'
+
+const getLeaseSortDate = (lease) =>
+  lease?.lease_start_date || lease?.start_date || lease?.move_in_date || lease?.created_datetime || lease?.created_at
+
+const getReminderDate = (reminder) =>
+  reminder?.due_date || reminder?.start_date || reminder?.created_datetime || reminder?.created_at || reminder?.date
+
+const getReminderTitle = (reminder) =>
+  reminder?.note || reminder?.title || reminder?.category || reminder?.repeat_by || 'Reminder'
+
+const pickFirstNonEmpty = (...values) =>
+  values.find((value) => String(value || '').trim().length > 0) || ''
+
+const getOwnerDisplayName = (owner) =>
+  pickFirstNonEmpty(
+    owner?.full_name,
+    owner?.display_name,
+    owner?.displayName,
+    owner?.user_name,
+    owner?.name,
+    owner?.email,
+  ) || 'Property Owner'
+
+const getOwnerEmail = (owner) => pickFirstNonEmpty(owner?.email, owner?.owner_email)
+
+const getOwnerPhone = (owner) =>
+  pickFirstNonEmpty(
+    owner?.phone,
+    owner?.cellphone,
+    owner?.cell_phone,
+    owner?.mobile,
+    owner?.mobile_phone,
+    owner?.contact_phone,
+    owner?.phone_number,
+  )
+
+const getOwnerCompany = (owner) =>
+  pickFirstNonEmpty(
+    owner?.company_name,
+    owner?.company,
+    owner?.business_name,
+    owner?.organization,
+  )
+
+const getOwnerMailingAddress = (owner) => {
+  const direct = pickFirstNonEmpty(
+    owner?.mailing_address,
+    owner?.mailingAddress,
+    owner?.registered_business_address,
+    owner?.address,
+    owner?.street_address,
+  )
+  if (direct) return direct
+
+  return [
+    pickFirstNonEmpty(owner?.mailing_street, owner?.street),
+    pickFirstNonEmpty(owner?.mailing_city, owner?.city),
+    pickFirstNonEmpty(owner?.mailing_state, owner?.state),
+    pickFirstNonEmpty(owner?.mailing_zip, owner?.zip, owner?.zip_code),
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
 const getAssetDisplayName = (asset) => asset?.nickname || asset?.name || 'Unnamed Asset'
 
 const getAssetSubtitle = (asset) => {
@@ -2273,8 +2716,6 @@ const handleSidebarPropertySelect = (propertyId) => {
     selectProperty(property)
   }
 }
-
-
 
 const selectPropertyFromDialog = (property) => {
   selectProperty(property)
@@ -2840,12 +3281,17 @@ const cancelEdit = () => {
 <style scoped>
 .property-view-container {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 14px;
-  height: calc(100vh - 120px);
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  gap: 16px;
+  align-items: start;
+  height: calc(100vh - 112px);
+  min-height: 0;
 }
 
 .property-sidebar {
+  position: sticky;
+  top: 92px;
+  max-height: calc(100vh - 116px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2854,7 +3300,7 @@ const cancelEdit = () => {
 
 .property-list-card {
   height: fit-content;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
 }
 
@@ -2887,7 +3333,7 @@ const cancelEdit = () => {
 }
 
 .property-list-item {
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   margin-bottom: 4px;
   transition: all 0.2s ease;
 }
@@ -2902,20 +3348,103 @@ const cancelEdit = () => {
 }
 
 .property-content {
+  min-width: 0;
+  max-height: calc(100vh - 112px);
   overflow-y: auto;
+  padding-right: 8px !important;
+  scrollbar-width: thin;
 }
 
 .property-details-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto;
+  grid-template-columns: 1fr;
   gap: 12px;
   height: fit-content;
 }
 
+.property-action-rail {
+  position: sticky;
+  top: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.property-action-card {
+  border-radius: var(--border-radius-card);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(36, 59, 83, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.property-action-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.property-action-subtitle {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--neutral-500);
+}
+
+.owner-info-loading {
+  padding: 16px 0 4px;
+  text-align: center;
+}
+
+.owner-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.owner-info-card {
+  border: 1px solid rgba(36, 59, 83, 0.1);
+  border-radius: var(--border-radius-card);
+  padding: 10px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.owner-info-card--pending {
+  border-style: dashed;
+}
+
+.owner-info-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  overflow-wrap: anywhere;
+}
+
+.owner-info-status {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--neutral-500);
+}
+
+.owner-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 7px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--neutral-700);
+  overflow-wrap: anywhere;
+}
+
 .property-image-card {
   grid-column: 1;
-  grid-row: 1;
   transition: all 0.2s ease;
   cursor: pointer;
   display: flex;
@@ -2939,7 +3468,7 @@ const cancelEdit = () => {
 .property-main-image {
   width: 100%;
   height: 160px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   background: var(--neutral-100, #f5f6f8);
 }
 
@@ -2968,7 +3497,7 @@ const cancelEdit = () => {
 .property-selector-btn {
   min-height: 88px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   text-align: left;
   justify-content: flex-start;
   align-items: flex-start;
@@ -3002,8 +3531,7 @@ const cancelEdit = () => {
 }
 
 .property-info-card {
-  grid-column: 2;
-  grid-row: 1;
+  grid-column: 1;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -3025,17 +3553,15 @@ const cancelEdit = () => {
 
 .property-documents-card {
   grid-column: 1 / -1;
-  grid-row: 4;
 }
 
 .rent-tracking-card {
   grid-column: 1 / -1;
-  grid-row: 4;
 }
 
 .property-assets-card .q-expansion-item__container,
 .property-documents-card .q-expansion-item__container {
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .assets-loading,
@@ -3046,24 +3572,92 @@ const cancelEdit = () => {
 
 .info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(36, 59, 83, 0.08);
+  border-radius: var(--border-radius-card);
+  background: rgba(248, 250, 252, 0.7);
 }
 
 .info-label {
-  font-size: 0.875rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--neutral-600);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .info-value {
+  min-width: 0;
   font-weight: 500;
   color: var(--neutral-800);
+  font-size: 0.86rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.history-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.history-card-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.history-card-caption {
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--neutral-500);
+}
+
+.history-list {
+  border: 1px solid rgba(36, 59, 83, 0.08);
+  border-radius: var(--border-radius-card);
+  overflow: hidden;
+}
+
+.history-list :deep(.q-item) {
+  min-height: 52px;
+  padding: 8px 10px;
+}
+
+.history-amount {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  text-align: right;
+}
+
+.history-status {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: var(--neutral-500);
+  text-align: right;
+}
+
+.history-empty {
+  padding: 14px;
+  border: 1px dashed rgba(36, 59, 83, 0.14);
+  border-radius: var(--border-radius-card);
+  color: var(--neutral-500);
+  font-size: 0.84rem;
+  text-align: center;
 }
 
 .tasks-grid {
@@ -3077,7 +3671,7 @@ const cancelEdit = () => {
   text-align: center;
   padding: 16px;
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .task-count {
@@ -3100,7 +3694,7 @@ const cancelEdit = () => {
 
 .financial-item {
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   text-align: center;
 }
 
@@ -3240,7 +3834,7 @@ const cancelEdit = () => {
 }
 
 .elevated {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
@@ -3311,7 +3905,7 @@ const cancelEdit = () => {
 
 .property-detail-image-panel {
   border: 1px solid var(--neutral-200);
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   background: #fff;
   padding: 16px;
 }
@@ -3319,7 +3913,7 @@ const cancelEdit = () => {
 .property-detail-img {
   width: 100%;
   height: 200px;
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background: var(--neutral-100, #f5f6f8);
 }
 
@@ -3337,7 +3931,7 @@ const cancelEdit = () => {
 .detail-display-card {
   min-height: 56px;
   border: 1px solid var(--neutral-200);
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background: #f7f8fa;
   padding: 12px 14px;
 }
@@ -3369,43 +3963,53 @@ const cancelEdit = () => {
   }
 
   .property-sidebar {
-    order: 2;
+    position: static;
+    max-height: none;
+    order: 1;
   }
 
   .property-content {
-    order: 1;
+    order: 2;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0 !important;
+  }
+
+  .property-action-rail {
+    position: static;
+    order: 3;
   }
 
   .property-details-grid {
     grid-template-columns: 1fr;
   }
 
+  .info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .property-image-card {
     grid-column: 1;
-    grid-row: 1;
   }
 
   .property-info-card {
     grid-column: 1;
-    grid-row: 2;
   }
 
   .tasks-summary-card {
     grid-column: 1;
-    grid-row: 3;
   }
 
   .transaction-summary-card {
     grid-column: 1;
-    grid-row: 4;
   }
 
   .property-documents-card {
-    grid-row: 7;
+    grid-column: 1;
   }
 
   .rent-tracking-card {
-    grid-row: 6;
+    grid-column: 1;
   }
 }
 
@@ -3459,7 +4063,7 @@ const cancelEdit = () => {
 
 .upload-section {
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   padding: 24px;
   border: 2px dashed #e0e0e0;
 }
@@ -3490,7 +4094,7 @@ const cancelEdit = () => {
 
 .photo-card {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
@@ -3653,7 +4257,7 @@ const cancelEdit = () => {
 
 .documents-list {
   border: 1px solid var(--neutral-200, #e5e5e5);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   overflow: hidden;
 }
 
@@ -3683,7 +4287,7 @@ const cancelEdit = () => {
 
 .rent-summary-item {
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   text-align: center;
   background: var(--neutral-100, #f5f5f5);
   border: 1px solid var(--neutral-200, #e5e5e5);
@@ -3735,7 +4339,7 @@ const cancelEdit = () => {
   align-items: center;
   padding: 12px 16px;
   background: var(--neutral-50, #fafafa);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   margin-bottom: 8px;
   border: 1px solid var(--neutral-200, #e5e5e5);
   transition: all 0.2s ease;
@@ -3791,7 +4395,7 @@ const cancelEdit = () => {
 
 .rent-payments-list {
   background: var(--neutral-50, #fafafa);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .rent-payment-item {
@@ -3824,12 +4428,10 @@ const cancelEdit = () => {
 @media (max-width: 1024px) {
   .property-documents-card {
     grid-column: 1;
-    grid-row: 6;
   }
 
   .rent-tracking-card {
     grid-column: 1;
-    grid-row: 7;
   }
 
   .documents-grid {
@@ -3887,9 +4489,52 @@ const cancelEdit = () => {
 :global(body.body--dark) .transaction-summary-card,
 :global(body.body--dark) .lease-status-card,
 :global(body.body--dark) .rent-tracking-card,
+:global(body.body--dark) .property-services-card,
+:global(body.body--dark) .property-assets-card,
+:global(body.body--dark) .property-action-card,
 :global(body.body--dark) .property-documents-card {
   background: #1e1e1e !important;
   border-color: #3d3d3d !important;
+}
+
+:global(body.body--dark) .property-action-title {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+:global(body.body--dark) .property-action-subtitle {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+:global(body.body--dark) .owner-info-card {
+  background: rgba(15, 23, 42, 0.28);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+:global(body.body--dark) .owner-info-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global(body.body--dark) .owner-info-status,
+:global(body.body--dark) .owner-info-row {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+:global(body.body--dark) .info-item,
+:global(body.body--dark) .history-list,
+:global(body.body--dark) .history-empty {
+  background: rgba(15, 23, 42, 0.28);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+:global(body.body--dark) .history-card-title,
+:global(body.body--dark) .history-amount {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global(body.body--dark) .history-card-caption,
+:global(body.body--dark) .history-status,
+:global(body.body--dark) .history-empty {
+  color: rgba(255, 255, 255, 0.62);
 }
 
 :global(body.body--dark) .info-grid,

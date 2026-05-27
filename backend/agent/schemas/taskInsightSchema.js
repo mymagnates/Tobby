@@ -1,0 +1,27 @@
+export const TASK_INSIGHT_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    capability: { type: 'STRING' },
+    likely_causes: { type: 'ARRAY', items: { type: 'STRING' } },
+    knowledge_points: { type: 'ARRAY', items: { type: 'STRING' } },
+    possible_scope_of_work: { type: 'ARRAY', items: { type: 'STRING' } },
+    safety_flags: { type: 'ARRAY', items: { type: 'STRING' } },
+    regional_price_range: { type: 'STRING' },
+    recommended_next_step: { type: 'STRING' },
+    suggest_sp: { type: 'BOOLEAN' },
+    suggested_service_type: { type: 'STRING' },
+    confidence: { type: 'NUMBER' },
+  },
+  required: [
+    'capability',
+    'likely_causes',
+    'knowledge_points',
+    'possible_scope_of_work',
+    'safety_flags',
+    'regional_price_range',
+    'recommended_next_step',
+    'suggest_sp',
+    'suggested_service_type',
+    'confidence',
+  ],
+}

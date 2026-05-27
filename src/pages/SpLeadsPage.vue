@@ -206,19 +206,11 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="bidDialog">
-      <q-card style="min-width: 360px">
-        <q-card-section class="text-subtitle1">Submit Bid</q-card-section>
-        <q-card-section class="q-gutter-sm">
-          <q-input v-model.number="bidForm.amount" type="number" label="Bid Amount" dense outlined />
-          <q-input v-model="bidForm.notes" type="textarea" autogrow label="Notes" dense outlined />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Submit" :loading="submitting" @click="submitBid" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <SpBidDialog
+      v-model="bidDialog"
+      :lead="selectedLead"
+      @submitted="handleBidSubmitted"
+    />
   </q-page>
 </template>
 
@@ -227,20 +219,15 @@ import { onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spPortalApi } from 'src/services/webApiClient'
+import SpBidDialog from 'src/components/SpBidDialog.vue'
 
 const userStore = useUserDataStore()
 const loading = ref(false)
 const rows = ref([])
 const bidDialog = ref(false)
 const leadDetailDialog = ref(false)
-const submitting = ref(false)
 const selectedLead = ref(null)
 const selectedLeadDetail = ref(null)
-
-const bidForm = ref({
-  amount: null,
-  notes: '',
-})
 
 const columns = [
   { name: 'title', label: 'Lead', field: 'title', align: 'left' },
@@ -265,7 +252,6 @@ const loadLeads = async () => {
 
 const openBidDialog = (lead) => {
   selectedLead.value = lead
-  bidForm.value = { amount: null, notes: '' }
   bidDialog.value = true
 }
 
@@ -278,30 +264,6 @@ const openBidFromDetail = () => {
   if (!selectedLeadDetail.value) return
   leadDetailDialog.value = false
   openBidDialog(selectedLeadDetail.value)
-}
-
-const getSpBidCore = () => {
-  const profile = userStore.userProfile || {}
-  const spName =
-    profile.sp_business_name ||
-    profile.business_name ||
-    profile.display_name ||
-    profile.full_name ||
-    userStore.user?.displayName ||
-    userStore.user?.email ||
-    'Service Provider'
-
-  const spContact = {
-    email: profile.email || userStore.user?.email || '',
-    phone: profile.phone || profile.contact_phone || '',
-    contact_name: profile.contact_name || profile.full_name || userStore.user?.displayName || spName,
-  }
-
-  return {
-    sp_id: String(userStore.userId || ''),
-    sp_name: spName,
-    sp_contact: spContact,
-  }
 }
 
 const getLeadImages = (lead) => {
@@ -397,49 +359,16 @@ const formatDate = (value) => {
   return date.toLocaleDateString()
 }
 
-const submitBid = async () => {
+const handleBidSubmitted = (res) => {
   const leadDocId = selectedLead.value?.id || selectedLead.value?.lead_doc_id || selectedLead.value?.lead_id
-  const leadPublicId = selectedLead.value?.lead_id || leadDocId
-  const amount = Number(bidForm.value.amount)
-  if (!selectedLead.value || !leadDocId || !Number.isFinite(amount) || amount <= 0) {
-    Notify.create({ type: 'warning', message: 'Bid amount is required.', position: 'top' })
-    return
-  }
-
-  submitting.value = true
-  try {
-    const res = await spPortalApi.createBid({
-      ...getSpBidCore(),
-      lead_id: leadPublicId,
-      lead_doc_id: leadDocId,
-      mx_id: selectedLead.value.mx_id || selectedLead.value.task_id || null,
-      task_id: selectedLead.value.task_id || selectedLead.value.mx_id || null,
-      task_doc_id: selectedLead.value.task_doc_id || null,
-      title: selectedLead.value.title || '',
-      amount,
-      note: bidForm.value.notes || '',
-    })
-
-    rows.value = rows.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
-    selectedLead.value = null
-    bidForm.value = { amount: null, notes: '' }
-    bidDialog.value = false
-
-    const remaining = res?.credits_balance
-    Notify.create({
-      type: 'positive',
-      message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
-      position: 'top',
-    })
-  } catch (error) {
-    const message =
-      error?.error_code === 'INSUFFICIENT_CREDITS'
-        ? 'Insufficient credits. Your free credit will refresh next week.'
-        : error.message || 'Submit failed.'
-    Notify.create({ type: 'negative', message, position: 'top' })
-  } finally {
-    submitting.value = false
-  }
+  rows.value = rows.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
+  selectedLead.value = null
+  const remaining = res?.credits_balance
+  Notify.create({
+    type: 'positive',
+    message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
+    position: 'top',
+  })
 }
 
 onMounted(loadLeads)
@@ -498,7 +427,7 @@ onMounted(loadLeads)
 
 .lead-image-card {
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
 }
 
 .lead-image-thumb {
@@ -516,7 +445,7 @@ onMounted(loadLeads)
 .lead-detail-item,
 .lead-comments-panel {
   border: 1px solid var(--neutral-200, #e5e7eb);
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background: var(--bg-surface, #fff);
   padding: 12px;
 }
@@ -542,7 +471,7 @@ onMounted(loadLeads)
 }
 
 .lead-comments-list {
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
 }
 
 @media (max-width: 768px) {

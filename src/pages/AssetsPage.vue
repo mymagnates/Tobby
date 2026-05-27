@@ -1,46 +1,46 @@
 <template>
   <q-page class="q-pa-md assets-page">
-    <div class="row justify-end q-mb-md">
+    <div class="page-toolbar page-toolbar--filters">
+      <q-input
+        v-model="searchQuery"
+        borderless
+        dense
+        clearable
+        placeholder="Search assets"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+      <div class="page-tool-toggle">
+        <q-toggle v-model="showArchived" dense label="Archived" />
+      </div>
+      <q-btn
+        flat
+        dense
+        round
+        icon="refresh"
+        color="grey-7"
+        class="page-tool-icon-action"
+        :loading="loading"
+        @click="loadAssets"
+      >
+        <q-tooltip>Reload assets</q-tooltip>
+      </q-btn>
       <q-btn
         v-if="canManageRecords"
         color="primary"
         text-color="white"
         unelevated
+        no-caps
+        dense
         icon="add"
-        label="Add Asset"
+        label="Add"
+        class="page-tool-action"
         @click="openCreateDialog"
       />
     </div>
-
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section>
-        <div class="row q-col-gutter-md">
-          <div class="col-12">
-            <div class="row q-col-gutter-md items-center">
-              <div class="col-12 col-md-6">
-                <q-input
-                  v-model="searchQuery"
-                  outlined
-                  dense
-                  clearable
-                  label="Search nickname, brand, model, serial"
-                >
-                  <template #prepend>
-                    <q-icon name="search" />
-                  </template>
-                </q-input>
-              </div>
-              <div class="col-12 col-md-3">
-                <q-toggle v-model="showArchived" label="Show Archived" />
-              </div>
-              <div class="col-12 col-md-3 text-right">
-                <q-btn flat icon="refresh" label="Reload" @click="loadAssets" :loading="loading" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </q-card-section>
-    </q-card>
 
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner-dots size="40px" color="primary" />
@@ -57,81 +57,71 @@
       </q-card-section>
     </q-card>
 
-    <q-card v-else flat bordered>
-      <q-table
-        :rows="filteredAssets"
-        :columns="columns"
-        row-key="id"
-        flat
-        :pagination="{ rowsPerPage: 20 }"
+    <div v-else class="entity-tiles">
+      <article
+        v-for="asset in filteredAssets"
+        :key="asset.id"
+        class="entity-tile asset-tile"
+        tabindex="0"
+        @click="canManagePropertyAction(asset.property_id) && openEditDialog(asset)"
+        @keyup.enter="canManagePropertyAction(asset.property_id) && openEditDialog(asset)"
       >
-        <template #body-cell-property_name="props">
-          <q-td :props="props">{{ props.row.property_name }}</q-td>
-        </template>
-        <template #body-cell-nickname="props">
-          <q-td :props="props">
-            <div class="text-weight-medium">{{ props.row.nickname }}</div>
-            <div class="text-caption text-grey-7">{{ props.row.type }}</div>
-          </q-td>
-        </template>
-        <template #body-cell-status="props">
-          <q-td :props="props">
-            <q-chip :color="props.row.status === 'archived' ? 'grey-6' : 'positive'" text-color="white" size="sm">
-              {{ props.row.status === 'archived' ? 'Archived' : 'Active' }}
-            </q-chip>
-          </q-td>
-        </template>
-        <template #body-cell-images="props">
-          <q-td :props="props">
-            <q-chip size="sm" color="blue-1" text-color="primary">
-              {{ props.row.images?.length || 0 }} image{{ (props.row.images?.length || 0) === 1 ? '' : 's' }}
-            </q-chip>
-          </q-td>
-        </template>
-        <template #body-cell-updated_at="props">
-          <q-td :props="props">{{ formatDate(props.row.updated_at) }}</q-td>
-        </template>
-        <template #body-cell-actions="props">
-          <q-td :props="props">
-            <div class="row no-wrap q-gutter-xs">
-              <q-btn
-                v-if="canManagePropertyAction(props.row.property_id)"
-                flat
-                dense
-                round
-                icon="edit"
-                color="primary"
-                @click="openEditDialog(props.row)"
-              >
-                <q-tooltip>Edit</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="canManagePropertyAction(props.row.property_id) && props.row.status !== 'archived'"
-                flat
-                dense
-                round
-                icon="archive"
-                color="orange"
-                @click="archiveAsset(props.row)"
-              >
-                <q-tooltip>Archive</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-else-if="canManagePropertyAction(props.row.property_id)"
-                flat
-                dense
-                round
-                icon="unarchive"
-                color="positive"
-                @click="unarchiveAsset(props.row)"
-              >
-                <q-tooltip>Unarchive</q-tooltip>
-              </q-btn>
-            </div>
-          </q-td>
-        </template>
-      </q-table>
-    </q-card>
+        <div class="entity-tile-head">
+          <div class="entity-file-mark entity-file-mark--blue">
+            <q-icon name="inventory_2" size="22px" />
+          </div>
+          <div class="row no-wrap q-gutter-xs">
+            <q-btn
+              v-if="canManagePropertyAction(asset.property_id)"
+              flat
+              dense
+              round
+              icon="edit"
+              color="primary"
+              @click.stop="openEditDialog(asset)"
+            >
+              <q-tooltip>Edit</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-if="canManagePropertyAction(asset.property_id) && asset.status !== 'archived'"
+              flat
+              dense
+              round
+              icon="archive"
+              color="orange"
+              @click.stop="archiveAsset(asset)"
+            >
+              <q-tooltip>Archive</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-else-if="canManagePropertyAction(asset.property_id)"
+              flat
+              dense
+              round
+              icon="unarchive"
+              color="positive"
+              @click.stop="unarchiveAsset(asset)"
+            >
+              <q-tooltip>Unarchive</q-tooltip>
+            </q-btn>
+          </div>
+        </div>
+        <div class="entity-tile-title text-clamp-2">{{ asset.nickname || asset.type || 'Asset' }}</div>
+        <div class="entity-tile-desc text-clamp-2">
+          {{ [asset.brand, asset.model, asset.serial].filter(Boolean).join(' / ') || asset.location || 'No details' }}
+        </div>
+        <div class="entity-tile-meta">
+          <span class="entity-chip entity-chip--blue">{{ asset.property_name || 'Property' }}</span>
+          <span class="entity-chip" :class="asset.status === 'archived' ? 'entity-chip--orange' : 'entity-chip--green'">
+            {{ asset.status === 'archived' ? 'Archived' : 'Active' }}
+          </span>
+        </div>
+        <div class="entity-tile-foot">
+          <span>{{ asset.location || asset.type || 'Asset' }}</span>
+          <span>{{ asset.images?.length || 0 }} image{{ (asset.images?.length || 0) === 1 ? '' : 's' }}</span>
+        </div>
+      </article>
+    </div>
 
     <q-dialog v-model="showFormDialog" persistent maximized>
       <q-card v-if="!editingAsset" class="create-fullscreen-card">
@@ -451,19 +441,6 @@ const locationOptions = [
   'Other',
 ]
 
-const columns = [
-  { name: 'property_name', label: 'Property', field: 'property_name', align: 'left', sortable: true },
-  { name: 'nickname', label: 'Asset', field: 'nickname', align: 'left', sortable: true },
-  { name: 'location', label: 'Location', field: 'location', align: 'left', sortable: true },
-  { name: 'brand', label: 'Brand', field: 'brand', align: 'left', sortable: true },
-  { name: 'model', label: 'Model', field: 'model', align: 'left', sortable: true },
-  { name: 'serial', label: 'Serial', field: 'serial', align: 'left' },
-  { name: 'images', label: 'Images', field: 'images', align: 'left' },
-  { name: 'status', label: 'Status', field: 'status', align: 'left' },
-  { name: 'updated_at', label: 'Updated', field: 'updated_at', align: 'left', sortable: true },
-  { name: 'actions', label: 'Actions', field: 'actions', align: 'right' },
-]
-
 const filteredAssets = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
 
@@ -513,13 +490,6 @@ function getEmptyForm() {
     status: 'active',
     images: [],
   }
-}
-
-function formatDate(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 async function ensurePropertyDataLoaded() {

@@ -1,14 +1,15 @@
 <template>
   <q-page class="sp-services-page q-pa-sm">
-    <div class="services-shell">
-      <q-card class="services-card q-mb-sm">
-        <q-card-section class="row items-center justify-between">
-          <div>
-            <div class="text-subtitle1 text-weight-medium">Services</div>
-            <div class="text-caption text-grey-7">
-              Maintain your service scope for matching and marketplace discovery.
-            </div>
+    <q-card flat bordered class="services-card q-mb-sm">
+      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
+        <div>
+          <div class="text-subtitle1 text-weight-medium">Services</div>
+          <div class="text-caption text-grey-7">
+            Maintain your service scope for matching and marketplace discovery.
           </div>
+        </div>
+        <div class="row items-center q-gutter-sm">
+          <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
           <q-btn
             color="primary"
             no-caps
@@ -17,104 +18,108 @@
             :loading="saving"
             @click="saveProfile"
           />
-        </q-card-section>
-      </q-card>
+        </div>
+      </q-card-section>
+    </q-card>
 
-      <q-card class="services-card q-mb-sm">
-        <q-card-section>
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">Service Descriptions</div>
-          <div class="text-caption text-grey-7 q-mb-sm">
-            Add multiple service descriptions. Each description is limited to 20 words.
-          </div>
-          <div class="row q-col-gutter-sm items-start q-mb-sm">
-            <div class="col-12 col-md">
-              <q-input
-                v-model="newDescription"
-                type="textarea"
-                autogrow
-                dense
-                outlined
-                :error="descriptionWordCount > 20"
-                :error-message="'Maximum 20 words per description.'"
-                label="Service description"
-              />
-              <div class="text-caption text-grey-6 q-mt-xs">
-                {{ descriptionWordCount }}/20 words
-              </div>
-            </div>
-            <div class="col-auto">
-              <q-btn
-                color="primary"
-                no-caps
-                icon="add"
-                label="Add"
-                :disable="!canAddDescription"
-                @click="addDescription"
-              />
-            </div>
-          </div>
-
-          <q-list bordered separator v-if="serviceDescriptions.length">
-            <q-item v-for="(desc, index) in serviceDescriptions" :key="`${index}-${desc}`">
-              <q-item-section>
-                <q-item-label>{{ desc }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-btn flat round dense icon="delete" color="negative" @click="removeDescription(index)" />
-              </q-item-section>
-            </q-item>
-          </q-list>
-          <q-banner v-else rounded class="bg-grey-2 text-grey-8">
-            No descriptions added yet.
-          </q-banner>
-        </q-card-section>
-      </q-card>
-
-      <q-card class="services-card q-mb-sm">
-        <q-card-section>
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">Service Area</div>
-          <div class="text-caption text-grey-7 q-mb-sm">
-            ZIP codes are generated automatically from your drawn service area and stored in background.
-          </div>
-
-          <div class="row items-center justify-between q-mb-xs">
-            <div class="text-subtitle2 text-weight-medium">Coverage Map</div>
-            <q-btn
-              flat
+    <q-card flat bordered class="services-card q-mb-sm">
+      <q-card-section class="q-px-md q-py-sm">
+        <div class="text-subtitle2 text-weight-medium q-mb-sm">Service Descriptions</div>
+        <div class="text-caption text-grey-7 q-mb-sm">
+          Add multiple service descriptions. Each description is limited to 20 words.
+        </div>
+        <div class="row q-col-gutter-sm items-start q-mb-sm">
+          <div class="col-12 col-md">
+            <q-input
+              v-model="newDescription"
+              type="textarea"
+              autogrow
               dense
+              outlined
+              :error="descriptionWordCount > 20"
+              :error-message="'Maximum 20 words per description.'"
+              label="Service description"
+            />
+            <div class="text-caption text-grey-6 q-mt-xs">
+              {{ descriptionWordCount }}/20 words
+            </div>
+          </div>
+          <div class="col-auto">
+            <q-btn
+              color="primary"
               no-caps
-              icon="delete_outline"
-              label="Clear Drawn Area"
-              color="grey-7"
-              :disable="!hasDrawnArea"
-              @click="clearDrawnArea"
+              icon="add"
+              label="Add"
+              :disable="!canAddDescription"
+              @click="addDescription"
             />
           </div>
-          <div class="text-caption text-grey-7 q-mb-sm">
-            Draw a circle, polygon, or rectangle on the map. ZIP codes inside the selected area are detected and added automatically.
+        </div>
+
+        <q-list bordered separator v-if="serviceDescriptions.length">
+          <q-item v-for="(desc, index) in serviceDescriptions" :key="`${index}-${desc}`">
+            <q-item-section>
+              <q-item-label>{{ desc }}</q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-btn flat round dense icon="delete" color="negative" @click="removeDescription(index)" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+        <q-banner v-else rounded class="bg-grey-2 text-grey-8">
+          No descriptions added yet.
+        </q-banner>
+      </q-card-section>
+    </q-card>
+
+    <q-card flat bordered class="services-card q-mb-sm">
+      <q-card-section class="q-px-md q-py-sm">
+        <div class="text-subtitle2 text-weight-medium q-mb-sm">Service Area</div>
+        <div class="text-caption text-grey-7 q-mb-sm">
+          ZIP codes are generated automatically from your drawn service area and stored in background.
+        </div>
+
+        <div class="row items-center justify-between q-mb-xs">
+          <div>
+            <div class="text-subtitle2 text-weight-medium">Coverage Map</div>
+            <div class="text-caption text-grey-7">
+              Draw a circle, polygon, or rectangle on the map. ZIP codes inside the selected area are detected automatically.
+            </div>
           </div>
-          <q-banner v-if="mapError" rounded class="bg-red-1 text-red-9 q-mb-sm">
-            {{ mapError }}
-          </q-banner>
-          <q-banner v-else-if="extractingZipCodes" rounded class="bg-blue-1 text-primary q-mb-sm">
-            Detecting ZIP codes from selected area...
-          </q-banner>
-          <div class="map-frame">
-            <div ref="mapCanvasRef" class="map-canvas" />
-          </div>
-        </q-card-section>
-      </q-card>
-    </div>
+          <q-btn
+            flat
+            dense
+            no-caps
+            icon="delete_outline"
+            label="Clear Drawn Area"
+            color="grey-7"
+            :disable="!hasDrawnArea"
+            @click="clearDrawnArea"
+          />
+        </div>
+        <q-banner v-if="mapError" rounded class="bg-red-1 text-red-9 q-mb-sm">
+          {{ mapError }}
+        </q-banner>
+        <q-banner v-else-if="extractingZipCodes" rounded class="bg-blue-1 text-primary q-mb-sm">
+          Detecting ZIP codes from selected area...
+        </q-banner>
+        <div class="map-frame">
+          <div ref="mapCanvasRef" class="map-canvas" />
+        </div>
+      </q-card-section>
+    </q-card>
   </q-page>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFirebase } from 'src/composables/useFirebase'
 import { useUserDataStore } from 'src/stores/userDataStore'
 
 const userStore = useUserDataStore()
+const router = useRouter()
 const { getDocument, createDocument, updateDocument } = useFirebase()
 
 const saving = ref(false)
@@ -147,6 +152,14 @@ const localGoogleMapsApiKey = ref('')
 const effectiveGoogleMapsApiKey = computed(() =>
   String(localGoogleMapsApiKey.value || ENV_GOOGLE_MAPS_API_KEY || '').trim()
 )
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/sp-dashboard')
+}
 
 let mapsApiPromise = null
 let mapInstance = null
@@ -633,19 +646,14 @@ onBeforeUnmount(() => {
   background: var(--bg-secondary);
 }
 
-.services-shell {
-  max-width: 960px;
-  margin: 0 auto;
-}
-
 .services-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
 .map-frame {
   border: 1px solid var(--neutral-200);
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background: #ffffff;
   padding: 8px;
 }
@@ -654,6 +662,6 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 360px;
   display: block;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 </style>

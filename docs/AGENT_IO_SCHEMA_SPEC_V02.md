@@ -196,7 +196,8 @@ Aligned to current service create flow in [CreateService.vue](/Users/MacAirEZ/De
   "agent_phone": "",
   "agent_email": "",
   "service_start_date": "",
-  "term": ""
+  "term": "",
+  "recurring": false
 }
 ```
 
@@ -269,4 +270,3 @@ Output:
 ## 7) Current Gaps To Close In Runtime
 - `/agent/intake` currently supports `task`, `transaction`, `asset`, and `reminder`; `service` still needs to be added to runtime handling in [apiServer.js](/Users/MacAirEZ/Desktop/projectTobby/backend/apiServer.js).
 - `task_insight` is specified here but not yet implemented as a dedicated endpoint or page panel.
-

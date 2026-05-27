@@ -1,109 +1,130 @@
 <template>
-  <div class="auth-shell">
-    <div class="auth-layout">
-      <section class="auth-form-panel">
-        <div class="auth-form-wrap">
-          <div v-if="!isAuthenticated">
-            <q-form @submit="handleSignIn" class="q-gutter-md">
-              <q-input
-                v-model="email"
-                type="email"
-                label="Email address"
-                required
-                outlined
-                :rules="[(val) => !!val || 'Email is required']"
-              />
-
-              <q-input
-                v-model="password"
-                type="password"
-                label="Password"
-                required
-                outlined
-                :rules="[(val) => !!val || 'Password is required']"
-              />
-
-              <div class="auth-primary-row">
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  color="primary"
-                  label="Forgot password"
-                  @click="openForgotPasswordDialog"
-                />
-                <q-btn
-                  color="primary"
-                  text-color="white"
-                  unelevated
-                  :loading="loading"
-                  label="Sign in"
-                  type="submit"
-                  class="auth-submit-btn"
-                />
-              </div>
-
-              <q-btn
-                outline
-                color="grey-7"
-                icon="public"
-                label="Sign in with Google"
-                :loading="socialLoading === 'google'"
-                @click="handleGoogleSignIn"
-                class="full-width q-mt-md"
-                v-if="enableGoogleSignIn"
-              />
-
-              <div class="auth-signup-row">
-                <span>Don't have an account?</span>
-                <q-btn flat dense no-caps color="primary" label="Register" @click="router.push('/public/register')" />
-              </div>
-            </q-form>
+  <div class="public-auth-page">
+    <div class="public-auth-frame">
+      <section class="public-auth-story">
+        <div class="public-auth-eyebrow">Property operations platform</div>
+        <h2>Welcome back to work with <em>clarity.</em></h2>
+        <p class="public-auth-story-copy">
+          Keep properties, service work, documents, and transactions connected in one operational
+          workspace.
+        </p>
+        <div class="public-auth-benefits">
+          <div class="public-auth-benefit">
+            <q-icon name="check_circle" size="19px" /> Tasks and leases stay in sync
           </div>
-
-          <div v-else class="user-info">
-            <p><strong>Email:</strong> {{ userEmail }}</p>
-            <p v-if="userDisplayName"><strong>Name:</strong> {{ userDisplayName }}</p>
-
-            <div class="q-gutter-sm q-mt-md">
-              <q-btn
-                color="primary"
-                label="Continue to Home"
-                icon="home"
-                @click="goToIndex"
-                class="full-width"
-              />
-              <q-btn
-                @click="handleLogout"
-                color="negative"
-                :loading="loading"
-                label="Sign Out"
-                class="full-width"
-              />
-            </div>
+          <div class="public-auth-benefit">
+            <q-icon name="check_circle" size="19px" /> Service partners work from one record
           </div>
-
-          <q-banner v-if="error" rounded class="bg-negative text-white q-mt-md">
-            <template v-slot:avatar>
-              <q-icon name="error" />
-            </template>
-            {{ formatErrorMessage(error) }}
-          </q-banner>
+          <div class="public-auth-benefit">
+            <q-icon name="check_circle" size="19px" /> Every update remains visible
+          </div>
         </div>
       </section>
 
-      <section class="auth-visual-panel">
-        <div class="visual-grid"></div>
-        <div class="visual-content">
-          <div class="visual-wordmark">Handout</div>
-          <div class="visual-title">Manage Properties With Clarity</div>
-          <div class="visual-subtitle">Ease, Clarity, Intelligence, Connection, Action</div>
-          <div class="visual-dots">
-            <span></span>
-            <span class="active"></span>
-            <span></span>
+      <section class="public-auth-card auth-login-card">
+        <div v-if="!isAuthenticated">
+          <p class="public-auth-card-label">Welcome back</p>
+          <h1>Sign In to Handout</h1>
+          <p class="public-auth-card-intro">
+            Enter your account details to continue to your workspace.
+          </p>
+
+          <q-form @submit="handleSignIn" class="auth-form">
+            <q-input
+              v-model="email"
+              type="email"
+              label="Email address"
+              required
+              outlined
+              :rules="[(val) => !!val || 'Email is required']"
+            />
+
+            <q-input
+              v-model="password"
+              type="password"
+              label="Password"
+              required
+              outlined
+              :rules="[(val) => !!val || 'Password is required']"
+            />
+
+            <div class="forgot-password-row">
+              <q-btn
+                flat
+                dense
+                no-caps
+                class="public-auth-text-link"
+                label="Forgot password"
+                @click="openForgotPasswordDialog"
+              />
+            </div>
+
+            <q-btn
+              color="primary"
+              text-color="white"
+              unelevated
+              no-caps
+              :loading="loading"
+              label="Sign In"
+              type="submit"
+              class="public-auth-button full-width"
+            />
+
+            <q-btn
+              outline
+              color="grey-7"
+              icon="public"
+              label="Sign In with Google"
+              :loading="socialLoading === 'google'"
+              @click="handleGoogleSignIn"
+              class="full-width q-mt-md"
+              v-if="enableGoogleSignIn"
+            />
+
+            <div class="public-auth-switch">
+              <span>Don't have an account?</span>
+              <q-btn
+                flat
+                dense
+                no-caps
+                class="public-auth-text-link"
+                label="Get Started"
+                @click="router.push('/public/register')"
+              />
+            </div>
+          </q-form>
+        </div>
+
+        <div v-else class="user-info">
+          <p class="public-auth-card-label">Signed in</p>
+          <h1>Continue to Handout</h1>
+          <p><strong>Email:</strong> {{ userEmail }}</p>
+          <p v-if="userDisplayName"><strong>Name:</strong> {{ userDisplayName }}</p>
+
+          <div class="q-gutter-sm q-mt-md">
+            <q-btn
+              color="primary"
+              label="Continue to Home"
+              icon="home"
+              @click="goToIndex"
+              class="public-auth-button full-width"
+            />
+            <q-btn
+              @click="handleLogout"
+              color="negative"
+              :loading="loading"
+              label="Sign Out"
+              class="full-width"
+            />
           </div>
         </div>
+
+        <q-banner v-if="error" rounded class="bg-negative text-white q-mt-md">
+          <template v-slot:avatar>
+            <q-icon name="error" />
+          </template>
+          {{ formatErrorMessage(error) }}
+        </q-banner>
       </section>
     </div>
 
@@ -320,116 +341,23 @@ const formatErrorMessage = (errorMsg) => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
-
-.auth-shell {
-  min-height: calc(100vh - 130px);
+.auth-login-card {
+  align-self: center;
+  max-width: 520px;
+  width: 100%;
 }
 
-.auth-layout {
-  min-height: calc(100vh - 130px);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--bg-surface);
-}
-
-.auth-form-panel {
-  padding: 32px 56px 40px;
+.auth-form {
   display: flex;
   flex-direction: column;
-  background: var(--bg-surface);
+  gap: 16px;
 }
 
-.auth-form-wrap {
-  width: min(100%, 460px);
-  margin: auto;
-}
-
-.auth-primary-row {
+.forgot-password-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.auth-submit-btn {
-  border-radius: 8px;
-  min-height: 44px;
-  min-width: 132px;
-}
-
-.auth-signup-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  margin-top: 12px;
-  color: var(--neutral-600);
-}
-
-.auth-visual-panel {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-}
-
-.visual-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.24;
-  background-image: radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.35) 1px, transparent 0);
-  background-size: 26px 26px;
-}
-
-.visual-content {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 540px);
-  text-align: center;
-  color: white;
-}
-
-.visual-wordmark {
-  font-family: 'Pacifico', cursive;
-  font-size: 3rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  margin-bottom: 20px;
-}
-
-.visual-title {
-  font-size: 2.1rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.visual-subtitle {
-  margin-top: 8px;
-  font-size: 1rem;
-  opacity: 0.92;
-}
-
-.visual-dots {
-  margin-top: 28px;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
-
-.visual-dots span {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-}
-
-.visual-dots .active {
-  background: rgba(255, 255, 255, 0.9);
+  justify-content: flex-end;
+  margin-top: -8px;
 }
 
 .user-info {
@@ -447,20 +375,5 @@ const formatErrorMessage = (errorMsg) => {
 .user-info strong {
   color: var(--neutral-900);
   font-weight: 600;
-}
-
-@media (max-width: 1024px) {
-  .auth-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-visual-panel {
-    display: none;
-  }
-
-  .auth-form-panel {
-    padding: 20px 18px 32px;
-  }
-
 }
 </style>

@@ -1,8 +1,8 @@
 <template>
   <q-card flat bordered class="property-sidebar-picker">
-    <q-card-section class="q-pa-sm">
-      <div class="text-subtitle2 text-weight-medium q-mb-sm">Properties</div>
-      <q-list dense>
+    <q-card-section class="property-picker-section">
+      <div class="property-picker-title">Properties</div>
+      <q-list class="property-picker-list">
         <q-item
           v-if="includeAll"
           clickable
@@ -55,11 +55,52 @@ defineEmits(['update:modelValue'])
 
 <style scoped>
 .property-sidebar-picker {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
+  min-height: 306px;
+  background: var(--bg-surface);
+}
+
+.property-picker-section {
+  padding: 22px 18px !important;
+}
+
+.property-picker-title {
+  margin-bottom: 16px;
+  color: var(--neutral-600);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.property-picker-list :deep(.q-item) {
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 8px;
+  min-height: 64px;
+  padding: 12px 14px;
+}
+
+.property-picker-list :deep(.q-item__label) {
+  color: var(--neutral-800);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.property-picker-list :deep(.q-item__label--caption) {
+  color: var(--neutral-600);
+  font-size: 0.92rem;
+  font-weight: 400;
+  margin-top: 5px;
 }
 
 .picker-active {
-  background: rgba(25, 118, 210, 0.12);
-  border-left: 3px solid #1976d2;
+  background: #eaf8f6;
+  border: 1px solid #b7e7df !important;
+}
+
+:global(body.body--dark) .picker-active {
+  background: rgba(45, 212, 191, 0.15);
+  border-color: rgba(45, 212, 191, 0.42) !important;
 }
 </style>

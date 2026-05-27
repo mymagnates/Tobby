@@ -172,12 +172,25 @@
           />
         </aside>
 
-        <div class="content-main">
-          <router-view />
+        <div class="content-main" :class="{ 'content-main--workspace': showPropertyRail }">
+          <router-view v-slot="{ Component, route: currentViewRoute }">
+            <keep-alive>
+              <component
+                :is="Component"
+                v-if="currentViewRoute.meta?.keepAlive"
+                :key="currentViewRoute.path"
+              />
+            </keep-alive>
+            <component
+              :is="Component"
+              v-if="!currentViewRoute.meta?.keepAlive"
+              :key="currentViewRoute.fullPath"
+            />
+          </router-view>
         </div>
 
         <aside v-if="showAdRail" class="ad-rail">
-          <q-card flat bordered class="ad-slot-card stats-rail-card">
+          <q-card v-if="!showAssistantPanel" flat bordered class="ad-slot-card stats-rail-card">
             <q-card-section class="stats-rail-header">
               <div class="text-subtitle2 text-weight-medium">Quick Stats</div>
               <div class="text-caption text-grey-6 q-mt-xs">This Month</div>
@@ -244,6 +257,102 @@
                   </div>
                 </q-card-section>
               </q-card>
+            </q-card-section>
+          </q-card>
+          <div v-if="isIndexDashboard" id="index-reminders-slot" class="index-reminders-slot" />
+
+          <q-card
+            v-if="showAssistantInRail"
+            flat
+            bordered
+            class="ad-slot-card assistant-rail-card"
+            :class="{ 'assistant-rail-card--expanded': showAssistantPanel }"
+          >
+            <q-card-section class="assistant-rail-header">
+              <div>
+                <div class="assistant-rail-title">
+                  <q-icon name="smart_toy" size="18px" class="q-mr-xs" />
+                  Tobby
+                </div>
+                <div class="assistant-rail-subtitle">
+                  Ask questions or draft tasks without leaving the PM workspace.
+                </div>
+              </div>
+              <q-btn
+                v-if="showAssistantPanel"
+                flat
+                round
+                dense
+                icon="close"
+                size="sm"
+                @click="showAssistantPanel = false"
+              />
+            </q-card-section>
+            <q-separator />
+            <q-card-section v-if="!showAssistantPanel" class="assistant-rail-cta">
+              <q-btn
+                unelevated
+                color="primary"
+                no-caps
+                icon="chat"
+                label="Talk to Tobby"
+                class="full-width assistant-rail-btn"
+                @click="showAssistantPanel = true"
+              />
+            </q-card-section>
+            <q-card-section v-else class="assistant-panel-body assistant-panel-body--rail">
+              <div ref="assistantMessagesEl" class="assistant-message-list">
+                <div
+                  v-for="message in assistantMessages"
+                  :key="message.id"
+                  class="assistant-message-row"
+                  :class="`assistant-message-row--${message.role}`"
+                >
+                  <div class="assistant-message-bubble" :class="`assistant-message-bubble--${message.role}`">
+                    <div class="assistant-message-text">{{ message.text }}</div>
+                    <div v-if="message.draft" class="assistant-draft assistant-draft--message">
+                      <div class="text-subtitle2 text-weight-bold q-mb-xs">{{ message.title }}</div>
+                      <div
+                        v-for="line in message.summaryLines"
+                        :key="`${message.id}-${line.label}`"
+                        class="assistant-draft-line"
+                      >
+                        <strong>{{ line.label }}:</strong> {{ line.value }}
+                      </div>
+                      <q-btn
+                        unelevated
+                        color="primary"
+                        :label="message.actionLabel"
+                        class="q-mt-sm"
+                        @click="openAssistantDraft(message)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <q-input
+                v-model="assistantInput"
+                type="textarea"
+                outlined
+                autogrow
+                dense
+                label="Ask Tobby"
+                :disable="assistantLoading"
+                class="assistant-input"
+                @keyup.enter.exact.prevent="runAssistantIntake"
+              />
+              <div class="assistant-actions">
+                <q-btn
+                  unelevated
+                  color="primary"
+                  label="Send"
+                  :loading="assistantLoading"
+                  @click="runAssistantIntake"
+                />
+                <q-btn flat label="Clear" @click="resetAssistant" />
+              </div>
+              <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
+              <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
             </q-card-section>
           </q-card>
         </aside>
@@ -330,9 +439,9 @@
     </q-dialog>
 
     <!-- Global Assistant Widget (bottom-right, available on all pages) -->
-    <div class="global-assistant-widget">
+    <div v-if="!showAssistantInRail" class="global-assistant-widget">
       <q-btn
-        v-if="!showAssistantPanel"
+        v-if="showFloatingAssistantFab && !showAssistantPanel"
         rounded
         color="primary"
         icon="chat"
@@ -355,21 +464,51 @@
           </q-card-section>
           <q-separator />
           <q-card-section class="assistant-panel-body">
+            <div ref="assistantFloatingMessagesEl" class="assistant-message-list">
+              <div
+                v-for="message in assistantMessages"
+                :key="`floating-${message.id}`"
+                class="assistant-message-row"
+                :class="`assistant-message-row--${message.role}`"
+              >
+                <div class="assistant-message-bubble" :class="`assistant-message-bubble--${message.role}`">
+                  <div class="assistant-message-text">{{ message.text }}</div>
+                  <div v-if="message.draft" class="assistant-draft assistant-draft--message">
+                    <div class="text-subtitle2 text-weight-bold q-mb-xs">{{ message.title }}</div>
+                    <div
+                      v-for="line in message.summaryLines"
+                      :key="`floating-${message.id}-${line.label}`"
+                      class="assistant-draft-line"
+                    >
+                      <strong>{{ line.label }}:</strong> {{ line.value }}
+                    </div>
+                    <q-btn
+                      unelevated
+                      color="primary"
+                      :label="message.actionLabel"
+                      class="q-mt-sm"
+                      @click="openAssistantDraft(message)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
             <q-input
               v-model="assistantInput"
               type="textarea"
               outlined
               autogrow
               dense
-              label="Describe the issue"
+              label="Ask Tobby"
               :disable="assistantLoading"
               class="assistant-input"
+              @keyup.enter.exact.prevent="runAssistantIntake"
             />
             <div class="assistant-actions">
               <q-btn
                 unelevated
                 color="primary"
-                label="Enter"
+                label="Send"
                 :loading="assistantLoading"
                 @click="runAssistantIntake"
               />
@@ -377,35 +516,6 @@
             </div>
             <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
             <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
-
-            <div v-if="assistantDraft" class="assistant-draft">
-              <div class="text-subtitle2 text-weight-bold q-mb-xs">Draft Task</div>
-              <div class="assistant-draft-line">
-                <strong>Description:</strong> {{ assistantDraft.description }}
-              </div>
-              <div class="assistant-draft-line">
-                <strong>Category:</strong> {{ assistantDraft.task_category || 'N/A' }}
-              </div>
-              <div class="assistant-draft-line">
-                <strong>Priority:</strong> {{ assistantDraft.task_priority || 'N/A' }}
-              </div>
-              <div class="assistant-draft-line">
-                <strong>Property:</strong>
-                {{
-                  resolvePropertyLabel(
-                    assistantDraft.property_id,
-                    userDataStore.userAccessibleProperties
-                  ) || 'Not set'
-                }}
-              </div>
-              <q-btn
-                unelevated
-                color="primary"
-                label="Open Task Form"
-                class="q-mt-sm"
-                @click="openTaskCreateWithDraft(assistantDraft)"
-              />
-            </div>
           </q-card-section>
         </q-card>
       </transition>
@@ -414,7 +524,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, defineAsyncComponent, shallowRef } from 'vue'
+import { ref, watch, computed, onMounted, defineAsyncComponent, shallowRef, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
@@ -461,6 +571,7 @@ const PAGE_TITLES = {
   '/tenant-home': 'Tenant Home',
   '/create-tenant': 'Create Tenant',
   '/sp-profile': 'SP Profile',
+  '/sp-handout-builder': 'Build Handout',
 }
 
 const headerPageTitle = computed(() =>
@@ -478,8 +589,17 @@ const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUse
 const isPmPo = computed(() => ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) || hasOwnerWorkspaceAccess.value || userDataStore.isManagerCapableUser)
 const isTenantUser = computed(() => String(userDataStore.userCategory || '').toLowerCase() === 'tt')
 const showUniversalSearchButton = computed(
-  () => isPmPo.value && !isOwnerWorkspaceOnly.value && !String(route.path || '').startsWith('/po-dashboard'),
+  () => isPmPo.value && !isOwnerWorkspaceOnly.value && !String(route.path || '').startsWith('/sp-'),
 )
+const showFloatingAssistant = computed(() => {
+  const path = String(route.path || '')
+  if (path.startsWith('/sp-')) return false
+  if (path.startsWith('/po-dashboard')) return false
+  if (isOwnerWorkspaceOnly.value) return false
+  return true
+})
+const showAssistantInRail = computed(() => Boolean(showAdRail.value && isPmPo.value && showFloatingAssistant.value))
+const showFloatingAssistantFab = computed(() => Boolean(showFloatingAssistant.value && !showAssistantInRail.value))
 const PROPERTY_RAIL_ROUTES = [
   '/transactions',
   '/mx-records',
@@ -491,11 +611,12 @@ const PROPERTY_RAIL_ROUTES = [
   '/documents',
   '/reports',
 ]
+const isIndexDashboard = computed(() => route.path === '/' || route.path === '/pm-po-feed')
 const propertyRailIncludeAll = computed(() => route.path !== '/property-services')
 const showPropertyRail = computed(() => {
   const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
   if (!['pm', 'po', 'admin'].includes(accountType)) return false
-  return PROPERTY_RAIL_ROUTES.some((path) => route.path.startsWith(path))
+  return isIndexDashboard.value || PROPERTY_RAIL_ROUTES.some((path) => route.path.startsWith(path))
 })
 const showAdRail = computed(() => {
   const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
@@ -543,15 +664,25 @@ const monthlyExpense = computed(() => {
     })
     .reduce((sum, transaction) => sum + (parseFloat(transaction.amount) || 0), 0)
 })
+const selectedRailPropertyId = computed(() => String(route.query.propertyId || '').trim())
+const matchesSelectedRailProperty = (record) => {
+  if (!selectedRailPropertyId.value) return true
+  const propertyId = String(
+    record?.property_id?.id || record?.property?.id || record?.property_id || '',
+  ).trim()
+  return propertyId === selectedRailPropertyId.value
+}
 const openTasks = computed(() =>
   (userDataStore.userAccessibleMxRecords || []).filter(
-    (task) => !task?.status || String(task.status).toLowerCase() === 'open',
+    (task) =>
+      matchesSelectedRailProperty(task) &&
+      (!task?.status || String(task.status).toLowerCase() === 'open'),
   ).length,
 )
 const activeLeases = computed(() =>
   (userDataStore.userAccessibleLeases || []).filter((lease) => {
     const status = String(lease?.status || lease?.leasedetail?.status || '').toLowerCase()
-    return status === 'active' || status === 'occupied'
+    return matchesSelectedRailProperty(lease) && (status === 'active' || status === 'occupied')
   }).length,
 )
 const formatStatCurrency = (amount) =>
@@ -590,6 +721,22 @@ const assistantLoading = ref(false)
 const assistantError = ref('')
 const assistantOutOfScope = ref('')
 const assistantDraft = ref(null)
+const assistantMessagesEl = ref(null)
+const assistantFloatingMessagesEl = ref(null)
+const createAssistantMessage = (payload) => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  ...payload,
+})
+const assistantMessages = ref([
+  createAssistantMessage({
+    role: 'assistant',
+    text: 'Ask me to create a task, reminder, asset, service, or transaction. I will prepare the draft for you here.',
+  }),
+])
+
+const handleOpenGlobalAssistant = () => {
+  showAssistantPanel.value = true
+}
 
 const globalCreateOptions = [
   { label: 'Property', icon: 'home', path: '/create-property', bg: 'rgba(156,39,176,0.1)', color: 'purple' },
@@ -605,7 +752,7 @@ const globalCreateOptions = [
 
 const filteredGlobalCreateOptions = computed(() => {
   if (isOwnerWorkspaceOnly.value) {
-    const allowed = new Set(['task', 'transaction', 'reminder', 'asset'])
+    const allowed = new Set(['task', 'transaction', 'reminder', 'asset', 'service'])
     return globalCreateOptions.filter((option) => allowed.has(option.key))
   }
   return globalCreateOptions
@@ -654,6 +801,24 @@ const resetAssistant = () => {
   assistantError.value = ''
   assistantOutOfScope.value = ''
   assistantDraft.value = null
+  assistantMessages.value = [
+    createAssistantMessage({
+      role: 'assistant',
+      text: 'Ask me to create a task, reminder, asset, service, or transaction. I will prepare the draft for you here.',
+    }),
+  ]
+}
+
+const scrollAssistantToBottom = async () => {
+  await nextTick()
+  ;[assistantMessagesEl.value, assistantFloatingMessagesEl.value].forEach((element) => {
+    if (element) element.scrollTop = element.scrollHeight
+  })
+}
+
+const addAssistantMessage = async (message) => {
+  assistantMessages.value.push(createAssistantMessage(message))
+  await scrollAssistantToBottom()
 }
 
 const handlePropertyCreated = async () => {
@@ -763,6 +928,129 @@ const openReminderCreateWithDraft = (draft) => {
   showCreateFormDialog.value = true
 }
 
+const openServiceCreateWithDraft = (draft) => {
+  const propertyId = draft?.property_id || draft?.propertyId || null
+  activeCreateComponent.value = createComponentMap.service
+  activeCreateLabel.value = 'Service'
+  activeCreateProps.value = {
+    allowPropertyEdit: true,
+    propertyName: draft?.property_name || '',
+    prefill: {
+      property_id: propertyId,
+      selectedServicePropertyIds: Array.isArray(draft?.selectedServicePropertyIds)
+        ? draft.selectedServicePropertyIds
+        : propertyId
+          ? [propertyId]
+          : [],
+      service_type: draft?.service_type || 'loan',
+      company_name: draft?.company_name || '',
+      company_website: draft?.company_website || '',
+      agent_company: draft?.agent_company || '',
+      agent_name: draft?.agent_name || '',
+      agent_phone: draft?.agent_phone || '',
+      agent_email: draft?.agent_email || '',
+      service_start_date: draft?.service_start_date || '',
+      term: draft?.term || '',
+    },
+  }
+  showCreateFormDialog.value = true
+}
+
+const getAssistantDraftMeta = (entityType, draft) => {
+  const propertyLabel =
+    draft?.property_name ||
+    resolvePropertyLabel(draft?.property_id, userDataStore.userAccessibleProperties) ||
+    'Not set'
+
+  if (entityType === 'transaction') {
+    return {
+      title: 'Draft Transaction',
+      actionLabel: 'Open Transaction Form',
+      summaryLines: [
+        { label: 'From', value: draft?.transac_from || 'Not set' },
+        { label: 'To', value: draft?.transac_to || 'Not set' },
+        { label: 'Amount', value: draft?.amount ?? 'Not set' },
+        { label: 'Type', value: draft?.transac_type || 'Not set' },
+        { label: 'Property', value: propertyLabel },
+      ],
+    }
+  }
+
+  if (entityType === 'reminder') {
+    return {
+      title: 'Draft Reminder',
+      actionLabel: 'Open Reminder Form',
+      summaryLines: [
+        { label: 'Category', value: draft?.category || 'Not set' },
+        { label: 'Repeat', value: draft?.repeat_by || 'Not set' },
+        { label: 'Due Date', value: draft?.due_date || draft?.start_date || 'Not set' },
+        { label: 'Property', value: propertyLabel },
+      ],
+    }
+  }
+
+  if (entityType === 'asset') {
+    return {
+      title: 'Draft Asset',
+      actionLabel: 'Open Asset Form',
+      summaryLines: [
+        { label: 'Name', value: draft?.nickname || 'Not set' },
+        { label: 'Type', value: draft?.type || 'Not set' },
+        { label: 'Location', value: draft?.location || 'Not set' },
+        { label: 'Property', value: propertyLabel },
+      ],
+    }
+  }
+
+  if (entityType === 'service') {
+    return {
+      title: 'Draft Service',
+      actionLabel: 'Open Service Form',
+      summaryLines: [
+        { label: 'Type', value: draft?.service_type || 'Not set' },
+        { label: 'Company', value: draft?.company_name || 'Not set' },
+        { label: 'Agent', value: draft?.agent_name || draft?.agent_company || 'Not set' },
+        { label: 'Property', value: propertyLabel },
+      ],
+    }
+  }
+
+  return {
+    title: 'Draft Task',
+    actionLabel: 'Open Task Form',
+    summaryLines: [
+      { label: 'Description', value: draft?.description || 'Not set' },
+      { label: 'Category', value: draft?.task_category || 'Not set' },
+      { label: 'Priority', value: draft?.task_priority || 'Not set' },
+      { label: 'Property', value: propertyLabel },
+    ],
+  }
+}
+
+const openAssistantDraft = (message) => {
+  const entityType = message?.entityType || 'task'
+  const draft = message?.draft || null
+  if (!draft) return
+
+  if (entityType === 'transaction') {
+    openTransactionCreateWithDraft(draft)
+    return
+  }
+  if (entityType === 'reminder') {
+    openReminderCreateWithDraft(draft)
+    return
+  }
+  if (entityType === 'asset') {
+    openAssetCreateWithDraft(draft)
+    return
+  }
+  if (entityType === 'service') {
+    openServiceCreateWithDraft(draft)
+    return
+  }
+  openTaskCreateWithDraft(draft)
+}
+
 const normalizeMatchValue = (value) => String(value || '').toLowerCase().trim()
 
 const extractStreetParts = (value) => {
@@ -804,6 +1092,20 @@ const TRANSACTION_ROLE_OPTIONS = [
 
 const REMINDER_CATEGORY_OPTIONS = ['fee', 'hoa', 'rent', 'maintenance', 'labor', 'tax', 'other']
 const ASSET_TYPE_OPTIONS = ['Appliance', 'HVAC', 'Pool/Spa', 'Electrical', 'Plumbing', 'Safety', 'Exterior', 'Furniture', 'Other']
+const SERVICE_TYPE_OPTIONS = [
+  'loan',
+  'insurance',
+  'pest_control',
+  'lawn',
+  'pool',
+  'cleaning',
+  'hvac',
+  'plumbing',
+  'electrical',
+  'security',
+  'trash',
+  'snow_removal',
+]
 
 const detectAssetTypeLocal = (message) => {
   const text = normalizeMatchValue(message)
@@ -934,6 +1236,28 @@ const resolvePropertyLabel = (propertyId, properties) => {
   return match.nickname || match.displayName || match.address || match.id || ''
 }
 
+const normalizeAssistantDraftProperty = (draft, properties, matchedPropertyId, matchedPropertyLabel) => {
+  const propertyId =
+    matchedPropertyId ||
+    normalizePropertyIdValue(draft?.property_id) ||
+    normalizePropertyIdValue(draft?.propertyId) ||
+    null
+  const resolvedLabel =
+    matchedPropertyLabel ||
+    resolvePropertyLabel(propertyId, properties) ||
+    ''
+  const rawName = String(draft?.property_name || draft?.propertyName || '').trim()
+  const propertyName =
+    resolvedLabel ||
+    (rawName && rawName !== String(propertyId || '').trim() ? rawName : '')
+
+  return {
+    ...draft,
+    property_id: propertyId,
+    property_name: propertyName,
+  }
+}
+
 const inferTransactionRoles = (message, transacType) => {
   const text = normalizeMatchValue(message)
   const type = normalizeMatchValue(transacType)
@@ -1030,6 +1354,10 @@ const runAssistantIntake = async () => {
   assistantError.value = ''
   assistantOutOfScope.value = ''
   assistantDraft.value = null
+  await addAssistantMessage({
+    role: 'user',
+    text: message,
+  })
   try {
     if (userDataStore.userRoles.length === 0 && !userDataStore.userRolesLoading) {
       await userDataStore.loadUserRoles()
@@ -1065,14 +1393,24 @@ const runAssistantIntake = async () => {
         reminder_category_hint: matchedReminderCategory || null,
         reminder_category_options: REMINDER_CATEGORY_OPTIONS,
         reminder_repeat_hint: matchedReminderRepeat || null,
+        service_type_options: SERVICE_TYPE_OPTIONS,
       },
     })
     if (response?.capability === 'out_of_scope' || response?.entity_type === 'out_of_scope') {
       assistantOutOfScope.value = response?.message || 'This request is outside the assistant scope.'
+      await addAssistantMessage({
+        role: 'assistant',
+        text: assistantOutOfScope.value,
+      })
+      assistantInput.value = ''
       return
     }
     if (!response?.draft) {
       assistantError.value = 'No draft was returned. Please try again.'
+      await addAssistantMessage({
+        role: 'assistant',
+        text: assistantError.value,
+      })
       return
     }
     assistantDraft.value = { ...response.draft }
@@ -1123,28 +1461,30 @@ const runAssistantIntake = async () => {
         }
       }
     }
-    if (entityType === 'transaction') {
-      openTransactionCreateWithDraft({
-        ...assistantDraft.value,
-        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
-      })
-    } else if (entityType === 'reminder') {
-      openReminderCreateWithDraft({
-        ...assistantDraft.value,
-        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
-      })
-    } else if (entityType === 'asset') {
-      openAssetCreateWithDraft({
-        ...assistantDraft.value,
-        property_name: matchedPropertyLabel || assistantDraft.value.property_name || '',
-      })
-    } else {
-      openTaskCreateWithDraft(assistantDraft.value)
-    }
+    const normalizedDraft = normalizeAssistantDraftProperty(
+      assistantDraft.value,
+      properties,
+      matchedPropertyId,
+      matchedPropertyLabel,
+    )
+    const draftMeta = getAssistantDraftMeta(entityType, normalizedDraft)
+    await addAssistantMessage({
+      role: 'assistant',
+      text: 'I prepared a draft for you. Review it here, then open the form when you are ready.',
+      entityType,
+      draft: normalizedDraft,
+      title: draftMeta.title,
+      actionLabel: draftMeta.actionLabel,
+      summaryLines: draftMeta.summaryLines,
+    })
     assistantInput.value = ''
     assistantDraft.value = null
   } catch (error) {
     assistantError.value = error?.message || 'Failed to analyze the request.'
+    await addAssistantMessage({
+      role: 'assistant',
+      text: assistantError.value,
+    })
   } finally {
     assistantLoading.value = false
   }
@@ -1158,6 +1498,7 @@ onMounted(() => {
     $q.dark.set(isDarkMode.value)
     applyDarkModeClass(isDarkMode.value)
   }
+  window.addEventListener('open-global-assistant', handleOpenGlobalAssistant)
 })
 // Toggle dark mode
 function toggleDarkMode() {
@@ -1214,6 +1555,14 @@ const allLinksList = computed(() => [
     link: '/mx-records',
     bg: 'rgba(33,150,243,0.1)',
     color: 'primary',
+    allowedFor: ['pm', 'po', 'admin'],
+  },
+  {
+    title: t('reminders'),
+    icon: 'notifications',
+    link: '/reminders',
+    bg: 'rgba(244,67,54,0.1)',
+    color: 'negative',
     allowedFor: ['pm', 'po', 'admin'],
   },
   {
@@ -1275,7 +1624,6 @@ const hasReportsData = computed(() => {
 // Computed property to filter links based on user category
 const linksList = computed(() => {
   const userCategory = String(userDataStore.userCategory || '').toLowerCase()
-  const currentPath = String(route.path || '')
   console.log('MainLayout - Filtering menu for user category:', userCategory)
 
   // If no user category yet (still loading), show nothing
@@ -1303,27 +1651,6 @@ const linksList = computed(() => {
     'MainLayout - Filtered links:',
     filtered.map((l) => l.title),
   )
-  if (currentPath === '/') {
-    const remindersLink = {
-      title: t('reminders'),
-      icon: 'notifications',
-      link: '/reminders',
-      bg: 'rgba(244,67,54,0.1)',
-      color: 'negative',
-      allowedFor: ['pm', 'po', 'admin'],
-    }
-    if (isOwnerWorkspaceOnly.value) {
-      return filtered
-    }
-    if (userCategory === 'pm' || userCategory === 'po') {
-      if (!remindersLink.allowedFor.includes(userCategory)) return filtered
-      return [...filtered, remindersLink]
-    }
-    if (remindersLink.allowedFor.includes(userCategory)) {
-      return [...filtered, remindersLink]
-    }
-  }
-
   return filtered
 })
 
@@ -1589,7 +1916,10 @@ watch(
 /* Text Gray: #6B7280 */
 
 .dashboard-layout {
-  background: var(--bg-primary);
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(36, 59, 83, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--bg-primary) 38%, #f3f6fb 100%);
 }
 
 /* Hide scrollbars globally while maintaining scroll functionality */
@@ -1607,9 +1937,10 @@ watch(
    ======================================== */
 
 .dark-drawer {
-  background: var(--bg-surface);
-  border-right: 1px solid var(--border-color);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* Allow scrolling */
@@ -1631,7 +1962,7 @@ watch(
 }
 
 .drawer-logo-icon:hover {
-  background: var(--primary-glow);
+  background: rgba(36, 59, 83, 0.06);
 }
 
 .sidebar-app-title {
@@ -1664,14 +1995,17 @@ watch(
   align-items: center;
   gap: 6px;
   padding: 14px 6px 10px;
-  border: none;
-  background: none;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.52);
   border-radius: var(--border-radius-card, 14px);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .nav-grid-item:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(36, 59, 83, 0.08);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 :global(body.body--dark) .nav-grid-item:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -1680,11 +2014,12 @@ watch(
 .nav-grid-icon {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 .nav-grid-item:hover .nav-grid-icon {
   transform: scale(1.08);
@@ -1706,11 +2041,13 @@ watch(
 }
 
 .nav-grid-active {
-  background: rgba(20, 184, 166, 0.12);
+  background: linear-gradient(180deg, rgba(39, 194, 164, 0.14), rgba(39, 194, 164, 0.08));
+  border: 1px solid rgba(39, 194, 164, 0.24);
   border-radius: var(--border-radius-card, 14px);
+  box-shadow: var(--shadow-sm);
 }
 .nav-grid-active .nav-grid-label {
-  color: var(--primary-dark, #1565c0);
+  color: var(--neutral-900);
   font-weight: 700;
 }
 :global(body.body--dark) .nav-grid-active {
@@ -1728,26 +2065,27 @@ watch(
   background: transparent;
   border-bottom: none;
   box-shadow: none;
-  min-height: 56px;
-  padding: max(10px, env(safe-area-inset-top, 10px)) 20px 0;
+  min-height: 60px;
+  padding: max(12px, env(safe-area-inset-top, 12px)) 20px 0;
 }
 
 .dashboard-header .header-toolbar {
   max-width: none;
   width: 100%;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
+  background: #f8fbfd;
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(36, 59, 83, 0.12);
   border-radius: var(--border-radius-drawer);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  min-height: 56px;
-  padding-left: 5px;
-  padding-right: 10px;
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  min-height: 60px;
+  padding-left: 8px;
+  padding-right: 12px;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
 
 .dashboard-header .header-toolbar:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  border-color: var(--neutral-400, var(--border-color));
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12), 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  border-color: rgba(39, 194, 164, 0.22);
 }
 
 .header-toolbar {
@@ -1759,8 +2097,9 @@ watch(
 .header-center-title {
   flex: 1;
   text-align: center;
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.04rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--neutral-900);
   pointer-events: none;
 }
@@ -1824,9 +2163,10 @@ watch(
   min-height: 40px !important;
   padding: 0 !important;
   color: var(--primary-color) !important;
-  background: var(--bg-surface) !important;
-  border: 1.5px solid var(--border-strong) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  border: 1px solid rgba(36, 59, 83, 0.1) !important;
   border-radius: var(--border-radius-card) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
   transition: all 0.2s ease;
   margin: 0;
 }
@@ -1843,11 +2183,11 @@ watch(
 }
 
 .header-action-btn:hover {
-  background: var(--accent-glow) !important;
-  border-color: var(--accent-color) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(39, 194, 164, 0.32) !important;
   color: var(--accent-dark) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(20, 184, 166, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Language switcher: same 40x40, label centered, text only */
@@ -1883,8 +2223,8 @@ watch(
   min-width: 56px !important;
   width: auto !important;
   padding: 0 8px !important;
-  background: rgba(20, 184, 166, 0.08) !important;
-  border: 1.5px solid var(--accent-color) !important;
+  background: linear-gradient(180deg, rgba(39, 194, 164, 0.14), rgba(39, 194, 164, 0.08)) !important;
+  border: 1px solid rgba(39, 194, 164, 0.34) !important;
   color: var(--accent-dark) !important;
 }
 
@@ -1925,7 +2265,7 @@ watch(
 
 /* Page Container - horizontal padding aligns content with banner left/right */
 .page-container {
-  background: var(--bg-primary);
+  background: transparent;
   min-height: 100vh;
   position: relative;
   overflow-y: auto; /* Allow scrolling */
@@ -1946,39 +2286,99 @@ watch(
 
 .content-shell {
   min-height: calc(100vh - 72px);
+  padding-top: 16px;
 }
 
 .content-shell--with-rails {
   display: grid;
   grid-template-columns: 260px 1fr 260px;
-  gap: 12px;
+  gap: 16px;
   align-items: start;
 }
 
 .content-shell--with-ad-rail {
   display: grid;
   grid-template-columns: 1fr 260px;
-  gap: 12px;
+  gap: 16px;
   align-items: start;
 }
 
 .property-rail {
-  position: sticky;
-  top: 90px;
-}
-
-.ad-rail {
+  align-self: start;
   position: sticky;
   top: 0;
 }
 
+.ad-rail {
+  align-self: start;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: calc(100vh - 96px);
+}
+
+.index-reminders-slot {
+  margin-top: 12px;
+}
+
 .mainlayout-property-picker,
 .ad-slot-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-md);
 }
 
 .stats-rail-card {
   overflow: hidden;
+}
+
+.assistant-rail-card {
+  width: 100%;
+  overflow: hidden;
+}
+
+.assistant-rail-card--expanded {
+  min-height: calc(100vh - 96px);
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.assistant-rail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 14px 10px !important;
+}
+
+.assistant-rail-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+
+.assistant-rail-subtitle {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--neutral-500);
+}
+
+.assistant-rail-cta {
+  display: flex;
+  padding: 12px !important;
+}
+
+.assistant-rail-btn {
+  width: 100%;
+  min-height: 42px;
+  border-radius: var(--border-radius-btn);
 }
 
 .stats-rail-header {
@@ -1993,16 +2393,16 @@ watch(
 }
 
 .stats-card-compact {
-  border-radius: var(--border-radius-card);
+  border-radius: calc(var(--border-radius-card) - 2px);
   box-shadow: none !important;
   cursor: default;
   transition: background 0.15s ease;
-  border: 1px solid var(--neutral-200);
-  background: var(--bg-surface);
+  border: 1px solid rgba(36, 59, 83, 0.08);
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .stats-card-compact:hover {
-  background: var(--neutral-50, #f8f9fa) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
 }
 
 .stats-compact-section {
@@ -2070,6 +2470,14 @@ watch(
 
 .content-main {
   min-width: 0;
+}
+
+.content-main--workspace {
+  background: var(--bg-surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-card);
+  min-height: 424px;
+  padding: 18px;
 }
 
 /* Loading Overlay */
@@ -2160,6 +2568,10 @@ watch(
     grid-template-columns: 1fr;
   }
 
+  .content-shell {
+    padding-top: 12px;
+  }
+
   .property-rail,
   .ad-rail {
     position: static;
@@ -2221,6 +2633,7 @@ watch(
   background: var(--bg-surface);
   border-right-color: var(--border-color);
   color: white;
+  box-shadow: var(--shadow-lg);
 }
 
 :global(body.body--dark) .dashboard-header {
@@ -2229,8 +2642,15 @@ watch(
 }
 
 :global(body.body--dark) .dashboard-header .header-toolbar {
-  background: var(--bg-surface);
-  border-color: var(--border-color);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.86));
+  backdrop-filter: blur(20px) saturate(150%);
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+:global(body.body--dark) .dashboard-header .header-toolbar:hover {
+  border-color: rgba(45, 212, 191, 0.28);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
 :global(body.body--dark) .header-center-title {
@@ -2268,42 +2688,52 @@ watch(
 
 /* Dark mode: keep action buttons visible with strong contrast */
 :global(body.body--dark) .header-action-btn {
-  color: var(--primary-color) !important;
-  background: rgba(15, 23, 42, 0.35) !important;
-  border: 1.5px solid var(--border-strong) !important;
+  color: #d8fff6 !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.28) !important;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
 }
 
 :global(body.body--dark) .header-action-btn:hover {
-  background: rgba(45, 212, 191, 0.2) !important;
-  border-color: var(--accent-color) !important;
-  color: #99f6e4 !important;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
+  border-color: rgba(45, 212, 191, 0.5) !important;
+  color: #ffffff !important;
+}
+
+:global(body.body--dark) .header-action-btn :deep(.q-icon),
+:global(body.body--dark) .header-action-btn :deep(.q-btn__label),
+:global(body.body--dark) .header-action-btn :deep(.q-btn__content),
+:global(body.body--dark) .header-action-btn :deep(.q-btn-dropdown__arrow) {
+  color: currentColor !important;
+  opacity: 1 !important;
 }
 
 :global(body.body--dark) .language-switcher {
-  background: transparent !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)) !important;
 }
 
 :global(body.body--dark) .language-switcher:hover {
-  background: rgba(45, 212, 191, 0.2) !important;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
 }
 
 :global(body.body--dark) .refresh-btn,
 :global(body.body--dark) .dark-mode-btn {
-  background: transparent !important;
-  border: 1.5px solid var(--border-strong) !important;
-  color: var(--primary-color) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.28) !important;
+  color: #d8fff6 !important;
 }
 
 :global(body.body--dark) .refresh-btn:hover,
 :global(body.body--dark) .dark-mode-btn:hover {
-  background: rgba(45, 212, 191, 0.2) !important;
-  color: #99f6e4 !important;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
+  color: #ffffff !important;
 }
 
 :global(body.body--dark) .profile-btn {
-  background: rgba(45, 212, 191, 0.16) !important;
-  border: 1.5px solid var(--accent-color) !important;
-  color: #99f6e4 !important;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.26), rgba(15, 118, 110, 0.22)) !important;
+  border: 1.5px solid rgba(45, 212, 191, 0.42) !important;
+  color: #ecfeff !important;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
 }
 
 :global(body.body--dark) .profile-btn:hover {
@@ -2340,6 +2770,29 @@ watch(
 
 :global(body.body--dark) .header-logo {
   background: transparent;
+}
+
+:global(body.body--dark) .assistant-rail-title {
+  color: var(--primary-color);
+}
+
+:global(body.body--dark) .assistant-rail-subtitle {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+:global(body.body--dark) .assistant-message-bubble--assistant {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+:global(body.body--dark) .assistant-message-bubble--user {
+  background: rgba(45, 212, 191, 0.18);
+  border-color: rgba(45, 212, 191, 0.28);
+}
+
+:global(body.body--dark) .assistant-message-text,
+:global(body.body--dark) .assistant-draft-line {
+  color: rgba(255, 255, 255, 0.88);
 }
 
 /* Global Assistant Widget — aligned with right rail (280px) */
@@ -2392,6 +2845,58 @@ watch(
   padding: 10px !important;
 }
 
+.assistant-panel-body--rail {
+  min-height: 280px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.assistant-message-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  margin-bottom: 10px;
+}
+
+.assistant-message-row {
+  display: flex;
+}
+
+.assistant-message-row--user {
+  justify-content: flex-end;
+}
+
+.assistant-message-row--assistant {
+  justify-content: flex-start;
+}
+
+.assistant-message-bubble {
+  max-width: 92%;
+  border-radius: var(--border-radius-card);
+  padding: 10px 12px;
+}
+
+.assistant-message-bubble--assistant {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(36, 59, 83, 0.08);
+}
+
+.assistant-message-bubble--user {
+  background: rgba(39, 194, 164, 0.14);
+  border: 1px solid rgba(39, 194, 164, 0.28);
+}
+
+.assistant-message-text {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--neutral-800);
+  white-space: pre-wrap;
+}
+
 .assistant-input {
   margin-bottom: 8px;
 }
@@ -2406,12 +2911,16 @@ watch(
 .assistant-draft {
   margin-top: 10px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.assistant-draft--message {
+  margin-top: 10px;
 }
 
 .assistant-draft-line {
@@ -2444,7 +2953,7 @@ watch(
 
 /* Global Create Dialog — 3x3 grid */
 .global-create-dialog {
-  border-radius: var(--border-radius-card, 14px);
+  border-radius: 8px !important;
   min-width: 340px;
   max-width: 380px;
 }
@@ -2474,7 +2983,7 @@ watch(
   padding: 14px 6px 10px;
   border: none;
   background: none;
-  border-radius: var(--border-radius-card, 14px);
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -2488,7 +2997,7 @@ watch(
 .global-create-icon {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;

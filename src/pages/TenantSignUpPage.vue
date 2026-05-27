@@ -1,195 +1,237 @@
 <template>
-  <div class="tenant-signup-page">
-    <div class="signup-container">
-      <!-- Logo and Property Info Section -->
-      <div class="header-section">
-        <h1 class="app-title">Handout</h1>
-        <div v-if="property" class="property-info">
-          <q-icon name="home" size="24px" color="primary" />
-          <div class="property-details">
-            <p class="property-name">{{ property.nickname || property.address }}</p>
-            <p class="property-subtitle">
-              {{ invitedLease ? `Lease Invite: ${invitedLease.id}` : 'Tenant Registration' }}
-            </p>
+  <div class="public-auth-page">
+    <div class="public-auth-frame">
+      <section class="public-auth-story">
+        <div class="public-auth-eyebrow">Tenant workspace</div>
+        <h2>Stay connected to your <em>home.</em></h2>
+        <p class="public-auth-story-copy">
+          Access lease details, submit requests, and follow updates from the same trusted workspace.
+        </p>
+        <div class="public-auth-benefits">
+          <div class="public-auth-benefit">
+            <q-icon name="description" size="19px" /> Lease details in one place
+          </div>
+          <div class="public-auth-benefit">
+            <q-icon name="construction" size="19px" /> Submit and track maintenance
+          </div>
+          <div class="public-auth-benefit">
+            <q-icon name="notifications_none" size="19px" /> Receive timely updates
           </div>
         </div>
-        <div v-else-if="isSelfRegister" class="property-info self-register-info">
-          <q-icon name="person_add" size="24px" color="primary" />
-          <div class="property-details">
-            <p class="property-name">Tenant Registration</p>
-            <p class="property-subtitle">Your property manager can link you to a property later</p>
-          </div>
-        </div>
-        <div v-else-if="!propertyLoading" class="property-error">
-          <q-icon name="error" color="negative" size="32px" />
-          <p>Property not found</p>
-        </div>
-      </div>
+      </section>
 
-      <!-- Loading State -->
-      <div v-if="propertyLoading || isCreatingProfile" class="loading-section">
-        <q-spinner-dots size="60px" color="primary" />
-        <p class="loading-text">
+      <section class="public-auth-card public-auth-card--form tenant-auth-card">
+        <q-btn
+          v-if="isSelfRegister"
+          flat
+          dense
+          no-caps
+          icon="arrow_back"
+          label="Choose another workspace"
+          class="public-auth-back"
+          @click="router.push('/public/register')"
+        />
+        <p class="public-auth-card-label">Create account</p>
+        <h1>Tenant access</h1>
+        <p class="public-auth-card-intro">
           {{
-            isCreatingProfile ? 'Setting up your tenant profile...' : 'Loading property details...'
+            isSelfRegister
+              ? 'Create your tenant account to get started.'
+              : 'Accept your invitation and access your lease workspace.'
           }}
         </p>
-      </div>
 
-      <!-- Auth Forms (show when property loaded OR self-register) -->
-      <div v-else-if="!isAuthenticated && (property || isSelfRegister)" class="auth-section">
-        <!-- Toggle between Sign Up and Login -->
-        <q-tabs
-          v-model="activeTab"
-          class="auth-tabs"
-          align="justify"
-          narrow-indicator
-          active-color="primary"
+        <div class="header-section">
+          <div v-if="property" class="property-info">
+            <q-icon name="home" size="24px" color="primary" />
+            <div class="property-details">
+              <p class="property-name">{{ property.nickname || property.address }}</p>
+              <p class="property-subtitle">
+                {{ invitedLease ? `Lease Invite: ${invitedLease.id}` : 'Tenant Registration' }}
+              </p>
+            </div>
+          </div>
+          <div v-else-if="isSelfRegister" class="property-info self-register-info">
+            <q-icon name="person_add" size="24px" color="primary" />
+            <div class="property-details">
+              <p class="property-name">Tenant Registration</p>
+              <p class="property-subtitle">
+                Your property manager can link you to a property later
+              </p>
+            </div>
+          </div>
+          <div v-else-if="!propertyLoading" class="property-error">
+            <q-icon name="error" color="negative" size="32px" />
+            <p>Property not found</p>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="propertyLoading || isCreatingProfile" class="loading-section">
+          <q-spinner-dots size="60px" color="primary" />
+          <p class="loading-text">
+            {{
+              isCreatingProfile
+                ? 'Setting up your tenant profile...'
+                : 'Loading property details...'
+            }}
+          </p>
+        </div>
+
+        <!-- Auth Forms (show when property loaded OR self-register) -->
+        <div v-else-if="!isAuthenticated && (property || isSelfRegister)" class="auth-section">
+          <!-- Toggle between sign up and sign in -->
+          <q-tabs
+            v-model="activeTab"
+            class="auth-tabs"
+            align="justify"
+            narrow-indicator
+            active-color="primary"
+          >
+            <q-tab name="signup" label="Sign Up" />
+            <q-tab name="login" label="Sign In" />
+          </q-tabs>
+
+          <q-tab-panels v-model="activeTab" animated>
+            <q-tab-panel name="signup">
+              <q-form @submit="handleSignUp" class="auth-form">
+                <q-input
+                  v-model="signupForm.email"
+                  type="email"
+                  label="Email *"
+                  outlined
+                  :rules="[(val) => !!val || 'Email is required']"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="email" />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="signupForm.password"
+                  type="password"
+                  label="Password *"
+                  outlined
+                  :rules="[
+                    (val) => !!val || 'Password is required',
+                    (val) => val.length >= 6 || 'Password must be at least 6 characters',
+                  ]"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="lock" />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="signupForm.confirmPassword"
+                  type="password"
+                  label="Confirm Password *"
+                  outlined
+                  :rules="[
+                    (val) => !!val || 'Please confirm your password',
+                    (val) => val === signupForm.password || 'Passwords do not match',
+                  ]"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="lock" />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="signupForm.fullName"
+                  label="Full Name *"
+                  outlined
+                  :rules="[(val) => !!val || 'Full name is required']"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="person" />
+                  </template>
+                </q-input>
+
+                <q-input v-model="signupForm.phone" label="Phone Number" outlined type="tel">
+                  <template v-slot:prepend>
+                    <q-icon name="phone" />
+                  </template>
+                </q-input>
+
+                <div class="form-actions">
+                  <q-btn
+                    type="submit"
+                    color="primary"
+                    label="Create Tenant Account"
+                    size="lg"
+                    unelevated
+                    :loading="loading"
+                    no-caps
+                    class="public-auth-button full-width"
+                  />
+                </div>
+              </q-form>
+            </q-tab-panel>
+
+            <q-tab-panel name="login">
+              <q-form @submit="handleLogin" class="auth-form">
+                <q-input
+                  v-model="loginForm.email"
+                  type="email"
+                  label="Email *"
+                  outlined
+                  :rules="[(val) => !!val || 'Email is required']"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="email" />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="loginForm.password"
+                  type="password"
+                  label="Password *"
+                  outlined
+                  :rules="[(val) => !!val || 'Password is required']"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="lock" />
+                  </template>
+                </q-input>
+
+                <div class="form-actions">
+                  <q-btn
+                    type="submit"
+                    color="primary"
+                    label="Sign In"
+                    size="lg"
+                    unelevated
+                    :loading="loading"
+                    no-caps
+                    class="public-auth-button full-width"
+                  />
+                </div>
+              </q-form>
+            </q-tab-panel>
+          </q-tab-panels>
+        </div>
+
+        <!-- Already authenticated message -->
+        <div
+          v-else-if="isAuthenticated && (property || isSelfRegister)"
+          class="already-authenticated"
         >
-          <q-tab name="signup" label="Sign Up" />
-          <q-tab name="login" label="Login" />
-        </q-tabs>
+          <q-icon name="check_circle" color="positive" size="64px" />
+          <p class="success-message">You are already logged in!</p>
+          <p class="success-detail">Redirecting to your tenant dashboard...</p>
+        </div>
 
-        <q-tab-panels v-model="activeTab" animated>
-          <!-- Sign Up Panel -->
-          <q-tab-panel name="signup">
-            <q-form @submit="handleSignUp" class="auth-form">
-              <q-input
-                v-model="signupForm.email"
-                type="email"
-                label="Email *"
-                outlined
-                :rules="[(val) => !!val || 'Email is required']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="email" />
-                </template>
-              </q-input>
-
-              <q-input
-                v-model="signupForm.password"
-                type="password"
-                label="Password *"
-                outlined
-                :rules="[
-                  (val) => !!val || 'Password is required',
-                  (val) => val.length >= 6 || 'Password must be at least 6 characters',
-                ]"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="lock" />
-                </template>
-              </q-input>
-
-              <q-input
-                v-model="signupForm.confirmPassword"
-                type="password"
-                label="Confirm Password *"
-                outlined
-                :rules="[
-                  (val) => !!val || 'Please confirm your password',
-                  (val) => val === signupForm.password || 'Passwords do not match',
-                ]"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="lock" />
-                </template>
-              </q-input>
-
-              <q-input
-                v-model="signupForm.fullName"
-                label="Full Name *"
-                outlined
-                :rules="[(val) => !!val || 'Full name is required']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="person" />
-                </template>
-              </q-input>
-
-              <q-input v-model="signupForm.phone" label="Phone Number" outlined type="tel">
-                <template v-slot:prepend>
-                  <q-icon name="phone" />
-                </template>
-              </q-input>
-
-              <div class="form-actions">
-                <q-btn
-                  type="submit"
-                  color="primary"
-                  label="Create Tenant Account"
-                  size="lg"
-                  unelevated
-                  :loading="loading"
-                  class="full-width"
-                />
-              </div>
-            </q-form>
-          </q-tab-panel>
-
-          <!-- Login Panel -->
-          <q-tab-panel name="login">
-            <q-form @submit="handleLogin" class="auth-form">
-              <q-input
-                v-model="loginForm.email"
-                type="email"
-                label="Email *"
-                outlined
-                :rules="[(val) => !!val || 'Email is required']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="email" />
-                </template>
-              </q-input>
-
-              <q-input
-                v-model="loginForm.password"
-                type="password"
-                label="Password *"
-                outlined
-                :rules="[(val) => !!val || 'Password is required']"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="lock" />
-                </template>
-              </q-input>
-
-              <div class="form-actions">
-                <q-btn
-                  type="submit"
-                  color="primary"
-                  label="Login"
-                  size="lg"
-                  unelevated
-                  :loading="loading"
-                  class="full-width"
-                />
-              </div>
-            </q-form>
-          </q-tab-panel>
-        </q-tab-panels>
-      </div>
-
-      <!-- Already authenticated message -->
-      <div v-else-if="isAuthenticated && (property || isSelfRegister)" class="already-authenticated">
-        <q-icon name="check_circle" color="positive" size="64px" />
-        <p class="success-message">You are already logged in!</p>
-        <p class="success-detail">Redirecting to your tenant dashboard...</p>
-      </div>
-
-      <!-- Error Display -->
-      <div v-if="errorMessage" class="error-section">
-        <q-banner class="bg-negative text-white" rounded>
-          <template v-slot:avatar>
-            <q-icon name="error" />
-          </template>
-          {{ errorMessage }}
-        </q-banner>
-      </div>
-
-      <div v-if="isSelfRegister" class="signup-back">
-        <q-btn flat dense no-caps color="grey-7" icon="arrow_back" label="Back to role selection" @click="router.push('/public/register')" />
-      </div>
+        <!-- Error Display -->
+        <div v-if="errorMessage" class="error-section">
+          <q-banner class="bg-negative text-white" rounded>
+            <template v-slot:avatar>
+              <q-icon name="error" />
+            </template>
+            {{ errorMessage }}
+          </q-banner>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -234,8 +276,8 @@ const loginForm = ref({
 
 // Computed
 const isAuthenticated = computed(() => userDataStore.isAuthenticated)
-const leaseIdFromInvite = computed(
-  () => String(route.params.leaseId || route.query.lease_id || '').trim()
+const leaseIdFromInvite = computed(() =>
+  String(route.params.leaseId || route.query.lease_id || '').trim(),
 )
 const isSelfRegister = computed(() => !leaseIdFromInvite.value)
 
@@ -274,7 +316,8 @@ const loadProperty = async () => {
         id: leaseDoc.id,
         ...leaseDoc.data(),
       }
-      const propertyIdFromLease = invitedLease.value.property_id?.id || invitedLease.value.property_id
+      const propertyIdFromLease =
+        invitedLease.value.property_id?.id || invitedLease.value.property_id
       if (propertyIdFromLease) {
         const propertyDoc = await getDoc(doc(db, 'properties', propertyIdFromLease))
         if (propertyDoc.exists()) {
@@ -456,7 +499,7 @@ const handleLogin = async () => {
     // Show success message
     $q.notify({
       type: 'positive',
-      message: 'Login successful!',
+      message: 'Signed in successfully!',
       caption: 'Redirecting...',
     })
 
@@ -499,38 +542,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
-
-.tenant-signup-page {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.signup-container {
-  background: white;
-  border-radius: 16px;
-  padding: 40px 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-}
-
 .header-section {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 2rem;
-  font-weight: 400;
-  color: var(--primary-color);
-  margin: 0 0 24px 0;
-  letter-spacing: 0.02em;
+  margin-bottom: 26px;
 }
 
 .property-info {
@@ -538,9 +551,9 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: var(--primary-glow, #f0f4ff);
+  background: var(--auth-brand-pale);
+  border: 1px solid var(--auth-border);
   border-radius: 12px;
-  margin-top: 16px;
 }
 
 .property-details {
@@ -551,7 +564,7 @@ onMounted(async () => {
 .property-name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--auth-ink);
   margin: 0 0 4px 0;
 }
 
@@ -579,16 +592,21 @@ onMounted(async () => {
 
 .loading-text {
   margin-top: 16px;
-  color: var(--neutral-600, #666);
+  color: var(--auth-ink-soft);
   font-size: 1rem;
 }
 
 .auth-section {
-  margin-top: 24px;
+  margin-top: 8px;
 }
 
 .auth-tabs {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--auth-border);
+}
+
+.auth-section :deep(.q-tab-panel) {
+  padding: 18px 0 0;
 }
 
 .auth-form {
@@ -619,26 +637,16 @@ onMounted(async () => {
 }
 
 .self-register-info {
-  background: #e8f5e9;
+  background: color-mix(in srgb, var(--accent-color) 10%, white);
 }
 
 .error-section {
   margin-top: 24px;
 }
 
-.signup-back {
-  text-align: center;
-  margin-top: 12px;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
-  .signup-container {
-    padding: 32px 24px;
-  }
-
-  .app-title {
-    font-size: 1.5rem;
+  .tenant-auth-card {
+    padding: 28px 20px;
   }
 
   .property-name {

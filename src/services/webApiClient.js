@@ -145,6 +145,14 @@ const normalizeBidRow = (row = {}, defaults = {}) => {
   const createdAt = toIsoDateString(row?.created_at, toIsoDateString(defaults?.created_at, nowIso()))
   const updatedAt = toIsoDateString(row?.updated_at, createdAt)
   const amountRaw = Number(row?.amount ?? defaults?.amount)
+  const validUntil = toIsoDateString(row?.valid_until, toIsoDateString(defaults?.valid_until, ''))
+  const rawStatus = String(row?.status ?? defaults?.status ?? 'submitted').trim().toLowerCase()
+  const expired = Boolean(
+    validUntil &&
+    ['submitted', 'shortlisted'].includes(rawStatus) &&
+    toBidTimestamp(validUntil) < Date.now()
+  )
+  const normalizedStatus = rawStatus === 'selected' ? 'accepted' : expired ? 'expired' : rawStatus
 
   return {
     ...defaults,
@@ -156,6 +164,29 @@ const normalizeBidRow = (row = {}, defaults = {}) => {
     sp_id: String(row?.sp_id ?? defaults?.sp_id ?? ''),
     amount: Number.isFinite(amountRaw) ? amountRaw : 0,
     note: row?.note ?? row?.notes ?? defaults?.note ?? defaults?.notes ?? '',
+    pricing_type: row?.pricing_type ?? defaults?.pricing_type ?? 'one_time',
+    included_scope: row?.included_scope ?? defaults?.included_scope ?? '',
+    exclusions: row?.exclusions ?? defaults?.exclusions ?? '',
+    estimated_start_date: row?.estimated_start_date ?? defaults?.estimated_start_date ?? row?.availability_date ?? defaults?.availability_date ?? '',
+    estimated_duration: row?.estimated_duration ?? defaults?.estimated_duration ?? '',
+    materials_included: row?.materials_included ?? defaults?.materials_included ?? '',
+    materials_note: row?.materials_note ?? defaults?.materials_note ?? '',
+    valid_until: validUntil,
+    warranty: row?.warranty ?? defaults?.warranty ?? '',
+    message_to_pm: row?.message_to_pm ?? defaults?.message_to_pm ?? row?.note ?? defaults?.note ?? '',
+    upfront_payment_expected: row?.upfront_payment_expected ?? defaults?.upfront_payment_expected ?? 'no',
+    upfront_payment_amount: row?.upfront_payment_amount ?? defaults?.upfront_payment_amount ?? null,
+    upfront_payment_timing: row?.upfront_payment_timing ?? defaults?.upfront_payment_timing ?? '',
+    upfront_payment_timing_note: row?.upfront_payment_timing_note ?? defaults?.upfront_payment_timing_note ?? '',
+    remaining_payment_expectation: row?.remaining_payment_expectation ?? defaults?.remaining_payment_expectation ?? '',
+    payment_note: row?.payment_note ?? defaults?.payment_note ?? '',
+    attachments: Array.isArray(row?.attachments) ? row.attachments : Array.isArray(defaults?.attachments) ? defaults.attachments : [],
+    version_number: Number(row?.version_number ?? defaults?.version_number ?? 1) || 1,
+    bid_thread_id: row?.bid_thread_id ?? defaults?.bid_thread_id ?? '',
+    previous_bid_id: row?.previous_bid_id ?? defaults?.previous_bid_id ?? '',
+    disclaimer_acknowledged: Boolean(row?.disclaimer_acknowledged ?? defaults?.disclaimer_acknowledged),
+    disclaimer_text: row?.disclaimer_text ?? defaults?.disclaimer_text ?? '',
+    status: normalizedStatus,
     created_at: createdAt,
     updated_at: updatedAt,
   }
@@ -174,6 +205,149 @@ const mergeBidRows = (...groups) => {
       return true
     })
     .sort((a, b) => toBidTimestamp(b?.created_at) - toBidTimestamp(a?.created_at))
+}
+
+const normalizeProjectRow = (row = {}, defaults = {}) => {
+  const projectId = String(row?.project_id || row?.id || defaults?.project_id || defaults?.id || '')
+  const acceptedAt = toIsoDateString(
+    row?.accepted_at,
+    toIsoDateString(row?.selected_bid_at, toIsoDateString(defaults?.accepted_at, nowIso()))
+  )
+  const createdAt = toIsoDateString(row?.created_at, toIsoDateString(defaults?.created_at, acceptedAt))
+  const updatedAt = toIsoDateString(row?.updated_at, toIsoDateString(defaults?.updated_at, createdAt))
+
+  return {
+    ...defaults,
+    ...row,
+    id: String(row?.id || defaults?.id || projectId),
+    project_id: projectId,
+    property_id: String(row?.property_id || defaults?.property_id || ''),
+    mxrecord_id: String(row?.mxrecord_id || defaults?.mxrecord_id || projectId),
+    lead_id: String(row?.lead_id || defaults?.lead_id || ''),
+    selected_bid_id: String(row?.selected_bid_id || defaults?.selected_bid_id || ''),
+    sp_id: String(row?.sp_id || defaults?.sp_id || row?.assigned_sp?.sp_id || ''),
+    task_title: String(
+      row?.task_title ||
+      row?.title ||
+      row?.name ||
+      defaults?.task_title ||
+      defaults?.title ||
+      'Untitled Project'
+    ).trim(),
+    title: String(
+      row?.title ||
+      row?.task_title ||
+      row?.name ||
+      defaults?.title ||
+      defaults?.task_title ||
+      'Untitled Project'
+    ).trim(),
+    address: String(
+      row?.address ||
+      row?.property_address ||
+      row?.property_id?.address ||
+      defaults?.address ||
+      defaults?.property_address ||
+      ''
+    ).trim(),
+    location: String(
+      row?.location ||
+      row?.address ||
+      row?.property_address ||
+      row?.property_id?.address ||
+      defaults?.location ||
+      defaults?.address ||
+      ''
+    ).trim(),
+    status: String(row?.status || defaults?.status || 'active').trim().toLowerCase(),
+    comments: Array.isArray(row?.comments) ? row.comments : Array.isArray(defaults?.comments) ? defaults.comments : [],
+    phases: row?.phases && typeof row.phases === 'object' ? row.phases : defaults?.phases && typeof defaults.phases === 'object' ? defaults.phases : {},
+    accepted_at: acceptedAt,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  }
+}
+
+const mergeProjectRows = (...groups) => {
+  const merged = new Map()
+  groups
+    .flat()
+    .filter((row) => row && typeof row === 'object')
+    .forEach((row) => {
+      const normalized = normalizeProjectRow(row)
+      const key = String(normalized?.project_id || normalized?.id || '').trim()
+      if (!key) return
+      const existing = merged.get(key)
+      merged.set(key, existing ? normalizeProjectRow({ ...existing, ...normalized }) : normalized)
+    })
+
+  return Array.from(merged.values()).sort(
+    (a, b) => toBidTimestamp(b?.accepted_at || b?.created_at) - toBidTimestamp(a?.accepted_at || a?.created_at)
+  )
+}
+
+const listAssignedProjectsFromMxRecords = async (spId) => {
+  const normalizedSpId = String(spId || '').trim()
+  if (!normalizedSpId) return []
+
+  const mapRows = (snapshot) =>
+    snapshot.docs
+      .map((docSnap) => {
+        const parentCollectionId = String(docSnap.ref?.parent?.parent?.parent?.id || '').trim()
+        if (parentCollectionId !== 'properties') return null
+        const propertyId = String(docSnap.ref?.parent?.parent?.id || '').trim()
+        const data = docSnap.data() || {}
+        const assignedSpId = String(data?.assigned_sp_id || data?.assigned_sp?.sp_id || '').trim()
+        if (assignedSpId !== normalizedSpId) return null
+        return normalizeProjectRow(
+          {
+            ...data,
+            id: docSnap.id,
+            project_id: docSnap.id,
+            mxrecord_id: docSnap.id,
+            property_id: propertyId,
+            selected_bid_id: data?.selected_bid_id || data?.assigned_sp?.bid_id || '',
+            sp_id: assignedSpId,
+            accepted_at: data?.selected_bid_at || data?.assigned_sp?.assigned_at || data?.updatedAt || data?.updated_at || data?.created_at,
+            address: data?.property_address || data?.property_id?.address || '',
+            location: data?.property_address || data?.property_id?.address || '',
+            task_title: data?.title || data?.task_title || data?.name || '',
+            title: data?.title || data?.task_title || data?.name || '',
+          },
+          {
+            status: data?.status || 'active',
+          }
+        )
+      })
+      .filter(Boolean)
+
+  const rows = []
+
+  try {
+    const primaryQuery = query(collectionGroup(db, 'mxrecords'), where('assigned_sp_id', '==', normalizedSpId))
+    rows.push(...mapRows(await getDocs(primaryQuery)))
+  } catch (error) {
+    console.warn('Failed reading assigned projects via assigned_sp_id collectionGroup:', error)
+  }
+
+  try {
+    const nestedQuery = query(collectionGroup(db, 'mxrecords'), where('assigned_sp.sp_id', '==', normalizedSpId))
+    rows.push(...mapRows(await getDocs(nestedQuery)))
+  } catch (error) {
+    console.warn('Failed reading assigned projects via assigned_sp.sp_id collectionGroup:', error)
+  }
+
+  return mergeProjectRows(rows)
+}
+
+const listAcceptedBidProjectMapFromAssignedProjects = async (spId) => {
+  const projects = await listAssignedProjectsFromMxRecords(spId)
+  const accepted = new Map()
+  projects.forEach((project) => {
+    const bidId = String(project?.selected_bid_id || '').trim()
+    if (bidId) accepted.set(bidId, project)
+  })
+  return accepted
 }
 
 const mirrorBidToLeadSubcollection = async (row = {}) => {
@@ -763,6 +937,19 @@ export const marketplaceApi = {
   assignSp(taskId, payload) {
     return request(`/tasks/${taskId}/assign-sp`, { method: 'POST', body: payload })
   },
+
+  selectTaskBid(taskId, payload, actor = {}) {
+    const actorId = actor?.actor_id ? String(actor.actor_id) : null
+    const role = normalizeApiRole(actor?.actor_role)
+    return request(`/tasks/${taskId}/select-bid`, {
+      method: 'POST',
+      headers: {
+        ...(actorId ? { 'X-User-Id': actorId } : {}),
+        ...(role ? { 'X-User-Role': role } : {}),
+      },
+      body: payload,
+    })
+  },
 }
 
 export const adSlotApi = {
@@ -927,14 +1114,29 @@ export const spPortalApi = {
     }
 
     const firestoreRows = await listSpBidsFromLeadSubcollections(normalizedSpId)
+    const acceptedProjectMap = await listAcceptedBidProjectMapFromAssignedProjects(normalizedSpId)
+    const markAccepted = (rows = []) =>
+      rows.map((row) => {
+        const normalized = normalizeBidRow(row)
+        const bidId = String(normalized?.bid_id || normalized?.id || '').trim()
+        const project = acceptedProjectMap.get(bidId)
+        if (!bidId || !project) return normalized
+        return {
+          ...normalized,
+          status: 'accepted',
+          accepted_at: project.accepted_at || normalized.accepted_at || nowIso(),
+          project_id: project.project_id || '',
+          project_title: project.title || project.task_title || '',
+        }
+      })
     if (apiRows.length) {
-      return mergeBidRows(apiRows, firestoreRows)
+      return mergeBidRows(markAccepted(apiRows), markAccepted(firestoreRows))
     }
 
     const localRows = loadJsonArray(STORAGE_KEYS.SP_BIDS).filter(
       (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
     )
-    return mergeBidRows(firestoreRows, localRows)
+    return mergeBidRows(markAccepted(firestoreRows), markAccepted(localRows))
   },
 
   async createBid(payload) {
@@ -946,6 +1148,7 @@ export const spPortalApi = {
       lead_doc_id: payload?.lead_doc_id || payload?.lead_id || payload?.id || '',
       amount: Number.isFinite(normalizedAmount) ? normalizedAmount : 0,
       note: payload?.note ?? payload?.notes ?? '',
+      message_to_pm: payload?.message_to_pm ?? payload?.note ?? payload?.notes ?? '',
     }
     if (!normalizedPayload.lead_doc_id) {
       normalizedPayload.lead_doc_id = normalizedPayload.lead_id
@@ -989,10 +1192,21 @@ export const spPortalApi = {
         throw error
       }
       const rows = loadJsonArray(STORAGE_KEYS.SP_BIDS)
+      const sameLeadRows = rows.filter(
+        (row) =>
+          String(row?.sp_id || '') === spId &&
+          String(row?.lead_doc_id || row?.lead_id || '') === String(normalizedPayload.lead_doc_id || normalizedPayload.lead_id || '')
+      )
+      const latestVersion = sameLeadRows.reduce((max, row) => Math.max(max, Number(row?.version_number || 0)), 0)
+      const previousBid = sameLeadRows
+        .sort((a, b) => toBidTimestamp(b?.created_at) - toBidTimestamp(a?.created_at))[0]
       const next = normalizeBidRow({
         bid_id: `bid-${Date.now()}`,
         status: 'submitted',
         created_at: nowIso(),
+        version_number: latestVersion + 1,
+        bid_thread_id: `${normalizedPayload.lead_doc_id || normalizedPayload.lead_id}-${spId}`,
+        previous_bid_id: previousBid?.bid_id || previousBid?.id || '',
         ...normalizedPayload,
       })
       rows.unshift(next)
@@ -1018,12 +1232,26 @@ export const spPortalApi = {
     }
   },
 
-  async listProjects() {
+  async listProjects(spId) {
+    const normalizedSpId = String(spId || '').trim()
+    const firestoreRows = await listAssignedProjectsFromMxRecords(normalizedSpId)
     try {
-      const res = await request('/sp/projects')
-      return res.items || []
+      const res = await request('/sp/projects', {
+        headers: {
+          ...(normalizedSpId ? { 'X-User-Id': normalizedSpId } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
+      const apiRows = Array.isArray(res.items) ? res.items : []
+      const localRows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS).filter(
+        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+      )
+      return mergeProjectRows(firestoreRows, apiRows, localRows)
     } catch {
-      return []
+      const localRows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS).filter(
+        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+      )
+      return mergeProjectRows(firestoreRows, localRows)
     }
   },
 

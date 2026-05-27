@@ -1,51 +1,59 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row justify-end q-mb-md">
-      <div class="row q-gutter-sm">
-        <q-btn
-          @click="openCreateTransactionDialog"
-          color="primary"
-          text-color="white"
-          unelevated
-          icon="add"
-          label="Create Transaction"
-        />
-      </div>
-    </div>
-
     <div class="page-with-sidebar">
       <div class="page-main-column">
         <!-- Filters Row -->
-        <div class="row q-gutter-sm q-mb-md">
-          <div class="col-12 col-md-6">
-            <q-input
-              v-model="searchQuery"
-              outlined
-              dense
-              placeholder="Search transactions..."
-              clearable
-              bg-color="grey-1"
-            >
-              <template v-slot:prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
-          <div class="col-12 col-md-6">
-            <q-select
-              v-model="dateFilter"
-              :options="dateFilterOptions"
-              label="Filter by Time"
-              outlined
-              dense
-              clearable
-              bg-color="grey-1"
-            >
-              <template v-slot:prepend>
-                <q-icon name="date_range" />
-              </template>
-            </q-select>
-          </div>
+        <div class="page-toolbar page-toolbar--stacked">
+          <q-input
+            v-model="searchQuery"
+            borderless
+            dense
+            placeholder="Search transactions"
+            clearable
+            class="page-tool-field"
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" size="18px" />
+            </template>
+          </q-input>
+          <q-select
+            v-model="activeTypeFilter"
+            :options="transactionTypeFilterOptions"
+            borderless
+            dense
+            emit-value
+            map-options
+            :display-value="transactionTypeFilterLabel"
+            class="page-tool-field"
+          >
+            <template v-slot:prepend>
+              <q-icon name="tune" size="18px" />
+            </template>
+          </q-select>
+          <q-select
+            v-model="dateFilter"
+            :options="dateFilterOptions"
+            borderless
+            dense
+            clearable
+            :display-value="dateFilter || 'All time'"
+            class="page-tool-field"
+          >
+            <template v-slot:prepend>
+              <q-icon name="date_range" size="18px" />
+            </template>
+          </q-select>
+          <q-btn
+            @click="openCreateTransactionDialog"
+            color="primary"
+            text-color="white"
+            unelevated
+            no-caps
+            dense
+            icon="add"
+            label="Add"
+            class="page-tool-action"
+          />
         </div>
 
         <!-- Summary Stats -->
@@ -76,22 +84,6 @@
       </q-card>
         </div>
 
-        <!-- Active Filter Display -->
-        <div v-if="activeTypeFilter !== 'all'" class="q-mb-md">
-      <q-chip
-        :color="getTransactionTypeColor(activeTypeFilter)"
-        text-color="white"
-        removable
-        @remove="clearTypeFilter"
-      >
-        <q-icon :name="getTransactionIcon(activeTypeFilter)" class="q-mr-xs" />
-        {{ activeTypeFilter }}
-        <q-badge color="white" text-color="black" class="q-ml-xs">
-          {{ getTypeCount(activeTypeFilter) }}
-        </q-badge>
-      </q-chip>
-        </div>
-
         <!-- Loading State -->
         <div v-if="userDataStore.transactionsLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
@@ -118,11 +110,11 @@
         </div>
 
         <!-- Transactions List -->
-        <div v-else class="transactions-list">
+        <div v-else class="transactions-list entity-tiles">
       <q-card
         v-for="transaction in filteredTransactions"
         :key="transaction.id"
-        class="transaction-row clickable-row"
+        class="transaction-row clickable-row entity-tile"
         @click="viewTransaction(transaction)"
       >
         <q-card-section class="transaction-row-content">
@@ -551,6 +543,15 @@ const transactionTypes = computed(() => {
   return Array.from(types).sort()
 })
 
+const transactionTypeFilterOptions = computed(() => [
+  { label: 'All types', value: 'all' },
+  ...transactionTypes.value.map((type) => ({ label: type, value: type })),
+])
+
+const transactionTypeFilterLabel = computed(() =>
+  activeTypeFilter.value === 'all' ? 'All types' : activeTypeFilter.value,
+)
+
 // Get transactions the user has access to
 const userAccessibleTransactions = computed(() => userDataStore.userAccessibleTransactions)
 const isPoUser = computed(() => {
@@ -963,14 +964,15 @@ watch(
 
 <style scoped>
 .transactions-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }
 
 .transaction-row {
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 190px;
+  border-radius: var(--border-radius-card);
+  box-shadow: none;
   transition: all 0.2s ease;
   margin-bottom: 0;
 }
@@ -991,35 +993,35 @@ watch(
 }
 
 .transaction-row-content {
-  display: grid;
-  grid-template-columns: 64px 1fr 120px 150px;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  height: 100%;
+  padding: 0;
   position: relative;
 }
 
 .transaction-icon {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  border-radius: 8px;
-  grid-column: 1;
+  background: #f1f5f9;
+  border-radius: var(--border-radius-sm);
 }
 
 .transaction-description {
   min-width: 0;
-  grid-column: 2;
 }
 
 .description-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  line-height: 1.3;
+  min-height: 40px;
+  font-size: 15px;
+  font-weight: 650;
+  color: #0f172a;
+  line-height: 1.32;
   margin-bottom: 4px;
   word-break: break-word;
 }
@@ -1032,16 +1034,14 @@ watch(
 }
 
 .transaction-date {
-  text-align: center;
-  grid-column: 3;
-  justify-self: center;
+  text-align: left;
 }
 
 .date-label {
   font-size: 0.75rem;
   color: #666;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 
@@ -1052,20 +1052,19 @@ watch(
 }
 
 .transaction-amount {
-  text-align: right;
-  grid-column: 4;
-  justify-self: end;
-  min-width: 120px;
-  padding-left: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 28, 45, 0.06);
+  text-align: left;
 }
 
 .amount-label {
   font-size: 0.75rem;
   color: #666;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   margin-bottom: 4px;
-  text-align: right;
+  text-align: left;
 }
 
 .amount-value {
@@ -1225,7 +1224,7 @@ watch(
   gap: 10px;
   padding: 10px;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   background: #f8fafc;
 }
 
@@ -1233,7 +1232,7 @@ watch(
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   border: 1px solid #dbe3ef;
   background: #ffffff;
 }
@@ -1295,7 +1294,7 @@ watch(
 
 .activity-log {
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 16px;
   max-height: 400px;
   overflow-y: auto;
@@ -1344,40 +1343,25 @@ watch(
 /* Responsive Design */
 @media (max-width: 768px) {
   .transaction-row-content {
-    display: grid;
-    grid-template-columns: 48px 1fr;
-    grid-template-rows: auto auto auto;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
-    padding: 12px;
-    grid-template-areas:
-      'icon description'
-      'amount amount'
-      'date date';
+    padding: 0;
   }
 
   .transaction-icon {
-    grid-area: icon;
-    width: 48px;
-    height: 48px;
-  }
-
-  .transaction-description {
-    grid-area: description;
+    width: 38px;
+    height: 38px;
   }
 
   .transaction-amount {
-    grid-area: amount;
     text-align: left;
-    justify-self: start;
-    padding: 8px 0;
+    padding: 10px 0 0;
     border-top: 1px solid #e9ecef;
-    border-bottom: 1px solid #e9ecef;
   }
 
   .transaction-date {
-    grid-area: date;
     text-align: left;
-    justify-self: start;
   }
 
   .dialog-header {
@@ -1447,7 +1431,7 @@ watch(
   position: relative;
   width: 200px;
   height: 150px;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1528,7 +1512,7 @@ watch(
   position: relative;
   width: 200px;
   height: 150px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   border: 2px solid var(--neutral-200);
 }
@@ -1554,7 +1538,7 @@ watch(
   padding: 40px 20px;
   text-align: center;
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: var(--border-radius-card);
   border: 2px dashed var(--neutral-300);
 }
 

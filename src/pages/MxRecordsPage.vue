@@ -1,19 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row justify-end q-mb-md">
-      <div class="row q-gutter-sm">
-        <q-btn
-          v-if="canManageRecords"
-          @click="openCreateMxRecordDialog"
-          color="primary"
-          text-color="white"
-          unelevated
-          icon="add"
-          label="Create Task"
-        />
-      </div>
-    </div>
-
+  <q-page class="q-pa-md mx-records-page">
     <q-dialog
       v-model="showCreateMxRecordComposer"
       persistent
@@ -32,40 +18,58 @@
     </q-dialog>
 
     <!-- Filters Row -->
-    <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12">
-        <div class="row q-gutter-sm">
-          <div class="col-12 col-md-7">
-            <q-input
-              v-model="searchQuery"
-              outlined
-              dense
-              placeholder="Search tasks..."
-              clearable
-              bg-color="grey-1"
-            >
-              <template v-slot:prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
-          <div class="col-12 col-md-5">
-            <q-select
-              v-model="dateFilter"
-              :options="dateFilterOptions"
-              label="Filter by Time"
-              outlined
-              dense
-              clearable
-              bg-color="grey-1"
-            >
-              <template v-slot:prepend>
-                <q-icon name="date_range" />
-              </template>
-            </q-select>
-          </div>
-        </div>
-      </div>
+    <div class="page-toolbar page-toolbar--stacked">
+      <q-input
+        v-model="searchQuery"
+        borderless
+        dense
+        placeholder="Search tasks"
+        clearable
+        class="page-tool-field"
+      >
+        <template v-slot:prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+      <q-select
+        v-model="activeFilter"
+        :options="taskStatusFilterOptions"
+        borderless
+        dense
+        emit-value
+        map-options
+        :display-value="taskStatusFilterLabel"
+        class="page-tool-field"
+      >
+        <template v-slot:prepend>
+          <q-icon name="tune" size="18px" />
+        </template>
+      </q-select>
+      <q-select
+        v-model="dateFilter"
+        :options="dateFilterOptions"
+        borderless
+        dense
+        clearable
+        :display-value="dateFilter || 'All time'"
+        class="page-tool-field"
+      >
+        <template v-slot:prepend>
+          <q-icon name="date_range" size="18px" />
+        </template>
+      </q-select>
+      <q-btn
+        v-if="canManageRecords"
+        @click="openCreateMxRecordDialog"
+        color="primary"
+        text-color="white"
+        unelevated
+        no-caps
+        dense
+        icon="add"
+        label="Add"
+        class="page-tool-action"
+      />
     </div>
 
     <!-- Summary Stats -->
@@ -122,22 +126,6 @@
       </q-card>
     </div>
 
-    <!-- Active Filter Display -->
-    <div v-if="activeFilter !== 'all'" class="q-mb-md">
-      <q-chip
-        :color="getFilterColor(activeFilter)"
-        text-color="white"
-        removable
-        @remove="clearFilter"
-      >
-        <q-icon :name="getFilterIcon(activeFilter)" class="q-mr-xs" />
-        {{ getFilterLabel(activeFilter) }}
-        <q-badge color="white" text-color="black" class="q-ml-xs">
-          {{ getFilteredCount() }}
-        </q-badge>
-      </q-chip>
-    </div>
-
     <div v-if="userDataStore.mxRecordsLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
       <div class="q-mt-sm">Loading tasks...</div>
@@ -157,11 +145,11 @@
       </div>
     </div>
 
-    <div v-else class="mx-records-list">
+    <div v-else class="mx-records-list entity-tiles">
       <q-card
         v-for="(mxRecord, mxRecordIndex) in filteredMxRecords"
         :key="mxRecord.id || mxRecord.mx_id || `mx-${mxRecordIndex}`"
-        class="mxrecord-row clickable-row"
+        class="mxrecord-row clickable-row entity-tile"
         @click="viewMxRecord(mxRecord)"
       >
         <q-card-section class="mxrecord-row-content">
@@ -312,6 +300,108 @@
             <q-icon name="flag" class="q-mr-xs" />
             Flag: This task has been published to service providers.
           </q-banner>
+
+          <div v-if="loadingTaskBids || taskBids.length > 0" class="details-section">
+            <div class="section-title row items-center justify-between">
+              <span>Bids</span>
+              <q-chip dense color="blue-grey-1" text-color="blue-grey-8" icon="gavel">
+                {{ visibleTaskBids.length }}
+              </q-chip>
+            </div>
+            <div class="text-caption text-grey-7 q-mb-md">
+              Review service providers, compare pricing, and select one bid.
+            </div>
+            <div v-if="loadingTaskBids" class="text-center q-pa-sm">
+              <q-spinner-dots size="22px" color="primary" />
+            </div>
+            <div v-else class="task-bid-button-grid">
+              <div
+                v-for="bid in visibleTaskBids"
+                :key="bid.id || bid.bid_id"
+                class="task-bid-button-card"
+                :class="{ 'task-bid-button-card--selected': isBidAssigned(bid) }"
+              >
+                <div class="task-bid-button-top">
+                  <div class="task-bid-identity">
+                    <div class="task-bid-avatar">
+                      {{ getBidSpName(bid).slice(0, 1).toUpperCase() }}
+                    </div>
+                    <div class="task-bid-identity-copy">
+                      <q-btn
+                        flat
+                        dense
+                        no-caps
+                        color="primary"
+                        class="task-bid-name-btn"
+                        :label="getBidSpName(bid)"
+                        @click="openTaskBidDetailDialog(bid)"
+                      />
+                      <div class="task-bid-subline">
+                        <span>{{ formatDate(bid.created_at) }}</span>
+                        <span>Version {{ bid.version_number || 1 }}</span>
+                        <span>{{ formatPricingType(bid.pricing_type) }}</span>
+                        <span v-if="getBidSpRating(bid)">Rating {{ getBidSpRating(bid) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="task-bid-price-block">
+                    <div class="task-bid-price-label">Bid</div>
+                    <div class="task-bid-button-amount">
+                      ${{ Number(bid.amount || 0).toLocaleString() }}
+                    </div>
+                  </div>
+                </div>
+                <div class="task-bid-button-bottom">
+                  <div class="task-bid-status-line">
+                    <q-chip
+                      dense
+                      size="sm"
+                      :color="isBidAssigned(bid) ? 'positive' : 'blue-grey-6'"
+                      text-color="white"
+                      :icon="isBidAssigned(bid) ? 'check_circle' : 'schedule'"
+                    >
+                      {{ isBidAssigned(bid) ? 'Selected' : (bid.status || 'submitted') }}
+                    </q-chip>
+                    <span v-if="bid.valid_until" class="task-bid-validity">
+                      Valid until {{ formatDate(bid.valid_until) }}
+                    </span>
+                    <q-btn
+                      flat
+                      dense
+                      no-caps
+                      color="grey-7"
+                      icon="article"
+                      label="Bid Detail"
+                      class="task-bid-inline-btn"
+                      @click="openTaskBidDetailDialog(bid)"
+                    />
+                  </div>
+                  <div class="task-bid-button-actions">
+                    <q-btn
+                      dense
+                      unelevated
+                      size="sm"
+                      color="blue-grey-1"
+                      text-color="blue-grey-8"
+                      icon="person"
+                      label="SP Detail"
+                      @click.stop="openBidSpDetailDialog(bid)"
+                    />
+                    <q-btn
+                      v-if="!isBidAssigned(bid) && canManageRecords"
+                      dense
+                      unelevated
+                      size="sm"
+                      color="primary"
+                      icon="task_alt"
+                      label="Select Bid"
+                      @click.stop="selectBidAndHideOthers(bid)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Basic Information -->
           <div class="details-section">
@@ -624,83 +714,6 @@
             </q-card-section>
           </q-card>
 
-          <q-card v-if="loadingTaskBids || taskBids.length > 0" class="task-bids-side-panel" flat bordered>
-            <q-card-section>
-              <div class="sp-panel-header q-mb-xs">
-                <div>
-                  <div class="text-subtitle2 text-weight-bold">Bids</div>
-                  <div class="text-caption text-grey-7">
-                    Select one bid to keep only that bid visible.
-                  </div>
-                </div>
-                <q-btn
-                  v-if="showOnlySelectedBid && taskBids.length > 1"
-                  flat
-                  dense
-                  no-caps
-                  color="primary"
-                  label="Show All"
-                  @click="showOnlySelectedBid = false"
-                />
-              </div>
-
-              <div v-if="loadingTaskBids" class="text-center q-pa-sm">
-                <q-spinner-dots size="22px" color="primary" />
-              </div>
-              <div v-else class="task-bid-rows">
-                <div
-                  v-for="bid in visibleTaskBids"
-                  :key="bid.id || bid.bid_id"
-                  class="task-bid-row cursor-pointer"
-                  :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
-                  @click="openTaskBidDetailDialog(bid)"
-                >
-                  <div class="task-bid-main">
-                    <div class="task-bid-sp-wrap">
-                      <q-btn
-                        flat
-                        dense
-                        no-caps
-                        class="task-bid-sp-link"
-                        :label="getBidSpName(bid)"
-                        @click.stop="openBidSpDetailDialog(bid)"
-                      />
-                    </div>
-                    <span class="task-bid-amount"
-                      >${{ Number(bid.amount || 0).toLocaleString() }}</span
-                    >
-                  </div>
-                  <div class="task-bid-meta">
-                    <span>{{ bid.status || 'submitted' }}</span>
-                    <span>{{ formatDate(bid.created_at) }}</span>
-                  </div>
-                  <div class="task-bid-actions">
-                    <q-chip
-                      v-if="isBidSelected(bid)"
-                      dense
-                      size="sm"
-                      color="positive"
-                      text-color="white"
-                      icon="check_circle"
-                    >
-                      Selected
-                    </q-chip>
-                    <q-btn
-                      v-else-if="canManageRecords"
-                      dense
-                      flat
-                      size="sm"
-                      color="primary"
-                      icon="task_alt"
-                      label="Select Bid"
-                      @click.stop="selectBidAndHideOthers(bid)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
           <q-card v-if="showSpRecommendationPanel" class="sp-recommendations-panel" flat bordered>
             <q-card-section>
               <div class="sp-panel-header q-mb-sm">
@@ -781,89 +794,6 @@
                 </div>
               </div>
 
-              <template v-if="loadingTaskBids || taskBids.length > 0">
-                <q-separator class="q-my-sm" />
-
-                <div class="sp-panel-header q-mb-xs">
-                  <div>
-                    <div class="text-subtitle2 text-weight-bold">Bids</div>
-                    <div class="text-caption text-grey-7">All bids for this task</div>
-                  </div>
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    :icon="showTaskBids ? 'expand_less' : 'expand_more'"
-                    @click="showTaskBids = !showTaskBids"
-                  />
-                </div>
-
-                <div v-show="showTaskBids" class="task-bids-section">
-                  <div v-if="loadingTaskBids" class="text-center q-pa-sm">
-                    <q-spinner-dots size="22px" color="primary" />
-                  </div>
-                  <div v-else class="task-bid-rows">
-                    <div
-                      v-for="bid in taskBids"
-                      :key="bid.id || bid.bid_id"
-                      class="task-bid-row cursor-pointer"
-                      :class="{ 'task-bid-row--assigned': isBidAssigned(bid) }"
-                      @click="openTaskBidDetailDialog(bid)"
-                    >
-                      <div class="task-bid-main">
-                        <div class="task-bid-sp-wrap">
-                          <q-btn
-                            flat
-                            dense
-                            no-caps
-                            class="task-bid-sp-link"
-                            :label="getBidSpName(bid)"
-                            @click.stop="openBidSpDetailDialog(bid)"
-                          />
-                          <q-chip
-                            dense
-                            size="sm"
-                            color="teal"
-                            text-color="white"
-                            class="task-bid-rating-chip"
-                          >
-                            {{ getBidSpRatingLabel(bid) }}
-                          </q-chip>
-                        </div>
-                        <span class="task-bid-amount"
-                          >${{ Number(bid.amount || 0).toLocaleString() }}</span
-                        >
-                      </div>
-                      <div class="task-bid-meta">
-                        <span>{{ bid.status || 'submitted' }}</span>
-                        <span>{{ formatDate(bid.created_at) }}</span>
-                      </div>
-                      <div class="task-bid-actions">
-                        <q-btn
-                          dense
-                          flat
-                          size="sm"
-                          color="primary"
-                          icon="chat"
-                          label="Chat"
-                          @click.stop="openBidConversation(bid)"
-                        />
-                        <q-btn
-                          v-if="canManageRecords"
-                          dense
-                          flat
-                          size="sm"
-                          :color="getBidAssignBtnColor(bid)"
-                          :icon="getBidAssignBtnIcon(bid)"
-                          :label="getBidAssignBtnLabel(bid)"
-                          :disable="isBidAssigned(bid)"
-                          @click.stop="assignTaskToBidSp(bid)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
             </q-card-section>
           </q-card>
           </div>
@@ -1464,80 +1394,182 @@
   </q-dialog>
 
   <q-dialog v-model="showBidSpDetailDialog">
-    <q-card style="min-width: 380px; max-width: 520px">
-      <q-card-section class="row items-center justify-between">
-        <div class="text-subtitle1 text-weight-bold">SP Detail</div>
+    <q-card class="task-bid-detail-card" style="min-width: 420px; max-width: 640px">
+      <q-card-section class="row items-center justify-between task-bid-detail-head">
+        <div>
+          <div class="text-subtitle1 text-weight-bold">SP Detail</div>
+          <div class="text-caption text-grey-7">
+            {{ selectedBidSpDetail?.name || 'Service Provider' }}
+          </div>
+        </div>
         <q-btn flat round dense icon="close" v-close-popup />
       </q-card-section>
       <q-separator />
-      <q-card-section v-if="selectedBidSpDetail">
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Name</div>
-          <div class="detail-value">{{ selectedBidSpDetail.name }}</div>
+      <q-card-section v-if="selectedBidSpDetail" class="task-bid-detail-body">
+        <div class="task-bid-detail-summary q-mb-md">
+          <div class="task-bid-detail-amount-block">
+            <div class="task-bid-detail-label">Service Provider</div>
+            <div class="task-bid-detail-title">
+              {{ selectedBidSpDetail.name || 'N/A' }}
+            </div>
+          </div>
+          <q-chip dense size="sm" color="teal" text-color="white">
+            Rating {{ selectedBidSpDetail.rating || 'N/A' }}
+          </q-chip>
         </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Rating</div>
-          <div class="detail-value">{{ selectedBidSpDetail.rating || 'N/A' }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Email</div>
-          <div class="detail-value">{{ selectedBidSpDetail.contact?.email || 'N/A' }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Phone</div>
-          <div class="detail-value">{{ selectedBidSpDetail.contact?.phone || 'N/A' }}</div>
-        </div>
-        <div class="detail-item">
-          <div class="detail-label">Contact Name</div>
-          <div class="detail-value">{{ selectedBidSpDetail.contact?.contact_name || 'N/A' }}</div>
+        <div class="task-bid-detail-grid">
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Contact Name</div>
+            <div class="detail-value">{{ selectedBidSpDetail.contact?.contact_name || 'N/A' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Email</div>
+            <div class="detail-value">{{ selectedBidSpDetail.contact?.email || 'N/A' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Phone</div>
+            <div class="detail-value">{{ selectedBidSpDetail.contact?.phone || 'N/A' }}</div>
+          </div>
         </div>
       </q-card-section>
     </q-card>
   </q-dialog>
 
   <q-dialog v-model="showTaskBidDetailDialog">
-    <q-card style="min-width: 420px; max-width: 640px">
-      <q-card-section class="row items-center justify-between">
-        <div class="text-subtitle1 text-weight-bold">Bid Details</div>
+    <q-card class="task-bid-detail-card" style="min-width: 460px; max-width: 720px">
+      <q-card-section class="row items-center justify-between task-bid-detail-head">
+        <div>
+          <div class="text-subtitle1 text-weight-bold">Bid Details</div>
+          <div class="text-caption text-grey-7">
+            {{ selectedTaskBidDetail?.sp_name || 'Service Provider' }}
+          </div>
+        </div>
         <q-btn flat round dense icon="close" v-close-popup />
       </q-card-section>
       <q-separator />
-      <q-card-section v-if="selectedTaskBidDetail">
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Amount</div>
-          <div class="detail-value">
-            ${{ Number(selectedTaskBidDetail.amount || 0).toLocaleString() }}
+      <q-card-section v-if="selectedTaskBidDetail" class="task-bid-detail-body">
+        <div class="task-bid-detail-summary q-mb-md">
+          <div class="task-bid-detail-amount-block">
+            <div class="task-bid-detail-label">Bid Amount</div>
+            <div class="task-bid-detail-amount">
+              ${{ Number(selectedTaskBidDetail.amount || 0).toLocaleString() }}
+            </div>
+          </div>
+          <q-chip
+            dense
+            size="sm"
+            :color="String(selectedTaskBidDetail.status || '').toLowerCase() === 'accepted' ? 'positive' : 'blue-grey-6'"
+            text-color="white"
+          >
+            {{ selectedTaskBidDetail.status || 'submitted' }}
+          </q-chip>
+        </div>
+        <div class="task-bid-detail-grid">
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Version</div>
+            <div class="detail-value">Version {{ selectedTaskBidDetail.version_number || 1 }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Service Provider</div>
+            <div class="detail-value">{{ selectedTaskBidDetail.sp_name || 'SP' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">SP Rating</div>
+            <div class="detail-value">{{ selectedTaskBidDetail.sp_rating || 'N/A' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Submitted At</div>
+            <div class="detail-value">{{ formatDate(selectedTaskBidDetail.created_at) }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Currency</div>
+            <div class="detail-value">{{ selectedTaskBidDetail.currency || 'USD' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Pricing Type</div>
+            <div class="detail-value">{{ formatPricingType(selectedTaskBidDetail.pricing_type) }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Valid Until</div>
+            <div class="detail-value">{{ formatDate(selectedTaskBidDetail.valid_until) }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Estimated Start</div>
+            <div class="detail-value">{{ formatDate(selectedTaskBidDetail.estimated_start_date) }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Estimated Duration</div>
+            <div class="detail-value">{{ selectedTaskBidDetail.estimated_duration || 'N/A' }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Materials Included</div>
+            <div class="detail-value">{{ formatMaterialsIncluded(selectedTaskBidDetail.materials_included) }}</div>
+          </div>
+          <div class="detail-item q-mb-sm">
+            <div class="detail-label">Task</div>
+            <div class="detail-value">{{ selectedTaskBidDetail.task_label || 'Task' }}</div>
           </div>
         </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Status</div>
-          <div class="detail-value">{{ selectedTaskBidDetail.status || 'submitted' }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Service Provider</div>
-          <div class="detail-value">{{ selectedTaskBidDetail.sp_name || 'SP' }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">SP Rating</div>
-          <div class="detail-value">{{ selectedTaskBidDetail.sp_rating || 'N/A' }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Submitted At</div>
-          <div class="detail-value">{{ formatDate(selectedTaskBidDetail.created_at) }}</div>
-        </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Note</div>
+        <div class="task-bid-detail-note q-mt-md">
+          <div class="detail-label q-mb-xs">What's Included</div>
           <div class="detail-value">
-            {{ selectedTaskBidDetail.note || 'No note provided.' }}
+            {{ selectedTaskBidDetail.included_scope || 'No included scope provided.' }}
           </div>
         </div>
-        <div class="detail-item q-mb-sm">
-          <div class="detail-label">Currency</div>
-          <div class="detail-value">{{ selectedTaskBidDetail.currency || 'USD' }}</div>
+        <div v-if="selectedTaskBidDetail.exclusions" class="task-bid-detail-note">
+          <div class="detail-label q-mb-xs">Exclusions</div>
+          <div class="detail-value">
+            {{ selectedTaskBidDetail.exclusions }}
+          </div>
         </div>
-        <div class="detail-item">
-          <div class="detail-label">Task</div>
-          <div class="detail-value">{{ selectedTaskBidDetail.task_label || 'Task' }}</div>
+        <div v-if="selectedTaskBidDetail.warranty" class="task-bid-detail-note">
+          <div class="detail-label q-mb-xs">Warranty</div>
+          <div class="detail-value">
+            {{ selectedTaskBidDetail.warranty }}
+          </div>
+        </div>
+        <div
+          v-if="selectedTaskBidDetail.upfront_payment_expected === 'yes' || selectedTaskBidDetail.remaining_payment_expectation || selectedTaskBidDetail.payment_note"
+          class="task-bid-detail-note"
+        >
+          <div class="detail-label q-mb-xs">Payment Expectations</div>
+          <div class="detail-value">
+            <div v-if="selectedTaskBidDetail.upfront_payment_expected === 'yes'">
+              Upfront payment expected:
+              <strong>${{ Number(selectedTaskBidDetail.upfront_payment_amount || 0).toLocaleString() }}</strong>
+              <span v-if="selectedTaskBidDetail.upfront_payment_timing">
+                · {{ formatPaymentTiming(selectedTaskBidDetail.upfront_payment_timing) }}
+              </span>
+            </div>
+            <div v-if="selectedTaskBidDetail.remaining_payment_expectation">
+              Remaining payment:
+              {{ formatRemainingPayment(selectedTaskBidDetail.remaining_payment_expectation) }}
+            </div>
+            <div v-if="selectedTaskBidDetail.payment_note">
+              {{ selectedTaskBidDetail.payment_note }}
+            </div>
+          </div>
+        </div>
+        <div class="task-bid-detail-note">
+          <div class="detail-label q-mb-xs">Message to PM</div>
+          <div class="detail-value">
+            {{ selectedTaskBidDetail.message_to_pm || selectedTaskBidDetail.note || 'No message provided.' }}
+          </div>
+        </div>
+        <div v-if="Array.isArray(selectedTaskBidDetail.attachments) && selectedTaskBidDetail.attachments.length" class="task-bid-detail-note">
+          <div class="detail-label q-mb-xs">Attachments</div>
+          <div class="task-bid-attachment-list">
+            <a
+              v-for="(attachment, index) in selectedTaskBidDetail.attachments"
+              :key="attachment.url || attachment.name || index"
+              class="task-bid-attachment-link"
+              :href="attachment.url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ attachment.name || `Attachment ${index + 1}` }}
+            </a>
+          </div>
         </div>
       </q-card-section>
     </q-card>
@@ -1573,6 +1605,16 @@ const dateFilterOptions = [
   'Last Year',
   'All Time',
 ]
+
+const taskStatusFilterOptions = [
+  { label: 'All statuses', value: 'all' },
+  { label: 'Open', value: 'open' },
+  { label: 'Closed', value: 'closed' },
+  { label: 'Cancelled', value: 'cancel' },
+  { label: 'Published to SP', value: 'published' },
+]
+
+const taskStatusFilterLabel = computed(() => getFilterLabel(activeFilter.value))
 
 const canManageRecords = computed(() => {
   const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
@@ -1641,7 +1683,6 @@ const taskTransactionForm = ref({
 })
 const deepLinkHandled = ref(false)
 const showRecommendedSp = ref(true)
-const showTaskBids = ref(true)
 const showSpRecommendationPanel = ref(false)
 const showTaskPublishDialog = ref(false)
 const taskPublishDialogSource = ref('detail')
@@ -1871,33 +1912,6 @@ const setFilter = (filter) => {
   console.log('Tasks filter set to:', activeFilter.value)
 }
 
-const clearFilter = () => {
-  activeFilter.value = 'all'
-  console.log('Tasks filter cleared')
-}
-
-const getFilterColor = (filter) => {
-  const colors = {
-    all: 'primary',
-    open: 'orange',
-    closed: 'green',
-    cancel: 'red',
-    published: 'positive',
-  }
-  return colors[filter] || 'primary'
-}
-
-const getFilterIcon = (filter) => {
-  const icons = {
-    all: 'dns',
-    open: 'radio_button_unchecked',
-    closed: 'check_circle',
-    cancel: 'cancel',
-    published: 'flag',
-  }
-  return icons[filter] || 'dns'
-}
-
 const getFilterLabel = (filter) => {
   const labels = {
     all: 'All Records',
@@ -1907,10 +1921,6 @@ const getFilterLabel = (filter) => {
     published: 'Published to SP',
   }
   return labels[filter] || 'All Records'
-}
-
-const getFilteredCount = () => {
-  return filteredMxRecords.value.length
 }
 
 const normalizeId = (...values) => {
@@ -2295,14 +2305,31 @@ const openTaskBidDetailDialog = (bid) => {
     bid_id: String(bid?.id || bid?.bid_id || ''),
     amount: Number(bid?.amount || 0),
     status: bid?.status || 'submitted',
+    version_number: Number(bid?.version_number || 1),
     sp_id: String(bid?.sp_id || ''),
     sp_name: getBidSpName(bid),
     sp_rating: getBidSpRating(bid),
     sp_contact: getBidSpContact(bid),
     note: bid?.note || bid?.description || '',
+    message_to_pm: bid?.message_to_pm || bid?.note || '',
     currency: bid?.currency || 'USD',
     created_at: bid?.created_at || bid?.createdAt || null,
     updated_at: bid?.updated_at || null,
+    pricing_type: bid?.pricing_type || 'one_time',
+    valid_until: bid?.valid_until || null,
+    estimated_start_date: bid?.estimated_start_date || bid?.availability_date || null,
+    estimated_duration: bid?.estimated_duration || '',
+    included_scope: bid?.included_scope || '',
+    exclusions: bid?.exclusions || '',
+    materials_included: bid?.materials_included || '',
+    materials_note: bid?.materials_note || '',
+    warranty: bid?.warranty || '',
+    attachments: Array.isArray(bid?.attachments) ? bid.attachments : [],
+    upfront_payment_expected: bid?.upfront_payment_expected || 'no',
+    upfront_payment_amount: bid?.upfront_payment_amount ?? null,
+    upfront_payment_timing: bid?.upfront_payment_timing || '',
+    remaining_payment_expectation: bid?.remaining_payment_expectation || '',
+    payment_note: bid?.payment_note || '',
     task_label: getBidTaskLabel(bid),
   }
   showTaskBidDetailDialog.value = true
@@ -2583,7 +2610,6 @@ async function loadTaskBids(mxRecord) {
         return bidIds.includes(openBidId)
       })
       if (matchedBid) {
-        showTaskBids.value = true
         openTaskBidDetailDialog(matchedBid)
         deepLinkHandled.value = true
       }
@@ -2646,17 +2672,48 @@ const getBidSpRating = (bid) => {
   return matched?.rating ?? matched?.rating_avg ?? null
 }
 
-const getBidSpRatingLabel = (bid) => {
-  const rating = getBidSpRating(bid)
-  return rating ? `Rating: ${rating}` : 'Rating: N/A'
+const formatPricingType = (value) => {
+  const labels = {
+    one_time: 'One-time',
+    monthly: 'Monthly',
+    weekly: 'Weekly',
+    per_visit: 'Per visit',
+    per_phase: 'Per phase',
+  }
+  return labels[String(value || '').trim().toLowerCase()] || 'One-time'
+}
+
+const formatMaterialsIncluded = (value) => {
+  const labels = {
+    yes: 'Yes',
+    no: 'No',
+    partial: 'Partially',
+  }
+  return labels[String(value || '').trim().toLowerCase()] || 'N/A'
+}
+
+const formatPaymentTiming = (value) => {
+  const labels = {
+    when_bid_is_accepted: 'When the bid is accepted',
+    before_materials_are_purchased: 'Before materials are purchased',
+    before_work_starts: 'Before work starts',
+    at_first_stage_start: 'At the beginning of the first work stage',
+    other: 'Other',
+  }
+  return labels[String(value || '').trim().toLowerCase()] || value || 'N/A'
+}
+
+const formatRemainingPayment = (value) => {
+  const labels = {
+    after_completion: 'After the work is completed',
+    end_of_each_stage: 'At the end of each work stage',
+    monthly_while_ongoing: 'Monthly while work is ongoing',
+    other: 'Other',
+  }
+  return labels[String(value || '').trim().toLowerCase()] || value || 'N/A'
 }
 
 const getBidIdentifier = (bid) => normalizeId(bid?.id, bid?.bid_id)
-
-const isBidSelected = (bid) => {
-  const bidId = getBidIdentifier(bid)
-  return Boolean(bidId) && bidId === selectedBidIdForTask.value
-}
 
 const getAssignedSpId = () => {
   return String(selectedMxRecord.value?.assigned_sp?.sp_id || selectedMxRecord.value?.assigned_sp_id || '')
@@ -2665,26 +2722,6 @@ const getAssignedSpId = () => {
 const isBidAssigned = (bid) => {
   const spId = String(bid?.sp_id || '')
   return Boolean(spId) && spId === getAssignedSpId()
-}
-
-const hasAssignedBidSp = () => Boolean(getAssignedSpId())
-
-const getBidAssignBtnLabel = (bid) => {
-  if (isBidAssigned(bid)) return 'Assigned'
-  if (hasAssignedBidSp()) return 'Reassign'
-  return 'Assign'
-}
-
-const getBidAssignBtnIcon = (bid) => {
-  if (isBidAssigned(bid)) return 'check_circle'
-  if (hasAssignedBidSp()) return 'swap_horiz'
-  return 'person_add'
-}
-
-const getBidAssignBtnColor = (bid) => {
-  if (isBidAssigned(bid)) return 'positive'
-  if (hasAssignedBidSp()) return 'warning'
-  return 'primary'
 }
 
 const openBidSpDetailDialog = (bid) => {
@@ -2707,29 +2744,6 @@ const openAssignedSpDetailDialog = () => {
     contact: assigned.sp_contact || {},
   }
   showBidSpDetailDialog.value = true
-}
-
-const openBidConversation = async (bid) => {
-  if (!selectedMxRecord.value) return
-  const spId = bid?.sp_id
-  if (!spId) {
-    Notify.create({ type: 'warning', message: 'SP information missing for this bid.', position: 'top' })
-    return
-  }
-  try {
-    await marketplaceApi.contactSp(selectedMxRecord.value.id, { sp_id: spId })
-    Notify.create({
-      type: 'positive',
-      message: `Conversation started with ${getBidSpName(bid)}`,
-      position: 'top',
-    })
-  } catch (error) {
-    Notify.create({
-      type: 'warning',
-      message: error.message || 'Failed to start conversation.',
-      position: 'top',
-    })
-  }
 }
 
 const assignTaskToBidSp = async (bid) => {
@@ -3733,15 +3747,20 @@ const refreshData = async () => {
 </script>
 
 <style scoped>
+.mx-records-page {
+  padding-top: 20px !important;
+}
+
 .mx-records-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
 .mxrecord-row {
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 220px;
+  border-radius: 10px;
+  box-shadow: none;
   transition: all 0.2s ease;
   margin-bottom: 0;
 }
@@ -3986,6 +4005,10 @@ const refreshData = async () => {
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
+  .mx-records-page {
+    padding-top: 14px !important;
+  }
+
   .images-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 12px;
@@ -3994,9 +4017,11 @@ const refreshData = async () => {
 
 .mxrecord-row-content {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  height: 100%;
+  padding: 0;
 }
 
 .mxrecord-image {
@@ -4020,35 +4045,41 @@ const refreshData = async () => {
 }
 
 .mxrecord-description {
-  flex: 1;
   min-width: 0;
 }
 
 .description-title {
-  font-size: 1rem;
+  min-height: 22px;
+  font-size: 12px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #64748b;
   line-height: 1.3;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   word-break: break-word;
 }
 
 .description-property {
-  font-size: 0.85rem;
-  color: #666;
+  display: -webkit-box;
+  min-height: 40px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.32;
+  color: #0f172a;
 }
 
 .mxrecord-date {
-  flex-shrink: 0;
-  width: 100px;
-  text-align: center;
+  width: auto;
+  text-align: left;
 }
 
 .date-label {
   font-size: 0.75rem;
   color: #666;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 
@@ -4059,16 +4090,15 @@ const refreshData = async () => {
 }
 
 .mxrecord-reporter {
-  flex-shrink: 0;
-  width: 120px;
-  text-align: center;
+  width: auto;
+  text-align: left;
 }
 
 .reporter-label {
   font-size: 0.75rem;
   color: #666;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 
@@ -4085,9 +4115,11 @@ const refreshData = async () => {
 }
 
 .mxrecord-status {
-  flex-shrink: 0;
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .status-chip {
@@ -4095,10 +4127,12 @@ const refreshData = async () => {
 }
 
 .mxrecord-actions {
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 28, 45, 0.06);
 }
 
 .action-btn {
@@ -4142,7 +4176,7 @@ const refreshData = async () => {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-    padding: 12px;
+    padding: 0;
   }
 
   .mxrecord-image {
@@ -4454,6 +4488,248 @@ const refreshData = async () => {
   min-height: 24px !important;
   padding: 2px 8px !important;
   font-size: 0.72rem !important;
+}
+
+.task-bid-button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.task-bid-button-card {
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,250,252,0.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.task-bid-button-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+  border-color: #bfd0e5;
+}
+
+.task-bid-button-card--selected {
+  border-color: color-mix(in srgb, var(--primary-color) 48%, #cfe8ff 52%);
+  background:
+    linear-gradient(180deg, rgba(239, 248, 255, 0.98) 0%, rgba(247, 251, 255, 0.98) 100%);
+  box-shadow: 0 14px 30px rgba(25, 118, 210, 0.12);
+}
+
+.task-bid-button-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-bid-identity {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.task-bid-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.task-bid-identity-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-bid-name-btn {
+  padding: 0 !important;
+  min-height: 28px !important;
+  width: 100%;
+  justify-content: flex-start;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.task-bid-name-btn :deep(.q-btn__content) {
+  justify-content: flex-start !important;
+  width: 100%;
+  overflow: visible;
+}
+
+.task-bid-name-btn :deep(.q-btn__content > span) {
+  white-space: normal;
+  word-break: break-word;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.task-bid-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #667085;
+}
+
+.task-bid-price-block {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.task-bid-price-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.task-bid-button-amount {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #0f766e;
+  line-height: 1.2;
+}
+
+.task-bid-button-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.task-bid-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-bid-validity {
+  font-size: 0.72rem;
+  color: #667085;
+}
+
+.task-bid-inline-btn {
+  min-height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 0.72rem !important;
+}
+
+.task-bid-button-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.task-bid-button-actions :deep(.q-btn) {
+  border-radius: 8px;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600;
+}
+
+.task-bid-detail-card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.task-bid-detail-head {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%);
+}
+
+.task-bid-detail-body {
+  padding: 18px !important;
+}
+
+.task-bid-detail-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,250,252,0.98) 100%);
+}
+
+.task-bid-detail-amount-block {
+  min-width: 0;
+}
+
+.task-bid-detail-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.task-bid-detail-amount {
+  margin-top: 4px;
+  font-size: 1.45rem;
+  line-height: 1.15;
+  font-weight: 800;
+  color: #0f766e;
+}
+
+.task-bid-detail-title {
+  margin-top: 4px;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.task-bid-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.task-bid-detail-note {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.task-bid-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.task-bid-attachment-link {
+  color: var(--q-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.task-bid-attachment-link:hover {
+  text-decoration: underline;
 }
 
 .details-section {

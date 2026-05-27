@@ -561,7 +561,7 @@ watch(
 }
 
 .elevated {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
@@ -613,13 +613,13 @@ watch(
   margin-bottom: 6px;
   padding: 10px;
   border: 1px solid var(--neutral-200);
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background: #fafcff;
 }
 
 .property-summary-item {
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   border-left: 3px solid var(--primary-color);
   background: rgba(36, 87, 115, 0.04);
 }

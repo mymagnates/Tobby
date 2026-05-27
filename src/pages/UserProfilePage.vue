@@ -619,7 +619,7 @@ onMounted(async () => {
 }
 
 .profile-topbar {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
   background: linear-gradient(120deg, var(--bg-secondary) 0%, var(--bg-surface) 100%);
 }
@@ -631,11 +631,11 @@ onMounted(async () => {
 .topbar-actions :deep(.q-btn) {
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .section-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
   background: var(--bg-surface);
 }
@@ -664,7 +664,7 @@ onMounted(async () => {
 
 .info-cell {
   border: 1px solid var(--neutral-200);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   background: var(--bg-secondary);
   padding: 8px 10px;
   min-height: 64px;
@@ -706,7 +706,7 @@ onMounted(async () => {
 
 .quota-card {
   border: 1px solid var(--neutral-200);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 8px 10px;
   background: var(--bg-secondary);
 }

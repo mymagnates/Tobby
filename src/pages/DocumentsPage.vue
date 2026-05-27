@@ -1,74 +1,53 @@
 <template>
   <q-page class="documents-page q-pa-md">
     <!-- Search and filters -->
-    <q-card flat bordered class="search-card q-mb-md">
-      <q-card-section class="q-pa-md">
-        <div class="row q-col-gutter-md">
-          <div class="col-12 col-sm-6 col-md-4">
-            <q-input
-              v-model="searchQuery"
-              outlined
-              dense
-              placeholder="Search by name, description, or source..."
-              clearable
-              bg-color="grey-1"
-              class="search-input"
-              @keyup.enter="applySearch"
-            >
-              <template #prepend>
-                <q-icon name="search" />
-              </template>
-              <template #append>
-                <q-icon
-                  v-if="searchQuery"
-                  name="close"
-                  class="cursor-pointer"
-                  @click="searchQuery = ''"
-                />
-              </template>
-            </q-input>
-          </div>
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-select
-              v-model="sourceFilter"
-              :options="sourceFilterOptions"
-              outlined
-              dense
-              options-dense
-              emit-value
-              map-options
-              label="Source type"
-              clearable
-              bg-color="grey-1"
-              class="source-filter"
-            >
-              <template #prepend>
-                <q-icon name="folder" />
-              </template>
-            </q-select>
-          </div>
-          <div class="col-12 col-sm-6 col-md-2 flex items-center">
-            <q-btn
-              color="primary"
-              label="Search"
-              icon="search"
-              flat
-              @click="applySearch"
-            />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 flex items-center justify-end">
-            <q-btn
-              v-if="canCreateDocuments"
-              color="primary"
-              unelevated
-              icon="add"
-              label="Create New Document"
-              @click="openCreateDialog"
-            />
-          </div>
-        </div>
-      </q-card-section>
-    </q-card>
+    <div class="documents-toolbar q-mb-md">
+      <q-input
+        v-model="searchQuery"
+        borderless
+        dense
+        placeholder="Search documents"
+        clearable
+        class="documents-search"
+        @keyup.enter="applySearch"
+      >
+        <template #prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+
+      <q-btn
+        v-if="canCreateDocuments"
+        color="primary"
+        unelevated
+        no-caps
+        dense
+        icon="add"
+        label="Add"
+        class="documents-add-btn"
+        @click="openCreateDialog"
+      />
+    </div>
+
+    <div class="source-stat-tiles q-mb-md">
+      <button
+        v-for="source in sourceStatCards"
+        :key="source.key"
+        type="button"
+        class="source-stat-tile"
+        :class="{ 'source-stat-tile--active': sourceFilter === source.value }"
+        @click="setSourceFilter(source.value)"
+      >
+        <span class="source-stat-icon" :class="`source-stat-icon--${source.tone}`">
+          <q-icon :name="source.icon" size="18px" />
+        </span>
+        <span class="source-stat-copy">
+          <span class="source-stat-label">{{ source.label }}</span>
+          <span class="source-stat-caption">{{ source.caption }}</span>
+        </span>
+        <span class="source-stat-count">{{ source.count }}</span>
+      </button>
+    </div>
 
     <!-- Loading -->
     <div v-if="loading" class="flex flex-center q-pa-xl">
@@ -87,98 +66,52 @@
       </q-card-section>
     </q-card>
 
-    <!-- Documents list (table on desktop, cards on mobile) -->
-    <q-card v-else flat bordered class="documents-card">
-      <q-card-section class="q-pa-none">
-        <q-table
-          :rows="filteredDocuments"
-          :columns="columns"
-          row-key="id"
-          flat
-          bordered
-          v-model:pagination="pagination"
-          :rows-per-page-options="[10, 25, 50]"
-          class="documents-table"
-        >
-          <template #body-cell-name="props">
-            <q-td :props="props">
-              <div class="row items-center no-wrap">
-                <q-icon
-                  :name="getFileIcon(props.row)"
-                  :color="getFileColor(props.row)"
-                  size="24px"
-                  class="q-mr-sm"
-                />
-                <div>
-                  <div class="text-weight-medium">{{ props.row.name }}</div>
-                  <div v-if="props.row.description" class="text-caption text-grey-7 text-ellipsis" style="max-width: 240px">
-                    {{ props.row.description }}
-                  </div>
-                </div>
-              </div>
-            </q-td>
-          </template>
+    <!-- Documents tiles -->
+    <div v-else class="documents-tiles">
+      <article
+        v-for="doc in filteredDocuments"
+        :key="doc.id"
+        class="document-tile"
+        tabindex="0"
+        @click="openViewDocument(doc)"
+        @keyup.enter="openViewDocument(doc)"
+      >
+        <div class="tile-head">
+          <div class="tile-file-mark" :class="`tile-file-mark--${getFileTone(doc)}`">
+            <q-icon :name="getFileIcon(doc)" size="22px" />
+          </div>
+          <q-btn
+            flat
+            dense
+            round
+            size="sm"
+            color="grey-7"
+            icon="visibility"
+            @click.stop="openViewDocument(doc)"
+          >
+            <q-tooltip>View document</q-tooltip>
+          </q-btn>
+        </div>
 
-          <template #body-cell-source="props">
-            <q-td :props="props">
-              <q-chip
-                dense
-                size="sm"
-                :color="getSourceChipColor(props.row.source_type)"
-                text-color="white"
-                :icon="getSourceIcon(props.row.source_type)"
-              >
-                {{ props.row.source_label }}
-              </q-chip>
-            </q-td>
-          </template>
+        <div class="tile-title text-ellipsis-2">{{ doc.name }}</div>
+        <div class="tile-description text-ellipsis-2">{{ getDocumentDescription(doc) }}</div>
 
-          <template #body-cell-description="props">
-            <q-td :props="props">
-              <span class="text-body2">{{ getDocumentDescription(props.row) }}</span>
-            </q-td>
-          </template>
+        <div class="tile-meta">
+          <span class="tile-chip" :class="`tile-chip--${doc.source_type || 'default'}`">
+            <q-icon :name="getSourceIcon(doc.source_type)" size="14px" />
+            {{ getSourceShortLabel(doc) }}
+          </span>
+          <span class="tile-chip tile-chip--role">
+            {{ getUploaderRoleLabel(doc) }}
+          </span>
+        </div>
 
-          <template #body-cell-purpose="props">
-            <q-td :props="props">
-              <span class="text-body2">{{ getDocumentPurpose(props.row) }}</span>
-            </q-td>
-          </template>
-
-          <template #body-cell-uploaded_by_role="props">
-            <q-td :props="props">
-              <q-chip dense size="sm" :color="getUploaderRoleColor(props.row)" text-color="white">
-                {{ getUploaderRoleLabel(props.row) }}
-              </q-chip>
-            </q-td>
-          </template>
-
-          <template #body-cell-date="props">
-            <q-td :props="props">
-              <span class="text-body2">{{ formatDate(props.row.upload_date) }}</span>
-            </q-td>
-          </template>
-
-          <template #body-cell-actions="props">
-            <q-td :props="props">
-              <div class="row no-wrap q-gutter-xs">
-                <q-btn
-                  flat
-                  dense
-                  round
-                  size="sm"
-                  color="primary"
-                  icon="visibility"
-                  @click="openViewDocument(props.row)"
-                >
-                  <q-tooltip>View document</q-tooltip>
-                </q-btn>
-              </div>
-            </q-td>
-          </template>
-        </q-table>
-      </q-card-section>
-    </q-card>
+        <div class="tile-foot">
+          <span>{{ getDocumentPurpose(doc) }}</span>
+          <span>{{ formatDate(doc.upload_date) }}</span>
+        </div>
+      </article>
+    </div>
 
     <!-- Dialog: View document (preview or open link) -->
     <q-dialog v-model="showViewDocument" position="standard" maximized>
@@ -190,48 +123,60 @@
         </q-card-section>
         <q-card-section class="view-doc-content">
           <template v-if="selectedDocument">
-            <div v-if="isImageType(selectedDocument)" class="doc-preview-image">
-              <q-img
-                :src="selectedDocument.file_url || selectedDocument.image_url"
-                fit="contain"
-                class="rounded-borders"
-                style="max-height: 70vh; max-width: 100%;"
-              >
-                <template #loading>
-                  <q-spinner color="primary" size="48px" />
-                </template>
-                <template #error>
-                  <div class="absolute-full flex flex-center column bg-grey-3">
-                    <q-icon name="broken_image" size="48px" color="grey-6" />
-                    <div class="q-mt-sm">Could not load image</div>
-                    <q-btn
-                      flat
-                      color="primary"
-                      label="Open in new tab"
-                      :href="selectedDocument.file_url || selectedDocument.image_url"
-                      target="_blank"
-                      class="q-mt-sm"
-                    />
-                  </div>
-                </template>
-              </q-img>
-            </div>
-            <div v-else class="doc-preview-other">
-              <q-icon name="description" size="64px" color="grey-5" />
-              <div class="text-body1 q-mt-md">{{ selectedDocument.name }}</div>
-              <div class="text-caption text-grey-7 q-mt-xs">
-                {{ selectedDocument.file_type?.toUpperCase() || 'File' }} •
-                {{ formatDate(selectedDocument.upload_date) }}
+            <div v-if="selectedDocumentUrl" class="doc-preview-shell">
+              <div class="doc-preview-meta">
+                <span>{{ selectedDocumentFileLabel }}</span>
+                <span>{{ formatDate(selectedDocument.upload_date) }}</span>
+                <q-space />
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  color="primary"
+                  label="Open"
+                  icon="open_in_new"
+                  :href="selectedDocumentUrl"
+                  target="_blank"
+                />
               </div>
-              <q-btn
-                unelevated
-                color="primary"
-                label="Open in new tab"
-                :href="selectedDocument.file_url || selectedDocument.image_url"
-                target="_blank"
-                icon="open_in_new"
-                class="q-mt-md"
+
+              <div v-if="isImageType(selectedDocument)" class="doc-preview-image">
+                <q-img
+                  :src="selectedDocumentUrl"
+                  fit="contain"
+                  class="doc-preview-img"
+                >
+                  <template #loading>
+                    <q-spinner color="primary" size="48px" />
+                  </template>
+                  <template #error>
+                    <div class="absolute-full flex flex-center column bg-grey-3">
+                      <q-icon name="broken_image" size="48px" color="grey-6" />
+                      <div class="q-mt-sm">Could not load image preview</div>
+                      <q-btn
+                        flat
+                        color="primary"
+                        label="Open in new tab"
+                        :href="selectedDocumentUrl"
+                        target="_blank"
+                        class="q-mt-sm"
+                      />
+                    </div>
+                  </template>
+                </q-img>
+              </div>
+
+              <iframe
+                v-else
+                class="doc-preview-frame"
+                :src="selectedDocumentPreviewUrl"
+                :title="selectedDocument.name || 'Document preview'"
               />
+            </div>
+            <div v-else class="doc-preview-empty">
+              <q-icon name="draft" size="56px" color="grey-5" />
+              <div class="text-body1 q-mt-md">{{ selectedDocument.name }}</div>
+              <div class="text-caption text-grey-7 q-mt-xs">No file URL is available for preview.</div>
             </div>
           </template>
         </q-card-section>
@@ -291,25 +236,64 @@ const canCreateDocuments = computed(() => {
   return ['pm', 'admin'].includes(category)
 })
 
-const pagination = ref({
-  page: 1,
-  rowsPerPage: 25,
+const sourceBaseDocuments = computed(() => {
+  if (!selectedPropertyId.value) return allDocuments.value
+  return allDocuments.value.filter((doc) => String(doc.property_id || '').trim() === selectedPropertyId.value)
 })
 
-const sourceFilterOptions = [
-  { label: 'Property', value: 'property' },
-  { label: 'Lease', value: 'lease' },
-]
+const sourceStatCards = computed(() => {
+  const list = sourceBaseDocuments.value
+  const propertyCount = list.filter((doc) => doc.source_type === 'property').length
+  const leaseCount = list.filter((doc) => doc.source_type === 'lease').length
 
-const columns = [
-  { name: 'uploaded_by_role', label: 'Uploaded By', field: 'uploaded_by_role', align: 'left' },
-  { name: 'purpose', label: 'Purpose', field: 'purpose', align: 'left' },
-  { name: 'description', label: 'Description', field: 'description', align: 'left' },
-  { name: 'name', label: 'Document', field: 'name', align: 'left', sortable: true },
-  { name: 'source', label: 'Source', field: 'source_label', align: 'left' },
-  { name: 'date', label: 'Date', field: 'upload_date', align: 'left' },
-  { name: 'actions', label: 'Actions', align: 'center', sortable: false },
-]
+  return [
+    {
+      key: 'all',
+      label: 'All Sources',
+      caption: 'Property + lease',
+      value: null,
+      count: list.length,
+      icon: 'folder',
+      tone: 'all',
+    },
+    {
+      key: 'property',
+      label: 'Property',
+      caption: 'Property files',
+      value: 'property',
+      count: propertyCount,
+      icon: 'home',
+      tone: 'property',
+    },
+    {
+      key: 'lease',
+      label: 'Lease',
+      caption: 'Lease files',
+      value: 'lease',
+      count: leaseCount,
+      icon: 'description',
+      tone: 'lease',
+    },
+  ]
+})
+
+const selectedDocumentUrl = computed(() => getDocumentUrl(selectedDocument.value))
+
+const selectedDocumentExtension = computed(() => getDocumentExtension(selectedDocument.value))
+
+const selectedDocumentFileLabel = computed(() => {
+  const ext = selectedDocumentExtension.value
+  return ext ? ext.toUpperCase() : 'File'
+})
+
+const selectedDocumentPreviewUrl = computed(() => {
+  const url = selectedDocumentUrl.value
+  if (!url) return ''
+  if (shouldUseDocumentViewer(selectedDocument.value)) {
+    return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`
+  }
+  return url
+})
 
 function toDateObject(val) {
   if (!val) return null
@@ -327,40 +311,60 @@ function formatDate(val) {
 }
 
 function getFileIcon(row) {
-  const type = (row.file_type || row.original_filename || '').toLowerCase()
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type)) return 'image'
+  const type = getDocumentExtension(row)
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(type)) return 'image'
   if (type === 'pdf') return 'picture_as_pdf'
+  if (['doc', 'docx', 'rtf', 'txt'].includes(type)) return 'article'
+  if (['xls', 'xlsx', 'csv'].includes(type)) return 'table_chart'
+  if (['ppt', 'pptx'].includes(type)) return 'slideshow'
+  if (['mp4', 'mov', 'webm'].includes(type)) return 'movie'
+  if (['mp3', 'wav', 'm4a'].includes(type)) return 'audio_file'
   return 'description'
 }
 
-function getFileColor(row) {
-  const type = (row.file_type || row.original_filename || '').toLowerCase()
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type)) return 'primary'
-  if (type === 'pdf') return 'negative'
-  return 'grey-7'
+function getFileTone(row) {
+  const type = getDocumentExtension(row)
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(type)) return 'image'
+  if (type === 'pdf') return 'pdf'
+  return 'document'
+}
+
+function getDocumentUrl(doc) {
+  return String(doc?.file_url || doc?.image_url || doc?.url || '').trim()
+}
+
+function getDocumentExtension(doc) {
+  const explicitType = String(doc?.file_type || '').toLowerCase().trim()
+  if (explicitType && !explicitType.includes('/')) return explicitType.replace(/^\./, '')
+
+  const mimeSubtype = explicitType.includes('/') ? explicitType.split('/').pop() : ''
+  const filename = String(doc?.original_filename || doc?.name || getDocumentUrl(doc)).toLowerCase()
+  const filenameExt = filename.split('?')[0].split('#')[0].split('.').pop()
+
+  if (mimeSubtype === 'jpeg') return 'jpg'
+  if (mimeSubtype === 'plain') return 'txt'
+  if (mimeSubtype === 'msword') return 'doc'
+  if (mimeSubtype === 'vnd.ms-excel') return 'xls'
+  if (mimeSubtype === 'vnd.ms-powerpoint') return 'ppt'
+  if (mimeSubtype === 'vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx'
+  if (mimeSubtype === 'vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'xlsx'
+  if (mimeSubtype === 'vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx'
+  return filenameExt || mimeSubtype || ''
+}
+
+function shouldUseDocumentViewer(doc) {
+  const ext = getDocumentExtension(doc)
+  return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf'].includes(ext)
 }
 
 function getSourceIcon(sourceType) {
   return sourceType === 'property' ? 'home' : sourceType === 'lease' ? 'description' : 'folder'
 }
 
-function getSourceChipColor(sourceType) {
-  return sourceType === 'property' ? 'primary' : sourceType === 'lease' ? 'teal' : 'grey-7'
-}
-
 function getUploaderRoleLabel(row) {
   const normalized = normalizeRoleValue(row?.uploaded_by_role || row?.role)
   if (normalized) return roleLabel(normalized)
   return row?.source_type === 'lease' ? 'Lease Flow' : 'Property Flow'
-}
-
-function getUploaderRoleColor(row) {
-  const normalized = normalizeRoleValue(row?.uploaded_by_role || row?.role)
-  if (normalized === 'tt') return 'blue'
-  if (normalized === 'po') return 'deep-purple'
-  if (normalized === 'pm') return 'indigo'
-  if (normalized === 'sp') return 'orange'
-  return 'grey-7'
 }
 
 function getDocumentPurpose(row) {
@@ -373,10 +377,14 @@ function getDocumentDescription(row) {
   return value || '—'
 }
 
+function getSourceShortLabel(row) {
+  const label = String(row?.source_label || '').trim()
+  return label.replace(/^Property:\s*/i, '').replace(/^Lease:\s*/i, '') || 'Document'
+}
+
 function isImageType(doc) {
-  const type = (doc.file_type || doc.original_filename || '').toLowerCase()
-  const ext = type || (doc.original_filename || '').split('.').pop()?.toLowerCase()
-  return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+  const ext = getDocumentExtension(doc)
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)
 }
 
 const filteredDocuments = computed(() => {
@@ -501,7 +509,11 @@ async function loadAllDocuments() {
 }
 
 function applySearch() {
-  pagination.value.page = 1
+  // Search is reactive; this keeps Enter behavior consistent with other pages.
+}
+
+function setSourceFilter(value) {
+  sourceFilter.value = value
 }
 
 function openViewDocument(doc) {
@@ -553,18 +565,341 @@ watch(
   margin: 0 auto;
 }
 
-.search-card,
-.documents-card,
 .empty-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
 }
 
-.documents-table {
-  font-size: 0.9375rem;
+.documents-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 30px rgba(20, 28, 45, 0.04);
+}
+
+.documents-search {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-sm);
+  background: #f8fafc;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.documents-search:focus-within {
+  border-color: rgba(25, 118, 210, 0.32);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.08);
+}
+
+.documents-search :deep(.q-field__control) {
+  min-height: 34px;
+}
+
+.documents-search :deep(.q-field__native) {
+  font-size: 13px;
+  color: #334155;
+}
+
+.documents-add-btn {
+  min-width: 76px;
+  min-height: 36px;
+  border-radius: var(--border-radius-btn);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.source-stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.source-stat-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.source-stat-tile:hover,
+.source-stat-tile--active {
+  border-color: rgba(25, 118, 210, 0.32);
+  box-shadow: 0 12px 28px rgba(20, 28, 45, 0.08);
+  transform: translateY(-1px);
+}
+
+.source-stat-tile--active {
+  background: #f8fbff;
+}
+
+.source-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-sm);
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.source-stat-icon--property {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.source-stat-icon--lease {
+  color: #00695c;
+  background: #e0f2f1;
+}
+
+.source-stat-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.source-stat-label {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-stat-caption {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-stat-count {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.documents-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.document-tile {
+  min-height: 172px;
+  padding: 14px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.document-tile:hover,
+.document-tile:focus-visible {
+  border-color: rgba(25, 118, 210, 0.24);
+  box-shadow: 0 14px 34px rgba(20, 28, 45, 0.08);
+  transform: translateY(-1px);
+}
+
+.tile-head,
+.tile-meta,
+.tile-foot {
+  display: flex;
+  align-items: center;
+}
+
+.tile-head {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tile-file-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--border-radius-sm);
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.tile-file-mark--image {
+  color: #00695c;
+  background: #e0f2f1;
+}
+
+.tile-file-mark--pdf {
+  color: #b71c1c;
+  background: #ffebee;
+}
+
+.tile-title {
+  min-height: 40px;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.32;
+}
+
+.tile-description {
+  min-height: 34px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tile-meta {
+  gap: 6px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.tile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-chip--property {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.tile-chip--lease {
+  color: #00695c;
+  background: #e0f2f1;
+}
+
+.tile-chip--role {
+  flex: 0 0 auto;
+  color: #4a148c;
+  background: #f3e5f5;
+}
+
+.tile-foot {
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 28, 45, 0.06);
+  color: #64748b;
+  font-size: 11px;
+}
+
+.tile-foot span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .view-doc-dialog .view-doc-content {
-  min-height: 200px;
+  height: calc(100vh - 112px);
+  min-height: 420px;
+  padding-top: 12px;
+}
+
+.doc-preview-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: #f8fafc;
+}
+
+.doc-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px 6px 14px;
+  border-bottom: 1px solid rgba(20, 28, 45, 0.08);
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doc-preview-image {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.doc-preview-img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--border-radius-sm);
+}
+
+.doc-preview-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}
+
+.doc-preview-empty {
+  display: flex;
+  min-height: 340px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: #f8fafc;
 }
 
 .create-fullscreen-card {
@@ -578,22 +913,95 @@ watch(
   overflow-y: auto;
 }
 
-.doc-preview-image {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 .text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.text-ellipsis-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 700px) {
+  .documents-page {
+    padding: 12px;
+  }
+
+  .documents-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .documents-search {
+    min-width: 0;
+  }
+
+  .source-stat-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .documents-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .view-doc-dialog .view-doc-content {
+    height: calc(100vh - 104px);
+    min-height: 360px;
+    padding: 10px;
+  }
+
+  .doc-preview-meta {
+    min-height: 40px;
+    padding-left: 10px;
+  }
+}
+
 /* Dark mode */
-:global(body.body--dark) .search-card,
-:global(body.body--dark) .documents-card,
+:global(body.body--dark) .documents-toolbar,
 :global(body.body--dark) .empty-card {
   background: var(--q-dark);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global(body.body--dark) .documents-search,
+:global(body.body--dark) .document-tile,
+:global(body.body--dark) .source-stat-tile,
+:global(body.body--dark) .doc-preview-shell,
+:global(body.body--dark) .doc-preview-empty {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global(body.body--dark) .source-stat-tile--active {
+  background: rgba(144, 202, 249, 0.1);
+  border-color: rgba(144, 202, 249, 0.3);
+}
+
+:global(body.body--dark) .document-tile:hover,
+:global(body.body--dark) .document-tile:focus-visible {
+  border-color: rgba(144, 202, 249, 0.3);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+:global(body.body--dark) .documents-search :deep(.q-field__native),
+:global(body.body--dark) .tile-title,
+:global(body.body--dark) .source-stat-label,
+:global(body.body--dark) .source-stat-count {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global(body.body--dark) .tile-description,
+:global(body.body--dark) .tile-foot,
+:global(body.body--dark) .source-stat-caption,
+:global(body.body--dark) .doc-preview-meta {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+:global(body.body--dark) .tile-foot,
+:global(body.body--dark) .doc-preview-meta {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 </style>

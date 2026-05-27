@@ -1,21 +1,24 @@
 <template>
-  <q-page class="q-pa-md sp-profile-page">
+  <q-page class="q-pa-sm sp-profile-page">
     <q-card flat bordered class="sp-profile-card q-mb-sm">
-      <q-card-section class="row items-center justify-between">
+      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
         <div>
-          <div class="text-h6">Account</div>
+          <div class="text-subtitle1 text-weight-medium">Account</div>
           <div class="text-caption text-grey-7">Core account information</div>
         </div>
-        <q-btn
-          flat
-          color="primary"
-          icon="open_in_new"
-          label="View Handout Page"
-          @click="openPublicShowcase"
-        />
+        <div class="row items-center q-gutter-sm">
+          <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
+          <q-btn
+            flat
+            color="primary"
+            icon="open_in_new"
+            label="View Handout Page"
+            @click="openPublicShowcase"
+          />
+        </div>
       </q-card-section>
       <q-separator />
-      <q-card-section class="account-summary">
+      <q-card-section class="account-summary q-px-md q-py-sm">
         <div class="row q-col-gutter-sm">
           <div class="col-12 col-md-6">
             <div class="account-row">
@@ -46,14 +49,14 @@
     </q-card>
 
     <q-card flat bordered class="sp-profile-card">
-      <q-card-section class="row items-center justify-between">
+      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
         <div>
-          <div class="text-h6">SP Profile</div>
+          <div class="text-subtitle1 text-weight-medium">SP Profile</div>
           <div class="text-caption text-grey-7">Manage your service provider information</div>
         </div>
       </q-card-section>
       <q-separator />
-      <q-card-section>
+      <q-card-section class="q-px-md q-py-sm">
         <q-form class="row q-col-gutter-md">
           <div class="col-12 col-md-6">
             <q-input v-model="form.sp_name" outlined dense label="SP Name" readonly />
@@ -251,7 +254,15 @@ const saveContactInfo = async () => {
 const openPublicShowcase = () => {
   if (!userStore.userId) return
   const slug = resolveSpSlug(userStore.userProfile || {}, userStore.userId)
-  router.push(`/public/handout/${slug}`)
+  window.open(`/public/handout/${slug}`, '_blank', 'noopener,noreferrer')
+}
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/sp-dashboard')
 }
 
 onMounted(() => {
@@ -260,13 +271,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.sp-profile-page {
-  max-width: 980px;
-  margin: 0 auto;
-}
-
 .sp-profile-card {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   border-color: var(--neutral-200);
 }
 
@@ -290,7 +296,7 @@ onMounted(() => {
 .account-row-editable {
   cursor: pointer;
   background: rgba(25, 118, 210, 0.08);
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 8px;
 }
 

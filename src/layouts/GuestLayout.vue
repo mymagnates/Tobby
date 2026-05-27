@@ -1,51 +1,45 @@
 <template>
   <q-layout view="hHh lpr fFf" class="guest-layout">
-    <!-- Simple Header -->
-    <q-header elevated class="guest-header">
-      <q-toolbar class="q-px-md">
-        <q-toolbar-title class="row items-center">
-          <div class="logo-container" @click="goHome">
-            <span class="app-title">Handout</span>
-          </div>
-        </q-toolbar-title>
-
-        <!-- Login Button (only show if not on login page) -->
-        <q-btn
-          v-if="!isLoginPage"
-          flat
-          label="Login"
-          icon="login"
-          color="white"
-          @click="goToLogin"
-          class="login-btn"
-        />
+    <q-header class="guest-header">
+      <q-toolbar class="guest-toolbar">
+        <div class="logo-container" @click="goHome">Handout</div>
+        <div class="guest-actions">
+          <q-btn
+            v-if="isLoginPage"
+            unelevated
+            no-caps
+            label="Get Started"
+            color="primary"
+            class="primary-action"
+            @click="goToRegister"
+          />
+          <q-btn
+            v-else
+            outline
+            no-caps
+            label="Sign In"
+            color="primary"
+            class="secondary-action"
+            @click="goToLogin"
+          />
+        </div>
       </q-toolbar>
     </q-header>
 
-    <!-- Main Content Area (no sidebar) -->
     <q-page-container>
       <router-view />
     </q-page-container>
 
-    <!-- Footer -->
     <q-footer class="guest-footer">
       <div class="footer-content">
-        <div class="text-center q-pa-md">
-          <div class="footer-links q-mb-sm">
-            <router-link to="/public/about" class="footer-link">About</router-link>
-            <span class="footer-separator">•</span>
-            <router-link to="/public/contact-support" class="footer-link"
-              >Contact & Support</router-link
-            >
-            <span class="footer-separator">•</span>
-            <router-link to="/public/privacy" class="footer-link">Privacy Policy</router-link>
-            <span class="footer-separator">•</span>
-            <router-link to="/public/terms" class="footer-link">Terms of Service</router-link>
-          </div>
-          <div class="text-body2 text-grey-6">
-            © {{ currentYear }} Developed by Magnates Solution LLC. All rights reserved.
-          </div>
+        <div class="footer-logo">Handout</div>
+        <div class="footer-links">
+          <router-link to="/public/about" class="footer-link">About</router-link>
+          <router-link to="/public/contact-support" class="footer-link">Contact &amp; Support</router-link>
+          <router-link to="/public/privacy" class="footer-link">Privacy Policy</router-link>
+          <router-link to="/public/terms" class="footer-link">Terms of Service</router-link>
         </div>
+        <div class="footer-copy">&copy; {{ currentYear }} Magnates Solution LLC. All rights reserved.</div>
       </div>
     </q-footer>
   </q-layout>
@@ -73,101 +67,119 @@ const goToLogin = () => {
   router.push('/public/login')
 }
 
+const goToRegister = () => {
+  router.push('/public/register')
+}
+
 const goHome = () => {
   router.push('/landing')
 }
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 .guest-layout {
-  background-color: var(--bg-secondary);
+  background: #faf8f3;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .guest-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: rgba(250, 248, 243, 0.92);
+  backdrop-filter: blur(12px);
   box-shadow: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #ddd8ce;
+  color: #1a1612;
+}
+
+.guest-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1280px, 100%);
+  min-height: 78px;
+  margin: 0 auto;
+  padding: 0 48px;
 }
 
 .logo-container {
-  display: flex;
-  align-items: center;
+  font-family: 'Sora', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  cursor: pointer;
 }
 
-.app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: white;
-  letter-spacing: 0.02em;
-}
-
-.login-btn {
+.primary-action,
+.secondary-action {
   font-weight: 600;
-  padding: 8px 24px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  padding: 8px 20px;
+  border-radius: 100px !important;
 }
 
-.login-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+.primary-action {
+  box-shadow: 0 6px 18px rgba(26, 22, 18, 0.15);
 }
 
 .guest-footer {
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: static;
+  background: #1a1612;
 }
 
 .footer-content {
-  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 32px 48px;
+}
+
+.footer-logo {
+  font-family: 'Sora', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
 }
 
 .footer-links {
   display: flex;
-  justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 28px;
 }
 
 .footer-link {
-  color: #ecf0f1;
+  color: rgba(255, 255, 255, 0.5);
   text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.3s ease;
+  font-size: 13px;
+  transition: color 0.2s ease;
 }
 
 .footer-link:hover {
-  color: #3498db;
-  text-decoration: underline;
+  color: var(--accent-light);
 }
 
-.footer-separator {
-  color: #7f8c8d;
-  margin: 0 4px;
+.footer-copy {
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 12px;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .app-title {
-    font-size: 1.2rem;
+  .guest-toolbar {
+    min-height: 70px;
+    padding: 0 20px;
   }
 
-  .login-btn {
-    padding: 6px 16px;
-    font-size: 0.9rem;
+  .logo-container {
+    font-size: 20px;
   }
 
-  .footer-links {
+  .footer-content {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 4px;
-  }
-
-  .footer-separator {
-    display: none;
+    padding: 30px 24px;
   }
 }
 

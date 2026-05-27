@@ -1,362 +1,207 @@
 <template>
   <div class="landing-page">
-    <!-- NAV -->
-    <nav class="landing-nav">
-      <div class="logo" @click="goHome">Handout</div>
-      <ul class="nav-links">
-        <li><a href="#features">Features</a></li>
-        <li><a href="#ai">AI Assistant</a></li>
-        <li><a href="#how">How It Works</a></li>
-        <li><a href="#testimonials">Testimonials</a></li>
-      </ul>
-      <div class="nav-actions">
-        <button class="nav-cta" @click="startFree">Start Free</button>
-        <button class="nav-login" @click="goLogin">Sign In</button>
+    <header class="site-header">
+      <button type="button" class="wordmark" @click="goHome">Handout</button>
+      <nav class="site-links" aria-label="Main navigation">
+        <a href="#workspace">Workspace</a>
+        <a href="#manage">What it tracks</a>
+        <a href="#service">Service help</a>
+      </nav>
+      <div class="site-actions">
+        <button type="button" class="text-button" @click="goLogin">Sign In</button>
+        <button type="button" class="primary-button primary-button--nav" @click="startFree">
+          Get Started
+        </button>
       </div>
-    </nav>
+    </header>
 
-    <!-- HERO -->
-    <section class="hero" id="top">
-      <div class="hero-left">
-        <div class="hero-badge">✦ Property Operations Platform</div>
-        <h1 class="hero-title">
-          Run Property Operations<br />
-          <em>With Speed and Clarity</em>
-        </h1>
-        <p class="hero-sub">
-          Handout connects PM/PO, tenants, and service providers in one modern workflow for tasks,
-          leases, documents, transactions, and reminders.
-        </p>
-        <div class="hero-actions">
-          <button class="btn-primary" @click="startFree">Start Free →</button>
-          <button class="btn-ghost" @click="viewDemo">Watch Demo</button>
-        </div>
-        <div class="hero-stats">
-          <div class="stat-item">
-            <div class="stat-num">3x<span>+</span></div>
-            <div class="stat-label">Faster operations</div>
+    <main>
+      <section class="hero" aria-label="Handout property management workspace">
+        <div class="hero-content">
+          <div class="eyebrow">Property management workspace</div>
+          <h1>Manage every property from one clear workspace.</h1>
+          <p class="hero-copy">
+            Handout keeps documents, maintenance, expenses, leases, reminders, and owner visibility
+            connected across the properties you manage.
+          </p>
+          <div class="hero-actions">
+            <button type="button" class="primary-button" @click="startFree">
+              Create a PM workspace
+            </button>
+            <button type="button" class="outline-button" @click="goLogin">Sign In</button>
           </div>
-          <div class="stat-item">
-            <div class="stat-num">1<span>hub</span></div>
-            <div class="stat-label">Everything in one place</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-num">24h</div>
-            <div class="stat-label">AI always on</div>
+          <div class="hero-signals">
+            <span><q-icon name="folder_open" /> Documents</span>
+            <span><q-icon name="home_repair_service" /> Maintenance</span>
+            <span><q-icon name="event_available" /> Reminders</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="hero-visual">
-        <div style="position: relative;">
-          <div class="float-tag t1">
-            <span class="dot g"></span> Rent received on time
+      <section id="workspace" class="workspace-section">
+        <div class="section-heading">
+          <div class="eyebrow eyebrow--dark">One record for every property</div>
+          <h2>Designed around day-to-day property operations.</h2>
+          <p>
+            Select a property, find its files and history, and see what needs attention across
+            leases, maintenance, and owner communication.
+          </p>
+        </div>
+
+        <div class="product-frame" aria-label="Handout application preview">
+          <div class="product-header">
+            <span class="product-brand">Handout</span>
+            <span class="product-title">Documents</span>
+            <div class="product-tools">
+              <q-icon name="search" />
+              <q-icon name="add_circle" />
+              <q-icon name="account_circle" />
+            </div>
           </div>
-          <div class="float-tag t2">
-            <span class="dot o"></span> AI renewal reminder
-          </div>
+          <div class="product-columns">
+            <aside class="preview-properties">
+              <div class="preview-label">Properties</div>
+              <button class="preview-property preview-property--active" type="button">
+                <span>Willow Rental</span>
+                <small>42 Willow Lane</small>
+              </button>
+              <button class="preview-property" type="button">
+                <span>Oak Rental</span>
+                <small>112 Oak Street</small>
+              </button>
+            </aside>
 
-          <div class="dashboard-card">
-            <div class="dc-header">
-              <div class="dc-title">Operations Snapshot</div>
-              <div class="dc-date">March 2026</div>
-            </div>
-
-            <div class="property-list">
-              <div class="property-item">
-                <div class="prop-icon a">🏢</div>
-                <div class="prop-info">
-                  <div class="prop-name">Lease & Tenant Hub</div>
-                  <div class="prop-addr">Agreements, profiles, and history</div>
+            <div class="preview-main">
+              <div class="preview-toolbar">
+                <span><q-icon name="search" /> Search documents</span>
+                <button type="button"><q-icon name="add" /> Add</button>
+              </div>
+              <div class="preview-source-row">
+                <div class="preview-source preview-source--selected">
+                  <strong>14</strong><span>All files</span>
                 </div>
-                <div class="prop-status ok">Healthy</div>
+                <div class="preview-source"><strong>8</strong><span>Willow</span></div>
+                <div class="preview-source"><strong>6</strong><span>Lease</span></div>
               </div>
-              <div class="property-item">
-                <div class="prop-icon b">🧾</div>
-                <div class="prop-info">
-                  <div class="prop-name">Transactions</div>
-                  <div class="prop-addr">Income, expenses, and audit trail</div>
+              <div class="preview-files">
+                <div class="preview-file">
+                  <q-icon name="picture_as_pdf" class="file-pdf" />
+                  <strong>Insurance policy</strong>
+                  <small>Willow Rental - Updated May 12</small>
                 </div>
-                <div class="prop-status warn">Review</div>
-              </div>
-              <div class="property-item">
-                <div class="prop-icon c">🛠</div>
-                <div class="prop-info">
-                  <div class="prop-name">Maintenance Tasks</div>
-                  <div class="prop-addr">Requests, assignments, and updates</div>
-                </div>
-                <div class="prop-status ok">On Track</div>
-              </div>
-            </div>
-
-            <div class="mini-metrics">
-              <div class="metric-box">
-                <div class="metric-val up">96%</div>
-                <div class="metric-lbl">On-time tasks</div>
-              </div>
-              <div class="metric-box">
-                <div class="metric-val">$8.2k</div>
-                <div class="metric-lbl">Monthly net</div>
-              </div>
-              <div class="metric-box">
-                <div class="metric-val up">+12%</div>
-                <div class="metric-lbl">Quarter growth</div>
-              </div>
-            </div>
-
-            <div class="tobby-card">
-              <div class="tobby-avatar">🤖</div>
-              <div class="tobby-content">
-                <div class="tobby-name">Handout AI</div>
-                <div class="tobby-msg">
-                  Two leases renew in <strong>30 days</strong>. Drafts are ready with recommended rent
-                  updates based on local comps.
+                <div class="preview-file">
+                  <q-icon name="receipt_long" class="file-doc" />
+                  <strong>Roof service receipt</strong>
+                  <small>Maintenance - Apr 29</small>
                 </div>
               </div>
             </div>
+
+            <aside class="preview-rail">
+              <div class="preview-label">Quick status</div>
+              <div class="rail-item">
+                <span>Open tasks</span>
+                <strong>2</strong>
+              </div>
+              <div class="rail-item">
+                <span>Next reminder</span>
+                <strong>May 30</strong>
+              </div>
+              <button class="rail-action" type="button">
+                <q-icon name="notifications_none" /> Add reminder
+              </button>
+            </aside>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- FEATURES -->
-    <section class="features-section" id="features">
-      <div class="section-inner">
-        <div class="section-label">Core Features</div>
-        <h2 class="section-title">Everything you need, in one workspace</h2>
-        <p class="section-sub">
-          From property records to finance, from maintenance to tenant communications, Handout
-          connects every part of your operation.
-        </p>
+      <section id="manage" class="management-section">
+        <div class="section-heading section-heading--left">
+          <div class="eyebrow eyebrow--dark">The essentials</div>
+          <h2>Keep records organized. Keep owners informed.</h2>
+        </div>
+        <div class="management-grid">
+          <article>
+            <q-icon name="description" />
+            <h3>Documents and details</h3>
+            <p>Keep leases, insurance, photos, and property details with the address they belong to.</p>
+          </article>
+          <article>
+            <q-icon name="build_circle" />
+            <h3>Maintenance history</h3>
+            <p>Record issues, repairs, receipts, and assets so the next decision starts with context.</p>
+          </article>
+          <article>
+            <q-icon name="payments" />
+            <h3>Costs and reminders</h3>
+            <p>Track expenses and due dates, then share the relevant view with invited owners.</p>
+          </article>
+        </div>
+      </section>
 
-        <div class="features-grid">
-          <div class="feature-card">
-            <div class="feature-icon fi-brand">🗂</div>
-            <div class="feature-title">Property Records</div>
-            <div class="feature-desc">Centralize contracts, IDs, inspections, and service history.</div>
+      <section class="routine-section">
+        <div class="routine-copy">
+          <div class="eyebrow eyebrow--dark">A simple routine</div>
+          <h2>Capture it once. Keep every stakeholder aligned.</h2>
+          <p>
+            Add the file, task, receipt, or reminder at the moment it matters. Handout keeps the
+            history readable by property instead of scattering it across folders and messages.
+          </p>
+        </div>
+        <div class="routine-flow">
+          <div class="flow-line">
+            <span class="flow-icon"><q-icon name="home" /></span>
+            <div><strong>Add a property</strong><small>A property under your management</small></div>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon fi-teal">💰</div>
-            <div class="feature-title">Financial Tracking</div>
-            <div class="feature-desc">Track rent, fees, and expenses with real-time summaries.</div>
+          <div class="flow-line">
+            <span class="flow-icon"><q-icon name="upload_file" /></span>
+            <div><strong>Attach records</strong><small>Documents, receipts, assets, and leases</small></div>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon fi-purple">🔗</div>
-            <div class="feature-title">Service Network</div>
-            <div class="feature-desc">Connect trusted vendors, brokers, and specialists in one place.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon fi-blue">👥</div>
-            <div class="feature-title">Tenant Management</div>
-            <div class="feature-desc">Profiles, payment history, and communication threads.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon fi-green">🔔</div>
-            <div class="feature-title">Smart Reminders</div>
-            <div class="feature-desc">Renewals, insurance, and compliance dates never slip.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon fi-red">🛠</div>
-            <div class="feature-title">Work Orders</div>
-            <div class="feature-desc">Report, assign, and resolve maintenance with full visibility.</div>
+          <div class="flow-line">
+            <span class="flow-icon"><q-icon name="schedule" /></span>
+            <div><strong>Stay prepared</strong><small>Tasks and reminders when action is due</small></div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- AI -->
-    <section class="tobby-section" id="ai">
-      <div class="section-inner">
-        <div class="tobby-inner">
-          <div class="tobby-left">
-            <div class="section-label">AI Assistant</div>
-            <h2 class="section-title" style="color:white;">Meet Handout AI</h2>
-            <p class="section-sub">
-              Your 24/7 property operations advisor. Handout AI understands your data, flags risks,
-              and helps you move faster.
-            </p>
-
-            <div class="tobby-features-list">
-              <div class="tfl-item">
-                <div class="tfl-icon">📊</div>
-                Spot trends and issues before they grow
-              </div>
-              <div class="tfl-item">
-                <div class="tfl-icon">⚡</div>
-                Ask in natural language and get instant answers
-              </div>
-              <div class="tfl-item">
-                <div class="tfl-icon">📝</div>
-                Auto-generate notices, drafts, and summaries
-              </div>
-              <div class="tfl-item">
-                <div class="tfl-icon">🎯</div>
-                Price rent with market-aware guidance
-              </div>
-            </div>
+      <section id="service" class="service-section">
+        <div class="service-inner">
+          <div>
+            <div class="eyebrow eyebrow--mint">Optional when work is needed</div>
+            <h2>Connect to trade help only when a job calls for it.</h2>
           </div>
-
-          <div class="tobby-demo">
-            <div class="chat-bubble ai">
-              <div class="chat-av tobby-av">🤖</div>
-              <div class="chat-text">
-                Vacancy alert: “Riverside Apt B2” has been open for 23 days. Want me to draft a new
-                listing and adjust pricing?
-              </div>
-            </div>
-            <div class="chat-bubble user">
-              <div class="chat-av">👤</div>
-              <div class="chat-text">Which property had the highest profit last quarter?</div>
-            </div>
-            <div class="chat-bubble ai">
-              <div class="chat-av tobby-av">🤖</div>
-              <div class="chat-text">
-                Q4 summary:\n\n🥇 Harbor Loft: $42.8k net (34% margin)\n🥈 Uptown A: $28.5k net (27% margin)\n🥉 Central Home: $21.2k net (23% margin)\n\nHarbor Loft wins due to lower maintenance spend.
-              </div>
-            </div>
-            <div class="chat-bubble user">
-              <div class="chat-av">👤</div>
-              <div class="chat-text">Draft a renewal notice for Central Home</div>
-            </div>
-            <div class="chat-bubble ai">
-              <div class="chat-av tobby-av">🤖</div>
-              <div class="chat-text">Draft ready with term options and response deadline. Review or send →</div>
-            </div>
+          <p>
+            If a repair needs outside help, share a maintenance task with a service provider and
+            manage responses alongside the property's existing records. The marketplace supports
+            your management record; it does not replace it.
+          </p>
+          <div class="service-tags">
+            <span><q-icon name="plumbing" /> Plumbing</span>
+            <span><q-icon name="electrical_services" /> Electrical</span>
+            <span><q-icon name="roofing" /> Roofing</span>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- HOW IT WORKS -->
-    <section id="how">
-      <div class="section-inner">
-        <div style="text-align:center;">
-          <div class="section-label">How It Works</div>
-          <h2 class="section-title" style="max-width:none;">Four steps to get started</h2>
+      <section class="cta-section">
+        <h2>Start a clearer property management workflow.</h2>
+        <p>Organize the property first. Invite owners and connect service providers as needed.</p>
+        <div class="cta-actions">
+          <button type="button" class="primary-button" @click="startFree">Create a PM account</button>
+          <button type="button" class="secondary-button" @click="goLogin">Sign In</button>
         </div>
-        <div class="steps-grid">
-          <div class="step-item">
-            <div class="step-num">01</div>
-            <div class="step-title">Create an account</div>
-            <div class="step-desc">Set up in minutes. No install required.</div>
-          </div>
-          <div class="step-item">
-            <div class="step-num">02</div>
-            <div class="step-title">Add properties</div>
-            <div class="step-desc">Input assets, tenants, and contracts.</div>
-          </div>
-          <div class="step-item">
-            <div class="step-num">03</div>
-            <div class="step-title">Connect your network</div>
-            <div class="step-desc">Invite service providers and partners.</div>
-          </div>
-          <div class="step-item">
-            <div class="step-num">04</div>
-            <div class="step-title">Let AI assist</div>
-            <div class="step-desc">Automate reminders and insights.</div>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
 
-    <!-- TESTIMONIALS -->
-    <section class="testimonials-section" id="testimonials">
-      <div class="section-inner">
-        <div class="section-label">What People Say</div>
-        <h2 class="section-title">Real operators. Real results.</h2>
-
-        <div class="testimonials-grid">
-          <div class="testi-card">
-            <div class="testi-stars">★★★★★</div>
-            <div class="testi-text">I used to run 7 units with spreadsheets and text threads. Now it’s all in <strong>Handout</strong>.</div>
-            <div class="testi-author">
-              <div class="testi-avatar av1">C</div>
-              <div>
-                <div class="testi-name">Chris M.</div>
-                <div class="testi-role">Owns 7 units · Houston</div>
-              </div>
-            </div>
-          </div>
-          <div class="testi-card">
-            <div class="testi-stars">★★★★★</div>
-            <div class="testi-text">As a part-time investor, time is everything. Handout cut my admin time in half.</div>
-            <div class="testi-author">
-              <div class="testi-avatar av2">L</div>
-              <div>
-                <div class="testi-name">Lina W.</div>
-                <div class="testi-role">Owns 4 units · Seattle</div>
-              </div>
-            </div>
-          </div>
-          <div class="testi-card">
-            <div class="testi-stars">★★★★★</div>
-            <div class="testi-text">Maintenance is finally smooth. <strong>Assign, track, close</strong>—no more chasing calls.</div>
-            <div class="testi-author">
-              <div class="testi-avatar av3">A</div>
-              <div>
-                <div class="testi-name">Alex P.</div>
-                <div class="testi-role">Owns 12 units · Phoenix</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- WORKSPACES -->
-    <section class="section-wrap" id="workspaces">
-      <div class="section-inner">
-        <div class="section-label">Choose Your Workspace</div>
-        <div class="section-title">Start with the workspace that fits your role</div>
-        <p class="section-sub">
-          Choose where you operate most. You can switch or add more workspaces later.
-        </p>
-
-        <div class="role-grid">
-          <q-card class="role-card" flat bordered clickable @click="router.push('/public/pmpo-signup')">
-            <q-card-section>
-              <div class="role-icon role-pmpo"><q-icon name="apartment" size="22px" color="white" /></div>
-              <div class="role-name">PM / PO</div>
-              <div class="role-desc">Manage properties, leases, tasks, documents, and records.</div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="role-card" flat bordered clickable @click="router.push('/public/sp-signup')">
-            <q-card-section>
-              <div class="role-icon role-sp"><q-icon name="construction" size="22px" color="white" /></div>
-              <div class="role-name">Service Provider</div>
-              <div class="role-desc">Discover leads, submit bids, track assignments, and invoice.</div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="cta-section">
-      <div class="section-inner">
-        <div class="cta-box">
-          <div class="section-label" style="color: var(--brand-light);">Get Started</div>
-          <h2 class="section-title">Ready to simplify property operations?</h2>
-          <p class="section-sub" style="margin-top:14px;">Start free, no credit card required.</p>
-          <div class="cta-actions">
-            <button class="btn-primary" @click="startFree">Start Free</button>
-            <button class="btn-ghost cta-ghost" @click="viewDemo">Watch Demo</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer>
-      <div class="footer-logo">Handout</div>
+    <footer class="site-footer">
+      <div class="footer-wordmark">Handout</div>
       <div class="footer-links">
         <a href="/public/about">About</a>
-        <a href="/public/privacy">Privacy</a>
-        <a href="/public/terms">Terms</a>
-        <a href="/public/contact-support">Contact</a>
+        <a href="/public/privacy">Privacy Policy</a>
+        <a href="/public/terms">Terms of Service</a>
+        <a href="/public/contact-support">Contact &amp; Support</a>
       </div>
-      <div class="footer-copy">© 2026 Handout. All rights reserved.</div>
+      <div class="footer-copy">&copy; 2026 Magnates Solution LLC. All rights reserved.</div>
     </footer>
   </div>
 </template>
@@ -366,594 +211,889 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const goHome = () => {
-  router.push('/')
-}
-
-const startFree = () => {
-  router.push('/public/pmpo-signup')
-}
-
-const goLogin = () => {
-  router.push('/public/login')
-}
-
-const viewDemo = () => {
-  router.push('/public/contact-support')
-}
+const goHome = () => router.push('/landing')
+const startFree = () => router.push('/public/pmpo-signup')
+const goLogin = () => router.push('/public/login')
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:global(html) { scroll-behavior: smooth; }
+:global(html) {
+  scroll-behavior: smooth;
+}
 
 .landing-page {
-  --cream: #faf8f3;
-  --paper: #f2ede4;
-  --ink: #1a1612;
-  --ink-soft: #4a4540;
-  --brand: var(--primary-color);
-  --brand-light: var(--primary-light);
-  --brand-dark: var(--primary-dark);
-  --brand-pale: color-mix(in srgb, var(--primary-color) 12%, white);
-  --teal: #1a8c7a;
-  --teal-light: #e3f5f1;
-  --border: #ddd8ce;
-  --shadow: rgba(26, 22, 18, 0.08);
-
-  font-family: 'Noto Sans SC', sans-serif;
-  background: var(--cream);
-  color: var(--ink);
-  overflow-x: hidden;
-  padding-top: 80px;
+  --landing-primary: #243b53;
+  --landing-deep: #172536;
+  --landing-accent: #27c2a4;
+  --landing-accent-dark: #14806d;
+  --landing-bg: #f5f7fb;
+  --landing-surface: #ffffff;
+  --landing-border: #dfe6ef;
+  --landing-muted: #526277;
+  --landing-ink: #16212f;
+  min-height: 100vh;
+  color: var(--landing-ink);
+  background: var(--landing-bg);
+  font-family: var(--font-field);
 }
 
-/* NAV */
-.landing-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 48px;
-  background: rgba(250, 248, 243, 0.88);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: 68px;
+  padding: 0 clamp(20px, 5vw, 56px);
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  background: rgba(23, 37, 54, 0.9);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.logo {
-  font-family: 'Sora', sans-serif;
-  font-weight: 800; font-size: 22px;
-  color: var(--ink);
-  letter-spacing: -0.5px;
+.wordmark {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0;
   cursor: pointer;
 }
 
-.nav-links { display: flex; gap: 28px; list-style: none; }
-.nav-links a {
-  font-size: 14px; font-weight: 500;
-  color: var(--ink-soft); text-decoration: none;
-  transition: color 0.2s;
-}
-.nav-links a:hover { color: var(--brand); }
-
-.nav-actions {
+.site-links {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 28px;
 }
 
-.nav-cta {
-  background: var(--brand);
-  color: white;
-  border: 1px solid var(--brand-dark);
-  padding: 10px 22px;
-  border-radius: 100px; font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
-  font-family: 'Noto Sans SC', sans-serif;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-}
-.nav-cta:hover {
-  background: var(--brand-dark);
-  transform: translateY(-1px);
+.site-links a {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
 }
 
-.nav-login {
+.site-links a:hover {
+  color: #fff;
+}
+
+.site-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.text-button {
+  min-height: 40px;
+  border: 0;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.9);
   background: transparent;
-  color: var(--brand);
-  border: 1px solid color-mix(in srgb, var(--brand) 55%, white);
-  padding: 10px 18px;
-  border-radius: 100px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  font-family: 'Noto Sans SC', sans-serif;
 }
 
-.nav-login:hover {
-  background: var(--brand-pale);
+.primary-button,
+.outline-button,
+.secondary-button {
+  min-height: 46px;
+  padding: 0 22px;
+  border-radius: 8px;
+  font-family: var(--font-field);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.primary-button {
+  border: 1px solid var(--landing-accent);
+  color: #112536;
+  background: var(--landing-accent);
+}
+
+.primary-button:hover {
+  border-color: #5ed8c0;
+  background: #5ed8c0;
   transform: translateY(-1px);
 }
 
-/* HERO */
+.primary-button--nav {
+  min-height: 40px;
+  padding: 0 17px;
+}
+
+.outline-button {
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.outline-button:hover {
+  border-color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.secondary-button {
+  border: 1px solid var(--landing-border);
+  color: var(--landing-primary);
+  background: #fff;
+}
+
+.secondary-button:hover {
+  border-color: var(--landing-primary);
+  background: #f8fafc;
+}
+
 .hero {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  align-items: center;
-  padding: 120px 48px 80px;
-  gap: 60px;
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--brand-pale);
-  border: 1px solid color-mix(in srgb, var(--brand) 55%, white);
-  border-radius: 100px;
-  padding: 6px 14px; font-size: 12px; font-weight: 500;
-  color: color-mix(in srgb, var(--brand) 60%, #4a4540);
-  margin-bottom: 28px;
-  animation: fadeUp 0.6s ease both;
-}
-.hero-badge::before {
-  content: ''; width: 6px; height: 6px;
-  border-radius: 50%; background: var(--brand);
-  animation: pulse 2s ease infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.4); }
-}
-
-.hero-title {
-  font-family: 'Sora', sans-serif;
-  font-size: clamp(38px, 4.5vw, 62px);
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -2px;
-  color: var(--ink);
-  animation: fadeUp 0.6s 0.1s ease both;
-}
-.hero-title em {
-  font-style: normal;
-  color: var(--brand);
   position: relative;
-}
-.hero-title em::after {
-  content: '';
-  position: absolute; bottom: 2px; left: 0; right: 0; height: 4px;
-  background: var(--brand-light);
-  border-radius: 2px; opacity: 0.5;
+  height: calc(100svh - 64px);
+  max-height: 760px;
+  padding-top: 68px;
+  display: flex;
+  align-items: center;
+  background-image:
+    linear-gradient(90deg, rgba(18, 30, 44, 0.93) 0%, rgba(18, 30, 44, 0.84) 35%, rgba(18, 30, 44, 0.36) 59%, rgba(18, 30, 44, 0.08) 100%),
+    url('/images/landing-home-records-hero.jpg');
+  background-position: center, center;
+  background-size: cover;
 }
 
-.hero-sub {
-  margin-top: 20px;
-  font-size: 17px; line-height: 1.75;
-  color: var(--ink-soft);
-  max-width: 520px;
-  animation: fadeUp 0.6s 0.2s ease both;
+.hero-content {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-bottom: 8px;
+}
+
+.eyebrow {
+  margin-bottom: 20px;
+  color: #6ee3cb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.eyebrow--dark {
+  color: var(--landing-accent-dark);
+}
+
+.eyebrow--mint {
+  color: #71e2cf;
+}
+
+.hero h1 {
+  max-width: 570px;
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.hero-copy {
+  max-width: 490px;
+  margin: 22px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .hero-actions {
-  display: flex; align-items: center; gap: 16px;
-  margin-top: 36px;
-  animation: fadeUp 0.6s 0.3s ease both;
-}
-
-.btn-primary {
-  background: var(--brand); color: white;
-  border: 1px solid var(--brand-dark);
-  padding: 14px 28px;
-  border-radius: 100px; font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
-  font-family: 'Noto Sans SC', sans-serif;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-}
-.btn-primary:hover { background: var(--brand-dark); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22); }
-
-.btn-ghost {
-  background: none; color: var(--ink-soft);
-  border: 1px solid var(--border);
-  padding: 14px 24px; border-radius: 100px;
-  font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: all 0.2s;
-  font-family: 'Noto Sans SC', sans-serif;
-}
-.btn-ghost:hover { border-color: var(--brand); color: var(--brand); }
-
-.hero-stats {
-  display: flex; gap: 32px; margin-top: 48px;
-  padding-top: 32px;
-  border-top: 1px solid var(--border);
-  animation: fadeUp 0.6s 0.4s ease both;
-}
-
-.stat-num {
-  font-family: 'Sora', sans-serif;
-  font-size: 28px; font-weight: 800; color: var(--ink);
-  letter-spacing: -1px;
-}
-.stat-num span { color: var(--brand); }
-.stat-label { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
-
-/* HERO VISUAL */
-.hero-visual {
-  animation: fadeUp 0.6s 0.2s ease both;
-  position: relative;
-}
-
-.dashboard-card {
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 20px 60px var(--shadow), 0 2px 8px rgba(0,0,0,0.05);
-  border: 1px solid var(--border);
-}
-
-.dc-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px;
-}
-.dc-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-.dc-date { font-size: 12px; color: var(--ink-soft); }
-
-.property-list { display: flex; flex-direction: column; gap: 10px; }
-.property-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--cream);
-  border: 1px solid var(--border);
-  transition: all 0.2s;
-}
-.property-item:hover { background: var(--brand-pale); border-color: color-mix(in srgb, var(--brand) 55%, white); }
-.prop-icon {
-  width: 36px; height: 36px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; flex-shrink: 0;
-}
-.prop-icon.a { background: var(--brand-pale); }
-.prop-icon.b { background: var(--teal-light); }
-.prop-icon.c { background: #ede9f5; }
-.prop-info { flex: 1; min-width: 0; }
-.prop-name { font-size: 13px; font-weight: 600; color: var(--ink); }
-.prop-addr { font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.prop-status {
-  font-size: 11px; font-weight: 600; padding: 3px 8px;
-  border-radius: 100px;
-}
-.prop-status.ok { background: #e3f5e8; color: #1a7a35; }
-.prop-status.warn { background: var(--brand-pale); color: var(--brand-dark); }
-
-.tobby-card {
-  margin-top: 14px;
-  background: linear-gradient(135deg, #1a1612 0%, #2d2520 100%);
-  border-radius: 16px;
-  padding: 16px 18px;
-  display: flex; align-items: flex-start; gap: 12px;
-}
-.tobby-avatar {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-light) 100%);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; flex-shrink: 0;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent);
-}
-.tobby-content { flex: 1; }
-.tobby-name { font-size: 11px; color: var(--brand-light); font-weight: 600; margin-bottom: 4px; }
-.tobby-msg { font-size: 12px; color: rgba(255,255,255,0.85); line-height: 1.5; }
-.tobby-msg strong { color: var(--brand-light); }
-
-.mini-metrics {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px; margin-top: 14px;
-}
-.metric-box {
-  background: var(--cream);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  text-align: center;
-}
-.metric-val {
-  font-family: 'Sora', sans-serif;
-  font-size: 20px; font-weight: 700; color: var(--ink);
-}
-.metric-val.up { color: var(--teal); }
-.metric-lbl { font-size: 10px; color: var(--ink-soft); margin-top: 2px; }
-
-.float-tag {
-  position: absolute;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
-  box-shadow: 0 8px 24px var(--shadow);
-  font-size: 12px; font-weight: 600; color: var(--ink);
-  white-space: nowrap;
-  animation: float 3s ease-in-out infinite;
-}
-.float-tag.t1 { top: -20px; right: -10px; animation-delay: 0s; }
-.float-tag.t2 { bottom: 30px; left: -20px; animation-delay: 1.5s; }
-.float-tag .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
-.float-tag .dot.g { background: #2db86d; }
-.float-tag .dot.o { background: var(--brand); }
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* SECTION BASE */
-section { padding: 100px 48px; }
-.section-inner { max-width: 1280px; margin: 0 auto; }
-.section-label {
-  font-size: 12px; font-weight: 600; letter-spacing: 2px;
-  color: var(--brand); text-transform: uppercase; margin-bottom: 16px;
-}
-.section-title {
-  font-family: 'Sora', sans-serif;
-  font-size: clamp(28px, 3.5vw, 46px);
-  font-weight: 800; letter-spacing: -1.5px;
-  line-height: 1.15; color: var(--ink);
-  max-width: 620px;
-}
-.section-sub {
-  font-size: 16px; color: var(--ink-soft);
-  line-height: 1.7; max-width: 520px;
-  margin-top: 16px;
-}
-
-/* FEATURES */
-.features-section { background: var(--paper); }
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-top: 56px;
-}
-.feature-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 28px;
-  transition: all 0.3s;
-  position: relative; overflow: hidden;
-}
-.feature-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--brand), var(--brand-light));
-  transform: scaleX(0); transform-origin: left;
-  transition: transform 0.3s;
-}
-.feature-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px var(--shadow); }
-.feature-card:hover::before { transform: scaleX(1); }
-.feature-icon {
-  width: 48px; height: 48px; border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; margin-bottom: 20px;
-}
-.fi-brand { background: var(--brand-pale); }
-.fi-teal { background: var(--teal-light); }
-.fi-purple { background: #ede9f5; }
-.fi-blue { background: #e5f0fd; }
-.fi-green { background: #e3f5e8; }
-.fi-red { background: #fde8e3; }
-.feature-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
-.feature-desc { font-size: 14px; color: var(--ink-soft); line-height: 1.65; }
-
-/* AI SECTION */
-.tobby-section {
-  background: linear-gradient(135deg, #1a1612 0%, #2a2018 100%);
-  position: relative; overflow: hidden;
-}
-.tobby-section::before {
-  content: '';
-  position: absolute; top: -200px; right: -200px;
-  width: 600px; height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(26,22,18,0.35) 0%, transparent 70%);
-}
-.tobby-inner {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 80px; align-items: center;
-}
-.tobby-left .section-label { color: var(--brand-light); }
-.tobby-left .section-title { color: white; }
-.tobby-left .section-sub { color: rgba(255,255,255,0.65); }
-
-.tobby-demo {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24px;
-  padding: 24px;
-}
-.chat-bubble { display: flex; gap: 10px; margin-bottom: 16px; }
-.chat-bubble.user { flex-direction: row-reverse; }
-.chat-av {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; flex-shrink: 0;
-}
-.chat-av.tobby-av { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-light) 100%); }
-.chat-text {
-  max-width: 80%;
-  padding: 10px 14px; border-radius: 16px;
-  font-size: 13px; line-height: 1.55;
-}
-.chat-bubble.ai .chat-text {
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.9);
-  border-bottom-left-radius: 4px;
-}
-.chat-bubble.user .chat-text {
-  background: var(--brand);
-  color: white;
-  border-bottom-right-radius: 4px;
-}
-.tobby-features-list { margin-top: 32px; display: flex; flex-direction: column; gap: 14px; }
-.tfl-item {
-  display: flex; align-items: center; gap: 12px;
-  font-size: 14px; color: rgba(255,255,255,0.75);
-}
-.tfl-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: color-mix(in srgb, var(--brand) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
-  display: flex; align-items: center; justify-content: center; font-size: 14px;
-  flex-shrink: 0;
-}
-
-/* HOW IT WORKS */
-.steps-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 0; margin-top: 56px;
-  position: relative;
-}
-.steps-grid::before {
-  content: '';
-  position: absolute; top: 28px; left: 14%; right: 14%;
-  height: 1px;
-  background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 6px, transparent 6px, transparent 14px);
-}
-.step-item { padding: 0 20px; text-align: center; }
-.step-num {
-  width: 56px; height: 56px; border-radius: 50%;
-  background: white; border: 2px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Sora', sans-serif;
-  font-size: 18px; font-weight: 800; color: var(--brand);
-  margin: 0 auto 20px;
-  position: relative; z-index: 1;
-  box-shadow: 0 4px 12px var(--shadow);
-}
-.step-title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
-.step-desc { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
-
-/* TESTIMONIALS */
-.testimonials-section { background: var(--paper); }
-.testimonials-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 20px; margin-top: 56px;
-}
-.testi-card {
-  background: white; border: 1px solid var(--border);
-  border-radius: 20px; padding: 28px;
-  transition: all 0.3s;
-}
-.testi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px var(--shadow); }
-.testi-stars { color: var(--brand); font-size: 14px; margin-bottom: 14px; }
-.testi-text { font-size: 14px; line-height: 1.7; color: var(--ink-soft); margin-bottom: 20px; }
-.testi-text strong { color: var(--ink); }
-.testi-author { display: flex; align-items: center; gap: 10px; }
-.testi-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: 700; color: white;
-}
-.av1 { background: linear-gradient(135deg, var(--brand), var(--brand-light)); }
-.av2 { background: linear-gradient(135deg, #1a8c7a, #2db5a0); }
-.av3 { background: linear-gradient(135deg, #6b5ce7, #9580ff); }
-.testi-name { font-size: 13px; font-weight: 700; color: var(--ink); }
-.testi-role { font-size: 11px; color: var(--ink-soft); }
-
-/* WORKSPACES */
-.section-wrap { background: var(--paper); }
-.role-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 40px;
-}
-
-.role-card {
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: white;
-  color: var(--ink);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 10px 28px var(--shadow);
-}
-
-.role-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--brand) 55%, white);
-  box-shadow: 0 18px 40px var(--shadow);
-}
-
-.role-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
   display: flex;
   align-items: center;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.hero-signals {
+  display: flex;
+  gap: 25px;
+  margin-top: 48px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hero-signals span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hero-signals .q-icon {
+  color: #71e2cf;
+  font-size: 17px;
+}
+
+.workspace-section,
+.management-section,
+.routine-section,
+.cta-section {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.workspace-section {
+  padding: 72px 24px 78px;
+}
+
+.section-heading {
+  max-width: 690px;
+  margin: 0 auto 38px;
+  text-align: center;
+}
+
+.section-heading h2,
+.routine-copy h2,
+.service-inner h2,
+.cta-section h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 36px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.section-heading p,
+.routine-copy p,
+.service-inner p,
+.cta-section p {
+  margin: 14px 0 0;
+  color: var(--landing-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.product-frame {
+  border: 1px solid var(--landing-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #eef2f8;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+}
+
+.product-header {
+  height: 58px;
+  padding: 0 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  border-bottom: 1px solid var(--landing-border);
+  background: #fff;
+}
+
+.product-brand {
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--landing-primary);
+}
+
+.product-title {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.product-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  color: var(--landing-primary);
+  font-size: 20px;
+}
+
+.product-columns {
+  display: grid;
+  grid-template-columns: 204px minmax(0, 1fr) 214px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.preview-properties,
+.preview-main,
+.preview-rail {
+  min-width: 0;
+  border: 1px solid #e4eaf2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.preview-properties,
+.preview-rail {
+  padding: 14px;
+}
+
+.preview-label {
+  margin-bottom: 12px;
+  color: var(--landing-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-property {
+  width: 100%;
+  margin-bottom: 7px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+  background: transparent;
+  color: var(--landing-ink);
+}
+
+.preview-property--active {
+  border-color: rgba(39, 194, 164, 0.24);
+  background: #e9fbf7;
+}
+
+.preview-property span {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-property small {
+  display: block;
+  margin-top: 3px;
+  color: var(--landing-muted);
+  font-size: 11px;
+}
+
+.preview-main {
+  padding: 12px;
+}
+
+.preview-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.preview-toolbar span {
+  flex: 1;
+  min-height: 36px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e4eaf2;
+  border-radius: 6px;
+  color: #8795a8;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.preview-toolbar button,
+.rail-action {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--landing-primary);
+  border-radius: 6px;
+  color: #fff;
+  background: var(--landing-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview-source-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.preview-source {
+  min-height: 50px;
+  padding: 8px 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #e4eaf2;
+  border-radius: 6px;
+  color: var(--landing-muted);
+  font-size: 11px;
+}
+
+.preview-source--selected {
+  border-color: rgba(39, 194, 164, 0.35);
+  background: #e9fbf7;
+}
+
+.preview-source strong {
+  color: var(--landing-ink);
+  font-size: 16px;
+}
+
+.preview-files {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preview-file {
+  min-height: 104px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid #e4eaf2;
+  border-radius: 6px;
+}
+
+.preview-file .q-icon {
+  font-size: 23px;
+}
+
+.file-pdf {
+  color: #dc2626;
+}
+
+.file-doc {
+  color: var(--landing-accent-dark);
+}
+
+.preview-file strong {
+  font-size: 13px;
+}
+
+.preview-file small {
+  color: var(--landing-muted);
+  font-size: 11px;
+}
+
+.rail-item {
+  margin-bottom: 8px;
+  padding: 11px 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  border: 1px solid #e4eaf2;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.rail-item span {
+  color: var(--landing-muted);
+}
+
+.rail-action {
+  width: 100%;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-top: 7px;
 }
 
-.role-pmpo { background: linear-gradient(135deg, #1a8c7a, #2db5a0); }
-.role-sp { background: linear-gradient(135deg, var(--brand), var(--brand-light)); }
-
-.role-name { font-weight: 700; margin-bottom: 6px; font-size: 1rem; }
-.role-desc { font-size: 0.9rem; color: var(--ink-soft); }
-
-/* CTA */
-.cta-section { text-align: center; background: var(--cream); }
-.cta-box {
-  max-width: 640px; margin: 0 auto;
-  background: linear-gradient(135deg, #1a1612 0%, #2a2018 100%);
-  border-radius: 32px; padding: 60px 40px;
-  position: relative; overflow: hidden;
+.management-section {
+  padding: 10px 24px 76px;
 }
-.cta-box::before {
-  content: '';
-  position: absolute; top: -100px; right: -100px;
-  width: 300px; height: 300px; border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 30%, transparent) 0%, transparent 70%);
-}
-.cta-box .section-title { color: white; max-width: none; }
-.cta-box .section-sub { color: rgba(255,255,255,0.6); max-width: none; margin: 0 auto; }
-.cta-actions { display: flex; gap: 14px; justify-content: center; margin-top: 36px; }
-.cta-ghost { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
 
-/* FOOTER */
-footer {
-  background: var(--ink);
-  padding: 40px 48px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 20px;
+.section-heading--left {
+  margin: 0 0 38px;
+  text-align: left;
+  max-width: 660px;
 }
-.footer-logo {
-  font-family: 'Sora', sans-serif;
-  font-weight: 800; font-size: 20px; color: white;
-}
-.footer-links { display: flex; gap: 28px; }
-.footer-links a { font-size: 13px; color: rgba(255,255,255,0.5); text-decoration: none; }
-.footer-links a:hover { color: var(--brand); }
-.footer-copy { font-size: 12px; color: rgba(255,255,255,0.3); }
 
-/* RESPONSIVE */
+.management-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--landing-border);
+  border-bottom: 1px solid var(--landing-border);
+}
+
+.management-grid article {
+  padding: 32px 30px 34px 0;
+}
+
+.management-grid article + article {
+  padding-left: 30px;
+  border-left: 1px solid var(--landing-border);
+}
+
+.management-grid .q-icon {
+  margin-bottom: 18px;
+  color: var(--landing-accent-dark);
+  font-size: 25px;
+}
+
+.management-grid h3 {
+  margin: 0 0 9px;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.management-grid p {
+  margin: 0;
+  color: var(--landing-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.routine-section {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 0.8fr);
+  gap: 72px;
+  padding: 0 24px 86px;
+  align-items: center;
+}
+
+.routine-flow {
+  border: 1px solid var(--landing-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 20px;
+}
+
+.flow-line {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.flow-line + .flow-line {
+  border-top: 1px solid var(--landing-border);
+}
+
+.flow-icon {
+  width: 39px;
+  height: 39px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--landing-accent-dark);
+  background: #e9fbf7;
+  font-size: 21px;
+}
+
+.flow-line strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.flow-line small {
+  color: var(--landing-muted);
+  font-size: 12px;
+}
+
+.service-section {
+  padding: 68px 24px;
+  color: #fff;
+  background: var(--landing-primary);
+}
+
+.service-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 0.85fr;
+  gap: 38px 60px;
+  align-items: start;
+}
+
+.service-inner h2 {
+  color: #fff;
+  font-size: 31px;
+}
+
+.service-inner p {
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 35px;
+}
+
+.service-tags {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+}
+
+.service-tags span {
+  min-height: 40px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(113, 226, 207, 0.28);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+}
+
+.service-tags .q-icon {
+  color: #71e2cf;
+  font-size: 18px;
+}
+
+.cta-section {
+  padding: 74px 24px 82px;
+  text-align: center;
+}
+
+.cta-section p {
+  max-width: 510px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-actions {
+  margin-top: 29px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.site-footer {
+  min-height: 74px;
+  padding: 18px clamp(20px, 5vw, 56px);
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  color: var(--landing-muted);
+  border-top: 1px solid var(--landing-border);
+  background: #fff;
+}
+
+.footer-wordmark {
+  font-family: var(--font-title);
+  color: var(--landing-primary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.footer-links {
+  display: flex;
+  gap: 22px;
+}
+
+.footer-links a {
+  color: var(--landing-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--landing-primary);
+}
+
+.footer-copy {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+@media (max-height: 650px) and (min-width: 769px) {
+  .hero h1 {
+    font-size: 43px;
+  }
+
+  .hero-copy {
+    margin-top: 14px;
+    font-size: 15px;
+  }
+
+  .hero-actions {
+    margin-top: 22px;
+  }
+
+  .hero-signals {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
-  .landing-nav { padding: 16px 24px; }
-  .nav-links { display: none; }
-  .hero { grid-template-columns: 1fr; padding: 100px 24px 60px; }
-  .hero-visual { display: none; }
-  section { padding: 70px 24px; }
-  .features-grid { grid-template-columns: 1fr; }
-  .tobby-inner { grid-template-columns: 1fr; }
-  .steps-grid { grid-template-columns: 1fr 1fr; }
-  .testimonials-grid { grid-template-columns: 1fr; }
-  .role-grid { grid-template-columns: 1fr; }
-  footer { padding: 32px 24px; flex-direction: column; align-items: flex-start; }
-  .steps-grid::before { display: none; }
+  .site-header {
+    height: 64px;
+    gap: 14px;
+    padding: 0 18px;
+  }
+
+  .site-links {
+    display: none;
+  }
+
+  .wordmark {
+    font-size: 21px;
+  }
+
+  .primary-button--nav {
+    display: none;
+  }
+
+  .hero {
+    height: calc(100svh - 54px);
+    max-height: none;
+    padding-top: 64px;
+    background-image:
+      linear-gradient(90deg, rgba(18, 30, 44, 0.94) 0%, rgba(18, 30, 44, 0.83) 66%, rgba(18, 30, 44, 0.44) 100%),
+      url('/images/landing-home-records-hero.jpg');
+    background-position: center, 17% center;
+  }
+
+  .hero-content {
+    width: calc(100% - 40px);
+  }
+
+  .hero h1 {
+    max-width: 390px;
+    font-size: 41px;
+  }
+
+  .hero-copy {
+    max-width: 360px;
+    font-size: 15px;
+  }
+
+  .hero-signals {
+    gap: 15px;
+    margin-top: 37px;
+    font-size: 12px;
+  }
+
+  .workspace-section {
+    padding: 56px 20px 58px;
+  }
+
+  .section-heading h2,
+  .routine-copy h2,
+  .service-inner h2,
+  .cta-section h2 {
+    font-size: 29px;
+  }
+
+  .product-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-properties,
+  .preview-rail {
+    display: none;
+  }
+
+  .management-section {
+    padding: 0 20px 54px;
+  }
+
+  .management-grid {
+    display: block;
+  }
+
+  .management-grid article,
+  .management-grid article + article {
+    padding: 25px 0;
+    border-left: 0;
+  }
+
+  .management-grid article + article {
+    border-top: 1px solid var(--landing-border);
+  }
+
+  .routine-section {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 0 20px 62px;
+  }
+
+  .service-section {
+    padding: 52px 20px;
+  }
+
+  .service-inner {
+    display: block;
+  }
+
+  .service-inner p {
+    margin-top: 18px;
+  }
+
+  .service-tags {
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+
+  .cta-section {
+    padding: 55px 20px 60px;
+  }
+
+  .site-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 17px;
+  }
+
+  .footer-copy {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-button {
+    padding: 0 5px;
+  }
+
+  .hero h1 {
+    font-size: 35px;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 27px;
+  }
+
+  .hero-signals {
+    flex-wrap: wrap;
+    margin-top: 25px;
+  }
+
+  .preview-source-row,
+  .preview-files {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 680px) and (max-width: 900px) {
+  .eyebrow {
+    margin-bottom: 12px;
+  }
+
+  .hero h1 {
+    font-size: 31px;
+  }
+
+  .hero-copy {
+    margin-top: 13px;
+    line-height: 1.48;
+  }
+
+  .hero-actions {
+    margin-top: 18px;
+  }
+
+  .hero-signals {
+    display: none;
+  }
 }
 </style>

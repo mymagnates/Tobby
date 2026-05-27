@@ -30,6 +30,36 @@ export function useFirebase() {
   const error = ref(null)
   const userDataStore = useUserDataStore()
 
+  const waitForAuthenticatedUser = async () => {
+    if (auth.currentUser) return auth.currentUser
+
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady()
+      if (auth.currentUser) return auth.currentUser
+    }
+
+    const currentUser = await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        unsubscribe()
+        resolve(null)
+      }, 5000)
+      const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        clearTimeout(timeout)
+        unsubscribe()
+        resolve(nextUser)
+      })
+    })
+
+    if (!currentUser) {
+      const authError = new Error('User is not authenticated. Please sign in again before uploading.')
+      authError.code = 'storage/unauthenticated'
+      throw authError
+    }
+
+    await currentUser.getIdToken()
+    return currentUser
+  }
+
   // Auth state observer
   onAuthStateChanged(auth, async (currentUser) => {
     user.value = currentUser
@@ -318,6 +348,7 @@ export function useFirebase() {
     try {
       loading.value = true
       error.value = null
+      await waitForAuthenticatedUser()
       const fileRef = storageRef(storage, path)
       const snapshot = await uploadBytes(fileRef, file)
       const downloadURL = await getDownloadURL(snapshot.ref)
@@ -346,7 +377,15 @@ export function useFirebase() {
 
   // Upload multiple images with property name + datetime + random naming
   const uploadImages = async (files, propertyId, context = 'mxrecord') => {
-    if (!files || files.length === 0) return []
+    const normalizedFiles = Array.isArray(files)
+      ? files.filter(Boolean)
+      : typeof File !== 'undefined' && files instanceof File
+        ? [files]
+        : files && typeof files.length === 'number'
+          ? Array.from(files).filter(Boolean)
+          : []
+
+    if (normalizedFiles.length === 0) return []
 
     try {
       loading.value = true
@@ -360,9 +399,10 @@ export function useFirebase() {
       const now = new Date()
       const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
 
-      console.log(`Uploading ${files.length} images for property: ${propertyName} (${propertyId})`)
+      console.log(`Uploading ${normalizedFiles.length} images for property: ${propertyName} (${propertyId})`)
+      await waitForAuthenticatedUser()
 
-      const uploadPromises = files.map(async (file, index) => {
+      const uploadPromises = normalizedFiles.map(async (file, index) => {
         // Generate random number for uniqueness
         const randomNum = Math.floor(Math.random() * 10000)
           .toString()
@@ -401,7 +441,7 @@ export function useFirebase() {
       })
 
       const uploadResults = await Promise.all(uploadPromises)
-      console.log(`All ${files.length} images uploaded successfully`)
+      console.log(`All ${normalizedFiles.length} images uploaded successfully`)
 
       return uploadResults.map((result) => result.url) // Return just the URLs for backward compatibility
     } catch (err) {
@@ -415,7 +455,15 @@ export function useFirebase() {
 
   // Upload multiple images with detailed results (including storage paths)
   const uploadImagesWithDetails = async (files, propertyId, context = 'mxrecord') => {
-    if (!files || files.length === 0) return []
+    const normalizedFiles = Array.isArray(files)
+      ? files.filter(Boolean)
+      : typeof File !== 'undefined' && files instanceof File
+        ? [files]
+        : files && typeof files.length === 'number'
+          ? Array.from(files).filter(Boolean)
+          : []
+
+    if (normalizedFiles.length === 0) return []
 
     try {
       loading.value = true
@@ -430,10 +478,11 @@ export function useFirebase() {
       const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
 
       console.log(
-        `Uploading ${files.length} files with details for property: ${propertyName} (${propertyId})`,
+        `Uploading ${normalizedFiles.length} files with details for property: ${propertyName} (${propertyId})`,
       )
+      await waitForAuthenticatedUser()
 
-      const uploadPromises = files.map(async (file, index) => {
+      const uploadPromises = normalizedFiles.map(async (file, index) => {
         // Generate random number for uniqueness
         const randomNum = Math.floor(Math.random() * 10000)
           .toString()
@@ -472,7 +521,7 @@ export function useFirebase() {
       })
 
       const uploadResults = await Promise.all(uploadPromises)
-      console.log(`All ${files.length} files uploaded successfully with details`)
+      console.log(`All ${normalizedFiles.length} files uploaded successfully with details`)
 
       return uploadResults // Return full details including storage paths
     } catch (err) {

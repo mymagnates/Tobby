@@ -4,6 +4,7 @@
       <q-card-section class="row items-center q-py-sm q-px-md">
         <div class="text-subtitle1 text-weight-medium">Invoices</div>
         <q-space />
+        <q-btn flat no-caps icon="arrow_back" label="Back" class="q-mr-sm" @click="goBack" />
         <q-btn color="primary" dense label="Create Invoice" @click="openCreateDialog" />
       </q-card-section>
 
@@ -65,11 +66,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spPortalApi } from 'src/services/webApiClient'
 
 const userStore = useUserDataStore()
+const router = useRouter()
 const loading = ref(false)
 const creating = ref(false)
 const createDialog = ref(false)
@@ -93,6 +96,14 @@ const columns = [
 ]
 
 const projectOptions = computed(() => projects.value.map((row) => ({ label: row.title, value: row.project_id })))
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/sp-dashboard')
+}
 
 const loadData = async () => {
   loading.value = true

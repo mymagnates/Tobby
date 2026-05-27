@@ -31,73 +31,94 @@
       </div>
     </div>
 
-    <!-- 3-column Feed Layout -->
+    <!-- 2-column Feed Layout -->
     <div v-else class="feed-shell">
-      <!-- Left Rail: Projects -->
-      <aside class="feed-reminders">
-        <q-card class="rail-card">
-          <q-card-section class="q-pa-sm">
-            <div class="rail-title">Active Projects</div>
-            <div v-if="!openProjects.length" class="rail-empty">
-              <q-icon name="engineering" size="32px" color="grey-4" />
-              <div class="rail-empty-text">No active projects</div>
-            </div>
-            <div v-else class="project-rail-list">
-              <div
-                v-for="proj in openProjects"
-                :key="proj.project_id"
-                class="project-rail-item project-rail-clickable"
-                @click="showProjectDetail(proj.project_id)"
-              >
-                <div class="project-rail-left">
-                  <div class="project-rail-title">{{ proj.task_title || `Project ${proj.project_id}` }}</div>
-                  <div class="project-rail-meta">
-                    <q-icon name="location_on" size="12px" class="q-mr-xs" />{{ proj.address || 'N/A' }}
-                  </div>
-                </div>
-                <q-chip dense size="sm" :color="proj.status === 'completed' ? 'green' : proj.status === 'in_progress' ? 'blue' : 'amber'" text-color="white" class="project-rail-status">
-                  {{ proj.status || 'active' }}
-                </q-chip>
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </aside>
-
-      <!-- Main Feed -->
-      <div class="feed-main">
-        <!-- Stats row -->
-        <div class="feed-stats-row q-mb-md">
-          <q-card class="stat-card-mini">
+      <!-- Right Rail: Stats / Tobby -->
+      <aside class="feed-reminders" :class="{ 'feed-reminders--assistant': assistantRailOpen }">
+        <div v-if="!assistantRailOpen" class="sp-stats-rail">
+          <q-card class="stat-card-mini stat-card-rail">
             <q-card-section class="q-pa-sm">
               <q-icon name="campaign" size="20px" color="primary" />
               <div class="stat-mini-value">{{ newLeadCount }}</div>
               <div class="stat-mini-label">New Leads</div>
             </q-card-section>
           </q-card>
-          <q-card class="stat-card-mini">
+          <q-card class="stat-card-mini stat-card-rail">
             <q-card-section class="q-pa-sm">
               <q-icon name="gavel" size="20px" color="positive" />
               <div class="stat-mini-value">{{ totalBids }}</div>
               <div class="stat-mini-label">Bids</div>
             </q-card-section>
           </q-card>
-          <q-card class="stat-card-mini">
+          <q-card class="stat-card-mini stat-card-rail">
             <q-card-section class="q-pa-sm">
               <q-icon name="engineering" size="20px" color="warning" />
               <div class="stat-mini-value">{{ totalProjects }}</div>
               <div class="stat-mini-label">Projects</div>
             </q-card-section>
           </q-card>
-          <q-card class="stat-card-mini">
+          <q-card class="stat-card-mini stat-card-rail">
             <q-card-section class="q-pa-sm">
               <q-icon name="trending_up" size="20px" color="info" />
               <div class="stat-mini-value">{{ bidSuccessRate }}%</div>
               <div class="stat-mini-label">Win Rate</div>
             </q-card-section>
           </q-card>
+          <q-card class="stat-card-mini stat-card-rail talk-card">
+            <q-card-section class="q-pa-sm">
+              <div class="text-subtitle2 text-weight-medium q-mb-xs">Talk to Tobby</div>
+              <div class="text-caption text-grey-7 q-mb-sm">
+                Open the assistant without leaving the SP workspace.
+              </div>
+              <q-btn unelevated color="primary" no-caps icon="chat" label="Talk to Tobby" @click="openAssistant" />
+            </q-card-section>
+          </q-card>
         </div>
+        <q-card v-else class="sp-assistant-card">
+          <q-card-section class="sp-assistant-header">
+            <div>
+              <div class="sp-assistant-title">
+                <q-icon name="smart_toy" size="18px" class="q-mr-xs" />
+                Tobby
+              </div>
+              <div class="sp-assistant-subtitle">SP workspace assistant</div>
+            </div>
+            <q-btn flat round dense icon="close" size="sm" @click="assistantRailOpen = false" />
+          </q-card-section>
+          <q-separator />
+          <q-card-section class="sp-assistant-body">
+            <div class="sp-assistant-messages">
+              <div
+                v-for="message in assistantMessages"
+                :key="message.id"
+                class="sp-assistant-message"
+                :class="`sp-assistant-message--${message.role}`"
+              >
+                {{ message.text }}
+              </div>
+            </div>
+            <q-input
+              v-model="assistantInput"
+              type="textarea"
+              outlined
+              autogrow
+              dense
+              label="Ask Tobby"
+              :disable="assistantLoading"
+              class="sp-assistant-input"
+              @keyup.enter.exact.prevent="sendAssistantMessage"
+            />
+            <div class="sp-assistant-actions">
+              <q-btn unelevated color="primary" label="Send" :loading="assistantLoading" @click="sendAssistantMessage" />
+              <q-btn flat label="Clear" @click="resetAssistant" />
+            </div>
+            <div v-if="assistantError" class="text-negative text-caption">{{ assistantError }}</div>
+          </q-card-section>
+        </q-card>
+      </aside>
 
+      <!-- Main Feed -->
+      <div class="feed-main">
         <!-- Quick Actions -->
         <q-card class="create-new-card q-mb-md">
           <q-card-section class="create-new-section">
@@ -109,6 +130,7 @@
               <q-btn flat dense no-caps icon="receipt_long" label="Invoices" :color="feedView === 'invoices' ? 'primary' : 'grey-7'" @click="setFeedView('invoices')" />
               <q-btn flat dense no-caps icon="handyman" label="Services" color="grey-7" @click="goToServices" />
               <q-btn flat dense no-caps icon="token" label="Credits" color="grey-7" @click="goToCredits" />
+              <q-btn flat dense no-caps icon="dashboard_customize" label="Build Handout" color="grey-7" @click="goToBuildHandout" />
               <q-btn flat dense no-caps icon="edit" label="Edit Profile" color="grey-7" @click="goToEditProfile" />
               <div class="feed-sort-group">
                 <span class="feed-sort-label">Sort</span>
@@ -230,7 +252,7 @@
                     </div>
                     <div class="post-body">${{ Number(bid.amount || 0).toLocaleString() }} · {{ bid.status || 'pending' }}</div>
                     <div class="feed-card-footer">
-                      <q-chip dense size="xs" :color="bid.status === 'selected' ? 'green' : bid.status === 'rejected' ? 'red' : 'amber'" text-color="white">{{ bid.status === 'selected' ? 'Won' : bid.status || 'pending' }}</q-chip>
+                      <q-chip dense size="xs" :color="bid.status === 'accepted' ? 'green' : bid.status === 'rejected' ? 'red' : bid.status === 'expired' ? 'orange' : 'amber'" text-color="white">{{ bid.status === 'accepted' ? 'Accepted' : bid.status || 'pending' }}</q-chip>
                       <span></span>
                     </div>
                   </div>
@@ -244,7 +266,7 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <span class="detail-label">Status</span>
-                        <q-chip dense size="sm" :color="bid.status === 'selected' ? 'green' : bid.status === 'rejected' ? 'red' : 'amber'" text-color="white">{{ bid.status || 'pending' }}</q-chip>
+                        <q-chip dense size="sm" :color="bid.status === 'accepted' ? 'green' : bid.status === 'rejected' ? 'red' : bid.status === 'expired' ? 'orange' : 'amber'" text-color="white">{{ bid.status || 'pending' }}</q-chip>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Amount</span>
@@ -289,6 +311,15 @@
                 icon="open_in_new"
                 label="Open Handout Page"
                 @click="goToPostsPage"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                color="primary"
+                icon="dashboard_customize"
+                label="Build Handout"
+                @click="goToBuildHandout"
               />
             </div>
 
@@ -530,28 +561,11 @@
 
     </div>
 
-    <!-- Submit Bid Dialog -->
-    <q-dialog v-model="showBidDialog">
-      <q-card style="min-width: 380px; max-width: 480px;">
-        <q-card-section class="row items-center justify-between q-pb-none">
-          <div class="text-subtitle1 text-weight-bold">Submit Bid</div>
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-        <q-separator class="q-mt-sm" />
-        <q-card-section>
-        <div v-if="bidTargetLead" class="q-mb-md text-body2">
-          <strong>Lead:</strong> {{ bidTargetLead.title }}<br/>
-          <span class="text-grey-7">{{ getLeadCityStateZip(bidTargetLead) }} · {{ bidTargetLead.budget_range || '' }}</span>
-        </div>
-          <q-input v-model="bidAmount" label="Bid Amount ($)" outlined dense type="number" class="q-mb-md" />
-          <q-input v-model="bidNote" label="Message / Note" outlined dense type="textarea" autogrow />
-        </q-card-section>
-        <q-card-actions align="right" class="q-px-md q-pb-md">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Submit" :disable="!bidAmount" :loading="submittingBid" @click="handleSubmitBid" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <SpBidDialog
+      v-model="showBidDialog"
+      :lead="bidTargetLead"
+      @submitted="handleBidSubmitted"
+    />
 
     <q-dialog v-model="showCreatePostDialog">
       <q-card style="min-width: 420px; max-width: 520px;">
@@ -606,9 +620,10 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
-import { spPortalApi } from 'src/services/webApiClient'
+import { agentApi, spPortalApi } from 'src/services/webApiClient'
 import { useFirebase } from 'src/composables/useFirebase'
 import { resolveSpSlug } from 'src/utils/spPosts'
+import SpBidDialog from 'src/components/SpBidDialog.vue'
 
 const userStore = useUserDataStore()
 const router = useRouter()
@@ -642,7 +657,7 @@ const dataLoaded = computed(() => {
 const newLeadCount = computed(() => leads.value.filter((r) => r.status === 'open').length)
 const totalBids = computed(() => bids.value.length)
 const totalProjects = computed(() => projects.value.length)
-const successfulBidCount = computed(() => bids.value.filter((r) => r.status === 'selected').length)
+const successfulBidCount = computed(() => bids.value.filter((r) => r.status === 'accepted').length)
 const bidSuccessRate = computed(() => {
   if (!totalBids.value) return 0
   return Math.round((successfulBidCount.value / totalBids.value) * 100)
@@ -663,6 +678,10 @@ const goToCredits = () => {
   router.push('/sp-credits')
 }
 
+const goToBuildHandout = () => {
+  router.push('/sp-handout-builder')
+}
+
 const goToEditProfile = () => {
   router.push('/sp-profile')
 }
@@ -670,11 +689,89 @@ const goToEditProfile = () => {
 const goToShowcase = () => {
   const slug = resolveSpSlug(userStore.userProfile || {}, userStore.userId || userStore.user?.uid || '')
   if (!slug) return
-  router.push({ path: `/public/handout/${slug}` })
+  window.open(`/public/handout/${slug}`, '_blank', 'noopener,noreferrer')
 }
 
 const goToPostsPage = () => {
   goToShowcase()
+}
+
+const assistantRailOpen = ref(false)
+const assistantInput = ref('')
+const assistantLoading = ref(false)
+const assistantError = ref('')
+const createAssistantMessage = (payload) => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  ...payload,
+})
+const assistantMessages = ref([
+  createAssistantMessage({
+    role: 'assistant',
+    text: 'Tell me what you need for leads, bids, projects, credits, or Handout content.',
+  }),
+])
+
+const openAssistant = () => {
+  assistantRailOpen.value = true
+}
+
+const resetAssistant = () => {
+  assistantInput.value = ''
+  assistantError.value = ''
+  assistantMessages.value = [
+    createAssistantMessage({
+      role: 'assistant',
+      text: 'Tell me what you need for leads, bids, projects, credits, or Handout content.',
+    }),
+  ]
+}
+
+const getAssistantResponseText = (response) => {
+  if (response?.message) return response.message
+  if (response?.draft) {
+    const draft = response.draft
+    const title = draft.title || draft.name || draft.subject || 'Draft prepared'
+    const body = draft.description || draft.content || draft.summary || ''
+    return body ? `${title}: ${body}` : title
+  }
+  return 'I reviewed the request, but no response was returned.'
+}
+
+const sendAssistantMessage = async () => {
+  const text = String(assistantInput.value || '').trim()
+  if (!text) {
+    assistantError.value = 'Enter a message for Tobby.'
+    return
+  }
+  assistantError.value = ''
+  assistantLoading.value = true
+  assistantMessages.value.push(createAssistantMessage({ role: 'user', text }))
+  assistantInput.value = ''
+  try {
+    const response = await agentApi.intake({
+      raw_text: text,
+      context: {
+        workspace: 'sp_dashboard',
+        sp_id: String(userStore.userId || userStore.user?.uid || ''),
+        feed_view: feedView.value,
+        open_leads: newLeadCount.value,
+        submitted_bids: totalBids.value,
+        active_projects: totalProjects.value,
+      },
+    })
+    assistantMessages.value.push(createAssistantMessage({
+      role: 'assistant',
+      text: getAssistantResponseText(response),
+    }))
+  } catch (error) {
+    assistantError.value = error?.message || 'Failed to reach Tobby.'
+    assistantMessages.value.push(createAssistantMessage({
+      role: 'assistant',
+      text: assistantError.value,
+    }))
+  } finally {
+    assistantLoading.value = false
+  }
 }
 
 const goToCreatePost = () => {
@@ -687,17 +784,9 @@ const toggleFeedExpand = (id) => {
   expandedFeedId.value = expandedFeedId.value === id ? null : id
 }
 
-const showProjectDetail = (projectId) => {
-  feedView.value = 'projects'
-  expandedFeedId.value = `proj-${projectId}`
-}
-
 // Bid dialog
 const showBidDialog = ref(false)
 const bidTargetLead = ref(null)
-const bidAmount = ref('')
-const bidNote = ref('')
-const submittingBid = ref(false)
 const showCreatePostDialog = ref(false)
 const savingCreatePost = ref(false)
 const createPostMediaFile = ref(null)
@@ -709,8 +798,6 @@ const createPostForm = reactive({
 
 const openBidDialog = (lead) => {
   bidTargetLead.value = lead
-  bidAmount.value = ''
-  bidNote.value = ''
   showBidDialog.value = true
 }
 
@@ -798,30 +885,6 @@ const handleCreatePost = async () => {
   }
 }
 
-const getSpBidCore = () => {
-  const profile = userStore.userProfile || {}
-  const spName =
-    profile.sp_business_name ||
-    profile.business_name ||
-    profile.display_name ||
-    profile.full_name ||
-    userStore.user?.displayName ||
-    userStore.user?.email ||
-    'Service Provider'
-
-  const spContact = {
-    email: profile.email || userStore.user?.email || '',
-    phone: profile.phone || profile.contact_phone || '',
-    contact_name: profile.contact_name || profile.full_name || userStore.user?.displayName || spName,
-  }
-
-  return {
-    sp_id: String(userStore.userId || ''),
-    sp_name: spName,
-    sp_contact: spContact,
-  }
-}
-
 const getLeadCityStateZip = (lead) => {
   if (!lead) return 'N/A'
   const city = String(lead.property_city || lead.city || '').trim()
@@ -839,49 +902,17 @@ const getLeadCityStateZip = (lead) => {
   return head || 'N/A'
 }
 
-const handleSubmitBid = async () => {
+const handleBidSubmitted = (res) => {
   const leadDocId = bidTargetLead.value?.id || bidTargetLead.value?.lead_doc_id || bidTargetLead.value?.lead_id
-  const leadPublicId = bidTargetLead.value?.lead_id || leadDocId
-  const amount = Number(bidAmount.value)
-  if (!bidTargetLead.value || !leadDocId || !Number.isFinite(amount) || amount <= 0) {
-    Notify.create({ type: 'warning', message: 'Please enter a valid bid amount.', position: 'top' })
-    return
-  }
-  submittingBid.value = true
-  try {
-    const bidPayload = {
-      ...getSpBidCore(),
-      lead_id: leadPublicId,
-      lead_doc_id: leadDocId,
-      mx_id: bidTargetLead.value.mx_id || bidTargetLead.value.task_id || null,
-      lead_title: bidTargetLead.value.title,
-      title: bidTargetLead.value.title,
-      task_id: bidTargetLead.value.task_id || bidTargetLead.value.mx_id || null,
-      task_doc_id: bidTargetLead.value.task_doc_id || null,
-      amount,
-      note: bidNote.value,
-    }
-
-    const res = await spPortalApi.createBid(bidPayload)
-    const bidRow = res?.bid || res
-    bids.value = [bidRow, ...bids.value]
-    leads.value = leads.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
-    const remaining = res?.credits_balance
-    Notify.create({
-      type: 'positive',
-      message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
-      position: 'top',
-    })
-    showBidDialog.value = false
-  } catch (error) {
-    const message =
-      error?.error_code === 'INSUFFICIENT_CREDITS'
-        ? 'Insufficient credits. Your free credit will refresh next week.'
-        : error.message || 'Failed to submit bid.'
-    Notify.create({ type: 'negative', message, position: 'top' })
-  } finally {
-    submittingBid.value = false
-  }
+  const bidRow = res?.bid || res
+  bids.value = [bidRow, ...bids.value]
+  leads.value = leads.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
+  const remaining = res?.credits_balance
+  Notify.create({
+    type: 'positive',
+    message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
+    position: 'top',
+  })
 }
 
 const formatDate = (dateStr) => {
@@ -928,7 +959,6 @@ const sortedBids = computed(() => sortList(bids.value, 'created_at'))
 const sortedInvoices = computed(() => sortList(invoices.value, 'created_at'))
 const sortedProjects = computed(() => sortList(projects.value, 'accepted_at'))
 const sortedPosts = computed(() => sortList(posts.value, 'created_at'))
-const openProjects = computed(() => projects.value.filter((p) => p.status !== 'completed' && p.status !== 'cancelled'))
 
 const toggleSort = (field) => {
   if (feedSortField.value === field) {
@@ -1082,7 +1112,7 @@ onMounted(loadDashboard)
   max-width: 1580px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 280px;
   gap: 12px;
 }
 
@@ -1092,17 +1122,19 @@ onMounted(loadDashboard)
 }
 
 .feed-reminders {
-  grid-column: 1;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .feed-main {
-  grid-column: 2;
+  grid-column: 1;
+  grid-row: 1;
 }
 
 /* Stats */
-.feed-stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.sp-stats-rail {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -1111,6 +1143,10 @@ onMounted(loadDashboard)
   border: 1px solid var(--neutral-200);
   background: var(--bg-surface);
   transition: all 0.2s ease;
+}
+
+.stat-card-rail {
+  width: 100%;
 }
 
 .stat-card-mini:hover {
@@ -1132,93 +1168,91 @@ onMounted(loadDashboard)
   letter-spacing: 0.05em;
 }
 
-/* Rail cards */
-.rail-card {
+.feed-reminders--assistant {
+  align-self: stretch;
+}
+
+.sp-assistant-card {
+  height: calc(100vh - 112px);
+  min-height: 620px;
   border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
   background: var(--bg-surface);
-}
-
-.feed-reminders .rail-card {
-  box-shadow: none !important;
-}
-
-.rail-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--neutral-800);
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.view-all-btn {
-  font-size: 0.68rem !important;
-  padding: 0 6px !important;
-  min-height: 22px !important;
-}
-
-/* Project cards in left rail */
-.rail-empty {
-  text-align: center;
-  padding: 16px 0;
-}
-.rail-empty-text {
-  font-size: 0.78rem;
-  color: var(--neutral-500);
-  margin-top: 6px;
-}
-
-.project-rail-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.project-rail-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 6px 4px;
-  border-radius: 6px;
-  transition: background 0.15s;
-}
-.project-rail-clickable {
-  cursor: pointer;
-}
-.project-rail-item:hover {
-  background: var(--neutral-50, #f8f9fa);
-}
-
-.project-rail-left {
-  flex: 1;
-  min-width: 0;
-}
-
-.project-rail-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--neutral-900);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.project-rail-meta {
-  font-size: 0.7rem;
-  color: var(--neutral-500);
+.sp-assistant-header {
+  padding: 12px 14px !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sp-assistant-title {
   display: flex;
   align-items: center;
-  margin-top: 2px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
-.project-rail-status {
+.sp-assistant-subtitle {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--neutral-500);
+}
+
+.sp-assistant-body {
+  flex: 1;
+  min-height: 0;
+  padding: 12px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sp-assistant-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.sp-assistant-message {
+  max-width: 92%;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.sp-assistant-message--assistant {
+  align-self: flex-start;
+  background: var(--neutral-100, #f1f5f9);
+  color: var(--text-primary);
+}
+
+.sp-assistant-message--user {
+  align-self: flex-end;
+  background: var(--q-primary);
+  color: white;
+}
+
+.sp-assistant-input {
+  flex-shrink: 0;
+}
+
+.sp-assistant-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -1548,13 +1582,13 @@ onMounted(loadDashboard)
 /* Responsive */
 @media (max-width: 1440px) {
   .feed-shell {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 240px;
   }
 }
 
 @media (max-width: 1280px) {
   .feed-shell {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 220px;
   }
   .feed-stats-row {
     grid-template-columns: repeat(2, 1fr);
@@ -1568,6 +1602,7 @@ onMounted(loadDashboard)
   .feed-reminders,
   .feed-main {
     grid-column: auto;
+    grid-row: auto;
   }
   .feed-list {
     gap: 8px;
@@ -1590,6 +1625,7 @@ onMounted(loadDashboard)
 }
 
 :global(body.body--dark) .stat-card-mini,
+:global(body.body--dark) .sp-assistant-card,
 :global(body.body--dark) .rail-card,
 :global(body.body--dark) .feed-post,
 :global(body.body--dark) .create-new-card {
@@ -1615,6 +1651,7 @@ onMounted(loadDashboard)
 :global(body.body--dark) .post-title,
 :global(body.body--dark) .project-rail-title,
 :global(body.body--dark) .rail-title,
+:global(body.body--dark) .sp-assistant-title,
 :global(body.body--dark) .stat-mini-value {
   color: white !important;
 }

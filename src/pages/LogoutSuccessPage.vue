@@ -8,9 +8,9 @@
         </div>
 
         <!-- Success Message -->
-        <h1 class="success-title">Successfully Logged Out</h1>
+        <h1 class="success-title">Successfully Signed Out</h1>
         <p class="success-message">
-          You have been securely logged out of your account.
+          You have been securely signed out of your account.
         </p>
 
         <!-- Additional Info -->
@@ -27,7 +27,7 @@
             unelevated
             color="primary"
             size="lg"
-            label="Log In Again"
+            label="Sign In Again"
             icon="login"
             @click="goToLogin"
             class="action-btn"
@@ -46,7 +46,7 @@
         <!-- Auto Redirect Message -->
         <div class="auto-redirect-message">
           <q-icon name="schedule" size="18px" class="q-mr-xs" />
-          <span>Redirecting to login in {{ countdown }} seconds...</span>
+          <span>Redirecting to sign in in {{ countdown }} seconds...</span>
         </div>
       </div>
     </div>
@@ -221,4 +221,3 @@ onUnmounted(() => {
   }
 }
 </style>
-

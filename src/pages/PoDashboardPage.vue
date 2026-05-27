@@ -114,7 +114,7 @@
       </div>
 
       <div class="q-mb-md">
-        <div class="text-subtitle1 text-weight-medium q-mb-sm">Core Charts</div>
+        <div class="text-subtitle1 text-weight-medium q-mb-sm">Cash Flow & Maintenance Trend</div>
         <div class="core-charts-grid">
           <q-card class="chart-card" flat bordered>
             <q-card-section>
@@ -127,29 +127,7 @@
 
           <q-card class="chart-card" flat bordered>
             <q-card-section>
-              <div class="text-subtitle2 text-weight-medium q-mb-sm">
-                Occupancy & Vacancy Trend
-              </div>
-              <div class="chart-container">
-                <canvas ref="occupancyChartCanvas" style="max-height: 300px"></canvas>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="chart-card" flat bordered>
-            <q-card-section>
-              <div class="text-subtitle2 text-weight-medium q-mb-sm">Delinquency Aging</div>
-              <div class="chart-container">
-                <canvas ref="delinquencyChartCanvas" style="max-height: 300px"></canvas>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="chart-card" flat bordered>
-            <q-card-section>
-              <div class="text-subtitle2 text-weight-medium q-mb-sm">
-                Maintenance Performance
-              </div>
+              <div class="text-subtitle2 text-weight-medium q-mb-sm">Maintenance Performance</div>
               <div class="chart-container">
                 <canvas ref="maintenanceChartCanvas" style="max-height: 300px"></canvas>
               </div>
@@ -826,12 +804,8 @@ const selectedTransaction = ref(null)
 const selectedTask = ref(null)
 const selectedLease = ref(null)
 const coreCashFlowChartCanvas = ref(null)
-const occupancyChartCanvas = ref(null)
-const delinquencyChartCanvas = ref(null)
 const maintenanceChartCanvas = ref(null)
 let coreCashFlowChart = null
-let occupancyChart = null
-let delinquencyChart = null
 let maintenanceChart = null
 
 watch(
@@ -1378,114 +1352,6 @@ const createCoreCashFlowChart = (Chart) => {
   })
 }
 
-const createOccupancyChart = (Chart) => {
-  if (!occupancyChartCanvas.value) return
-  const ctx = occupancyChartCanvas.value.getContext('2d')
-  if (occupancyChart) occupancyChart.destroy()
-
-  const months = getMonthsForChartRange()
-  const occupancySeries = months.map(() => (currentLease.value ? 100 : 0))
-  const vacancySeries = months.map(() => (currentLease.value ? 0 : 1))
-
-  occupancyChart = new Chart(ctx, {
-    data: {
-      labels: months.map((month) => month.label),
-      datasets: [
-        {
-          type: 'line',
-          label: 'Occupancy Rate (%)',
-          data: occupancySeries,
-          borderColor: 'rgba(22, 163, 74, 1)',
-          backgroundColor: 'rgba(22, 163, 74, 0.15)',
-          tension: 0.35,
-          yAxisID: 'y',
-        },
-        {
-          type: 'bar',
-          label: 'Vacant Properties',
-          data: vacancySeries,
-          backgroundColor: 'rgba(234, 179, 8, 0.5)',
-          borderColor: 'rgba(234, 179, 8, 1)',
-          borderWidth: 1,
-          yAxisID: 'y1',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: { callback: (value) => `${value}%` },
-          position: 'left',
-        },
-        y1: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-        },
-      },
-    },
-  })
-}
-
-const createDelinquencyChart = (Chart) => {
-  if (!delinquencyChartCanvas.value) return
-  const ctx = delinquencyChartCanvas.value.getContext('2d')
-  if (delinquencyChart) delinquencyChart.destroy()
-
-  const buckets = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
-  const now = new Date()
-
-  selectedPropertyTransactions.value.forEach((item) => {
-    const status = String(item.status || '').toLowerCase()
-    if (!['late', 'overdue', 'past_due', 'past due', 'unpaid'].includes(status)) return
-    const date = toDateSafe(item.transac_date || item.created_datetime || item.date)
-    if (!date) return
-    const days = Math.floor((now - date) / (1000 * 60 * 60 * 24))
-    const amount = amountNumber(item.amount)
-    if (days <= 0) return
-    if (days <= 30) buckets['1-30'] += amount
-    else if (days <= 60) buckets['31-60'] += amount
-    else if (days <= 90) buckets['61-90'] += amount
-    else buckets['90+'] += amount
-  })
-
-  delinquencyChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(buckets),
-      datasets: [
-        {
-          label: 'Outstanding Amount',
-          data: Object.values(buckets),
-          backgroundColor: [
-            'rgba(251, 191, 36, 0.65)',
-            'rgba(249, 115, 22, 0.65)',
-            'rgba(239, 68, 68, 0.65)',
-            'rgba(185, 28, 28, 0.75)',
-          ],
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: (value) => `$${Number(value).toLocaleString()}` },
-        },
-      },
-    },
-  })
-}
-
 const createMaintenanceChart = (Chart) => {
   if (!maintenanceChartCanvas.value) return
   const ctx = maintenanceChartCanvas.value.getContext('2d')
@@ -1568,8 +1434,6 @@ const updateCharts = async () => {
   if (!selectedProperty.value) return
   const Chart = (await import('chart.js/auto')).default
   createCoreCashFlowChart(Chart)
-  createOccupancyChart(Chart)
-  createDelinquencyChart(Chart)
   createMaintenanceChart(Chart)
 }
 
@@ -1665,8 +1529,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (coreCashFlowChart) coreCashFlowChart.destroy()
-  if (occupancyChart) occupancyChart.destroy()
-  if (delinquencyChart) delinquencyChart.destroy()
   if (maintenanceChart) maintenanceChart.destroy()
 })
 </script>
@@ -1691,7 +1553,7 @@ onUnmounted(() => {
 .summary-card,
 .panel-card,
 .detail-dialog {
-  border-radius: 14px;
+  border-radius: 8px !important;
 }
 
 .summary-label,
@@ -1730,7 +1592,7 @@ onUnmounted(() => {
 .property-picker-card {
   width: 100%;
   border: 1px solid #dbe3f0;
-  border-radius: 16px;
+  border-radius: var(--border-radius-card);
   background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
   padding: 18px 20px;
   text-align: left;
@@ -1790,7 +1652,7 @@ onUnmounted(() => {
 
 .property-detail-item {
   border: 1px solid #dbe3f0;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.86);
   display: flex;
@@ -1820,7 +1682,7 @@ onUnmounted(() => {
 
 .property-picker-dialog {
   width: min(680px, 92vw);
-  border-radius: 14px;
+  border-radius: 8px !important;
 }
 
 .section-mini-label {
@@ -1865,7 +1727,7 @@ onUnmounted(() => {
 
 .financial-item {
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   padding: 14px;
   background: linear-gradient(180deg, #fafcff 0%, #ffffff 100%);
 }
@@ -1884,7 +1746,7 @@ onUnmounted(() => {
 }
 
 .chart-card {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
 }
 
 .chart-container {

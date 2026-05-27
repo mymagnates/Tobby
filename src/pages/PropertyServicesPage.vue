@@ -1,25 +1,64 @@
 <template>
   <q-page class="q-pa-md property-services-page">
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center q-col-gutter-md">
-        <div class="col-12 text-right">
-          <q-btn
-            color="primary"
-            unelevated
-            label="New Service"
-            :disable="serviceDisabled"
-            @click="openCreateService"
-          />
-        </div>
-      </q-card-section>
-    </q-card>
+    <div class="page-toolbar page-toolbar--filters">
+      <q-input
+        v-model="serviceSearch"
+        borderless
+        dense
+        clearable
+        placeholder="Search services"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+      <q-select
+        v-model="serviceTypeFilter"
+        :options="serviceTypeOptions"
+        borderless
+        dense
+        clearable
+        emit-value
+        map-options
+        :display-value="serviceTypeFilterLabel"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="tune" size="18px" />
+        </template>
+      </q-select>
+      <q-btn
+        v-if="serviceSearch || serviceTypeFilter"
+        flat
+        dense
+        round
+        icon="clear"
+        color="grey-7"
+        class="page-tool-icon-action"
+        @click="serviceSearch = ''; serviceTypeFilter = null"
+      >
+        <q-tooltip>Clear filters</q-tooltip>
+      </q-btn>
+      <q-btn
+        color="primary"
+        unelevated
+        no-caps
+        dense
+        icon="add"
+        label="Add"
+        class="page-tool-action"
+        :disable="serviceDisabled"
+        @click="openCreateService"
+      />
+    </div>
 
     <div v-if="servicesLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="40px" color="primary" />
       <div class="text-body2 text-grey-6 q-mt-sm">Loading services...</div>
     </div>
 
-    <div v-else-if="services.length === 0" class="text-center q-pa-xl">
+    <div v-else-if="filteredServices.length === 0" class="text-center q-pa-xl">
       <q-icon name="handyman" size="64px" color="grey-4" />
       <div class="text-h6 q-mt-md text-grey-6">No services yet</div>
       <div class="text-body2 text-grey-5 q-mt-sm">Create a service to get started.</div>
@@ -33,28 +72,31 @@
       />
     </div>
 
-    <div v-else class="services-grid">
+    <div v-else class="services-grid entity-tiles">
         <q-card
-          v-for="service in services"
+          v-for="service in filteredServices"
         :key="service.id"
         flat
         bordered
-        class="service-card"
+        class="service-card entity-tile"
         clickable
         @click="openServiceDetails(service)"
       >
         <q-card-section>
-          <div class="row items-center q-mb-sm">
-            <q-icon name="handyman" class="q-mr-sm" />
-            <div class="text-subtitle1 text-weight-medium">{{ formatServiceType(service.service_type) }}</div>
+          <div class="entity-tile-head">
+            <div class="entity-file-mark entity-file-mark--green">
+              <q-icon name="handyman" size="22px" />
+            </div>
+            <span class="entity-chip entity-chip--green">{{ formatServiceType(service.service_type) }}</span>
           </div>
-          <div class="text-body2 text-grey-7">{{ service.company_name || 'Unknown Company' }}</div>
-          <div class="text-caption text-grey-6 q-mt-xs">
+          <div class="entity-tile-title text-clamp-2">{{ service.company_name || 'Unknown Company' }}</div>
+          <div class="entity-tile-desc text-clamp-2">
             {{ service.agent?.name || 'No agent' }}
             <span v-if="service.service_start_date"> • {{ formatDate(service.service_start_date) }}</span>
           </div>
-          <div v-if="getServicePropertySummary(service)" class="text-caption text-grey-6 q-mt-xs">
-            {{ getServicePropertySummary(service) }}
+          <div class="entity-tile-foot">
+            <span>{{ service.term || 'No term' }}</span>
+            <span>{{ getServicePropertySummary(service) || 'No property summary' }}</span>
           </div>
         </q-card-section>
       </q-card>
@@ -184,6 +226,8 @@ const serviceForm = ref({
 
 const selectedPropertyId = ref('')
 const services = ref([])
+const serviceSearch = ref('')
+const serviceTypeFilter = ref(null)
 const servicesLoading = ref(false)
 const savingServiceInfo = ref(false)
 const showServiceDialog = ref(false)
@@ -201,6 +245,41 @@ const propertySelectOptions = computed(() =>
 )
 
 const serviceDisabled = computed(() => !canManageRecords.value || !selectedProperty.value)
+
+const serviceTypeFilterLabel = computed(() => {
+  return serviceTypeOptions.find((option) => option.value === serviceTypeFilter.value)?.label || 'All services'
+})
+
+const filteredServices = computed(() => {
+  let list = services.value
+
+  if (serviceTypeFilter.value) {
+    list = list.filter((service) => service.service_type === serviceTypeFilter.value)
+  }
+
+  const search = serviceSearch.value.trim().toLowerCase()
+  if (search) {
+    list = list.filter((service) =>
+      [
+        formatServiceType(service.service_type),
+        service.company_name,
+        service.company_website,
+        service.agent?.company,
+        service.agent?.name,
+        service.agent?.phone,
+        service.agent?.email,
+        service.term,
+        getServicePropertySummary(service),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(search),
+    )
+  }
+
+  return list
+})
 
 const hydrateServiceInfoFromData = (service) => {
   if (!service) {
@@ -486,7 +565,7 @@ onMounted(() => {
 }
 
 .service-card {
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 

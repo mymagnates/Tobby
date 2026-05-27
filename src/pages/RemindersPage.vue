@@ -32,66 +32,67 @@
     </div>
 
     <!-- Filters -->
-    <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12">
-        <div class="row q-gutter-md items-end">
-          <div class="col-12 col-md-4">
-            <q-select
-              v-model="selectedCategory"
-              :options="categorySelectOptions"
-              option-label="label"
-              option-value="value"
-              label="Filter by Category"
-              clearable
-              outlined
-              dense
-              emit-value
-              map-options
-            />
-          </div>
-          <div class="col-12 col-md-4">
-            <q-select
-              v-model="selectedStatus"
-              :options="statusOptions"
-              label="Filter by Status"
-              clearable
-              outlined
-              dense
-            />
-          </div>
-          <div class="col-12 col-md-4">
-            <q-input v-model="searchText" label="Search" outlined dense clearable>
-              <template v-slot:prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
-          <div v-if="canManageRecords" class="col-12 col-md-auto row justify-end">
-            <q-btn
-              icon="add"
-              color="primary"
-              unelevated
-              text-color="white"
-              label="Create Reminder"
-              @click="openCreateDialog"
-            />
-          </div>
-        </div>
-      </div>
+    <div class="page-toolbar page-toolbar--stacked">
+      <q-input v-model="searchText" placeholder="Search tasks" borderless dense clearable class="page-tool-field">
+        <template v-slot:prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+      <q-select
+        v-model="selectedCategory"
+        :options="categorySelectOptions"
+        option-label="label"
+        option-value="value"
+        clearable
+        borderless
+        dense
+        emit-value
+        map-options
+        :display-value="reminderCategoryFilterLabel"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="category" size="18px" />
+        </template>
+      </q-select>
+      <q-select
+        v-model="selectedStatus"
+        :options="statusOptions"
+        clearable
+        borderless
+        dense
+        emit-value
+        map-options
+        :display-value="reminderStatusFilterLabel"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="tune" size="18px" />
+        </template>
+      </q-select>
+      <q-btn
+        v-if="canManageRecords"
+        icon="add"
+        color="primary"
+        unelevated
+        text-color="white"
+        no-caps
+        dense
+        label="Add"
+        class="page-tool-action"
+        @click="openCreateDialog"
+      />
     </div>
 
     <!-- Reminders List -->
-    <div class="row" style="padding: 2px">
-      <div
-        v-for="reminder in filteredReminders"
-        :key="reminder.id"
-        class="col-12 col-md-6 col-lg-4"
-        style="padding: 2px"
-      >
+    <div v-if="filteredReminders.length > 0" class="reminders-grid entity-tiles">
         <q-card
-          class="reminder-card"
+          v-for="reminder in filteredReminders"
+          :key="reminder.id"
+          class="reminder-card entity-tile"
           :class="{ 'reminder-inactive': !reminder.status }"
-          style="padding: 2px"
+          flat
+          bordered
         >
           <q-card-section>
             <div class="row items-center q-mb-sm">
@@ -216,7 +217,6 @@
             </div>
           </q-card-actions>
         </q-card>
-      </div>
     </div>
 
     <!-- Empty State -->
@@ -518,6 +518,14 @@ const statusOptions = [
   { label: 'Inactive', value: false },
 ]
 // Computed properties
+const reminderCategoryFilterLabel = computed(() => {
+  return categorySelectOptions.find((option) => option.value === selectedCategory.value)?.label || 'All categories'
+})
+const reminderStatusFilterLabel = computed(() => {
+  if (selectedStatus.value === true) return 'Active'
+  if (selectedStatus.value === false) return 'Inactive'
+  return 'All statuses'
+})
 const activeReminders = computed(() => reminders.value.filter((r) => r.status).length)
 
 const recurringReminders = computed(
@@ -1182,7 +1190,7 @@ watch(
 .detail-block {
   background: #f8fafc;
   border: 1px solid var(--neutral-200);
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   padding: 12px 14px;
 }
 
@@ -1228,7 +1236,7 @@ watch(
 }
 
 .elevated {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
@@ -1257,7 +1265,7 @@ watch(
 
 .status-toggle-card {
   background: #f8fbff;
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
@@ -1317,7 +1325,7 @@ watch(
 .renewal-reminder-info {
   background: #f8f9fa;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   border-left: 4px solid #1976d2;
 }
 

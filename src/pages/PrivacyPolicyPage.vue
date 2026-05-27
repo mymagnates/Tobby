@@ -23,7 +23,7 @@
         <h2 class="text-h6 text-weight-bold">3. How We Use Information</h2>
         <p>
           We use data to operate the platform, provide support, improve product performance, facilitate
-          communication, and connect users with service resources when requested.
+          communication, and connect users with service providers when requested.
         </p>
       </section>
 

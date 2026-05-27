@@ -32,7 +32,7 @@
         <q-card flat bordered class="q-pa-md">
           <div class="text-subtitle2 text-weight-medium">Property Manager Details</div>
           <div class="text-body2 text-grey-7 q-mt-xs">
-            All property managers start with the same base permissions. Ownership is set when you create or join a property.
+            Property managers operate the workspace. Owners receive owner-view access through invitations.
           </div>
 
           <q-input
@@ -109,7 +109,7 @@ const ACCOUNT_TYPE_OPTIONS = Object.freeze([
     label: 'Property Manager',
     shape: 'square',
     description:
-      'Manage properties and operations. You can manage your own properties and/or properties for others.',
+      'Manage properties, coordinate work, and invite owners to view relevant records.',
   },
   {
     value: 'SP',
@@ -221,7 +221,7 @@ onMounted(async () => {
   width: 100%;
   max-width: 920px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   background: var(--bg-surface);
   padding: 20px;
 }
@@ -255,7 +255,7 @@ onMounted(async () => {
 }
 
 .shape-square {
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .shape-triangle {

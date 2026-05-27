@@ -1,17 +1,50 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row justify-end q-mb-md">
-      <div class="row q-gutter-sm">
-        <q-btn
-          v-if="canManageRecords"
-          @click="openCreateLeaseDialog"
-          color="primary"
-          text-color="white"
-          unelevated
-          icon="add"
-          label="Create New Lease"
-        />
-      </div>
+    <div class="page-toolbar page-toolbar--filters">
+      <q-input v-model="searchQuery" placeholder="Search leases" borderless dense clearable class="page-tool-field">
+        <template v-slot:prepend>
+          <q-icon name="search" size="18px" />
+        </template>
+      </q-input>
+      <q-select
+        v-model="statusFilter"
+        :options="leaseStatusFilterOptions"
+        borderless
+        dense
+        clearable
+        emit-value
+        map-options
+        :display-value="leaseStatusFilterLabel"
+        class="page-tool-field"
+      >
+        <template #prepend>
+          <q-icon name="tune" size="18px" />
+        </template>
+      </q-select>
+      <q-btn
+        v-if="searchQuery || statusFilter"
+        flat
+        dense
+        round
+        icon="clear"
+        color="grey-7"
+        class="page-tool-icon-action"
+        @click="clearFilters"
+      >
+        <q-tooltip>Clear filters</q-tooltip>
+      </q-btn>
+      <q-btn
+        v-if="canManageRecords"
+        @click="openCreateLeaseDialog"
+        color="primary"
+        text-color="white"
+        unelevated
+        no-caps
+        dense
+        icon="add"
+        label="Add"
+        class="page-tool-action"
+      />
     </div>
 
     <!-- Quick Stats -->
@@ -77,28 +110,6 @@
       </q-card>
     </div>
 
-    <!-- Search and Filters -->
-    <div class="row q-gutter-md q-mb-lg items-center">
-      <div class="col-12 col-md-6">
-        <q-input v-model="searchQuery" placeholder="Search leases..." outlined dense clearable>
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-      </div>
-      <div v-if="statusFilter" class="col-auto">
-        <q-chip
-          removable
-          @remove="statusFilter = null"
-          :color="getLeaseStatusColor(statusFilter)"
-          text-color="white"
-          icon="filter_list"
-        >
-          Filtering: {{ statusFilter }}
-        </q-chip>
-      </div>
-    </div>
-
     <!-- Loading State -->
     <div v-if="userDataStore.leasesLoading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
@@ -136,11 +147,11 @@
     </div>
 
     <!-- Leases Grid -->
-    <div v-else class="leases-grid">
+    <div v-else class="leases-grid entity-tiles">
       <q-card
         v-for="lease in filteredLeases"
         :key="lease.id"
-        class="lease-card"
+        class="lease-card entity-tile"
         flat
         clickable
         @click="viewLease(lease)"
@@ -1335,6 +1346,7 @@ const isEditMode = ref(false)
 const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
 const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
+const leaseStatusFilterOptions = leaseStatusOptions.map((status) => ({ label: status, value: status }))
 const deepLinkHandled = ref(false)
 const canManageRecords = computed(() => {
   const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
@@ -1364,6 +1376,8 @@ const leaseTenantsMap = ref({})
 
 // Get leases the user has access to
 const userAccessibleLeases = computed(() => userDataStore.userAccessibleLeases)
+
+const leaseStatusFilterLabel = computed(() => statusFilter.value || 'All statuses')
 
 const normalizePropertyId = (value) => {
   if (!value) return ''
@@ -2243,21 +2257,21 @@ watch(
   box-shadow: 0 6px 16px rgba(36, 87, 115, 0.4);
 }
 
-/* Leases list - one lease per row */
 .leases-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
 }
 
 .lease-card {
   transition: all 0.2s ease;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   border: 1px solid var(--neutral-200);
   background: white;
   cursor: pointer;
   width: 100%;
+  min-height: 190px;
 }
 
 .lease-card:hover {
@@ -2584,7 +2598,7 @@ watch(
 }
 
 .header-action-btn {
-  border-radius: 8px;
+  border-radius: var(--border-radius-btn);
   border: 1px solid rgba(36, 87, 115, 0.22);
   font-weight: 600;
   min-height: 36px;
@@ -2845,7 +2859,7 @@ watch(
   background: white;
   border: 1px solid #e0e0e0;
   border-left: 4px solid #21ba45;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 20px;
   transition: all 0.3s ease;
 }
@@ -2864,7 +2878,7 @@ watch(
   border-bottom: 2px solid #f0f0f0;
   background: linear-gradient(to right, rgba(33, 186, 69, 0.05), transparent);
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   margin: -8px -8px 20px -8px;
 }
 
@@ -2956,7 +2970,7 @@ watch(
   background: white;
   border: 1px solid #e3f2fd;
   border-left: 3px solid #2196f3;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 16px;
   transition: all 0.2s ease;
 }
@@ -3023,7 +3037,7 @@ watch(
 .vehicle-card {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 16px;
   transition: all 0.2s ease;
 }
@@ -3065,7 +3079,7 @@ watch(
 .pet-card {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   padding: 16px;
   transition: all 0.2s ease;
 }
@@ -3134,7 +3148,7 @@ watch(
   padding: 16px;
   background: white;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   transition: all 0.2s ease;
 }
 
@@ -3152,7 +3166,7 @@ watch(
   width: 48px;
   height: 48px;
   background: #f5f5f5;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
 }
 
 .doc-info-section {
@@ -3199,7 +3213,7 @@ watch(
 
 /* Tenant Expansion Item Styles */
 .tenant-expansion-item {
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   margin-bottom: 8px;
   overflow: hidden;
 }

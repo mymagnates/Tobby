@@ -1,58 +1,58 @@
 <template>
   <q-page padding>
     <div class="page-container">
-      <div class="row justify-end q-mb-lg">
-        <div>
-          <q-btn
-            v-if="canManageRecords"
-            color="primary"
-            text-color="white"
-            unelevated
-            icon="person_add"
-            label="Create Tenant"
-            @click="navigateToCreateTenant"
-          />
-        </div>
-      </div>
-
       <!-- Filter and Search -->
-      <q-card flat bordered class="q-mb-lg">
-        <q-card-section>
-          <div class="row q-col-gutter-md">
-            <div class="col-12">
-              <div class="row q-col-gutter-md">
-                <div class="col-12 col-md-8">
-                  <q-input
-                    v-model="searchQuery"
-                    outlined
-                    dense
-                    placeholder="Search tenants by name, email, or phone..."
-                    clearable
-                  >
-                    <template v-slot:prepend>
-                      <q-icon name="search" />
-                    </template>
-                  </q-input>
-                </div>
-                <div class="col-12 col-md-4">
-                  <q-select
-                    v-model="filterStatus"
-                    :options="statusOptions"
-                    outlined
-                    dense
-                    label="Filter by Status"
-                    clearable
-                  >
-                    <template v-slot:prepend>
-                      <q-icon name="filter_list" />
-                    </template>
-                  </q-select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
+      <div class="page-toolbar page-toolbar--filters">
+        <q-input
+          v-model="searchQuery"
+          borderless
+          dense
+          placeholder="Search tenants"
+          clearable
+          class="page-tool-field"
+        >
+          <template v-slot:prepend>
+            <q-icon name="search" size="18px" />
+          </template>
+        </q-input>
+        <q-select
+          v-model="filterStatus"
+          :options="statusOptions"
+          borderless
+          dense
+          clearable
+          :display-value="tenantStatusFilterLabel"
+          class="page-tool-field"
+        >
+          <template v-slot:prepend>
+            <q-icon name="tune" size="18px" />
+          </template>
+        </q-select>
+        <q-btn
+          v-if="searchQuery || filterStatus"
+          flat
+          dense
+          round
+          icon="clear"
+          color="grey-7"
+          class="page-tool-icon-action"
+          @click="searchQuery = ''; filterStatus = null"
+        >
+          <q-tooltip>Clear filters</q-tooltip>
+        </q-btn>
+        <q-btn
+          v-if="canManageRecords"
+          color="primary"
+          text-color="white"
+          unelevated
+          no-caps
+          dense
+          icon="person_add"
+          label="Add"
+          class="page-tool-action"
+          @click="navigateToCreateTenant"
+        />
+      </div>
 
       <!-- Loading State -->
       <div v-if="loading" class="text-center q-pa-xl">
@@ -88,11 +88,11 @@
       </div>
 
       <!-- Tenants Grid -->
-      <div v-else class="tenants-grid">
+      <div v-else class="tenants-grid entity-tiles">
         <q-card
           v-for="tenant in filteredTenants"
           :key="tenant.id"
-          class="tenant-card"
+          class="tenant-card entity-tile"
           flat
           clickable
           tabindex="0"
@@ -765,6 +765,7 @@ const filterProperty = ref(null)
 const filterStatus = ref(null)
 
 const statusOptions = ['Active', 'Inactive', 'Past']
+const tenantStatusFilterLabel = computed(() => filterStatus.value || 'All statuses')
 
 // Computed
 const canManageRecords = computed(() => {
@@ -1070,7 +1071,7 @@ watch(
 
 .tenant-card {
   transition: all 0.2s ease;
-  border-radius: 12px;
+  border-radius: var(--border-radius-card);
   overflow: hidden;
   border: 1px solid var(--neutral-200);
   background: white;

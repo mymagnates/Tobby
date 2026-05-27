@@ -83,11 +83,24 @@
               required
               :rules="[(val) => !!val || 'Report date is required']"
               type="date"
-              class="col-5 col-md-5"
+              class="col-12 col-md-4"
               bg-color="grey-1"
             >
               <template v-slot:prepend>
                 <q-icon name="event" color="primary" />
+              </template>
+            </q-input>
+            <q-input
+              v-model="mxRecordData.due_date"
+              label="Due Date"
+              outlined
+              dense
+              type="date"
+              class="col-12 col-md-4"
+              bg-color="grey-1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="schedule" color="primary" />
               </template>
             </q-input>
             <q-select
@@ -98,7 +111,7 @@
               dense
               required
               :rules="[(val) => !!val || 'Status is required']"
-              class="col-5 col-md-5"
+              class="col-12 col-md-4"
               bg-color="grey-1"
             >
               <template v-slot:prepend>
@@ -256,6 +269,7 @@ const resolvedFixedPropertyName = computed(() =>
 const mxRecordData = reactive({
   description: '',
   report_date: new Date().toISOString().split('T')[0],
+  due_date: '',
   status: 'open',
   image_urls: [], // Will store the uploaded image URLs
 })
@@ -340,6 +354,9 @@ watch(
     if (typeof value.report_date === 'string') {
       mxRecordData.report_date = value.report_date
     }
+    if (typeof value.due_date === 'string') {
+      mxRecordData.due_date = value.due_date
+    }
     if (value.property_id) {
       selectedPropertyId.value = String(value.property_id)
     }
@@ -407,6 +424,7 @@ const onSubmit = async () => {
       create_id: userDataStore.userId,
       createAt: currentTimestamp,
       report_date: mxRecordData.report_date,
+      due_date: mxRecordData.due_date || null,
       description: mxRecordData.description,
       status: mxRecordData.status,
       logs: [
@@ -458,6 +476,7 @@ const onSubmit = async () => {
     // Reset form
     mxRecordData.description = ''
     mxRecordData.report_date = new Date().toISOString().split('T')[0]
+    mxRecordData.due_date = ''
     mxRecordData.status = 'open'
     mxRecordData.image_urls = []
 
@@ -505,7 +524,7 @@ const handleCancel = () => {
 }
 
 .elevated {
-  border-radius: 14px;
+  border-radius: var(--border-radius-card);
   border: 1px solid var(--neutral-200);
 }
 
@@ -551,7 +570,7 @@ const handleCancel = () => {
   margin: 16px 0;
   padding: 16px;
   border: 1px solid var(--neutral-200);
-  border-radius: 10px;
+  border-radius: var(--border-radius-card);
   background-color: #fafcff;
 }
 
@@ -570,7 +589,7 @@ const handleCancel = () => {
 
 .image-preview-item .q-img {
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   overflow: hidden;
 }
 

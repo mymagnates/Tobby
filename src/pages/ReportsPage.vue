@@ -1,29 +1,45 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row q-mb-md q-padding-sm">
-      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
+  <q-page class="report-page q-pa-md">
+    <q-card flat bordered class="report-hero q-mb-md">
+      <q-card-section class="report-hero__header">
+        <div>
+          <div class="report-eyebrow">Real Estate Reporting</div>
+          <h1 class="report-title">Financial & Operations Insights</h1>
+          <p class="report-subtitle">
+            P&amp;L, rent roll, cash movement, general ledger detail, and maintenance risk in one
+            report set.
+          </p>
+        </div>
+        <q-chip square class="perspective-chip" icon="visibility">
+          {{ reportPerspectiveLabel }}
+        </q-chip>
+      </q-card-section>
+      <q-card-section class="report-controls">
         <q-select
-          v-model="dateRange"
-          :options="dateRangeOptions"
-          label="Date Range"
+          v-model="selectedProperties"
+          :options="propertyOptions"
+          label="Properties"
           class="report-filter-control"
           outlined
           dense
-          bg-color="grey-1"
-        >
-          <template v-slot:prepend>
-            <q-icon name="date_range" />
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
-      </div>
-      <div class="col-12 col-md-4" style="padding-left: 2px; padding-right: 2px">
-
-      <q-btn-dropdown
+          multiple
+          emit-value
+          map-options
+          clearable
+          use-chips
+        />
+        <q-select
+          v-model="dateRange"
+          :options="dateRangeOptions"
+          label="Period"
+          class="report-filter-control"
+          outlined
+          dense
+        />
+        <q-btn-dropdown
           icon="download"
           color="primary"
-          label="Bulk Export"
+          label="Export"
           outline
           no-caps
           class="report-action-btn"
@@ -32,283 +48,319 @@
         >
           <q-list>
             <q-item clickable v-close-popup @click="exportAllReports">
-              <q-item-section avatar>
-                <q-icon name="folder_zip" color="primary" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>Export All Reports</q-item-label>
-                <q-item-label caption>Combined transactions & tasks</q-item-label>
-              </q-item-section>
+              <q-item-section>Full report package</q-item-section>
             </q-item>
-            <q-separator />
             <q-item clickable v-close-popup @click="downloadTransactionsCSV">
-              <q-item-section avatar>
-                <q-icon name="account_balance" color="positive" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>Export Transactions</q-item-label>
-                <q-item-label caption>Financial records only</q-item-label>
-              </q-item-section>
+              <q-item-section>General ledger CSV</q-item-section>
             </q-item>
             <q-item clickable v-close-popup @click="downloadTasksCSV">
-              <q-item-section avatar>
-                <q-icon name="assignment" color="info" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>Export Tasks</q-item-label>
-                <q-item-label caption>Task history only</q-item-label>
-              </q-item-section>
+              <q-item-section>Operations event CSV</q-item-section>
             </q-item>
             <q-item clickable v-close-popup @click="exportSummaryReport">
-              <q-item-section avatar>
-                <q-icon name="summarize" color="warning" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>Export Summary</q-item-label>
-                <q-item-label caption>Key metrics & statistics</q-item-label>
-              </q-item-section>
+              <q-item-section>P&amp;L summary CSV</q-item-section>
             </q-item>
           </q-list>
         </q-btn-dropdown>
+      </q-card-section>
+      <q-card-section class="accounting-basis">
+        <q-icon name="info_outline" size="18px" />
+        <span>{{ perspectiveDefinition }}</span>
+      </q-card-section>
+    </q-card>
+
+    <section class="metric-grid q-mb-md" aria-label="Portfolio financial summary">
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Recorded Revenue</div>
+        <div class="metric-value text-positive">${{ totalIncome }}</div>
+        <div class="metric-caption">{{ revenueCaption }}</div>
+      </q-card>
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Recorded Expenses</div>
+        <div class="metric-value text-negative">${{ totalExpenses }}</div>
+        <div class="metric-caption">{{ expenseCaption }}</div>
+      </q-card>
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Net Recorded Cash</div>
+        <div class="metric-value text-primary">${{ netProfit }}</div>
+        <div class="metric-caption">Receipts less paid costs</div>
+      </q-card>
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Scheduled Monthly Rent</div>
+        <div class="metric-value">${{ formatAmount(scheduledMonthlyRent) }}</div>
+        <div class="metric-caption">{{ activeLeaseCount }} active lease(s)</div>
+      </q-card>
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Open Operations Events</div>
+        <div class="metric-value risk-value">{{ openTaskCount }}</div>
+        <div class="metric-caption">{{ overdueTaskCount }} past due task(s)</div>
+      </q-card>
+      <q-card flat bordered class="metric-card">
+        <div class="metric-label">Task-Linked Ops Spend</div>
+        <div class="metric-value">${{ formatAmount(taskLinkedOperationsSpend) }}</div>
+        <div class="metric-caption">
+          {{ formatPercent(maintenanceCostRatio) }} of recorded rent receipts
         </div>
-      </div>
+      </q-card>
+    </section>
 
-    <!-- Summary Cards -->
-    <div class="row q-gutter-md q-mb-lg">
-      <q-card class="summary-card col">
-        <q-card-section class="text-center">
-          <q-icon name="attach_money" size="32px" color="positive" />
-          <div class="text-h5 text-positive q-mt-sm">${{ totalIncome }}</div>
-          <div class="text-subtitle2">Total Income</div>
+    <div class="financial-grid q-mb-md">
+      <q-card flat bordered class="report-panel">
+        <q-card-section class="panel-header">
+          <div>
+            <div class="panel-kicker">Tax &amp; Finance</div>
+            <div class="panel-title">Profit &amp; Loss</div>
+          </div>
+          <q-badge outline color="primary">{{ reportPerspectiveLabel }}</q-badge>
         </q-card-section>
+        <q-card-section class="pnl-total-row">
+          <div>
+            <span>Revenue</span><strong class="text-positive">${{ totalIncome }}</strong>
+          </div>
+          <div>
+            <span>Expenses</span><strong class="text-negative">(${{ totalExpenses }})</strong>
+          </div>
+          <div class="pnl-net">
+            <span>Net result</span><strong>${{ netProfit }}</strong>
+          </div>
+        </q-card-section>
+        <q-table
+          :rows="profitLossRows"
+          :columns="profitLossColumns"
+          row-key="category"
+          dense
+          flat
+          hide-bottom
+          :pagination="{ rowsPerPage: 0 }"
+          class="report-table pnl-table"
+          no-data-label="No categorized transactions in this period."
+        />
       </q-card>
 
-      <q-card class="summary-card col">
-        <q-card-section class="text-center">
-          <q-icon name="money_off" size="32px" color="negative" />
-          <div class="text-h5 text-negative q-mt-sm">${{ totalExpenses }}</div>
-          <div class="text-subtitle2">Total Expenses</div>
+      <q-card flat bordered class="report-panel">
+        <q-card-section class="panel-header">
+          <div>
+            <div class="panel-kicker">Liquidity</div>
+            <div class="panel-title">Cash Flow</div>
+          </div>
+          <span class="panel-note">Recorded movement by month</span>
+        </q-card-section>
+        <q-card-section>
+          <div class="chart-container">
+            <canvas ref="coreCashFlowChartCanvas" style="max-height: 285px"></canvas>
+          </div>
+          <div class="data-caveat">
+            Based on paid/recorded transactions; it is not an accrual or bank-reconciliation
+            statement.
+          </div>
         </q-card-section>
       </q-card>
-
-      <q-card class="summary-card col">
-        <q-card-section class="text-center">
-          <q-icon name="trending_up" size="32px" color="primary" />
-          <div class="text-h5 text-primary q-mt-sm">${{ netProfit }}</div>
-          <div class="text-subtitle2">Net Profit</div>
-        </q-card-section>
-      </q-card>
-
     </div>
 
-    <!-- Core Reports (Free) -->
-    <div class="q-mb-lg">
-      <div class="row items-center q-mb-sm">
-        <div class="text-h6">
-          <q-icon name="dashboard" class="q-mr-sm" />
-          Core Reports
+    <q-card flat bordered class="report-panel q-mb-md">
+      <q-card-section class="panel-header">
+        <div>
+          <div class="panel-kicker">Leasing &amp; Cash Planning</div>
+          <div class="panel-title">Rent Roll</div>
         </div>
-      </div>
-      <div class="core-charts-grid">
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Monthly Cash Flow</div>
-            <div class="chart-container">
-              <canvas ref="coreCashFlowChartCanvas" style="max-height: 300px"></canvas>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Occupancy & Vacancy Trend</div>
-            <div class="chart-container">
-              <canvas ref="occupancyChartCanvas" style="max-height: 300px"></canvas>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Delinquency Aging</div>
-            <div class="chart-container">
-              <canvas ref="delinquencyChartCanvas" style="max-height: 300px"></canvas>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="text-subtitle1 text-weight-medium q-mb-sm">Maintenance Performance</div>
-            <div class="chart-container">
-              <canvas ref="maintenanceChartCanvas" style="max-height: 300px"></canvas>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-    </div>
-
-    <!-- Financial Transactions Table -->
-    <div class="row q-mb-lg">
-      <div class="col-12">
-        <q-card class="table-card">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="account_balance" class="q-mr-sm" />
-                Financial Transactions Report
-              </div>
-              <q-btn
-                outline
-                dense
-                color="primary"
-                icon="download"
-                label="Download CSV"
-                class="report-action-btn"
-                @click="downloadTransactionsCSV"
-              />
-            </div>
-
-            <!-- Table -->
-            <q-table
-              :rows="filteredTransactions"
-              :columns="transactionColumns"
-              row-key="id"
-              :pagination="transactionPagination"
-              :loading="loading"
-              flat
-              bordered
-              class="report-table"
+        <div class="rent-summary">
+          <span>{{ activeLeaseCount }} active</span>
+          <span>${{ formatAmount(scheduledAnnualRent) }} annual scheduled</span>
+          <span>${{ formatAmount(recordedRentReceipts) }} recorded receipts</span>
+        </div>
+      </q-card-section>
+      <q-table
+        :rows="rentRollRows"
+        :columns="rentRollColumns"
+        row-key="id"
+        :loading="loading"
+        flat
+        dense
+        :pagination="rentRollPagination"
+        class="report-table"
+        no-data-label="No leases in the selected property scope."
+      >
+        <template v-slot:body-cell-status="props">
+          <q-td :props="props">
+            <q-chip
+              dense
+              :color="props.value === 'Active' ? 'positive' : 'grey-6'"
+              text-color="white"
             >
-              <template v-slot:body-cell-transac_type="props">
-                <q-td :props="props">
-                  <q-chip
-                    :color="getTransactionTypeColor(props.value)"
-                    text-color="white"
-                    size="sm"
-                  >
-                    {{ props.value }}
-                  </q-chip>
-                </q-td>
-              </template>
+              {{ props.value }}
+            </q-chip>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-monthly_rent="props">
+          <q-td :props="props">${{ formatAmount(props.value) }}</q-td>
+        </template>
+        <template v-slot:body-cell-annual_rent="props">
+          <q-td :props="props">${{ formatAmount(props.value) }}</q-td>
+        </template>
+      </q-table>
+    </q-card>
 
-              <template v-slot:body-cell-flow="props">
-                <q-td :props="props">
-                  <q-chip
-                    :color="
-                      props.value === 'Income'
-                        ? 'positive'
-                        : props.value === 'Expense'
-                          ? 'negative'
-                          : 'grey'
-                    "
-                    text-color="white"
-                    size="sm"
-                  >
-                    {{ props.value }}
-                  </q-chip>
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-amount="props">
-                <q-td :props="props">
-                  <span :class="getAmountClass(props.row)">
-                    ${{ formatAmount(props.value) }}
-                  </span>
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-task_link="props">
-                <q-td :props="props">
-                  {{ props.value || '-' }}
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-picture="props">
-                <q-td :props="props">
-                  <q-icon
-                    v-if="props.value"
-                    name="photo"
-                    color="primary"
-                    size="sm"
-                    class="cursor-pointer"
-                    @click="viewImage(props.value)"
-                  >
-                    <q-tooltip>View image</q-tooltip>
-                  </q-icon>
-                  <span v-else class="text-grey-5">-</span>
-                </q-td>
-              </template>
-            </q-table>
-          </q-card-section>
-        </q-card>
-      </div>
+    <div class="operations-grid q-mb-md">
+      <q-card flat bordered class="report-panel">
+        <q-card-section class="panel-header">
+          <div>
+            <div class="panel-kicker">Operating Cost &amp; Risk</div>
+            <div class="panel-title">Maintenance Event Trend</div>
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <div class="chart-container">
+            <canvas ref="maintenanceChartCanvas" style="max-height: 270px"></canvas>
+          </div>
+        </q-card-section>
+      </q-card>
+      <q-card flat bordered class="report-panel risk-panel">
+        <q-card-section class="panel-header">
+          <div>
+            <div class="panel-kicker">Review Queue</div>
+            <div class="panel-title">Risk Signals</div>
+          </div>
+        </q-card-section>
+        <q-list separator>
+          <q-item v-for="signal in riskSignals" :key="signal.label">
+            <q-item-section>
+              <q-item-label>{{ signal.label }}</q-item-label>
+              <q-item-label caption>{{ signal.detail }}</q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-badge :color="signal.color" :label="signal.value" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-card>
     </div>
 
-    <!-- Task History Table -->
-    <div class="row q-mb-lg">
-      <div class="col-12">
-        <q-card class="table-card">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6">
-                <q-icon name="assignment" class="q-mr-sm" />
-                Task History Report
-              </div>
-              <q-btn
-                outline
-                dense
-                color="primary"
-                icon="download"
-                label="Download CSV"
-                class="report-action-btn"
-                @click="downloadTasksCSV"
-              />
-            </div>
+    <q-card flat bordered class="report-panel q-mb-md">
+      <q-card-section class="panel-header">
+        <div>
+          <div class="panel-kicker">Operations / Maintenance</div>
+          <div class="panel-title">Task Event Stream</div>
+        </div>
+        <q-btn
+          outline
+          dense
+          color="primary"
+          icon="download"
+          label="Export Events"
+          class="report-action-btn"
+          @click="downloadTasksCSV"
+        />
+      </q-card-section>
+      <q-table
+        :rows="filteredTasks"
+        :columns="taskColumns"
+        row-key="id"
+        :pagination="taskPagination"
+        :loading="loading"
+        flat
+        dense
+        class="report-table"
+      >
+        <template v-slot:body-cell-status="props">
+          <q-td :props="props">
+            <q-chip :color="getTaskStatusColor(props.value)" text-color="white" size="sm">
+              {{ props.value || 'Open' }}
+            </q-chip>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-reported_role="props">
+          <q-td :props="props">
+            <q-chip :color="getRoleColor(props.value)" text-color="white" size="sm">
+              {{ props.value }}
+            </q-chip>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-property="props">
+          <q-td :props="props">{{ getPropertyName(props.row.property_id) }}</q-td>
+        </template>
+        <template v-slot:body-cell-linked_tx_total="props">
+          <q-td :props="props">${{ formatAmount(props.value) }}</q-td>
+        </template>
+      </q-table>
+    </q-card>
 
-            <!-- Table -->
-            <q-table
-              :rows="filteredTasks"
-              :columns="taskColumns"
-              row-key="id"
-              :pagination="taskPagination"
-              :loading="loading"
-              flat
-              bordered
-              class="report-table"
+    <q-card flat bordered class="report-panel q-mb-lg">
+      <q-card-section class="panel-header">
+        <div>
+          <div class="panel-kicker">Accounting Detail</div>
+          <div class="panel-title">General Ledger</div>
+        </div>
+        <q-btn
+          outline
+          dense
+          color="primary"
+          icon="download"
+          label="Export Ledger"
+          class="report-action-btn"
+          @click="downloadTransactionsCSV"
+        />
+      </q-card-section>
+      <q-table
+        :rows="filteredTransactions"
+        :columns="transactionColumns"
+        row-key="id"
+        :pagination="transactionPagination"
+        :loading="loading"
+        flat
+        dense
+        class="report-table"
+      >
+        <template v-slot:body-cell-transac_type="props">
+          <q-td :props="props">
+            <q-chip :color="getTransactionTypeColor(props.value)" text-color="white" size="sm">
+              {{ props.value }}
+            </q-chip>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-property="props">
+          <q-td :props="props">{{ getPropertyName(props.row.property_id) }}</q-td>
+        </template>
+        <template v-slot:body-cell-flow="props">
+          <q-td :props="props">
+            <q-chip
+              :color="
+                props.value === 'Income'
+                  ? 'positive'
+                  : props.value === 'Expense'
+                    ? 'negative'
+                    : 'grey'
+              "
+              text-color="white"
+              size="sm"
             >
-              <template v-slot:body-cell-status="props">
-                <q-td :props="props">
-                  <q-chip :color="getTaskStatusColor(props.value)" text-color="white" size="sm">
-                    {{ props.value || 'Open' }}
-                  </q-chip>
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-reported_role="props">
-                <q-td :props="props">
-                  <q-chip :color="getRoleColor(props.value)" text-color="white" size="sm">
-                    {{ props.value }}
-                  </q-chip>
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-property="props">
-                <q-td :props="props">
-                  {{ getPropertyName(props.row.property_id) }}
-                </q-td>
-              </template>
-
-              <template v-slot:body-cell-linked_tx_total="props">
-                <q-td :props="props">
-                  ${{ formatAmount(props.value) }}
-                </q-td>
-              </template>
-            </q-table>
-          </q-card-section>
-        </q-card>
-      </div>
-    </div>
+              {{ props.value }}
+            </q-chip>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-amount="props">
+          <q-td :props="props">
+            <span :class="getAmountClass(props.row)">${{ formatAmount(props.value) }}</span>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-task_link="props">
+          <q-td :props="props">{{ props.value || '-' }}</q-td>
+        </template>
+        <template v-slot:body-cell-picture="props">
+          <q-td :props="props">
+            <q-icon
+              v-if="props.value"
+              name="photo"
+              color="primary"
+              size="sm"
+              class="cursor-pointer"
+              @click="viewImage(props.value)"
+            >
+              <q-tooltip>View supporting image</q-tooltip>
+            </q-icon>
+            <span v-else class="text-grey-5">-</span>
+          </q-td>
+        </template>
+      </q-table>
+    </q-card>
 
     <!-- Image Viewer Dialog -->
     <q-dialog v-model="showImageViewer" maximized>
@@ -343,7 +395,9 @@ const route = useRoute()
 const loading = ref(false)
 const dataLoaded = ref(false)
 const selectedProperties = ref([])
-const dateRange = ref('Last 6 Months')
+const dateRange = ref('Current Tax Year')
+// This route is the PM business report; owner reporting is provided on /po-dashboard.
+const reportPerspective = ref('pm')
 const chartsReady = ref(false)
 let chartsUpdateTimer = null
 const showImageViewer = ref(false)
@@ -351,16 +405,20 @@ const currentImageUrl = ref('')
 
 // Chart references
 const coreCashFlowChartCanvas = ref(null)
-const occupancyChartCanvas = ref(null)
-const delinquencyChartCanvas = ref(null)
 const maintenanceChartCanvas = ref(null)
 let coreCashFlowChart = null
-let occupancyChart = null
-let delinquencyChart = null
 let maintenanceChart = null
 
 // Options
-const dateRangeOptions = ['Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'Last Year', 'All Time']
+const dateRangeOptions = [
+  'Current Tax Year',
+  'Previous Tax Year',
+  'Last 30 Days',
+  'Last 3 Months',
+  'Last 6 Months',
+  'Last Year',
+  'All Time',
+]
 
 const normalizePropertyId = (value) => {
   if (!value) return ''
@@ -371,7 +429,9 @@ const normalizePropertyId = (value) => {
 }
 
 const normalizeTransactionRole = (value) => {
-  const raw = String(value || '').trim().toLowerCase()
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase()
   if (!raw) return ''
   if (raw === 'pm' || raw === 'property manager' || raw === 'manager') return 'pm'
   if (raw === 'po' || raw === 'property owner' || raw === 'owner' || raw === 'landlord') return 'po'
@@ -392,7 +452,9 @@ const toDateSafe = (value) => {
 }
 
 const normalizeFlowType = (value) => {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
   if (normalized === 'income' || normalized === 'expense') return normalized
   return ''
 }
@@ -400,10 +462,13 @@ const normalizeFlowType = (value) => {
 const getTransactionTaskLinkId = (transaction) =>
   String(transaction?.task_id || transaction?.related_task_id || '').trim()
 
-const getTaskIdCandidates = (task) =>
-  [...new Set([task?.id, task?.mx_id, task?.task_id]
-    .filter((value) => value !== null && value !== undefined && String(value).trim().length)
-    .map((value) => String(value).trim()))]
+const getTaskIdCandidates = (task) => [
+  ...new Set(
+    [task?.id, task?.mx_id, task?.task_id]
+      .filter((value) => value !== null && value !== undefined && String(value).trim().length)
+      .map((value) => String(value).trim()),
+  ),
+]
 
 const classifyTransactionFlow = (transaction, roleOverride = null) => {
   const fromRole = normalizeTransactionRole(transaction?.transac_from || transaction?.role)
@@ -414,6 +479,7 @@ const classifyTransactionFlow = (transaction, roleOverride = null) => {
   if (explicitRole) {
     if (toRole && toRole === explicitRole) return 'income'
     if (fromRole && fromRole === explicitRole) return 'expense'
+    if (toRole || fromRole) return 'ignore'
   } else {
     if (toRole && portfolioRoles.includes(toRole)) return 'income'
     if (fromRole && portfolioRoles.includes(fromRole)) return 'expense'
@@ -434,9 +500,50 @@ const getTransactionFlowLabel = (transaction, roleOverride = null) => {
   return 'N/A'
 }
 
-// Property options
+const reportPerspectiveLabel = computed(() => 'PM Business Report')
+
+const perspectiveDefinition = computed(
+  () =>
+    'PM basis: management fees received from owners are management revenue; only payments made by the PM are expenses.',
+)
+
+const revenueCaption = computed(
+  () => `Includes $${formatAmount(managementFeeIncome.value)} in management fee revenue`,
+)
+
+const expenseCaption = computed(() => 'Payments made by the PM business')
+
+const perspectivePropertyIds = computed(() => {
+  const roleMatches = userDataStore.userRoles
+    .filter(
+      (role) =>
+        normalizeRoleValue(role?.role) === reportPerspective.value &&
+        (role?.status || 'active') === 'active',
+    )
+    .map((role) => normalizePropertyId(role?.property_id))
+    .filter(Boolean)
+  return new Set(
+    roleMatches.length ? roleMatches : userDataStore.userAccessibleProperties.map((p) => p.id),
+  )
+})
+
+const scopedProperties = computed(() =>
+  userDataStore.userAccessibleProperties.filter((property) =>
+    perspectivePropertyIds.value.has(normalizePropertyId(property.id)),
+  ),
+)
+
+const reportProperties = computed(() =>
+  selectedProperties.value?.length
+    ? scopedProperties.value.filter((property) =>
+        selectedProperties.value.includes(normalizePropertyId(property.id)),
+      )
+    : scopedProperties.value,
+)
+
+// Property options stay within the selected accounting perspective.
 const propertyOptions = computed(() => {
-  return userDataStore.userAccessibleProperties.map((p) => ({
+  return scopedProperties.value.map((p) => ({
     label: p.nickname || p.address,
     value: p.id,
   }))
@@ -446,16 +553,21 @@ const propertyOptions = computed(() => {
 const totalDataCount = computed(() => {
   const transactionCount = userDataStore.userAccessibleTransactions.length
   const taskCount = userDataStore.userAccessibleMxRecords.length
-  return transactionCount + taskCount
+  const leaseCount = userDataStore.userAccessibleLeases.length
+  return transactionCount + taskCount + leaseCount
 })
 
 const hasReportData = computed(() => totalDataCount.value > 0)
 
 // Filtered data based on role and property selection
-const filteredTransactions = computed(() => {
+const scopedTransactions = computed(() => {
   let transactions = Array.isArray(userDataStore.userAccessibleTransactions)
     ? userDataStore.userAccessibleTransactions
     : []
+
+  transactions = transactions.filter((t) =>
+    perspectivePropertyIds.value.has(normalizePropertyId(t.property_id)),
+  )
 
   // Filter by properties (multiple selection)
   if (selectedProperties.value && selectedProperties.value.length > 0) {
@@ -470,12 +582,18 @@ const filteredTransactions = computed(() => {
   return transactions
 })
 
+const filteredTransactions = computed(() => {
+  return scopedTransactions.value.filter(
+    (transaction) => classifyTransactionFlow(transaction, reportPerspective.value) !== 'ignore',
+  )
+})
+
 const filteredTasks = computed(() => {
   let tasks = Array.isArray(userDataStore.userAccessibleMxRecords)
     ? userDataStore.userAccessibleMxRecords
     : []
 
-  // NOTE: Task history does NOT filter by role - shows all tasks
+  tasks = tasks.filter((t) => perspectivePropertyIds.value.has(normalizePropertyId(t.property_id)))
 
   // Filter by properties (multiple selection)
   if (selectedProperties.value && selectedProperties.value.length > 0) {
@@ -490,9 +608,23 @@ const filteredTasks = computed(() => {
   return tasks
 })
 
+const getLeasePropertyId = (lease) =>
+  normalizePropertyId(lease?.property?.id || lease?.property_id?.id || lease?.property_id)
+
+const filteredLeases = computed(() => {
+  let leases = Array.isArray(userDataStore.userAccessibleLeases)
+    ? userDataStore.userAccessibleLeases
+    : []
+  leases = leases.filter((lease) => perspectivePropertyIds.value.has(getLeasePropertyId(lease)))
+  if (selectedProperties.value?.length) {
+    leases = leases.filter((lease) => selectedProperties.value.includes(getLeasePropertyId(lease)))
+  }
+  return leases
+})
+
 const taskTransactionsIndex = computed(() => {
   const map = new Map()
-  filteredTransactions.value.forEach((transaction) => {
+  scopedTransactions.value.forEach((transaction) => {
     const taskLinkId = getTransactionTaskLinkId(transaction)
     if (!taskLinkId) return
     if (!map.has(taskLinkId)) {
@@ -524,46 +656,232 @@ const getTaskLinkedTransactionCount = (task) => getTaskLinkedTransactions(task).
 
 const getTaskLinkedTransactionTotal = (task) =>
   getTaskLinkedTransactions(task).reduce((sum, transaction) => {
-    const amount = Number(transaction?.amount || 0)
-    return sum + (Number.isFinite(amount) ? amount : 0)
+    if (classifyTransactionFlow(transaction) !== 'expense') return sum
+    const amount = transactionAmount(transaction)
+    return sum + amount
   }, 0)
 
 // Summary calculations
-const totalIncome = computed(() => {
-  let income = 0
+const transactionAmount = (transaction) => Number(transaction?.amount || 0) || 0
 
-  filteredTransactions.value.forEach((t) => {
-    if (classifyTransactionFlow(t) === 'income') {
-      income += parseFloat(t.amount) || 0
-    }
+const recordedRevenue = computed(() =>
+  filteredTransactions.value
+    .filter(
+      (transaction) => classifyTransactionFlow(transaction, reportPerspective.value) === 'income',
+    )
+    .reduce((sum, transaction) => sum + transactionAmount(transaction), 0),
+)
+
+const recordedExpenses = computed(() =>
+  filteredTransactions.value
+    .filter(
+      (transaction) => classifyTransactionFlow(transaction, reportPerspective.value) === 'expense',
+    )
+    .reduce((sum, transaction) => sum + transactionAmount(transaction), 0),
+)
+
+const totalIncome = computed(() => formatAmount(recordedRevenue.value))
+const totalExpenses = computed(() => formatAmount(recordedExpenses.value))
+const netProfit = computed(() => formatAmount(recordedRevenue.value - recordedExpenses.value))
+
+const isManagementFee = (transaction) =>
+  /management|manager fee|pm fee/i.test(String(transaction?.transac_type || ''))
+
+const managementFeeIncome = computed(() =>
+  filteredTransactions.value
+    .filter(
+      (transaction) =>
+        isManagementFee(transaction) &&
+        classifyTransactionFlow(transaction, reportPerspective.value) === 'income',
+    )
+    .reduce((sum, transaction) => sum + transactionAmount(transaction), 0),
+)
+
+const transactionCategory = (transaction) =>
+  String(transaction?.transac_type || 'Uncategorized').trim() || 'Uncategorized'
+
+const profitLossRows = computed(() => {
+  const categories = new Map()
+  filteredTransactions.value.forEach((transaction) => {
+    const flow = classifyTransactionFlow(transaction, reportPerspective.value)
+    if (flow !== 'income' && flow !== 'expense') return
+    const category = transactionCategory(transaction)
+    const row = categories.get(category) || { category, revenue: 0, expenses: 0, net: 0 }
+    row[flow === 'income' ? 'revenue' : 'expenses'] += transactionAmount(transaction)
+    row.net = row.revenue - row.expenses
+    categories.set(category, row)
   })
-
-  return formatAmount(income)
+  return [...categories.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
 })
 
-const totalExpenses = computed(() => {
-  let expenses = 0
+const isActiveLease = (lease) =>
+  ['active', 'rented', 'occupied'].includes(String(lease?.status || '').toLowerCase())
 
-  filteredTransactions.value.forEach((t) => {
-    if (classifyTransactionFlow(t) === 'expense') {
-      expenses += parseFloat(t.amount) || 0
+const rentRollRows = computed(() =>
+  filteredLeases.value.map((lease) => {
+    const monthlyRent = Number(lease?.rate_amount || 0) || 0
+    return {
+      id: lease.id || lease.lease_id,
+      property: getPropertyName(getLeasePropertyId(lease)),
+      status: isActiveLease(lease) ? 'Active' : String(lease?.status || 'Unknown'),
+      monthly_rent: monthlyRent,
+      annual_rent: monthlyRent * 12,
+      start_date: lease.start_date || lease.lease_start_date || lease.move_in_date,
+      end_date: lease.lease_end_date || lease.end_date,
     }
-  })
+  }),
+)
 
-  return formatAmount(expenses)
-})
-
-const netProfit = computed(() => {
-  const income = parseFloat(totalIncome.value.replace(/,/g, ''))
-  const expenses = parseFloat(totalExpenses.value.replace(/,/g, ''))
-  return formatAmount(income - expenses)
-})
+const activeLeases = computed(() => filteredLeases.value.filter((lease) => isActiveLease(lease)))
+const activeLeaseCount = computed(() => activeLeases.value.length)
+const scheduledMonthlyRent = computed(() =>
+  activeLeases.value.reduce((sum, lease) => sum + (Number(lease?.rate_amount || 0) || 0), 0),
+)
+const scheduledAnnualRent = computed(() => scheduledMonthlyRent.value * 12)
+const recordedRentReceipts = computed(() =>
+  scopedTransactions.value
+    .filter(
+      (transaction) =>
+        /rent/i.test(transactionCategory(transaction)) &&
+        classifyTransactionFlow(transaction) === 'income',
+    )
+    .reduce((sum, transaction) => sum + transactionAmount(transaction), 0),
+)
 
 const completedTasks = computed(() => {
-  return filteredTasks.value.filter((t) => t.status === 'resolved' || t.status === 'closed').length
+  return filteredTasks.value.filter((t) =>
+    ['resolved', 'closed'].includes(String(t.status).toLowerCase()),
+  ).length
 })
 
+const openTaskCount = computed(() => filteredTasks.value.length - completedTasks.value)
+const overdueTaskCount = computed(() => {
+  const now = new Date()
+  return filteredTasks.value.filter((task) => {
+    if (['resolved', 'closed'].includes(String(task.status).toLowerCase())) return false
+    const dueDate = toDateSafe(task.due_date)
+    return Boolean(dueDate && dueDate < now)
+  }).length
+})
+
+const agingOpenTaskCount = computed(() => {
+  const threshold = new Date()
+  threshold.setDate(threshold.getDate() - 30)
+  return filteredTasks.value.filter((task) => {
+    if (['resolved', 'closed'].includes(String(task.status).toLowerCase())) return false
+    const reportedDate = toDateSafe(task.report_date)
+    return Boolean(reportedDate && reportedDate < threshold)
+  }).length
+})
+
+const taskLinkedOperationsSpend = computed(() =>
+  scopedTransactions.value
+    .filter(
+      (transaction) =>
+        getTransactionTaskLinkId(transaction) && classifyTransactionFlow(transaction) === 'expense',
+    )
+    .reduce((sum, transaction) => sum + transactionAmount(transaction), 0),
+)
+
+const maintenanceCostRatio = computed(() =>
+  recordedRentReceipts.value
+    ? (taskLinkedOperationsSpend.value / recordedRentReceipts.value) * 100
+    : 0,
+)
+
+const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`
+
+const riskSignals = computed(() => [
+  {
+    label: 'Open maintenance events',
+    detail: 'Outstanding tasks requiring operational follow-up',
+    value: String(openTaskCount.value),
+    color: openTaskCount.value ? 'warning' : 'positive',
+  },
+  {
+    label: 'Past due tasks',
+    detail: 'Open events with a recorded due date before today',
+    value: String(overdueTaskCount.value),
+    color: overdueTaskCount.value ? 'negative' : 'positive',
+  },
+  {
+    label: 'Open more than 30 days',
+    detail: 'Aged unresolved issues that may increase exposure',
+    value: String(agingOpenTaskCount.value),
+    color: agingOpenTaskCount.value ? 'negative' : 'positive',
+  },
+  {
+    label: 'Task-linked cost ratio',
+    detail: 'Recorded property task spend divided by recorded rent receipts',
+    value: formatPercent(maintenanceCostRatio.value),
+    color: maintenanceCostRatio.value > 20 ? 'negative' : 'primary',
+  },
+])
+
 // Table columns
+const profitLossColumns = [
+  { name: 'category', label: 'Category', field: 'category', align: 'left', sortable: true },
+  {
+    name: 'revenue',
+    label: 'Revenue',
+    field: 'revenue',
+    align: 'right',
+    format: (value) => `$${formatAmount(value)}`,
+    sortable: true,
+  },
+  {
+    name: 'expenses',
+    label: 'Expenses',
+    field: 'expenses',
+    align: 'right',
+    format: (value) => `$${formatAmount(value)}`,
+    sortable: true,
+  },
+  {
+    name: 'net',
+    label: 'Net',
+    field: 'net',
+    align: 'right',
+    format: (value) => `$${formatAmount(value)}`,
+    sortable: true,
+  },
+]
+
+const rentRollColumns = [
+  { name: 'property', label: 'Property', field: 'property', align: 'left', sortable: true },
+  { name: 'status', label: 'Lease Status', field: 'status', align: 'left', sortable: true },
+  {
+    name: 'monthly_rent',
+    label: 'Monthly Rent',
+    field: 'monthly_rent',
+    align: 'right',
+    sortable: true,
+  },
+  {
+    name: 'annual_rent',
+    label: 'Annualized',
+    field: 'annual_rent',
+    align: 'right',
+    sortable: true,
+  },
+  {
+    name: 'start_date',
+    label: 'Start',
+    field: 'start_date',
+    align: 'left',
+    format: (value) => formatDate(value),
+    sortable: true,
+  },
+  {
+    name: 'end_date',
+    label: 'End',
+    field: 'end_date',
+    align: 'left',
+    format: (value) => formatDate(value),
+    sortable: true,
+  },
+]
+
 const transactionColumns = [
   {
     name: 'transac_date',
@@ -610,8 +928,8 @@ const transactionColumns = [
   },
   {
     name: 'flow',
-    label: 'Flow',
-    field: (row) => getTransactionFlowLabel(row),
+    label: 'Accounting Flow',
+    field: (row) => getTransactionFlowLabel(row, reportPerspective.value),
     sortable: true,
     align: 'center',
   },
@@ -676,7 +994,7 @@ const taskColumns = [
   },
   {
     name: 'linked_tx_total',
-    label: 'Linked Cost',
+    label: 'Linked Ops Spend',
     field: (row) => getTaskLinkedTransactionTotal(row),
     sortable: true,
     align: 'right',
@@ -699,6 +1017,13 @@ const transactionPagination = ref({
   descending: true,
 })
 
+const rentRollPagination = ref({
+  page: 1,
+  rowsPerPage: 8,
+  sortBy: 'property',
+  descending: false,
+})
+
 const taskPagination = ref({
   page: 1,
   rowsPerPage: 10,
@@ -710,8 +1035,16 @@ const taskPagination = ref({
 const filterByDateRange = (items, dateField) => {
   const now = new Date()
   let startDate = new Date()
+  let endDate = null
 
   switch (dateRange.value) {
+    case 'Current Tax Year':
+      startDate = new Date(now.getFullYear(), 0, 1)
+      break
+    case 'Previous Tax Year':
+      startDate = new Date(now.getFullYear() - 1, 0, 1)
+      endDate = new Date(now.getFullYear(), 0, 1)
+      break
     case 'Last 30 Days':
       startDate.setDate(now.getDate() - 30)
       break
@@ -731,7 +1064,7 @@ const filterByDateRange = (items, dateField) => {
   return items.filter((item) => {
     const itemDate = toDateSafe(item?.[dateField] || item?.created_datetime || item?.createdAt)
     if (!itemDate) return false
-    return itemDate >= startDate
+    return itemDate >= startDate && (!endDate || itemDate < endDate)
   })
 }
 
@@ -744,7 +1077,9 @@ const formatAmount = (amount) => {
 
 const formatDate = (date) => {
   if (!date) return 'N/A'
-  return new Date(date).toLocaleDateString('en-US', {
+  const parsedDate = toDateSafe(date)
+  if (!parsedDate) return 'N/A'
+  return parsedDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -789,7 +1124,7 @@ const getRoleColor = (role) => {
 }
 
 const getAmountClass = (transaction) => {
-  const flowType = classifyTransactionFlow(transaction)
+  const flowType = classifyTransactionFlow(transaction, reportPerspective.value)
   if (flowType === 'income') return 'text-positive text-bold'
   if (flowType === 'expense') return 'text-negative text-bold'
   return 'text-grey-7 text-bold'
@@ -800,13 +1135,31 @@ const initializeCharts = () => {
   // Import Chart.js dynamically
   import('chart.js/auto').then((Chart) => {
     createCoreCashFlowChart(Chart.default)
-    createOccupancyChart(Chart.default)
-    createDelinquencyChart(Chart.default)
     createMaintenanceChart(Chart.default)
   })
 }
 
 const getMonthsForSelectedRange = () => {
+  const now = new Date()
+  if (dateRange.value === 'Current Tax Year') {
+    return Array.from({ length: now.getMonth() + 1 }, (_, index) => {
+      const d = new Date(now.getFullYear(), index, 1)
+      return {
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      }
+    })
+  }
+  if (dateRange.value === 'Previous Tax Year') {
+    return Array.from({ length: 12 }, (_, index) => {
+      const d = new Date(now.getFullYear() - 1, index, 1)
+      return {
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      }
+    })
+  }
+
   let monthsToShow = 6
   switch (dateRange.value) {
     case 'Last 30 Days':
@@ -826,7 +1179,6 @@ const getMonthsForSelectedRange = () => {
       break
   }
 
-  const now = new Date()
   const months = []
   for (let i = monthsToShow - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
@@ -855,7 +1207,7 @@ const createCoreCashFlowChart = (Chart) => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (!monthly[key]) return
     const amount = parseFloat(t.amount) || 0
-    const flowType = classifyTransactionFlow(t)
+    const flowType = classifyTransactionFlow(t, reportPerspective.value)
     if (flowType === 'income') monthly[key].income += amount
     else if (flowType === 'expense') monthly[key].expense += amount
   })
@@ -896,133 +1248,6 @@ const createCoreCashFlowChart = (Chart) => {
       responsive: true,
       maintainAspectRatio: true,
       plugins: { legend: { position: 'top' } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: (v) => `$${Number(v).toLocaleString()}` },
-        },
-      },
-    },
-  })
-}
-
-const createOccupancyChart = (Chart) => {
-  if (!occupancyChartCanvas.value) return
-  const ctx = occupancyChartCanvas.value.getContext('2d')
-  if (occupancyChart) occupancyChart.destroy()
-
-  const months = getMonthsForSelectedRange()
-  const totalProps = userDataStore.userAccessibleProperties.length || 1
-  const occupancyRate = months.map(() => 0)
-  const vacancyCount = months.map(() => 0)
-
-  const occupiedStatuses = new Set(['rented', 'active', 'occupied'])
-  const vacantStatuses = new Set(['available', 'pending', 'expired', 'terminated'])
-
-  months.forEach((m, idx) => {
-    const occupiedProperties = new Set()
-    const vacantProperties = new Set()
-    userDataStore.userAccessibleLeases.forEach((lease) => {
-      const status = String(lease.status || '').toLowerCase()
-      const propertyId = lease.property_id?.id || lease.property_id
-      if (!propertyId) return
-      if (occupiedStatuses.has(status)) occupiedProperties.add(propertyId)
-      else if (vacantStatuses.has(status)) vacantProperties.add(propertyId)
-    })
-    occupancyRate[idx] = Math.min(100, (occupiedProperties.size / totalProps) * 100)
-    vacancyCount[idx] = vacantProperties.size
-  })
-
-  occupancyChart = new Chart(ctx, {
-    data: {
-      labels: months.map((m) => m.label),
-      datasets: [
-        {
-          type: 'line',
-          label: 'Occupancy Rate (%)',
-          data: occupancyRate,
-          borderColor: 'rgba(22, 163, 74, 1)',
-          backgroundColor: 'rgba(22, 163, 74, 0.15)',
-          tension: 0.35,
-          yAxisID: 'y',
-        },
-        {
-          type: 'bar',
-          label: 'Vacant Properties',
-          data: vacancyCount,
-          backgroundColor: 'rgba(234, 179, 8, 0.5)',
-          borderColor: 'rgba(234, 179, 8, 1)',
-          borderWidth: 1,
-          yAxisID: 'y1',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: { callback: (v) => `${v}%` },
-          position: 'left',
-        },
-        y1: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-        },
-      },
-    },
-  })
-}
-
-const createDelinquencyChart = (Chart) => {
-  if (!delinquencyChartCanvas.value) return
-  const ctx = delinquencyChartCanvas.value.getContext('2d')
-  if (delinquencyChart) delinquencyChart.destroy()
-
-  const buckets = { '1-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
-  const now = new Date()
-
-  filteredTransactions.value.forEach((t) => {
-    const typeText = String(t.transac_type || '').toLowerCase()
-    const isRentLike = typeText.includes('rent') || t.type === 'expense'
-    if (!isRentLike) return
-    const d = toDateSafe(t.transac_date)
-    if (!d) return
-    const days = Math.floor((now - d) / (1000 * 60 * 60 * 24))
-    const amount = parseFloat(t.amount) || 0
-    if (days <= 0) return
-    if (days <= 30) buckets['1-30'] += amount
-    else if (days <= 60) buckets['31-60'] += amount
-    else if (days <= 90) buckets['61-90'] += amount
-    else buckets['90+'] += amount
-  })
-
-  delinquencyChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(buckets),
-      datasets: [
-        {
-          label: 'Outstanding Amount',
-          data: Object.values(buckets),
-          backgroundColor: [
-            'rgba(251, 191, 36, 0.65)',
-            'rgba(249, 115, 22, 0.65)',
-            'rgba(239, 68, 68, 0.65)',
-            'rgba(185, 28, 28, 0.75)',
-          ],
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
       scales: {
         y: {
           beginAtZero: true,
@@ -1117,8 +1342,6 @@ const updateCharts = () => {
   import('chart.js/auto')
     .then((Chart) => {
       createCoreCashFlowChart(Chart.default)
-      createOccupancyChart(Chart.default)
-      createDelinquencyChart(Chart.default)
       createMaintenanceChart(Chart.default)
       chartsReady.value = true
     })
@@ -1154,7 +1377,7 @@ const downloadTransactionsCSV = () => {
 
     // Create CSV rows
     const rows = filteredTransactions.value.map((t) => {
-      const flow = getTransactionFlowLabel(t)
+      const flow = getTransactionFlowLabel(t, reportPerspective.value)
 
       return [
         formatDate(t.transac_date),
@@ -1175,7 +1398,8 @@ const downloadTransactionsCSV = () => {
     let csvContent = ''
 
     // Add summary section
-    csvContent += '=== FINANCIAL SUMMARY ===\n'
+    csvContent += '=== GENERAL LEDGER SUMMARY ===\n'
+    csvContent += `Reporting Perspective,${reportPerspectiveLabel.value}\n`
     csvContent += `Total Income,$${totalIncome.value}\n`
     csvContent += `Total Expenses,$${totalExpenses.value}\n`
     csvContent += `Net Profit,$${netProfit.value}\n`
@@ -1195,7 +1419,7 @@ const downloadTransactionsCSV = () => {
     })
 
     // Download file
-    downloadCSV(csvContent, 'Financial_Transactions')
+    downloadCSV(csvContent, `General_Ledger_${reportPerspective.value.toUpperCase()}`)
   } catch (error) {
     console.error('Error downloading transactions CSV:', error)
     Notify.create({
@@ -1216,7 +1440,7 @@ const downloadTasksCSV = () => {
       'Reported By (Role)',
       'Status',
       'Linked Transaction Count',
-      'Linked Transaction Total',
+      'Linked Operating Spend',
       'Resolved Date',
       'Resolved By',
     ]
@@ -1238,7 +1462,8 @@ const downloadTasksCSV = () => {
     let csvContent = ''
 
     // Add summary section
-    csvContent += '=== TASK SUMMARY ===\n'
+    csvContent += '=== OPERATIONS EVENT SUMMARY ===\n'
+    csvContent += `Reporting Perspective,${reportPerspectiveLabel.value}\n`
     csvContent += `Total Tasks,${filteredTasks.value.length}\n`
     csvContent += `Completed Tasks,${completedTasks.value}\n`
     csvContent += `Open Tasks,${filteredTasks.value.length - completedTasks.value}\n`
@@ -1258,7 +1483,7 @@ const downloadTasksCSV = () => {
     })
 
     // Download file
-    downloadCSV(csvContent, 'Task_History')
+    downloadCSV(csvContent, `Operations_Events_${reportPerspective.value.toUpperCase()}`)
   } catch (error) {
     console.error('Error downloading tasks CSV:', error)
     Notify.create({
@@ -1318,7 +1543,7 @@ const exportAllReports = () => {
     ]
 
     const transactionRows = filteredTransactions.value.map((t) => {
-      const flow = getTransactionFlowLabel(t)
+      const flow = getTransactionFlowLabel(t, reportPerspective.value)
 
       return [
         formatDate(t.transac_date),
@@ -1343,7 +1568,7 @@ const exportAllReports = () => {
       'Reported By (Role)',
       'Status',
       'Linked Transaction Count',
-      'Linked Transaction Total',
+      'Linked Operating Spend',
       'Resolved Date',
       'Resolved By',
     ]
@@ -1364,12 +1589,13 @@ const exportAllReports = () => {
     let csvContent = ''
 
     // Add report header
-    csvContent += '=== HANDOUT BULK EXPORT REPORT ===\n'
+    csvContent += '=== HANDOUT PROPERTY REPORT PACKAGE ===\n'
     csvContent += `Generated on,${new Date().toLocaleString()}\n`
+    csvContent += `Reporting Perspective,${reportPerspectiveLabel.value}\n`
     csvContent += '\n'
 
     // Add summary section
-    csvContent += '=== FINANCIAL SUMMARY ===\n'
+    csvContent += '=== PROFIT AND LOSS SUMMARY ===\n'
     csvContent += `Total Income,$${totalIncome.value}\n`
     csvContent += `Total Expenses,$${totalExpenses.value}\n`
     csvContent += `Net Profit,$${netProfit.value}\n`
@@ -1377,7 +1603,7 @@ const exportAllReports = () => {
     csvContent += '\n'
 
     // Add task summary
-    csvContent += '=== TASK SUMMARY ===\n'
+    csvContent += '=== OPERATIONS AND MAINTENANCE SUMMARY ===\n'
     csvContent += `Total Tasks,${filteredTasks.value.length}\n`
     csvContent += `Completed Tasks,${completedTasks.value}\n`
     csvContent += `Open Tasks,${filteredTasks.value.length - completedTasks.value}\n`
@@ -1390,7 +1616,7 @@ const exportAllReports = () => {
     csvContent += '\n'
 
     // Add transactions section
-    csvContent += '=== FINANCIAL TRANSACTIONS ===\n'
+    csvContent += '=== GENERAL LEDGER ===\n'
     csvContent += transactionHeaders.join(',') + '\n'
     transactionRows.forEach((row) => {
       csvContent += row.map((cell) => `"${cell}"`).join(',') + '\n'
@@ -1398,14 +1624,14 @@ const exportAllReports = () => {
     csvContent += '\n'
 
     // Add tasks section
-    csvContent += '=== TASK HISTORY ===\n'
+    csvContent += '=== TASK EVENT STREAM ===\n'
     csvContent += taskHeaders.join(',') + '\n'
     taskRows.forEach((row) => {
       csvContent += row.map((cell) => `"${cell}"`).join(',') + '\n'
     })
 
     // Download combined report
-    downloadCSV(csvContent, 'Bulk_Export_Report')
+    downloadCSV(csvContent, `Property_Report_Package_${reportPerspective.value.toUpperCase()}`)
 
     Notify.create({
       type: 'positive',
@@ -1430,12 +1656,13 @@ const exportSummaryReport = () => {
     let csvContent = ''
 
     // Header
-    csvContent += '=== HANDOUT SUMMARY REPORT ===\n'
+    csvContent += '=== HANDOUT P&L SUMMARY REPORT ===\n'
     csvContent += `Generated on,${new Date().toLocaleString()}\n`
+    csvContent += `Reporting Perspective,${reportPerspectiveLabel.value}\n`
     csvContent += '\n'
 
     // Financial Summary
-    csvContent += '=== FINANCIAL METRICS ===\n'
+    csvContent += '=== PROFIT AND LOSS ===\n'
     csvContent += `Total Income,$${totalIncome.value}\n`
     csvContent += `Total Expenses,$${totalExpenses.value}\n`
     csvContent += `Net Profit,$${netProfit.value}\n`
@@ -1445,8 +1672,8 @@ const exportSummaryReport = () => {
     // Transaction Summary
     csvContent += '=== TRANSACTION METRICS ===\n'
     csvContent += `Total Transactions,${filteredTransactions.value.length}\n`
-    csvContent += `Income Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t) === 'income').length}\n`
-    csvContent += `Expense Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t) === 'expense').length}\n`
+    csvContent += `Income Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t, reportPerspective.value) === 'income').length}\n`
+    csvContent += `Expense Transactions,${filteredTransactions.value.filter((t) => classifyTransactionFlow(t, reportPerspective.value) === 'expense').length}\n`
     csvContent += `Task-linked Transactions,${filteredTransactions.value.filter((t) => Boolean(getTransactionTaskLinkId(t))).length}\n`
     csvContent += '\n'
 
@@ -1460,17 +1687,19 @@ const exportSummaryReport = () => {
 
     // Property Summary
     csvContent += '=== PROPERTY SUMMARY ===\n'
-    csvContent += `Total Properties,${userDataStore.userAccessibleProperties.length}\n`
+    csvContent += `Total Properties,${reportProperties.value.length}\n`
 
     // Group transactions by property
     const propertyStats = {}
-    userDataStore.userAccessibleProperties.forEach((p) => {
-      const propTransactions = filteredTransactions.value.filter((t) => t.property_id === p.id)
+    reportProperties.value.forEach((p) => {
+      const propTransactions = filteredTransactions.value.filter(
+        (t) => normalizePropertyId(t.property_id) === normalizePropertyId(p.id),
+      )
       const propIncome = propTransactions
-        .filter((t) => classifyTransactionFlow(t) === 'income')
+        .filter((t) => classifyTransactionFlow(t, reportPerspective.value) === 'income')
         .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
       const propExpense = propTransactions
-        .filter((t) => classifyTransactionFlow(t) === 'expense')
+        .filter((t) => classifyTransactionFlow(t, reportPerspective.value) === 'expense')
         .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
       propertyStats[p.id] = {
         name: p.nickname || p.address,
@@ -1491,7 +1720,7 @@ const exportSummaryReport = () => {
     csvContent += `Date Range,${dateRange.value}\n`
     csvContent += `Properties Selected,${selectedProperties.value && selectedProperties.value.length > 0 ? selectedProperties.value.length : 'All'}\n`
 
-    downloadCSV(csvContent, 'Summary_Report')
+    downloadCSV(csvContent, `Profit_Loss_Summary_${reportPerspective.value.toUpperCase()}`)
 
     Notify.create({
       type: 'positive',
@@ -1531,7 +1760,8 @@ onMounted(async () => {
       const needsData =
         userDataStore.userAccessibleProperties.length === 0 ||
         userDataStore.userAccessibleTransactions.length === 0 ||
-        userDataStore.userAccessibleMxRecords.length === 0
+        userDataStore.userAccessibleMxRecords.length === 0 ||
+        userDataStore.userAccessibleLeases.length === 0
 
       if (needsData) {
         console.log('Loading all user data...')
@@ -1543,6 +1773,7 @@ onMounted(async () => {
         properties: userDataStore.userAccessibleProperties.length,
         transactions: userDataStore.userAccessibleTransactions.length,
         tasks: userDataStore.userAccessibleMxRecords.length,
+        leases: userDataStore.userAccessibleLeases.length,
         totalRecords: totalDataCount.value,
       })
 
@@ -1596,10 +1827,22 @@ watch(
     console.log('Filters changed:', {
       properties: selectedProperties.value?.length || 0,
       dateRange: dateRange.value,
+      perspective: reportPerspective.value,
     })
     scheduleUpdateCharts()
   },
   { deep: true },
+)
+
+watch(
+  propertyOptions,
+  () => {
+    const propertyIds = new Set(propertyOptions.value.map((option) => String(option.value)))
+    selectedProperties.value = selectedProperties.value.filter((propertyId) =>
+      propertyIds.has(String(propertyId)),
+    )
+  },
+  { immediate: true },
 )
 
 watch(
@@ -1648,16 +1891,78 @@ onUnmounted(() => {
   }
   // Clean up charts
   if (coreCashFlowChart) coreCashFlowChart.destroy()
-  if (occupancyChart) occupancyChart.destroy()
-  if (delinquencyChart) delinquencyChart.destroy()
   if (maintenanceChart) maintenanceChart.destroy()
 })
 </script>
 
 <style scoped>
+.report-page {
+  max-width: 1520px;
+  margin: 0 auto;
+  color: var(--neutral-900, #16243a);
+}
+
+.report-hero,
+.report-panel,
+.metric-card {
+  border-radius: var(--border-radius-card);
+  border-color: var(--neutral-200, #e5eaf1);
+  background: var(--bg-surface, #fff);
+}
+
+.report-hero {
+  overflow: hidden;
+  background: linear-gradient(112deg, #ffffff 35%, #f3f7ff 100%);
+}
+
+.report-hero__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px 12px;
+}
+
+.report-eyebrow,
+.panel-kicker {
+  color: #4f6f9c;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.report-title {
+  margin: 4px 0 3px;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.report-subtitle {
+  margin: 0;
+  max-width: 660px;
+  color: var(--neutral-600, #617187);
+  font-size: 0.9rem;
+}
+
+.perspective-chip {
+  color: #1b4b91;
+  background: #e9f0ff;
+  font-weight: 600;
+}
+
+.report-controls {
+  display: grid;
+  grid-template-columns: 220px minmax(230px, 1fr) 185px auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 24px 16px;
+}
+
 .report-filter-control :deep(.q-field__control) {
-  border-radius: 10px;
-  border: 1px solid var(--neutral-300);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--neutral-300, #d5dde8);
   background: var(--bg-surface, #fff);
 }
 
@@ -1667,75 +1972,170 @@ onUnmounted(() => {
 }
 
 .report-action-btn {
-  border-radius: 10px;
+  border-radius: var(--border-radius-btn);
   font-weight: 600;
+  min-height: 40px;
 }
 
-.select-all-btn {
-  border-radius: 8px;
+.accounting-basis {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-top: 1px solid #e6edf7;
+  background: #f7faff;
+  color: #4a5c75;
+  font-size: 0.82rem;
 }
 
-.summary-card {
-  min-width: 200px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.summary-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+.metric-card {
+  min-height: 107px;
+  padding: 14px 15px;
 }
 
-.chart-card {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.metric-label {
+  color: var(--neutral-600, #66758b);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  margin: 8px 0 4px;
+  color: var(--neutral-900, #17263c);
+  font-size: clamp(1.18rem, 1.55vw, 1.46rem);
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.risk-value {
+  color: #d97706;
+}
+
+.metric-caption {
+  color: var(--neutral-500, #728197);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.financial-grid,
+.operations-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.operations-grid {
+  grid-template-columns: 1fr;
+}
+
+.report-panel {
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 18px 12px;
+}
+
+.panel-title {
+  margin-top: 2px;
+  color: var(--neutral-900, #17263c);
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.panel-note {
+  color: var(--neutral-500, #718198);
+  font-size: 0.77rem;
 }
 
 .chart-container {
   position: relative;
   width: 100%;
-  padding: 16px 0;
+  min-height: 275px;
+  padding: 6px 0;
 }
 
-.core-charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.premium-section {
-  border: 1px dashed var(--neutral-300);
-  border-radius: 12px;
-  padding: 12px;
-  background: var(--neutral-50);
-}
-
-.premium-grid {
+.pnl-total-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
+  padding: 0 18px 14px;
 }
 
-.premium-card {
-  border-radius: 10px;
-  border: 1px solid var(--neutral-200);
-  background: white;
-}
-
-.premium-title {
-  font-weight: 700;
+.pnl-total-row > div {
   display: flex;
-  align-items: center;
-  color: var(--neutral-800);
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 11px;
+  border-radius: var(--border-radius-sm);
+  background: #f7f9fc;
 }
 
-.table-card {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.pnl-total-row span {
+  color: #687990;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pnl-total-row strong {
+  font-size: 1.05rem;
+}
+
+.pnl-net {
+  color: #183f79;
+  background: #edf4ff !important;
+}
+
+.pnl-table {
+  border-top: 1px solid var(--neutral-200, #e5eaf1);
+}
+
+.data-caveat {
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: var(--border-radius-sm);
+  color: #637389;
+  background: #f7f9fc;
+  font-size: 0.75rem;
+}
+
+.rent-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.rent-summary span {
+  padding: 5px 9px;
+  border-radius: 20px;
+  color: #365271;
+  background: #f1f5fb;
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.risk-panel :deep(.q-item) {
+  min-height: 55px;
+  padding-left: 18px;
+  padding-right: 18px;
 }
 
 .report-table {
-  border-radius: 8px;
+  border-top: 1px solid var(--neutral-200, #e5eaf1);
 }
 
 .report-table :deep(.q-table__top) {
@@ -1763,60 +2163,71 @@ onUnmounted(() => {
   max-height: 100%;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .summary-card {
-    min-width: 150px;
-  }
-
-  .core-charts-grid {
+@media (max-width: 900px) {
+  .report-controls {
     grid-template-columns: 1fr;
   }
 
-  .premium-grid {
+  .report-action-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 650px) {
+  .report-hero__header {
+    flex-direction: column;
+    padding: 18px 16px 10px;
+  }
+
+  .report-controls,
+  .accounting-basis {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .metric-grid,
+  .pnl-total-row {
     grid-template-columns: 1fr;
   }
 
-  .chart-container {
-    padding: 8px 0;
+  .rent-summary {
+    justify-content: flex-start;
+  }
+
+  .panel-header {
+    align-items: start;
+    flex-direction: column;
   }
 
   .report-table {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
   }
 }
 
-/* ========================================
-   DARK MODE STYLES
-   ======================================== */
-
-:global(body.body--dark) .summary-card {
+:global(body.body--dark) .report-hero,
+:global(body.body--dark) .report-panel,
+:global(body.body--dark) .metric-card {
   background: #1e1e1e !important;
   border-color: #3d3d3d !important;
 }
 
-:global(body.body--dark) .chart-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
+:global(body.body--dark) .report-title,
+:global(body.body--dark) .panel-title,
+:global(body.body--dark) .metric-value {
+  color: #f5f6f8;
 }
 
-:global(body.body--dark) .chart-container {
-  background: #1e1e1e !important;
+:global(body.body--dark) .accounting-basis,
+:global(body.body--dark) .pnl-total-row > div,
+:global(body.body--dark) .data-caveat,
+:global(body.body--dark) .rent-summary span {
+  background: #242a33 !important;
+  border-color: #3d3d3d !important;
+  color: #c2ccdb;
 }
 
-:global(body.body--dark) .table-card {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
-}
-
-:global(body.body--dark) .premium-section {
-  background: #1e1e1e !important;
-  border-color: #3d3d3d !important;
-}
-
-:global(body.body--dark) .premium-card {
-  background: #242424 !important;
-  border-color: #3d3d3d !important;
+:global(body.body--dark) .pnl-net {
+  background: #1e3658 !important;
 }
 
 :global(body.body--dark) .report-table {

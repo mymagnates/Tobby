@@ -5,6 +5,16 @@ import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 import { createInMemoryStore } from './store.js'
 import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_LLM_PROVIDER,
+  DEFAULT_VERTEX_LOCATION,
+  DEFAULT_VERTEX_PUBLISHER,
+  resolveVertexProjectId,
+} from './agent/llm/modelRouter.js'
+import { runFormIntakeSkill } from './agent/skills/formIntake.js'
+import { runTaskInsightSkill } from './agent/skills/taskInsight.js'
+import { truncateForLog } from './agent/utils/text.js'
+import {
   transitionLead,
   transitionBid,
   transitionAssignment,
@@ -194,10 +204,6 @@ const TASK_ADDRESS_BACKFILL_TOKEN = 'backfill-2026-04-02'
 let firestoreDb = null
 let firebaseAuth = null
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
-const DEFAULT_LLM_PROVIDER = 'vertex'
-const DEFAULT_VERTEX_LOCATION = 'us-central1'
-const DEFAULT_VERTEX_PUBLISHER = 'google'
 const DEFAULT_INVITE_EMAIL_FROM = 'onboarding@resend.dev'
 const OWNER_INVITE_PENDING = 'pending'
 
@@ -270,7 +276,21 @@ const normalizeLead = (lead) => {
 const normalizeBid = (bid) => {
   if (!bid) return null
   const id = bid.id || bid.bid_id
-  return { ...bid, id, bid_id: bid.bid_id || id }
+  const rawStatus = String(bid.status || 'submitted').trim().toLowerCase()
+  const validUntilValue = bid.valid_until
+  const validUntilDate = validUntilValue ? new Date(validUntilValue) : null
+  const isExpired = Boolean(
+    validUntilDate &&
+    !Number.isNaN(validUntilDate.getTime()) &&
+    ['submitted', 'shortlisted'].includes(rawStatus) &&
+    validUntilDate.getTime() < Date.now()
+  )
+  return {
+    ...bid,
+    id,
+    bid_id: bid.bid_id || id,
+    status: rawStatus === 'selected' ? 'accepted' : isExpired ? 'expired' : rawStatus,
+  }
 }
 
 const normalizeTaskStatus = (status) => String(status || '').trim().toLowerCase()
@@ -287,913 +307,11 @@ const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
   return null
 }
 
-const classifyIssueCategory = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (
-    /floor|flooring|spc|vinyl plank|lvp|laminate|tile|carpet|hardwood|baseboard|quarter round|trim|shoe molding|molding/.test(
-      value
-    )
-  ) {
-    return 'flooring_finish'
-  }
-  if (/leak|drip|pipe|toilet|sink|faucet|water|plumbing/.test(value)) return 'plumbing'
-  if (/sparks|outlet|breaker|power|electrical|wiring|light/.test(value)) return 'electrical'
-  if (/\bac\b|air\s*conditioning|hvac|heat\b|heater|thermostat|furnace|cooling/.test(value)) {
-    return 'hvac'
-  }
-  if (/washer|dryer|dishwasher|fridge|refrigerator|stove|oven/.test(value)) return 'appliance'
-  return 'general_maintenance'
-}
-
-const classifyUrgency = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/fire|smoke|gas|sparks|flood|no power|electrical shock/.test(value)) return 'high'
-  if (/leak|broken|not working|failed|overflow|clog/.test(value)) return 'medium'
-  return 'low'
-}
-
-const detectEntityType = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/(remind|reminder|due|renewal|renew|schedule|scheduled|recurring|monthly|weekly|yearly|annual)/.test(value)) {
-    return 'reminder'
-  }
-  if (/(transaction|payment|paid|pay|invoice|rent|deposit|refund|fee|charge|transfer)/.test(value)) {
-    return 'transaction'
-  }
-  if (/(asset|appliance|equipment|serial|model|warranty|install|installed|purchase|purchased)/.test(value)) {
-    return 'asset'
-  }
-  return 'task'
-}
-
-const detectTransactionType = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/rent/.test(value)) return 'Rent'
-  if (/deposit/.test(value)) return 'Deposit'
-  if (/tax/.test(value)) return 'Tax'
-  if (/insurance/.test(value)) return 'Insurance'
-  if (/utility|electric|water|gas|trash|sewer/.test(value)) return 'Utility'
-  if (/maintenance|repair|fix/.test(value)) return 'Maintenance'
-  if (/labor|service/.test(value)) return 'Labor'
-  if (/hoa/.test(value)) return 'HOA'
-  if (/refund/.test(value)) return 'Refund'
-  if (/fee|charge/.test(value)) return 'Fee'
-  return 'Other'
-}
-
-const detectAssetType = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/water heater|heater|ac|hvac|furnace|thermostat|air handler|compressor/.test(value)) return 'HVAC'
-  if (/dishwasher|washer|dryer|fridge|refrigerator|stove|oven|microwave|appliance/.test(value)) return 'Appliance'
-  if (/outlet|breaker|panel|switch|electrical|light|wiring/.test(value)) return 'Electrical'
-  if (/toilet|sink|faucet|pipe|plumbing|drain|garbage disposal/.test(value)) return 'Plumbing'
-  if (/camera|alarm|detector|safety|sensor|extinguisher/.test(value)) return 'Safety'
-  if (/gate|door|window|roof|gutter|fence|garage/.test(value)) return 'Exterior'
-  if (/sofa|chair|table|bed|furniture/.test(value)) return 'Furniture'
-  if (/pool|spa|hot tub/.test(value)) return 'Pool/Spa'
-  return 'Other'
-}
-
-const detectAssetLocation = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  const knownLocations = [
-    'kitchen',
-    'laundry room',
-    'garage',
-    'basement',
-    'bathroom',
-    'primary bathroom',
-    'guest bathroom',
-    'living room',
-    'dining room',
-    'main bedroom',
-    'office',
-    'patio',
-    'deck',
-    'roof',
-    'back yard',
-    'front yard',
-    'hvac closet',
-    'utility room',
-    'mechanical room',
-    'water heater closet',
-  ]
-  const match = knownLocations.find((location) => value.includes(location))
-  if (!match) return ''
-  return match
-    .split(' ')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
-
-const extractTaggedValue = (text = '', pattern) => {
-  const match = String(text || '').match(pattern)
-  return match?.[1]?.trim() || ''
-}
-
-const detectReminderCategory = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/rent/.test(value)) return 'rent'
-  if (/hoa/.test(value)) return 'hoa'
-  if (/tax/.test(value)) return 'tax'
-  if (/maintenance|repair|fix/.test(value)) return 'maintenance'
-  if (/labor|service/.test(value)) return 'labor'
-  if (/fee|charge/.test(value)) return 'fee'
-  return 'other'
-}
-
-const detectReminderRepeat = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  if (/daily|every day/.test(value)) return 'daily'
-  if (/weekly|every week/.test(value)) return 'weekly'
-  if (/monthly|every month/.test(value)) return 'monthly'
-  if (/yearly|annual|annually|every year/.test(value)) return 'yearly'
-  return 'one-time'
-}
-
-const extractAmount = (text = '') => {
-  const match = String(text || '').match(
-    /(?:\$|\b)(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)(?:\b|$)/
-  )
-  if (!match) return null
-  const normalized = match[1].replace(/,/g, '')
-  const value = Number.parseFloat(normalized)
-  return Number.isNaN(value) ? null : value
-}
-
-const detectSafetyFlags = (text = '') => {
-  const value = String(text || '').toLowerCase()
-  const flags = []
-  if (/gas/.test(value)) flags.push('Gas risk')
-  if (/smoke/.test(value)) flags.push('Smoke reported')
-  if (/burning smell|burnt smell/.test(value)) flags.push('Burning smell reported')
-  if (/sparking|spark/.test(value)) flags.push('Sparking reported')
-  if (/shock|electrical shock/.test(value)) flags.push('Shock risk')
-  if (/flood|flooding|burst pipe/.test(value)) flags.push('Water damage risk')
-  return flags
-}
-
-const mapIssueCategoryToServiceType = (category = '') => {
-  const value = String(category || '').toLowerCase()
-  if (value.includes('floor')) return 'flooring'
-  if (value.includes('plumb')) return 'plumbing'
-  if (value.includes('elect')) return 'electrical'
-  if (value.includes('hvac') || value.includes('heat') || value.includes('cool')) return 'hvac'
-  if (value.includes('pest')) return 'pest_control'
-  if (value.includes('clean')) return 'cleaning'
-  if (value.includes('lawn')) return 'lawn'
-  if (value.includes('pool')) return 'pool'
-  if (value.includes('security') || value.includes('lock') || value.includes('alarm')) return 'security'
-  return 'maintenance'
-}
-
-const estimateRegionalPriceRange = ({ category = '', urgency = '', city = '', state = '' }) => {
-  const normalizedCategory = String(category || '').toLowerCase()
-  const normalizedUrgency = String(urgency || '').toLowerCase()
-  const regionLabel = [String(city || '').trim(), String(state || '').trim()].filter(Boolean).join(', ') || 'the local market'
-  const multiplier = /(ca|ny|ma|wa|il|co|dc)/i.test(String(state || '').trim()) ? 1.2 : 1
-  const baseRanges = {
-    flooring_finish: [3000, 12000],
-    plumbing: [180, 650],
-    electrical: [200, 700],
-    hvac: [220, 900],
-    appliance: [160, 550],
-    pest: [150, 500],
-    roof: [300, 1500],
-    maintenance: [150, 600],
-    general: [150, 500],
-  }
-  const key =
-    baseRanges[normalizedCategory]
-      ? normalizedCategory
-      : normalizedCategory.includes('floor')
-        ? 'flooring_finish'
-      : normalizedCategory.includes('plumb')
-        ? 'plumbing'
-        : normalizedCategory.includes('elect')
-          ? 'electrical'
-          : normalizedCategory.includes('hvac')
-            ? 'hvac'
-            : normalizedCategory.includes('appliance')
-              ? 'appliance'
-              : normalizedCategory.includes('pest')
-                ? 'pest'
-                : normalizedCategory.includes('roof')
-                  ? 'roof'
-                  : 'general'
-  const [baseLow, baseHigh] = baseRanges[key]
-  const urgencyMultiplier = normalizedUrgency === 'high' ? 1.2 : normalizedUrgency === 'medium' ? 1.05 : 1
-  const low = Math.round((baseLow * multiplier * urgencyMultiplier) / 10) * 10
-  const high = Math.round((baseHigh * multiplier * urgencyMultiplier) / 10) * 10
-  return `Typical ${regionLabel} price range is about $${low}-$${high} for initial service or common repair scope. Final pricing depends on cause, parts, access, and severity.`
-}
-
-const normalizeStringList = (value, { max = 3 } = {}) => {
-  if (!Array.isArray(value)) return []
-  const seen = new Set()
-  return value
-    .map((item) => String(item || '').trim())
-    .filter((item) => item.length >= 6 && item.length <= 220)
-    .filter((item) => {
-      const key = item.toLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-    .slice(0, max)
-}
-
-const isNonEmptyString = (value, min = 4) => String(value || '').trim().length >= min
-const truncateForLog = (value, max = 1200) => {
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
-  if (!text) return ''
-  return text.length > max ? `${text.slice(0, max)}…` : text
-}
-
-const parseFirebaseProjectId = () => {
-  try {
-    const config = JSON.parse(process.env.FIREBASE_CONFIG || '{}')
-    return String(config.projectId || '').trim() || null
-  } catch {
-    return null
-  }
-}
-
-const resolveVertexProjectId = (config = {}) =>
-  String(
-    config.vertexProjectId ||
-      process.env.VERTEX_PROJECT_ID ||
-      process.env.GOOGLE_CLOUD_PROJECT ||
-      process.env.GCLOUD_PROJECT ||
-      parseFirebaseProjectId() ||
-      '',
-  ).trim() || null
-
-const getGoogleAccessToken = async () => {
-  const response = await fetch(
-    'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
-    {
-      headers: { 'Metadata-Flavor': 'Google' },
-    }
-  )
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(`metadata_token_failed:${response.status}:${truncateForLog(errorText, 400)}`)
-  }
-  const data = await response.json().catch(() => null)
-  return String(data?.access_token || '').trim() || null
-}
-
-const extractModelText = (data = null) => data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
-
-const callGeminiDeveloperGenerateContent = async ({
-  systemInstruction,
-  contents,
-  apiKey,
-  model,
-  generationConfig,
-  tools,
-}) => {
-  if (!apiKey) {
-    return { parsed: null, raw_text: '', status: null, ok: false, error_text: 'missing_gemini_api_key', provider: 'gemini' }
-  }
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      model || DEFAULT_GEMINI_MODEL
-    )}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        generationConfig,
-        ...(Array.isArray(tools) && tools.length ? { tools } : {}),
-      }),
-    }
-  )
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    return {
-      parsed: null,
-      raw_text: '',
-      status: response.status,
-      ok: false,
-      error_text: truncateForLog(errorText, 800),
-      provider: 'gemini',
-    }
-  }
-  const data = await response.json().catch(() => null)
-  const text = extractModelText(data)
-  return {
-    parsed: parseJsonLoose(text),
-    raw_text: text,
-    status: response.status,
-    ok: true,
-    error_text: '',
-    provider: 'gemini',
-  }
-}
-
-const callVertexGenerateContent = async ({
-  systemInstruction,
-  contents,
-  model,
-  generationConfig,
-  tools,
-  vertexProjectId,
-  vertexLocation,
-  vertexPublisher,
-}) => {
-  const projectId = String(vertexProjectId || '').trim()
-  if (!projectId) {
-    return { parsed: null, raw_text: '', status: null, ok: false, error_text: 'missing_vertex_project_id', provider: 'vertex' }
-  }
-  let accessToken = null
-  try {
-    accessToken = await getGoogleAccessToken()
-  } catch (error) {
-    return {
-      parsed: null,
-      raw_text: '',
-      status: null,
-      ok: false,
-      error_text: truncateForLog(error?.message || 'vertex_auth_failed', 400),
-      provider: 'vertex',
-    }
-  }
-  const location = String(vertexLocation || DEFAULT_VERTEX_LOCATION).trim()
-  const publisher = String(vertexPublisher || DEFAULT_VERTEX_PUBLISHER).trim()
-  const response = await fetch(
-    `https://${encodeURIComponent(location)}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(
-      projectId
-    )}/locations/${encodeURIComponent(location)}/publishers/${encodeURIComponent(
-      publisher
-    )}/models/${encodeURIComponent(model || DEFAULT_GEMINI_MODEL)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        generationConfig,
-        ...(Array.isArray(tools) && tools.length ? { tools } : {}),
-      }),
-    }
-  )
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    return {
-      parsed: null,
-      raw_text: '',
-      status: response.status,
-      ok: false,
-      error_text: truncateForLog(errorText, 800),
-      provider: 'vertex',
-    }
-  }
-  const data = await response.json().catch(() => null)
-  const text = extractModelText(data)
-  return {
-    parsed: parseJsonLoose(text),
-    raw_text: text,
-    status: response.status,
-    ok: true,
-    error_text: '',
-    provider: 'vertex',
-  }
-}
-
-const callStructuredModel = async ({
-  provider = DEFAULT_LLM_PROVIDER,
-  systemInstruction,
-  contents,
-  generationConfig,
-  tools,
-  geminiApiKey,
-  model,
-  vertexProjectId,
-  vertexLocation,
-  vertexPublisher,
-}) => {
-  const normalizedProvider = String(provider || DEFAULT_LLM_PROVIDER).trim().toLowerCase()
-  if (normalizedProvider === 'gemini') {
-    return callGeminiDeveloperGenerateContent({
-      systemInstruction,
-      contents,
-      apiKey: geminiApiKey,
-      model,
-      generationConfig,
-      tools,
-    })
-  }
-  if (normalizedProvider === 'vertex') {
-    return callVertexGenerateContent({
-      systemInstruction,
-      contents,
-      model,
-      generationConfig,
-      tools,
-      vertexProjectId,
-      vertexLocation,
-      vertexPublisher,
-    })
-  }
-  if (normalizedProvider === 'auto') {
-    const vertexResult = await callVertexGenerateContent({
-      systemInstruction,
-      contents,
-      model,
-      generationConfig,
-      tools,
-      vertexProjectId,
-      vertexLocation,
-      vertexPublisher,
-    })
-    if (vertexResult.ok) return vertexResult
-    const geminiResult = await callGeminiDeveloperGenerateContent({
-      systemInstruction,
-      contents,
-      apiKey: geminiApiKey,
-      model,
-      generationConfig,
-      tools,
-    })
-    if (geminiResult.ok) return geminiResult
-    return {
-      ...geminiResult,
-      error_text: truncateForLog(
-        `vertex_error=${vertexResult.error_text || 'unknown'} | gemini_error=${geminiResult.error_text || 'unknown'}`,
-        800
-      ),
-      provider: 'auto',
-    }
-  }
-  return {
-    parsed: null,
-    raw_text: '',
-    status: null,
-    ok: false,
-    error_text: `unsupported_provider:${normalizedProvider}`,
-    provider: normalizedProvider,
-  }
-}
-
-const buildTaskInsightFallback = (task = {}) => {
-  const description = String(task?.description || '').trim()
-  const safetyFlags = detectSafetyFlags(description)
-  const city = String(task?.property_city || task?.city || '').trim()
-  const state = String(task?.property_state || task?.state || '').trim()
-  const suggestSp = safetyFlags.length > 0 || description.length >= 12
-  return {
-    capability: 'task_insight',
-    likely_causes: ['The exact trade and work scope need to be confirmed from the task description and on-site conditions.'],
-    knowledge_points: [
-      'The key first step is confirming the actual scope, access conditions, and any hidden constraints before pricing or scheduling.',
-      'Final trade selection and pricing usually depend on material, quantity, condition, and whether demolition or prep work is required.',
-    ],
-    possible_scope_of_work: [
-      'Review the described work, confirm site conditions, and define the actual labor and material scope before proceeding.',
-    ],
-    safety_flags: safetyFlags,
-    regional_price_range: `Typical ${[city, state].filter(Boolean).join(', ') || 'the local market'} pricing depends on the final trade, quantity, material, access, and prep scope. A reliable range requires the correct project type first.`,
-    recommended_next_step: safetyFlags.length
-      ? 'Review the task promptly and consider contacting a service provider due to the reported safety risk.'
-      : 'Review the task details, confirm the project type, and then decide whether to publish to the appropriate service provider.',
-    suggest_sp: suggestSp,
-    suggested_service_type: '',
-    confidence: 0.35,
-  }
-}
-
-const normalizeTaskInsightOutput = ({ task = {}, modelOutput = null }) => {
-  const fallback = buildTaskInsightFallback(task)
-  if (!modelOutput || modelOutput.capability !== 'task_insight') {
-    return { output: fallback, fallback_reason: 'missing_or_invalid_capability' }
-  }
-
-  const suggestedServiceType = String(modelOutput?.suggested_service_type || '').trim().toLowerCase()
-  const modelLikelyCauses = normalizeStringList(modelOutput?.likely_causes, { max: 3 })
-  const modelKnowledgePoints = normalizeStringList(modelOutput?.knowledge_points, { max: 3 })
-  const modelScopes = normalizeStringList(modelOutput?.possible_scope_of_work, { max: 3 })
-  const modelSafetyFlags = normalizeStringList(modelOutput?.safety_flags, { max: 3 })
-  const mergedSafetyFlags = normalizeStringList(
-    [...(fallback.safety_flags || []), ...modelSafetyFlags],
-    { max: 4 }
-  )
-
-  const output = {
-    capability: 'task_insight',
-    likely_causes: modelLikelyCauses.length ? modelLikelyCauses : fallback.likely_causes,
-    knowledge_points: modelKnowledgePoints.length ? modelKnowledgePoints : fallback.knowledge_points,
-    possible_scope_of_work: modelScopes.length ? modelScopes : fallback.possible_scope_of_work,
-    safety_flags: mergedSafetyFlags,
-    regional_price_range:
-      isNonEmptyString(modelOutput?.regional_price_range, 12) && /\$\d|\bprice\b/i.test(String(modelOutput.regional_price_range))
-        ? String(modelOutput.regional_price_range).trim()
-        : fallback.regional_price_range,
-    recommended_next_step: isNonEmptyString(modelOutput?.recommended_next_step, 8)
-      ? String(modelOutput.recommended_next_step).trim()
-      : fallback.recommended_next_step,
-    suggest_sp:
-      typeof modelOutput?.suggest_sp === 'boolean'
-        ? modelOutput.suggest_sp
-        : fallback.suggest_sp,
-    suggested_service_type:
-      isNonEmptyString(suggestedServiceType, 3) ? suggestedServiceType : fallback.suggested_service_type,
-    confidence:
-      Number.isFinite(Number(modelOutput?.confidence))
-        ? Math.max(0, Math.min(1, Number(modelOutput.confidence)))
-        : fallback.confidence,
-  }
-  const usedFallbackContent =
-    output.likely_causes === fallback.likely_causes &&
-    output.knowledge_points === fallback.knowledge_points &&
-    output.possible_scope_of_work === fallback.possible_scope_of_work &&
-    output.regional_price_range === fallback.regional_price_range &&
-    output.recommended_next_step === fallback.recommended_next_step &&
-    output.suggested_service_type === fallback.suggested_service_type
-  return {
-    output,
-    fallback_reason: usedFallbackContent ? 'normalized_to_generic_fallback' : 'model_output_used',
-  }
-}
-
 const isMaintenanceRelated = (text = '') => {
   const value = String(text || '').toLowerCase()
-  return /(leak|drip|pipe|toilet|sink|faucet|water|plumbing|electrical|outlet|breaker|power|wiring|light|ac|air\s*conditioning|hvac|heat|heater|thermostat|washer|dryer|dishwasher|fridge|refrigerator|stove|oven|clog|mold|pest|roof|window|door|lock|garage|vent|transaction|payment|paid|pay|invoice|rent|deposit|refund|fee|charge|transfer|remind|reminder|due|renewal|renew|schedule|scheduled|recurring|monthly|weekly|yearly|annual)/.test(
+  return /(leak|drip|pipe|toilet|sink|faucet|water|plumbing|electrical|outlet|breaker|power|wiring|light|ac|air\s*conditioning|hvac|heat|heater|thermostat|washer|dryer|dishwasher|fridge|refrigerator|stove|oven|clog|mold|pest|roof|window|door|lock|garage|vent|transaction|payment|paid|pay|invoice|rent|deposit|refund|fee|charge|transfer|remind|reminder|due|renewal|renew|schedule|scheduled|recurring|monthly|weekly|yearly|annual|floor|flooring|spc|paint|painting|fence|gate|garden|gardening|landscaping|service|vendor|provider|contract|company|loan|insurance|pest control|lawn|pool|cleaning|security|alarm|trash|waste|snow removal)/.test(
     value
   )
-}
-
-const buildAgentIntakeSystemInstruction = () =>
-  [
-    'You are Tobby, a senior general contractor and expert of property maintenance working as a constrained structured intake agent.',
-    'Return JSON only. No markdown, no extra text.',
-    'Do not provide DIY instructions. Only summarize the issue and draft a record.',
-    'Do not guess unsupported facts. If a field is unclear, leave it empty or omit it.',
-    'Prefer provided context and hints over speculation.',
-    'Output schema:',
-    '{',
-    '  "entity_type": "task"|"transaction"|"asset"|"reminder",',
-    '  "draft": object,',
-    '  "missing_fields": string[]',
-    '}',
-    'If entity_type is "task", draft fields:',
-    '{ title, description, task_category, task_priority, status, property_id, lease_id, unit_id, photos, videos, attachments }',
-    'If entity_type is "transaction", draft fields:',
-    '{ property_id, transac_type, transac_from, transac_to, amount, transac_date, note }',
-    'If entity_type is "asset", draft fields:',
-    '{ property_id, nickname, type, location, brand, model, serial, mfg_date, acquired_date, notes }',
-    'If entity_type is "reminder", draft fields:',
-    '{ property_id, category, start_date, due_date, repeat_by, amount, note, status }',
-    'Use property_list to choose the most relevant property_id when possible.',
-    'If entity_type is "transaction", use transaction_type_options and transaction_type_hint.',
-    'If entity_type is "transaction", transac_from and transac_to must be one of transaction_role_options.',
-    'Rules for transaction roles: rent/deposit => from Tenant to Property Owner. Other types default from Property Owner unless input says otherwise. Refund/fee depend on the input text.',
-    'If entity_type is "asset", use asset_type_options and asset_type_hint when relevant.',
-    'If entity_type is "reminder", use reminder_category_options and reminder_category_hint when relevant.',
-    'If entity_type is "reminder", use reminder_repeat_hint when relevant.',
-  ].join('\n')
-
-const buildAgentIntakeUserPayload = ({ rawText, context }) => ({
-  raw_text: rawText,
-  context: {
-    property_id: context?.property_id || null,
-    lease_id: context?.lease_id || null,
-    unit_id: context?.unit_id || null,
-    property_list: Array.isArray(context?.property_list) ? context.property_list : [],
-    transaction_type_hint: context?.transaction_type_hint || null,
-    transaction_type_options: Array.isArray(context?.transaction_type_options)
-      ? context.transaction_type_options
-      : [],
-    transaction_role_options: Array.isArray(context?.transaction_role_options)
-      ? context.transaction_role_options
-      : [],
-    asset_type_hint: context?.asset_type_hint || null,
-    asset_type_options: Array.isArray(context?.asset_type_options)
-      ? context.asset_type_options
-      : [],
-    asset_location_hint: context?.asset_location_hint || null,
-    reminder_category_hint: context?.reminder_category_hint || null,
-    reminder_category_options: Array.isArray(context?.reminder_category_options)
-      ? context.reminder_category_options
-      : [],
-    reminder_repeat_hint: context?.reminder_repeat_hint || null,
-  },
-})
-
-const parseJsonLoose = (value) => {
-  if (!value) return null
-  if (typeof value === 'object') return value
-  const text = String(value)
-  try {
-    return JSON.parse(text)
-  } catch {
-    const start = text.indexOf('{')
-    const end = text.lastIndexOf('}')
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(text.slice(start, end + 1))
-      } catch {
-        return null
-      }
-    }
-    return null
-  }
-}
-
-const callModelIntake = async ({
-  rawText,
-  context,
-  apiKey,
-  model,
-  provider,
-  vertexProjectId,
-  vertexLocation,
-  vertexPublisher,
-}) => {
-  const systemInstruction = buildAgentIntakeSystemInstruction()
-  const payload = buildAgentIntakeUserPayload({ rawText, context })
-  const result = await callStructuredModel({
-    provider,
-    systemInstruction,
-    contents: [{ role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' },
-    geminiApiKey: apiKey,
-    model,
-    vertexProjectId,
-    vertexLocation,
-    vertexPublisher,
-  })
-  return result?.parsed || null
-}
-
-const buildTaskInsightSystemInstruction = () =>
-  [
-    'You are Tobby, a senior general contractor and expert of property maintenance working as a constrained task insight agent.',
-    'Return valid JSON only. No markdown, no prose outside the JSON object, no code fences.',
-    'Do not provide DIY instructions or repair steps.',
-    'Answer from the perspective of helping the user understand how to complete this project at a high level and who can get this job done.',
-    'Every answer must stay tightly grounded in the exact task description, comments, and local hints provided in the input.',
-    'If the evidence is weak or ambiguous, say that inspection is needed instead of inventing a specific diagnosis.',
-    'Provide relevant knowledge for understanding the task, estimate likely work scope, and give a regional price range.',
-    'For regional_price_range, use property_zip as the strongest local market anchor when provided; otherwise use city and state.',
-    'When search grounding is available and a ZIP/city/state is provided, use it to estimate current local market pricing for the described trade and scope.',
-    'regional_price_range must include a practical dollar range, per-unit price, or both. Avoid generic pricing language without numbers.',
-    'For quantity-based work such as flooring, painting, roofing, landscaping, and gardening, include an approximate per-unit range and a rough total range when the task gives quantity.',
-    'Do not hallucinate precise construction details that are not grounded in the task description.',
-    'Knowledge should help the user understand the task, not perform the work themselves.',
-    'Use local_hints only for safety and context. Do not treat them as a pre-classified project type.',
-    'Use task comments as additional context for task history, failed attempts, worsening symptoms, and recent updates.',
-    'Prioritize the most recent comments when they conflict with older comments.',
-    'If request_context.refresh_mode is "regenerate", generate a fresh response from scratch instead of repeating prior wording by habit.',
-    'Keep each array concise. Prefer 1-2 strong, relevant items over broad generic lists.',
-    'The recommended trade and scope must match the maintenance problem actually described by the user.',
-    'Keep answers short, product-oriented, and cautious.',
-    'For construction, renovation, finish, flooring, painting, trim, cabinet, door, window, roofing, landscaping, gardening, and similar project descriptions, identify the actual project scope rather than falling back to generic maintenance language.',
-    'Use these rules:',
-    '- likely_causes: 1-2 plain statements of what this project or issue actually is.',
-    '- knowledge_points: 1-2 concise facts that help the user understand pricing, trade selection, or scope drivers.',
-    '- possible_scope_of_work: 1-2 concise statements of the likely labor/material scope.',
-    '- safety_flags: only include real safety concerns from the input; otherwise return [].',
-    '- regional_price_range: always provide a useful plain-English local price range with dollar numbers; mention ZIP/city/state when available.',
-    '- suggested_service_type: a short trade label such as plumbing, electrical, hvac, flooring, painting, roofing, landscaping, gardening, finish_carpentry, appliance, handyman, general_contractor.',
-    '- suggest_sp: true when a professional trade is likely needed.',
-    'Output schema:',
-    '{',
-    '  "capability": "task_insight",',
-    '  "likely_causes": string[],',
-    '  "knowledge_points": string[],',
-    '  "possible_scope_of_work": string[],',
-    '  "safety_flags": string[],',
-    '  "regional_price_range": string,',
-    '  "recommended_next_step": string,',
-    '  "suggest_sp": boolean,',
-    '  "suggested_service_type": string,',
-    '  "confidence": number',
-    '}',
-  ].join('\n')
-
-const TASK_INSIGHT_RESPONSE_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    capability: { type: 'STRING' },
-    likely_causes: { type: 'ARRAY', items: { type: 'STRING' } },
-    knowledge_points: { type: 'ARRAY', items: { type: 'STRING' } },
-    possible_scope_of_work: { type: 'ARRAY', items: { type: 'STRING' } },
-    safety_flags: { type: 'ARRAY', items: { type: 'STRING' } },
-    regional_price_range: { type: 'STRING' },
-    recommended_next_step: { type: 'STRING' },
-    suggest_sp: { type: 'BOOLEAN' },
-    suggested_service_type: { type: 'STRING' },
-    confidence: { type: 'NUMBER' },
-  },
-  required: [
-    'capability',
-    'likely_causes',
-    'knowledge_points',
-    'possible_scope_of_work',
-    'safety_flags',
-    'regional_price_range',
-    'recommended_next_step',
-    'suggest_sp',
-    'suggested_service_type',
-    'confidence',
-  ],
-}
-
-const buildTaskInsightUserPayload = ({ task }) => {
-  const description = String(task?.description || '').trim()
-  const localSafetyFlags = detectSafetyFlags(description)
-  const commentSummary = Array.isArray(task?.comments)
-    ? task.comments
-        .filter((comment) => comment && typeof comment === 'object' && String(comment.comment || '').trim())
-        .slice(-6)
-        .map((comment) => ({
-          created_at: comment.created_at || null,
-          action_type: comment.action_type || 'comment',
-          user_role: comment.user_role || '',
-          comment: String(comment.comment || '').trim(),
-        }))
-    : []
-  const payload = {
-    task: {
-      id: task?.id || null,
-      property_id: task?.property_id || null,
-      description: task?.description || '',
-      status: task?.status || 'open',
-      report_date: task?.report_date || null,
-      property_city: task?.property_city || task?.city || null,
-      property_state: task?.property_state || task?.state || null,
-      property_zip: task?.property_zip || task?.zip_code || task?.postal_code || task?.zip || null,
-      comments: commentSummary,
-    },
-    request_context: {
-      refresh_nonce: task?.ai_refresh_nonce || null,
-      refresh_mode: task?.ai_refresh_nonce ? 'regenerate' : 'default',
-    },
-    local_hints: {
-      safety_flags: localSafetyFlags,
-    },
-  }
-
-  return payload
-}
-
-const buildTaskInsightFewShotContents = () => {
-  const flooringExampleInput = {
-    task: {
-      id: 'example-flooring-1',
-      property_id: null,
-      description:
-        'replace flooring with SPC material, install base board and quarter round, about 1500 sqft',
-      status: 'open',
-      report_date: null,
-      property_city: 'Dallas',
-      property_state: 'TX',
-      property_zip: '75201',
-      comments: [],
-    },
-    request_context: { refresh_nonce: null, refresh_mode: 'default' },
-    local_hints: { safety_flags: [] },
-  }
-
-  const flooringExampleOutput = {
-    capability: 'task_insight',
-    likely_causes: [
-      'This is a flooring replacement project with finish trim work, not an equipment repair issue.',
-      'The main scope is SPC flooring installation plus baseboard and quarter round finishing.',
-    ],
-    knowledge_points: [
-      'SPC flooring scope usually depends on demolition needs, subfloor flatness, layout complexity, and transition details.',
-      'Square footage, trim removal or replacement, and furniture or appliance moving can materially change labor cost.',
-    ],
-    possible_scope_of_work: [
-      'Remove existing flooring if required, prepare the subfloor, and install new SPC flooring across the stated area.',
-      'Install or reinstall baseboard and quarter round, then complete transitions and finish details.',
-    ],
-    safety_flags: [],
-    regional_price_range:
-      'For ZIP 75201 / Dallas, TX, a 1500 sqft SPC flooring project with baseboard and quarter round often prices around $4-$10 per sqft for labor and common install scope, or roughly $6,000-$15,000 before unusual demolition, subfloor repair, premium materials, or access constraints.',
-    recommended_next_step:
-      'Confirm whether demolition, subfloor prep, and trim replacement are included, then publish to a flooring or finish carpentry service provider for quoting.',
-    suggest_sp: true,
-    suggested_service_type: 'flooring',
-    confidence: 0.9,
-  }
-
-  const plumbingExampleInput = {
-    task: {
-      id: 'example-plumbing-1',
-      property_id: null,
-      description: 'Kitchen sink is leaking under the cabinet and water is dripping onto the floor',
-      status: 'open',
-      report_date: null,
-      property_city: 'Chicago',
-      property_state: 'IL',
-      property_zip: '60614',
-      comments: [],
-    },
-    request_context: { refresh_nonce: null, refresh_mode: 'default' },
-    local_hints: { safety_flags: ['Water damage risk'] },
-  }
-
-  const plumbingExampleOutput = {
-    capability: 'task_insight',
-    likely_causes: [
-      'This likely points to a plumbing leak at the drain connection, supply line, or faucet-related fitting under the sink.',
-    ],
-    knowledge_points: [
-      'Under-sink leaks often require confirming whether the source is the drain assembly, water supply, shutoff valve, or fixture body.',
-    ],
-    possible_scope_of_work: [
-      'Inspect the leak source, then tighten, reseal, or replace the failed plumbing connection or component.',
-    ],
-    safety_flags: ['Water damage risk'],
-    regional_price_range:
-      'For ZIP 60614 / Chicago, IL, an under-sink leak repair commonly starts around $175-$450 for a basic service call and minor repair, with higher totals if parts, cabinet access, or water damage work is needed.',
-    recommended_next_step:
-      'Confirm whether the leak is active now and publish to a plumbing service provider if immediate repair is needed.',
-    suggest_sp: true,
-    suggested_service_type: 'plumbing',
-    confidence: 0.88,
-  }
-
-  return [
-    {
-      role: 'user',
-      parts: [{ text: JSON.stringify(flooringExampleInput) }],
-    },
-    {
-      role: 'model',
-      parts: [{ text: JSON.stringify(flooringExampleOutput) }],
-    },
-    {
-      role: 'user',
-      parts: [{ text: JSON.stringify(plumbingExampleInput) }],
-    },
-    {
-      role: 'model',
-      parts: [{ text: JSON.stringify(plumbingExampleOutput) }],
-    },
-  ]
-}
-
-const callModelTaskInsight = async ({
-  task,
-  apiKey,
-  model,
-  provider,
-  vertexProjectId,
-  vertexLocation,
-  vertexPublisher,
-}) => {
-  const systemInstruction = buildTaskInsightSystemInstruction()
-  const payload = buildTaskInsightUserPayload({ task })
-  const fewShotContents = buildTaskInsightFewShotContents()
-  const hasLocalMarket = Boolean(
-    payload?.task?.property_zip || (payload?.task?.property_city && payload?.task?.property_state)
-  )
-  const searchTools = hasLocalMarket ? [{ googleSearch: {} }] : null
-  const request = {
-    provider,
-    systemInstruction,
-    contents: [...fewShotContents, { role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 2048,
-      responseMimeType: 'application/json',
-      responseSchema: TASK_INSIGHT_RESPONSE_SCHEMA,
-    },
-    geminiApiKey: apiKey,
-    model,
-    vertexProjectId,
-    vertexLocation,
-    vertexPublisher,
-  }
-
-  if (!searchTools) return callStructuredModel(request)
-
-  const groundedResult = await callStructuredModel({
-    ...request,
-    tools: searchTools,
-  })
-  if (groundedResult?.ok) return groundedResult
-
-  const ungroundedResult = await callStructuredModel(request)
-  return {
-    ...ungroundedResult,
-    error_text: ungroundedResult?.ok
-      ? groundedResult?.error_text || ''
-      : truncateForLog(
-          `grounding_error=${groundedResult?.error_text || 'unknown'} | retry_error=${ungroundedResult?.error_text || 'unknown'}`,
-          800
-        ),
-  }
 }
 
 const withIdempotency = ({ store, key, resolver }) => {
@@ -1794,6 +912,138 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   }
 
+  const normalizeSpProject = (row = {}) => {
+    const projectId = String(row.project_id || row.id || row.mxrecord_id || '')
+    const taskTitle = String(row.task_title || row.title || row.name || 'Untitled Project').trim()
+    const address = String(row.address || row.property_address || row.location || '').trim()
+    return {
+      ...row,
+      id: projectId,
+      project_id: projectId,
+      mxrecord_id: String(row.mxrecord_id || projectId),
+      property_id: String(row.property_id || ''),
+      lead_id: String(row.lead_id || ''),
+      selected_bid_id: String(row.selected_bid_id || ''),
+      sp_id: String(row.sp_id || row.assigned_sp_id || row.assigned_sp?.sp_id || ''),
+      title: taskTitle,
+      task_title: taskTitle,
+      address,
+      location: String(row.location || address).trim(),
+      status: String(row.status || 'active').trim().toLowerCase() || 'active',
+      accepted_at: row.accepted_at || row.selected_bid_at || row.created_at || null,
+      comments: Array.isArray(row.comments) ? row.comments : [],
+      phases: row.phases && typeof row.phases === 'object' ? row.phases : {},
+    }
+  }
+
+  const listFirestoreAssignedProjectsForSp = async (spId) => {
+    const targetSpId = String(spId || '').trim()
+    if (!targetSpId) return []
+
+    const mapSnapshot = (snap) =>
+      snap.docs
+        .map((doc) => {
+          const data = doc.data() || {}
+          const propertyId = String(doc.ref?.parent?.parent?.id || '').trim()
+          const assignedSpId = String(data.assigned_sp_id || data.assigned_sp?.sp_id || '').trim()
+          if (assignedSpId !== targetSpId) return null
+      return normalizeSpProject({
+        ...data,
+            id: doc.id,
+            project_id: doc.id,
+            mxrecord_id: doc.id,
+            property_id: propertyId,
+            assigned_sp_id: assignedSpId,
+            sp_id: assignedSpId,
+            selected_bid_id: data.selected_bid_id || data.assigned_sp?.bid_id || '',
+            accepted_at:
+              data.selected_bid_at ||
+              data.assigned_sp?.assigned_at ||
+              data.updatedAt ||
+              data.updated_at ||
+              data.created_at ||
+              null,
+            address: data.property_address || data.property_id?.address || '',
+            location: data.property_address || data.property_id?.address || '',
+            task_title: data.title || data.task_title || data.name || '',
+            title: data.title || data.task_title || data.name || '',
+          })
+      })
+        .filter(Boolean)
+
+    try {
+      const db = getDb()
+      const rows = []
+
+      try {
+        const projectsSnap = await db.collection('sp_projects').where('sp_id', '==', targetSpId).get()
+        rows.push(
+          ...projectsSnap.docs.map((doc) =>
+            normalizeSpProject({
+              id: doc.id,
+              ...(doc.data() || {}),
+            })
+          )
+        )
+      } catch {}
+
+      try {
+        const directSnap = await db.collectionGroup('mxrecords').where('assigned_sp_id', '==', targetSpId).get()
+        rows.push(...mapSnapshot(directSnap))
+      } catch {}
+
+      try {
+        const nestedSnap = await db.collectionGroup('mxrecords').where('assigned_sp.sp_id', '==', targetSpId).get()
+        rows.push(...mapSnapshot(nestedSnap))
+      } catch {}
+
+      const merged = new Map()
+      rows.forEach((row) => {
+        const key = String(row.project_id || row.id || '').trim()
+        if (!key) return
+        merged.set(key, { ...(merged.get(key) || {}), ...row })
+      })
+
+      return Array.from(merged.values()).sort((a, b) =>
+        String(b.accepted_at || b.created_at || '').localeCompare(String(a.accepted_at || a.created_at || ''))
+      )
+    } catch {
+      return []
+    }
+  }
+
+  const saveFirestoreSpProject = async (project) => {
+    const normalized = normalizeSpProject(project)
+    if (!normalized.project_id) return null
+    const db = getDb()
+    await db.collection('sp_projects').doc(normalized.project_id).set(normalized, { merge: true })
+    return normalized
+  }
+
+  const applyAcceptedProjectStateToBids = async (spId, rows = []) => {
+    const projects = await listFirestoreAssignedProjectsForSp(spId)
+    if (!projects.length) return rows.map((row) => normalizeBid(row))
+
+    const byBidId = new Map()
+    projects.forEach((project) => {
+      const bidId = String(project.selected_bid_id || '').trim()
+      if (bidId) byBidId.set(bidId, project)
+    })
+
+    return rows.map((row) => {
+      const normalized = normalizeBid(row)
+      const project = byBidId.get(String(normalized.bid_id || normalized.id || '').trim())
+      if (!project) return normalized
+      return {
+        ...normalized,
+        status: 'accepted',
+        accepted_at: project.accepted_at || normalized.accepted_at || null,
+        project_id: project.project_id || '',
+        project_title: project.title || project.task_title || '',
+      }
+    })
+  }
+
   const toNumber = (value, fallback = 0) => {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : fallback
@@ -2015,13 +1265,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       }
 
       const existingSnap = await tx.get(bidsRef.where('sp_id', '==', actor.id))
-      const hasActive = existingSnap.docs.some((doc) => {
-        const row = doc.data() || {}
-        return row.status !== 'withdrawn'
-      })
-      if (hasActive) {
-        throw createApiError(409, 'DUPLICATE_BID', 'You already have an active bid on this lead')
-      }
+      const existingRows = existingSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+      const latestVersion = existingRows.reduce((max, row) => Math.max(max, Number(row.version_number || 0)), 0)
+      const previousBid = [...existingRows].sort((a, b) =>
+        String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      )[0]
 
       const accountSnap = await tx.get(accountRef)
       const accountData = accountSnap.exists
@@ -2085,8 +1333,29 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         amount: Number(body.amount),
         currency: body?.currency || 'USD',
         note: body?.note || '',
+        message_to_pm: body?.message_to_pm || body?.note || '',
+        pricing_type: body?.pricing_type || 'one_time',
+        included_scope: body?.included_scope || '',
+        exclusions: body?.exclusions || '',
+        estimated_start_date: body?.estimated_start_date || body?.availability_date || null,
         estimated_duration: body?.estimated_duration || '',
-        availability_date: body?.availability_date || null,
+        availability_date: body?.availability_date || body?.estimated_start_date || null,
+        materials_included: body?.materials_included || '',
+        materials_note: body?.materials_note || '',
+        valid_until: body?.valid_until || null,
+        warranty: body?.warranty || '',
+        attachments: Array.isArray(body?.attachments) ? body.attachments : [],
+        upfront_payment_expected: body?.upfront_payment_expected || 'no',
+        upfront_payment_amount: body?.upfront_payment_amount != null ? Number(body.upfront_payment_amount) : null,
+        upfront_payment_timing: body?.upfront_payment_timing || '',
+        upfront_payment_timing_note: body?.upfront_payment_timing_note || '',
+        remaining_payment_expectation: body?.remaining_payment_expectation || '',
+        payment_note: body?.payment_note || '',
+        disclaimer_acknowledged: Boolean(body?.disclaimer_acknowledged),
+        disclaimer_text: body?.disclaimer_text || '',
+        version_number: latestVersion + 1,
+        bid_thread_id: `${leadId}-${actor.id}`,
+        previous_bid_id: previousBid?.bid_id || previousBid?.id || '',
         status: 'submitted',
         status_changed_by: null,
         created_at: now,
@@ -2153,6 +1422,21 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!body?.amount || Number(body.amount) <= 0) {
       return { ok: false, status: 400, code: 'INVALID_AMOUNT', message: 'Bid amount must be a positive number' }
     }
+    if (!String(body?.included_scope || '').trim()) {
+      return { ok: false, status: 400, code: 'MISSING_INCLUDED_SCOPE', message: 'Included scope is required' }
+    }
+    if (!String(body?.estimated_start_date || body?.availability_date || '').trim()) {
+      return { ok: false, status: 400, code: 'MISSING_ESTIMATED_START_DATE', message: 'Estimated start date is required' }
+    }
+    if (!String(body?.estimated_duration || '').trim()) {
+      return { ok: false, status: 400, code: 'MISSING_ESTIMATED_DURATION', message: 'Estimated duration is required' }
+    }
+    if (!String(body?.valid_until || '').trim()) {
+      return { ok: false, status: 400, code: 'MISSING_VALID_UNTIL', message: 'Bid valid-until date is required' }
+    }
+    if (!body?.disclaimer_acknowledged) {
+      return { ok: false, status: 400, code: 'DISCLAIMER_REQUIRED', message: 'Bid disclaimer must be acknowledged' }
+    }
 
     if (found.source === 'firestore') {
       try {
@@ -2173,19 +1457,6 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           code: 'BID_SUBMIT_FAILED',
           message: 'Unable to submit bid right now',
         }
-      }
-    }
-
-    const existingBid = findFirst(
-      store.bids,
-      (b) => b.lead_id === lead.id && b.sp_id === actor.id && b.status !== 'withdrawn'
-    )
-    if (existingBid) {
-      return {
-        ok: false,
-        status: 409,
-        code: 'DUPLICATE_BID',
-        message: 'You already have an active bid on this lead',
       }
     }
 
@@ -4200,98 +3471,21 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
     )
 
-    let output = null
-    if (result?.rawText) {
-      try {
-        output = await callModelIntake({
-          rawText: result.rawText,
-          context: result.context,
-          apiKey: geminiApiKey,
-          model: geminiModel,
-          provider: llmProvider,
-          vertexProjectId,
-          vertexLocation,
-          vertexPublisher,
-        })
-      } catch {
-        output = null
-      }
-    }
-
-    if (!output) {
-      const rawText = String(result?.rawText || '').trim()
-      const entityType = detectEntityType(rawText)
-      const missingFields = []
-
-      if (entityType === 'transaction') {
-        const draft = {
-          property_id: result?.context?.property_id || null,
-          transac_type: detectTransactionType(rawText),
-          transac_from: '',
-          transac_to: '',
-          amount: extractAmount(rawText),
-          transac_date: new Date().toISOString().split('T')[0],
-          note: rawText || '',
-        }
-        if (!draft.property_id) missingFields.push('property_id')
-        if (!draft.transac_type) missingFields.push('transac_type')
-        output = { entity_type: 'transaction', draft, missing_fields: missingFields }
-      } else if (entityType === 'asset') {
-        const draft = {
-          property_id: result?.context?.property_id || null,
-          nickname: rawText.slice(0, 80) || 'New asset',
-          type: result?.context?.asset_type_hint || detectAssetType(rawText),
-          location: result?.context?.asset_location_hint || detectAssetLocation(rawText),
-          brand: extractTaggedValue(rawText, /\b(?:brand|manufacturer)\s*[:#-]?\s*([A-Za-z0-9 ./_-]+)/i),
-          model: extractTaggedValue(rawText, /\b(?:model|mod)\s*[:#-]?\s*([A-Za-z0-9 ./_-]+)/i),
-          serial: extractTaggedValue(rawText, /\b(?:serial|s\/n|sn)\s*[:#-]?\s*([A-Za-z0-9 ./_-]+)/i),
-          mfg_date: '',
-          acquired_date: '',
-          notes: rawText || '',
-        }
-        if (!draft.property_id) missingFields.push('property_id')
-        if (!draft.nickname) missingFields.push('nickname')
-        output = { entity_type: 'asset', draft, missing_fields: missingFields }
-      } else if (entityType === 'reminder') {
-        const startDate = new Date().toISOString().split('T')[0]
-        const draft = {
-          property_id: result?.context?.property_id || null,
-          category: result?.context?.reminder_category_hint || detectReminderCategory(rawText),
-          start_date: startDate,
-          due_date: startDate,
-          repeat_by: result?.context?.reminder_repeat_hint || detectReminderRepeat(rawText),
-          amount: extractAmount(rawText),
-          note: rawText || '',
-          status: true,
-        }
-        if (!draft.property_id) missingFields.push('property_id')
-        if (!draft.category) missingFields.push('category')
-        output = { entity_type: 'reminder', draft, missing_fields: missingFields }
-      } else {
-        const category = classifyIssueCategory(rawText)
-        const urgency = classifyUrgency(rawText)
-        const draft = {
-          title: rawText.slice(0, 120) || 'Untitled task',
-          description: rawText || '',
-          task_category: category,
-          task_priority: urgency === 'high' ? 'high' : urgency === 'medium' ? 'medium' : 'low',
-          status: 'open',
-          property_id: result?.context?.property_id || null,
-          lease_id: result?.context?.lease_id || null,
-          unit_id: result?.context?.unit_id || null,
-          photos: Array.isArray(body?.photos) ? body.photos : [],
-          videos: Array.isArray(body?.videos) ? body.videos : [],
-          attachments: Array.isArray(body?.attachments) ? body.attachments : [],
-        }
-        if (!draft.property_id) missingFields.push('property_id')
-        if (!draft.description) missingFields.push('description')
-        output = {
-          entity_type: 'task',
-          draft,
-          missing_fields: missingFields,
-        }
-      }
-    }
+    const output = await runFormIntakeSkill({
+      rawText: String(result?.rawText || '').trim(),
+      context: result?.context || {},
+      photos: body?.photos,
+      videos: body?.videos,
+      attachments: body?.attachments,
+      llmConfig: {
+        geminiApiKey,
+        model: geminiModel,
+        provider: llmProvider,
+        vertexProjectId,
+        vertexLocation,
+        vertexPublisher,
+      },
+    })
 
     await appendAgentEvent({
       eventType: 'agent_intake',
@@ -4324,32 +3518,20 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
     }
 
-    let modelResult = null
-    try {
-      modelResult = await callModelTaskInsight({
-        task,
-        apiKey: geminiApiKey,
+    const insightResult = await runTaskInsightSkill({
+      task,
+      llmConfig: {
+        geminiApiKey,
         model: geminiModel,
         provider: llmProvider,
         vertexProjectId,
         vertexLocation,
         vertexPublisher,
-      })
-    } catch {
-      modelResult = null
-    }
-
-    const normalized = normalizeTaskInsightOutput({
-      task,
-      modelOutput: modelResult?.parsed || null,
+      },
     })
-    const output = {
-      ...normalized.output,
-      generated_by_model: normalized.fallback_reason === 'model_output_used',
-      fallback_reason: normalized.fallback_reason,
-      model_provider: modelResult?.provider || llmProvider,
-      model_status: modelResult?.status ?? null,
-    }
+    const modelResult = insightResult.modelResult
+    const normalized = insightResult.normalized
+    const output = insightResult.output
 
     console.log(
       JSON.stringify({
@@ -4604,6 +3786,152 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       // Keep in-memory task updated if Firestore write fails.
     }
     ok(res, requestId, { task_id: task.id, assigned_sp_id: task.assigned_sp_id })
+  })
+
+  route('POST', '/tasks/:id/select-bid', async ({ actor, params, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+
+    const taskId = String(params.id || '').trim()
+    const propertyId = String(body?.property_id || '').trim()
+    const bidId = String(body?.bid_id || '').trim()
+    const leadId = String(body?.lead_id || '').trim()
+
+    if (!taskId) return sendError(res, requestId, 400, 'TASK_ID_REQUIRED', 'task id is required')
+    if (!propertyId) return sendError(res, requestId, 400, 'PROPERTY_ID_REQUIRED', 'property_id is required')
+    if (!bidId) return sendError(res, requestId, 400, 'BID_ID_REQUIRED', 'bid_id is required')
+    if (!(await hasPmAccessToProperty({ actor, propertyId }))) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'You do not have permission to manage this property')
+    }
+
+    const db = getDb()
+    const mxRecordRef = db.collection('properties').doc(propertyId).collection('mxrecords').doc(taskId)
+    const mxRecordSnap = await mxRecordRef.get()
+    if (!mxRecordSnap.exists) {
+      return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task record not found')
+    }
+    const mxRecord = { id: mxRecordSnap.id, ...(mxRecordSnap.data() || {}) }
+
+    const lead =
+      (leadId ? await getFirestoreLeadById(leadId) : null) ||
+      (await getFirestoreLeadByTaskRef(taskId))
+    if (!lead?.id) {
+      return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found for this task')
+    }
+
+    const bidsRef = db.collection(LEADS_COLLECTION).doc(lead.id).collection(LEAD_BIDS_SUBCOLLECTION)
+    const selectedBidSnap = await bidsRef.doc(bidId).get()
+    if (!selectedBidSnap.exists) {
+      return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Selected bid not found')
+    }
+    const selectedBid = normalizeBid({ id: selectedBidSnap.id, ...(selectedBidSnap.data() || {}) })
+    if (!selectedBid?.sp_id) {
+      return sendError(res, requestId, 400, 'INVALID_BID', 'Selected bid is missing sp_id')
+    }
+
+    const acceptedAt = new Date().toISOString()
+    const assignedSp = {
+      sp_id: String(selectedBid.sp_id || ''),
+      sp_name: String(
+        selectedBid.sp_name ||
+        selectedBid.sp_business_name ||
+        selectedBid.provider_name ||
+        body?.sp_name ||
+        ''
+      ).trim(),
+      sp_contact: selectedBid.sp_contact || body?.sp_contact || null,
+      sp_rating: selectedBid.sp_rating || selectedBid.sp_rating_avg || body?.sp_rating || null,
+      bid_id: selectedBid.bid_id,
+      bid_amount: Number(selectedBid.amount || 0),
+      assigned_at: acceptedAt,
+      assigned_by: String(actor.id || ''),
+    }
+
+    const projectId = String(mxRecord.id || taskId)
+    const projectPayload = normalizeSpProject({
+      project_id: projectId,
+      mxrecord_id: taskId,
+      property_id: propertyId,
+      lead_id: lead.id,
+      selected_bid_id: selectedBid.bid_id,
+      sp_id: assignedSp.sp_id,
+      status: 'active',
+      accepted_at: acceptedAt,
+      created_at: mxRecord.created_at || acceptedAt,
+      updated_at: acceptedAt,
+      title: mxRecord.title || mxRecord.task_title || lead.title || 'Untitled Project',
+      task_title: mxRecord.title || mxRecord.task_title || lead.title || 'Untitled Project',
+      address:
+        mxRecord.property_address ||
+        mxRecord.property_id?.address ||
+        lead.address ||
+        lead.property_address_line1 ||
+        '',
+      location:
+        mxRecord.property_address ||
+        mxRecord.property_id?.address ||
+        lead.address ||
+        lead.property_address_line1 ||
+        '',
+      comments: Array.isArray(mxRecord.comments) ? mxRecord.comments : [],
+      phases: mxRecord.phases && typeof mxRecord.phases === 'object' ? mxRecord.phases : {},
+    })
+
+    const bidSnap = await bidsRef.get()
+    const bidWrites = bidSnap.docs.map((doc) => {
+      const isSelected = doc.id === bidId
+      const payload = {
+        status: isSelected ? 'accepted' : 'submitted',
+        updated_at: acceptedAt,
+      }
+      if (isSelected) {
+        payload.accepted_at = acceptedAt
+        payload.project_id = projectId
+        payload.project_title = projectPayload.title
+      }
+      return bidsRef.doc(doc.id).set(payload, { merge: true })
+    })
+
+    await Promise.all([
+      ...bidWrites,
+      db.collection(LEADS_COLLECTION).doc(lead.id).set(
+        {
+          status: 'assigned',
+          assigned_sp_id: assignedSp.sp_id,
+          assigned_bid_id: selectedBid.bid_id,
+          updated_at: acceptedAt,
+        },
+        { merge: true }
+      ),
+      mxRecordRef.set(
+        {
+          assigned_sp: assignedSp,
+          assigned_sp_id: assignedSp.sp_id,
+          selected_bid_id: selectedBid.bid_id,
+          selected_bid_at: acceptedAt,
+          updatedAt: acceptedAt,
+        },
+        { merge: true }
+      ),
+      saveFirestoreSpProject(projectPayload),
+    ])
+
+    return ok(res, requestId, {
+      bid: {
+        ...selectedBid,
+        status: 'accepted',
+        accepted_at: acceptedAt,
+        project_id: projectId,
+        project_title: projectPayload.title,
+      },
+      project: projectPayload,
+      assigned_sp: assignedSp,
+      lead: {
+        ...lead,
+        status: 'assigned',
+        assigned_sp_id: assignedSp.sp_id,
+        assigned_bid_id: selectedBid.bid_id,
+      },
+    })
   })
 
   route('POST', '/sp-cards', async ({ actor, body, res, requestId }) => {
@@ -5015,11 +4343,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only view your own bids')
     }
     const firestoreItems = await listFirestoreSpBids(spId)
-    if (firestoreItems.length) return ok(res, requestId, { items: firestoreItems })
+    if (firestoreItems.length) {
+      const enriched = await applyAcceptedProjectStateToBids(spId, firestoreItems)
+      return ok(res, requestId, { items: enriched })
+    }
     const items = [...store.bids.values()]
       .filter((b) => b.sp_id === spId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    ok(res, requestId, { items: items.map((row) => normalizeBid(row)) })
+    const enriched = await applyAcceptedProjectStateToBids(
+      spId,
+      items.map((row) => normalizeBid(row))
+    )
+    ok(res, requestId, { items: enriched })
   })
 
   // Alias for frontend compatibility: SP bid list
@@ -5030,11 +4365,28 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only view your own bids')
     }
     const firestoreItems = await listFirestoreSpBids(spId)
-    if (firestoreItems.length) return ok(res, requestId, { items: firestoreItems })
+    if (firestoreItems.length) {
+      const enriched = await applyAcceptedProjectStateToBids(spId, firestoreItems)
+      return ok(res, requestId, { items: enriched })
+    }
     const items = [...store.bids.values()]
       .filter((b) => b.sp_id === spId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    ok(res, requestId, { items: items.map((row) => normalizeBid(row)) })
+    const enriched = await applyAcceptedProjectStateToBids(
+      spId,
+      items.map((row) => normalizeBid(row))
+    )
+    ok(res, requestId, { items: enriched })
+  })
+
+  route('GET', '/sp/projects', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const spId = query.get('sp_id') || actor.id
+    if (spId !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only view your own projects')
+    }
+    const items = await listFirestoreAssignedProjectsForSp(spId)
+    return ok(res, requestId, { items })
   })
 
   // Alias for frontend compatibility: SP create bid from lead_id in body

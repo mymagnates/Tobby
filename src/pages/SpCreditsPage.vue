@@ -1,5 +1,18 @@
 <template>
   <q-page class="q-pa-sm sp-credits-page">
+    <q-card flat bordered class="q-mb-sm">
+      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
+        <div>
+          <div class="text-subtitle1 text-weight-medium">Credits</div>
+          <div class="text-caption text-grey-7">Track your balance, grants, and credit usage.</div>
+        </div>
+        <div class="row items-center q-gutter-sm">
+          <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
+          <q-btn flat dense icon="refresh" @click="refreshAll" :loading="loading" />
+        </div>
+      </q-card-section>
+    </q-card>
+
     <div class="credits-grid">
       <q-card flat bordered class="credits-card">
         <q-card-section class="row items-center justify-between">
@@ -23,12 +36,8 @@
       </q-card>
 
       <q-card flat bordered class="credits-card">
-        <q-card-section class="row items-center justify-between">
-          <div class="text-subtitle1 text-weight-medium">Free Credit Policy</div>
-          <q-btn flat dense icon="refresh" @click="refreshAll" :loading="loading" />
-        </q-card-section>
-        <q-separator />
         <q-card-section>
+          <div class="text-subtitle1 text-weight-medium q-mb-sm">Free Credit Policy</div>
           <div class="text-body2 q-mb-sm">Every SP starts with {{ starterCredits }} free credits.</div>
           <div class="text-body2 q-mb-sm">You receive 1 free credit every 7 days.</div>
           <div class="text-caption text-grey-7">
@@ -40,7 +49,9 @@
     </div>
 
     <q-card flat bordered class="q-mt-sm">
-      <q-card-section class="text-subtitle1 text-weight-medium">Credit History</q-card-section>
+      <q-card-section class="q-py-sm q-px-md">
+        <div class="text-subtitle1 text-weight-medium">Credit History</div>
+      </q-card-section>
       <q-separator />
       <q-card-section class="q-pa-none">
         <q-table
@@ -72,11 +83,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spCreditApi } from 'src/services/webApiClient'
 
 const userStore = useUserDataStore()
+const router = useRouter()
 
 const loading = ref(false)
 const starterCredits = 3
@@ -101,6 +114,14 @@ const historyColumns = [
 const historyRows = computed(() =>
   [...historyItems.value].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
 )
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/sp-dashboard')
+}
 
 const formatDateTime = (value) => {
   if (!value) return '-'

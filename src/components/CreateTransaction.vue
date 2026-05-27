@@ -52,9 +52,11 @@
             <q-select
               v-else
               v-model="selectedPropertyId"
-              :options="availableProperties"
-              option-label="nickname"
-              option-value="id"
+              :options="propertyOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
               label="Select Property"
               outlined
               dense
@@ -258,6 +260,10 @@ const props = defineProps({
     type: String,
     required: false,
   },
+  propertyName: {
+    type: String,
+    default: '',
+  },
   allowPropertyEdit: {
     type: Boolean,
     default: true,
@@ -278,6 +284,19 @@ const userDataStore = useUserDataStore()
 const { createDocument, loading, uploadImages } = useFirebase()
 
 const availableProperties = computed(() => userDataStore.userAccessibleProperties || [])
+const propertyOptions = computed(() =>
+  availableProperties.value.map((property) => ({
+    label:
+      property.nickname ||
+      property.displayName ||
+      property.address ||
+      property.full_address ||
+      property.name ||
+      property.id ||
+      property.property_id,
+    value: property.id || property.property_id,
+  })),
+)
 const selectedPropertyId = ref('')
 const propertiesLoading = computed(() => userDataStore.propertiesLoading)
 const showPropertySelect = computed(() => props.allowPropertyEdit || !propertyId.value)
@@ -864,7 +883,7 @@ const handleCancel = () => {
   margin: 16px 0;
   padding: 16px;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   background-color: #fafafa;
 }
 
@@ -872,7 +891,7 @@ const handleCancel = () => {
   position: relative;
   display: inline-block;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: var(--border-radius-sm);
   overflow: hidden;
   background-color: white;
 }

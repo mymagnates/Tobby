@@ -50,28 +50,55 @@ const menu = [
 
 <style scoped>
 .admin-layout {
-  background: #f3f5f9;
+  background: var(--bg-primary);
 }
 
 .admin-header {
-  background: #0f172a;
-  color: #fff;
+  background: transparent;
+  color: var(--neutral-800);
+  padding: 10px 14px 0;
+}
+
+.admin-header :deep(.q-toolbar) {
+  background: var(--bg-surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-card);
+  min-height: 68px;
+  padding: 0 18px;
+}
+
+.admin-header :deep(.q-toolbar__title) {
+  font-size: 1.18rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .admin-drawer {
-  background: #111827;
-  color: #d1d5db;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--neutral-200);
+  color: var(--neutral-700);
 }
 
 .admin-brand {
-  font-size: 18px;
+  color: var(--neutral-800);
+  font-family: var(--font-title);
+  font-size: 20px;
   font-weight: 700;
-  color: #fff;
-  padding: 18px 16px 8px;
+  letter-spacing: -0.04em;
+  padding: 26px 18px 20px;
 }
 
 .admin-menu-active {
-  background: rgba(59, 130, 246, 0.18);
-  color: #fff;
+  background: #eaf8f6;
+  color: var(--neutral-800);
+}
+
+.admin-drawer :deep(.q-item) {
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 4px;
+}
+
+:global(body.body--dark) .admin-menu-active {
+  background: rgba(45, 212, 191, 0.15);
 }
 </style>

@@ -13,7 +13,7 @@
 
         <q-btn
           flat
-          label="Login"
+          label="Sign In"
           icon="login"
           class="login-btn"
           @click="goToLogin"

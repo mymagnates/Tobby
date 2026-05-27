@@ -228,6 +228,9 @@ export const createInMemoryStore = () => {
 
   const createBid = ({ actor, lead, body }) => {
     const id = `bid-${randomUUID()}`
+    const existingRows = [...bids.values()].filter((bid) => bid.lead_id === lead.id && bid.sp_id === actor.id)
+    const latestVersion = existingRows.reduce((max, row) => Math.max(max, Number(row.version_number || 0)), 0)
+    const previousBid = [...existingRows].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0]
     const record = {
       id,
       lead_id: lead.id,
@@ -238,8 +241,29 @@ export const createInMemoryStore = () => {
       amount: Number(body?.amount || 0),
       currency: body?.currency || 'USD',
       note: body?.note || '',
+      message_to_pm: body?.message_to_pm || body?.note || '',
+      pricing_type: body?.pricing_type || 'one_time',
+      included_scope: body?.included_scope || '',
+      exclusions: body?.exclusions || '',
+      estimated_start_date: body?.estimated_start_date || body?.availability_date || null,
       estimated_duration: body?.estimated_duration || '',
-      availability_date: body?.availability_date || null,
+      availability_date: body?.availability_date || body?.estimated_start_date || null,
+      materials_included: body?.materials_included || '',
+      materials_note: body?.materials_note || '',
+      valid_until: body?.valid_until || null,
+      warranty: body?.warranty || '',
+      attachments: Array.isArray(body?.attachments) ? body.attachments : [],
+      upfront_payment_expected: body?.upfront_payment_expected || 'no',
+      upfront_payment_amount: body?.upfront_payment_amount != null ? Number(body.upfront_payment_amount) : null,
+      upfront_payment_timing: body?.upfront_payment_timing || '',
+      upfront_payment_timing_note: body?.upfront_payment_timing_note || '',
+      remaining_payment_expectation: body?.remaining_payment_expectation || '',
+      payment_note: body?.payment_note || '',
+      disclaimer_acknowledged: Boolean(body?.disclaimer_acknowledged),
+      disclaimer_text: body?.disclaimer_text || '',
+      version_number: latestVersion + 1,
+      bid_thread_id: `${lead.id}-${actor.id}`,
+      previous_bid_id: previousBid?.bid_id || previousBid?.id || '',
       status: 'submitted',
       status_changed_by: null,
       created_at: nowIso(),

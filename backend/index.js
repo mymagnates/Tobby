@@ -243,3 +243,201 @@ export const onTaskUpdatedLeadSync = onDocumentUpdated(
     })
   }
 )
+
+const normalizeRef = (value) => String(value || '').trim()
+
+const getLeadDocsByTaskRef = async (taskId) => {
+  const ref = normalizeRef(taskId)
+  if (!ref) return []
+
+  const seen = new Map()
+  for (const field of ['task_doc_id', 'mx_id', 'task_id']) {
+    const snap = await db.collection('marketplace_leads').where(field, '==', ref).limit(5).get()
+    snap.docs.forEach((doc) => {
+      if (!seen.has(doc.id)) seen.set(doc.id, doc)
+    })
+  }
+  return Array.from(seen.values())
+}
+
+const buildAssignedSpFromTaskSelection = ({ taskData, bidData, actorId, acceptedAt }) => ({
+  sp_id: normalizeRef(taskData?.assigned_sp_id || taskData?.assigned_sp?.sp_id || bidData?.sp_id),
+  sp_name: String(
+    taskData?.assigned_sp?.sp_name ||
+      bidData?.sp_name ||
+      bidData?.sp_business_name ||
+      bidData?.provider_name ||
+      ''
+  ).trim(),
+  sp_contact: taskData?.assigned_sp?.sp_contact || bidData?.sp_contact || null,
+  sp_rating: taskData?.assigned_sp?.sp_rating || bidData?.sp_rating || bidData?.sp_rating_avg || null,
+  bid_id: normalizeRef(taskData?.selected_bid_id || taskData?.assigned_sp?.bid_id || bidData?.bid_id || bidData?.id),
+  bid_amount: Number(taskData?.assigned_sp?.bid_amount || bidData?.amount || 0),
+  assigned_at: acceptedAt,
+  assigned_by: normalizeRef(taskData?.assigned_sp?.assigned_by || actorId),
+})
+
+const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData = null, taskData }) => {
+  const previousBidId = normalizeRef(beforeData?.selected_bid_id || beforeData?.assigned_sp?.bid_id)
+  const previousSpId = normalizeRef(beforeData?.assigned_sp_id || beforeData?.assigned_sp?.sp_id)
+  const selectedBidId = normalizeRef(taskData?.selected_bid_id || taskData?.assigned_sp?.bid_id)
+  const assignedSpId = normalizeRef(taskData?.assigned_sp_id || taskData?.assigned_sp?.sp_id)
+
+  if (beforeData && previousBidId === selectedBidId && previousSpId === assignedSpId) return
+
+  const leadDocs = await getLeadDocsByTaskRef(taskId)
+  if (!leadDocs.length) return
+  const leadDoc = leadDocs[0]
+  const leadRef = leadDoc.ref
+  const leadData = leadDoc.data() || {}
+  const bidsRef = leadRef.collection('bids')
+  const acceptedAt =
+    toIsoString(taskData?.selected_bid_at) ||
+    toIsoString(taskData?.assigned_sp?.assigned_at) ||
+    new Date().toISOString()
+
+  if (!selectedBidId || !assignedSpId) {
+    const bidSnap = await bidsRef.get()
+    await Promise.all([
+      ...bidSnap.docs.map((doc) => {
+        const data = doc.data() || {}
+        if (String(data.status || '').trim().toLowerCase() !== 'accepted') return Promise.resolve()
+        return doc.ref.set(
+          {
+            status: 'submitted',
+            accepted_at: null,
+            project_id: null,
+            project_title: null,
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true }
+        )
+      }),
+      leadRef.set(
+        {
+          status: mapTaskStatusToLeadStatus(taskData?.status, 'open'),
+          assigned_sp_id: null,
+          assigned_bid_id: null,
+          updated_at: new Date().toISOString(),
+          updated_server_at: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      ),
+      db.collection('sp_projects').doc(taskId).delete().catch(() => {}),
+    ])
+    return
+  }
+
+  const selectedBidSnap = await bidsRef.doc(selectedBidId).get()
+  if (!selectedBidSnap.exists) return
+  const selectedBidData = selectedBidSnap.data() || {}
+  const assignedSp = buildAssignedSpFromTaskSelection({
+    taskData,
+    bidData: { id: selectedBidSnap.id, ...selectedBidData },
+    actorId: leadData.creator_id || '',
+    acceptedAt,
+  })
+
+  const projectTitle = String(taskData?.title || taskData?.task_title || leadData.title || 'Untitled Project').trim()
+  const projectAddress = String(
+    taskData?.property_address ||
+      taskData?.property_id?.address ||
+      leadData.address ||
+      leadData.property_address_line1 ||
+      ''
+  ).trim()
+
+  const bidSnap = await bidsRef.get()
+  const writes = bidSnap.docs.map((doc) => {
+    const data = doc.data() || {}
+    const isSelected = doc.id === selectedBidId
+    if (!isSelected && String(data.status || '').trim().toLowerCase() === 'withdrawn') {
+      return Promise.resolve()
+    }
+    return doc.ref.set(
+      {
+        status: isSelected ? 'accepted' : 'submitted',
+        accepted_at: isSelected ? acceptedAt : null,
+        project_id: isSelected ? taskId : null,
+        project_title: isSelected ? projectTitle : null,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    )
+  })
+
+  writes.push(
+    leadRef.set(
+      {
+        status: 'assigned',
+        assigned_sp_id: assignedSp.sp_id,
+        assigned_bid_id: assignedSp.bid_id,
+        updated_at: new Date().toISOString(),
+        updated_server_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+  )
+
+  writes.push(
+    db.collection('sp_projects').doc(taskId).set(
+      {
+        project_id: taskId,
+        mxrecord_id: taskId,
+        property_id: normalizeRef(propertyId || taskData?.property_id),
+        lead_id: leadDoc.id,
+        selected_bid_id: assignedSp.bid_id,
+        sp_id: assignedSp.sp_id,
+        title: projectTitle,
+        task_title: projectTitle,
+        address: projectAddress,
+        location: projectAddress,
+        status: 'active',
+        accepted_at: acceptedAt,
+        assigned_sp: assignedSp,
+        comments: Array.isArray(taskData?.comments) ? taskData.comments : [],
+        phases: taskData?.phases && typeof taskData.phases === 'object' ? taskData.phases : {},
+        created_at: toIsoString(taskData?.createAt) || acceptedAt,
+        updated_at: new Date().toISOString(),
+        updated_server_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    )
+  )
+
+  await Promise.all(writes)
+}
+
+export const onTaskCreatedBidSelectionSync = onDocumentCreated(
+  {
+    region: 'us-central1',
+    document: 'properties/{propertyId}/mxrecords/{mxrecordId}',
+  },
+  async (event) => {
+    const taskData = event.data?.data()
+    if (!taskData) return
+    await syncTaskSelectionToMarketplace({
+      propertyId: event.params.propertyId,
+      taskId: event.params.mxrecordId,
+      taskData,
+    })
+  }
+)
+
+export const onTaskUpdatedBidSelectionSync = onDocumentUpdated(
+  {
+    region: 'us-central1',
+    document: 'properties/{propertyId}/mxrecords/{mxrecordId}',
+  },
+  async (event) => {
+    const beforeData = event.data?.before?.data()
+    const taskData = event.data?.after?.data()
+    if (!taskData) return
+    await syncTaskSelectionToMarketplace({
+      propertyId: event.params.propertyId,
+      taskId: event.params.mxrecordId,
+      beforeData,
+      taskData,
+    })
+  }
+)
