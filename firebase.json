@@ -14,12 +14,46 @@
       "headers": [
         {
           "source": "**/*.@(ico|svg|png)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=3600" }
-          ]
+          "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
         }
       ],
       "rewrites": [
+        {
+          "source": "/landing",
+          "destination": "/landing.html"
+        },
+        {
+          "source": "/about",
+          "destination": "/about.html"
+        },
+        {
+          "source": "/privacy",
+          "destination": "/privacy.html"
+        },
+        {
+          "source": "/terms",
+          "destination": "/terms.html"
+        },
+        {
+          "source": "/contact-support",
+          "destination": "/contact-support.html"
+        },
+        {
+          "source": "/public/about",
+          "destination": "/about.html"
+        },
+        {
+          "source": "/public/privacy",
+          "destination": "/privacy.html"
+        },
+        {
+          "source": "/public/terms",
+          "destination": "/terms.html"
+        },
+        {
+          "source": "/public/contact-support",
+          "destination": "/contact-support.html"
+        },
         {
           "source": "/api/**",
           "function": "mkpl"
@@ -37,9 +71,7 @@
       "headers": [
         {
           "source": "**/*.@(js|css)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public,max-age=300" }
-          ]
+          "headers": [{ "key": "Cache-Control", "value": "public,max-age=300" }]
         }
       ],
       "rewrites": [

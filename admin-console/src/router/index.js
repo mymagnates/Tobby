@@ -6,6 +6,7 @@ import OverviewPage from '../pages/OverviewPage.vue'
 import UsersPage from '../pages/UsersPage.vue'
 import BillingPage from '../pages/BillingPage.vue'
 import LogsPage from '../pages/LogsPage.vue'
+import DataManagementPage from '../pages/DataManagementPage.vue'
 import { auth } from '../firebase'
 import { validateAdminSession } from '../services/adminApi'
 
@@ -22,6 +23,7 @@ const router = createRouter({
         { path: 'users', component: UsersPage },
         { path: 'billing', component: BillingPage },
         { path: 'logs', component: LogsPage },
+        { path: 'data-management', component: DataManagementPage },
       ],
     },
   ],

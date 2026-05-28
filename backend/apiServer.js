@@ -190,6 +190,7 @@ const SP_CREDIT_ORDERS_COLLECTION = 'sp_credit_orders'
 const ADMIN_METRICS_DAILY_COLLECTION = 'admin_metrics_daily'
 const ADMIN_EVENTS_COLLECTION = 'admin_events'
 const ADMIN_ERRORS_COLLECTION = 'admin_errors'
+const ADMIN_DATA_CHANGE_LOGS_COLLECTION = 'admin_data_change_logs'
 const AGENT_EVENTS_COLLECTION = 'agent_events'
 const AD_POSTS_COLLECTION = 'ad_posts'
 const AD_DELIVERIES_COLLECTION = 'ad_deliveries'
@@ -201,11 +202,25 @@ const SP_INITIAL_FREE_CREDITS = 3
 const SP_WEEKLY_FREE_CREDITS = 1
 const SP_FREE_CREDIT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 const TASK_ADDRESS_BACKFILL_TOKEN = 'backfill-2026-04-02'
+const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
+  'users',
+  TASKS_COLLECTION,
+  LEADS_COLLECTION,
+  SP_CREDIT_ACCOUNTS_COLLECTION,
+  SP_CREDIT_ORDERS_COLLECTION,
+  SP_CREDIT_LEDGER_COLLECTION,
+  ADMIN_METRICS_DAILY_COLLECTION,
+  ADMIN_EVENTS_COLLECTION,
+  ADMIN_ERRORS_COLLECTION,
+  AGENT_EVENTS_COLLECTION,
+  'owner_invites',
+])
 let firestoreDb = null
 let firebaseAuth = null
 
 const DEFAULT_INVITE_EMAIL_FROM = 'onboarding@resend.dev'
 const OWNER_INVITE_PENDING = 'pending'
+const OWNER_INVITE_ACCEPTED = 'accepted'
 
 const randomHex = () => randomUUID().replace(/-/g, '')
 const generateOwnerInviteToken = () => `${randomHex()}${randomHex()}`
@@ -985,17 +1000,23 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             })
           )
         )
-      } catch {}
+      } catch (error) {
+        void error
+      }
 
       try {
         const directSnap = await db.collectionGroup('mxrecords').where('assigned_sp_id', '==', targetSpId).get()
         rows.push(...mapSnapshot(directSnap))
-      } catch {}
+      } catch (error) {
+        void error
+      }
 
       try {
         const nestedSnap = await db.collectionGroup('mxrecords').where('assigned_sp.sp_id', '==', targetSpId).get()
         rows.push(...mapSnapshot(nestedSnap))
-      } catch {}
+      } catch (error) {
+        void error
+      }
 
       const merged = new Map()
       rows.forEach((row) => {
@@ -1671,6 +1692,78 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return [...(store.adminErrors?.values?.() || [])].sort((a, b) =>
       String(b.created_at || '').localeCompare(String(a.created_at || ''))
     )
+  }
+
+  const normalizeAdminDataCollection = (value) => String(value || '').trim()
+
+  const assertAdminDataCollectionAllowed = (collectionName) =>
+    ADMIN_DATA_COLLECTION_ALLOWLIST.has(collectionName)
+
+  const toJsonClone = (value) => {
+    try {
+      return JSON.parse(JSON.stringify(value ?? null))
+    } catch {
+      return null
+    }
+  }
+
+  const appendAdminDataChangeLog = async ({
+    actor,
+    requestId,
+    action,
+    collectionName,
+    docId,
+    beforeData,
+    afterData,
+    reason,
+  }) => {
+    const now = new Date().toISOString()
+    const id = `admin-change-${randomUUID()}`
+    const row = {
+      id,
+      action,
+      collection: collectionName,
+      doc_id: docId,
+      before_data: toJsonClone(beforeData),
+      after_data: toJsonClone(afterData),
+      reason: String(reason || ''),
+      actor_id: actor.id,
+      actor_role: actor.role,
+      request_id: requestId,
+      created_at: now,
+      rollback_available: action !== 'rollback',
+    }
+    try {
+      const db = getDb()
+      await db.collection(ADMIN_DATA_CHANGE_LOGS_COLLECTION).doc(id).set(row, { merge: true })
+    } catch {
+      // Admin data edits rely on Firestore; log write failure is ignored to keep action responsive.
+    }
+    await appendAdminEvent({
+      eventType: 'admin_data_changed',
+      actor,
+      requestId,
+      entityType: collectionName,
+      entityId: docId,
+      metadata: { change_id: id, action, reason: String(reason || '') },
+    })
+    return row
+  }
+
+  const listAdminDataChangeLogs = async ({ collectionName, docId, limit = 100 }) => {
+    try {
+      const db = getDb()
+      let query = db.collection(ADMIN_DATA_CHANGE_LOGS_COLLECTION)
+      if (collectionName) query = query.where('collection', '==', collectionName)
+      if (docId) query = query.where('doc_id', '==', docId)
+      const snap = await query.get()
+      return snap.docs
+        .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, Math.max(1, Math.min(Number(limit) || 100, 500)))
+    } catch {
+      return []
+    }
   }
 
   const listFirestoreRows = async (collectionName) => {
@@ -2711,6 +2804,173 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return ok(res, requestId, { items: rows.slice(0, 500) })
   })
 
+  route('GET', '/admin/data/collections', async ({ actor, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    return ok(res, requestId, { items: [...ADMIN_DATA_COLLECTION_ALLOWLIST].sort() })
+  })
+
+  route('GET', '/admin/data/records', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const collectionName = normalizeAdminDataCollection(query.get('collection'))
+    const docId = String(query.get('doc_id') || '').trim()
+    const limit = Math.max(1, Math.min(Number(query.get('limit') || 50), 200))
+    if (!collectionName) {
+      return sendError(res, requestId, 400, 'MISSING_COLLECTION', 'collection is required')
+    }
+    if (!assertAdminDataCollectionAllowed(collectionName)) {
+      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+    }
+    try {
+      const db = getDb()
+      if (docId) {
+        const doc = await db.collection(collectionName).doc(docId).get()
+        if (!doc.exists) return ok(res, requestId, { items: [] })
+        return ok(res, requestId, { items: [{ id: doc.id, ...(doc.data() || {}) }] })
+      }
+      const snap = await db.collection(collectionName).limit(limit).get()
+      const items = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+      return ok(res, requestId, { items })
+    } catch {
+      return sendError(res, requestId, 500, 'DATA_READ_FAILED', 'Unable to read collection data', true)
+    }
+  })
+
+  route('GET', '/admin/data/changes', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const collectionName = normalizeAdminDataCollection(query.get('collection'))
+    const docId = String(query.get('doc_id') || '').trim()
+    const limit = Number(query.get('limit') || 100)
+    const items = await listAdminDataChangeLogs({ collectionName, docId, limit })
+    return ok(res, requestId, { items })
+  })
+
+  route('POST', '/admin/data/update', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const collectionName = normalizeAdminDataCollection(body?.collection)
+    const docId = String(body?.doc_id || '').trim()
+    const patch = body?.patch
+    const reason = String(body?.reason || '').trim()
+    if (!collectionName || !docId || typeof patch !== 'object' || patch === null) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_INPUT',
+        'collection, doc_id, patch(object), reason are required'
+      )
+    }
+    if (!reason) return sendError(res, requestId, 400, 'MISSING_REASON', 'reason is required')
+    if (!assertAdminDataCollectionAllowed(collectionName)) {
+      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+    }
+    try {
+      const db = getDb()
+      const ref = db.collection(collectionName).doc(docId)
+      const beforeSnap = await ref.get()
+      const beforeData = beforeSnap.exists ? { id: beforeSnap.id, ...(beforeSnap.data() || {}) } : null
+      await ref.set(patch, { merge: true })
+      const afterSnap = await ref.get()
+      const afterData = afterSnap.exists ? { id: afterSnap.id, ...(afterSnap.data() || {}) } : null
+      const change = await appendAdminDataChangeLog({
+        actor,
+        requestId,
+        action: 'update',
+        collectionName,
+        docId,
+        beforeData,
+        afterData,
+        reason,
+      })
+      return ok(res, requestId, { item: afterData, change })
+    } catch {
+      return sendError(res, requestId, 500, 'DATA_UPDATE_FAILED', 'Unable to update data', true)
+    }
+  })
+
+  route('POST', '/admin/data/delete', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const collectionName = normalizeAdminDataCollection(body?.collection)
+    const docId = String(body?.doc_id || '').trim()
+    const reason = String(body?.reason || '').trim()
+    if (!collectionName || !docId || !reason) {
+      return sendError(res, requestId, 400, 'INVALID_INPUT', 'collection, doc_id, reason are required')
+    }
+    if (!assertAdminDataCollectionAllowed(collectionName)) {
+      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+    }
+    try {
+      const db = getDb()
+      const ref = db.collection(collectionName).doc(docId)
+      const beforeSnap = await ref.get()
+      if (!beforeSnap.exists) {
+        return sendError(res, requestId, 404, 'DOC_NOT_FOUND', 'Document not found')
+      }
+      const beforeData = { id: beforeSnap.id, ...(beforeSnap.data() || {}) }
+      await ref.delete()
+      const change = await appendAdminDataChangeLog({
+        actor,
+        requestId,
+        action: 'delete',
+        collectionName,
+        docId,
+        beforeData,
+        afterData: null,
+        reason,
+      })
+      return ok(res, requestId, { deleted: true, change })
+    } catch {
+      return sendError(res, requestId, 500, 'DATA_DELETE_FAILED', 'Unable to delete data', true)
+    }
+  })
+
+  route('POST', '/admin/data/rollback', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const changeId = String(body?.change_id || '').trim()
+    const reason = String(body?.reason || '').trim()
+    if (!changeId || !reason) {
+      return sendError(res, requestId, 400, 'INVALID_INPUT', 'change_id and reason are required')
+    }
+    try {
+      const db = getDb()
+      const changeSnap = await db.collection(ADMIN_DATA_CHANGE_LOGS_COLLECTION).doc(changeId).get()
+      if (!changeSnap.exists) {
+        return sendError(res, requestId, 404, 'CHANGE_NOT_FOUND', 'Change log not found')
+      }
+      const change = { id: changeSnap.id, ...(changeSnap.data() || {}) }
+      const collectionName = normalizeAdminDataCollection(change.collection)
+      const docId = String(change.doc_id || '').trim()
+      if (!assertAdminDataCollectionAllowed(collectionName)) {
+        return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for rollback')
+      }
+      const ref = db.collection(collectionName).doc(docId)
+      const currentSnap = await ref.get()
+      const currentData = currentSnap.exists ? { id: currentSnap.id, ...(currentSnap.data() || {}) } : null
+      const restore = change.before_data || null
+      if (restore && typeof restore === 'object') {
+        const payload = { ...restore }
+        delete payload.id
+        await ref.set(payload, { merge: false })
+      } else {
+        await ref.delete()
+      }
+      const afterSnap = await ref.get()
+      const afterData = afterSnap.exists ? { id: afterSnap.id, ...(afterSnap.data() || {}) } : null
+      const rollbackChange = await appendAdminDataChangeLog({
+        actor,
+        requestId,
+        action: 'rollback',
+        collectionName,
+        docId,
+        beforeData: currentData,
+        afterData,
+        reason: `rollback:${changeId} ${reason}`,
+      })
+      return ok(res, requestId, { rolled_back: true, item: afterData, change: rollbackChange })
+    } catch {
+      return sendError(res, requestId, 500, 'ROLLBACK_FAILED', 'Unable to rollback data', true)
+    }
+  })
+
   route('GET', '/admin/ad-slot/stats', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
     const { fromDate, toDate } = buildRange(query)
@@ -2870,21 +3130,44 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
 
     const invitesSnap = await getDb().collection('owner_invites').where('property_id', '==', propertyId).get()
-    const existingPendingInvite = invitesSnap.docs
+    const existingInvite = invitesSnap.docs
       .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
       .find((entry) =>
         normalizeEmail(entry.owner_email) === ownerEmail &&
-        String(entry.status || '').trim().toLowerCase() === OWNER_INVITE_PENDING,
+        [OWNER_INVITE_PENDING, OWNER_INVITE_ACCEPTED].includes(
+          String(entry.status || '').trim().toLowerCase(),
+        ),
       )
+
+    if (existingInvite) {
+      const existingStatus = String(existingInvite.status || '').trim().toLowerCase()
+      if (existingStatus === OWNER_INVITE_ACCEPTED) {
+        return sendError(
+          res,
+          requestId,
+          409,
+          'OWNER_ALREADY_LINKED',
+          'This email already has access to this property.',
+        )
+      }
+
+      return sendError(
+        res,
+        requestId,
+        409,
+        'INVITE_ALREADY_PENDING',
+        'A pending invite already exists for this email on this property.',
+      )
+    }
 
     const token = generateOwnerInviteToken()
     const now = new Date()
     const expiresAt = createOwnerInviteExpiry()
-    const inviteDocId = existingPendingInvite?.id || token.slice(0, 20)
+    const inviteDocId = token.slice(0, 20)
 
     await getDb().collection('owner_invites').doc(inviteDocId).set(
       {
-        invite_id: existingPendingInvite?.invite_id || inviteDocId,
+        invite_id: inviteDocId,
         property_id: propertyId,
         pm_user_id: actor.id,
         owner_email: ownerEmail,
@@ -2894,7 +3177,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         accepted_at: null,
         accepted_by_user_id: null,
         updated_at: now,
-        ...(existingPendingInvite ? {} : { created_at: now }),
+        created_at: now,
       },
       { merge: true },
     )

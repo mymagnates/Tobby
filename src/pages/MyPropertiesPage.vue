@@ -781,36 +781,46 @@ const canInviteOwner = (property) => {
   return userDataStore.canShareProperty(property.id)
 }
 
-const createOwnerInvite = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = String(ownerEmail || '').trim().toLowerCase()
+const normalizeInviteEmail = (value) => String(value || '').trim().toLowerCase()
+
+const getExistingOwnerInviteConflict = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
+  if (!property?.id || !normalizedOwnerEmail) return null
+
   const existingInvites = await getAllDocuments('owner_invites')
-  const existingPendingInvite = existingInvites.find((entry) => {
+  const matchedInvite = existingInvites.find((entry) => {
     const sameProperty = String(entry?.property_id || '') === String(property.id || '')
-    const sameOwnerEmail = String(entry?.owner_email || '').trim().toLowerCase() === normalizedOwnerEmail
-    const isPending = String(entry?.status || '').toLowerCase() === 'pending'
-    return sameProperty && sameOwnerEmail && isPending
+    const sameOwnerEmail = normalizeInviteEmail(entry?.owner_email) === normalizedOwnerEmail
+    const status = String(entry?.status || '').trim().toLowerCase()
+    return sameProperty && sameOwnerEmail && (status === 'pending' || status === 'accepted')
   })
+
+  if (!matchedInvite) return null
+
+  const status = String(matchedInvite.status || '').trim().toLowerCase()
+  if (status === 'accepted') {
+    return {
+      type: 'invite_accepted',
+      message: 'This email has already accepted access to this property.',
+    }
+  }
+
+  return {
+    type: 'invite_pending',
+    message: 'A pending invite already exists for this email on this property.',
+  }
+}
+
+const createOwnerInvite = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
+  const conflict = await getExistingOwnerInviteConflict(property, normalizedOwnerEmail)
+  if (conflict) {
+    throw new Error(conflict.message)
+  }
 
   const token = generateOwnerInviteToken()
   const now = new Date()
   const expiresAt = createOwnerInviteExpiry()
-
-  if (existingPendingInvite?.id) {
-    await updateDocument('owner_invites', existingPendingInvite.id, {
-      invite_id: existingPendingInvite.invite_id || existingPendingInvite.id,
-      property_id: property.id,
-      pm_user_id: userDataStore.userId,
-      owner_email: normalizedOwnerEmail,
-      status: 'pending',
-      token,
-      expires_at: expiresAt,
-      accepted_at: null,
-      accepted_by_user_id: null,
-      updated_at: now,
-    })
-
-    return buildOwnerInviteUrl(token)
-  }
 
   const inviteId = token.slice(0, 20)
 
@@ -836,7 +846,7 @@ const promptOwnerInvite = (property) => {
     'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
     '',
   )
-  const email = String(input || '').trim().toLowerCase()
+  const email = normalizeInviteEmail(input)
   if (!email) return
   if (!/.+@.+\..+/.test(email)) {
     Notify.create({
@@ -849,6 +859,22 @@ const promptOwnerInvite = (property) => {
 
   ;(async () => {
     try {
+      const conflict = await getExistingOwnerInviteConflict(property, email)
+      if (conflict) {
+        Notify.create({
+          type: 'warning',
+          message: conflict.message,
+          position: 'top',
+          timeout: 5000,
+        })
+        return
+      }
+
+      const confirmed = window.confirm(
+        `Send an owner access invite to ${email} for ${property?.nickname || property?.address || 'this property'}?`,
+      )
+      if (!confirmed) return
+
       const response = await sendOwnerInviteEmailRequest({
         propertyId: property.id,
         ownerEmail: email,

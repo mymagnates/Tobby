@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Handout | Property Workspace</title>
+    <meta
+      name="description"
+      content="Manage documents, maintenance, transactions, leases, reminders, and shared access for every property from one clear workspace."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <link rel="stylesheet" href="/static-site.css" />
+  </head>
+  <body>
+    <div class="site-shell landing-page">
+      <header class="site-header">
+        <a class="wordmark-link" href="/landing">Handout</a>
+        <nav class="site-links" aria-label="Main navigation">
+          <a href="#workspace">Workspace</a>
+          <a href="#manage">What it tracks</a>
+          <a href="#service">Service help</a>
+        </nav>
+        <div class="site-actions">
+          <a class="text-button" data-login-link href="/public/login">Sign In</a>
+          <a class="primary-button primary-button--nav" href="/public/pmpo-signup">Get Started</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" aria-label="Handout property workspace">
+          <div class="hero-content">
+            <div class="eyebrow">Property workspace</div>
+            <h1>Manage every property from one clear workspace.</h1>
+            <p class="hero-copy">
+              Handout keeps documents, maintenance, transactions, leases, reminders, and shared
+              visibility connected for your home or the properties you manage.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-button" href="/public/pmpo-signup">Get Started</a>
+              <a class="outline-button" data-login-link href="/public/login">Sign In</a>
+            </div>
+            <div class="hero-signals">
+              <span><span class="material-icons">folder_open</span> Documents</span>
+              <span><span class="material-icons">home_repair_service</span> Maintenance</span>
+              <span><span class="material-icons">receipt_long</span> Transactions</span>
+              <span><span class="material-icons">description</span> Leases</span>
+              <span><span class="material-icons">event_available</span> Reminders</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="workspace" class="workspace-section">
+          <div class="section-heading">
+            <div class="eyebrow eyebrow--dark">One record for every property</div>
+            <h2>Designed around day-to-day property operations.</h2>
+            <p>
+              Select a property, find its files and history, and see what needs attention across
+              leases, maintenance, transactions, and shared access.
+            </p>
+          </div>
+
+          <div class="product-frame" aria-label="Handout application preview">
+            <div class="product-header">
+              <span class="product-brand">Handout</span>
+              <span class="product-title">Documents</span>
+              <div class="product-tools">
+                <span class="material-icons">search</span>
+                <span class="material-icons">add_circle</span>
+                <span class="material-icons">account_circle</span>
+              </div>
+            </div>
+            <div class="product-columns">
+              <aside class="preview-properties">
+                <div class="preview-label">Properties</div>
+                <button class="preview-property preview-property--active" type="button">
+                  <span>Home</span>
+                  <small>42 Willow Lane</small>
+                </button>
+                <button class="preview-property" type="button">
+                  <span>Oak Rental</span>
+                  <small>112 Oak Street</small>
+                </button>
+              </aside>
+
+              <div class="preview-main">
+                <div class="preview-toolbar">
+                  <span><span class="material-icons">search</span> Search documents</span>
+                  <button type="button"><span class="material-icons">add</span> Add</button>
+                </div>
+                <div class="preview-source-row">
+                  <div class="preview-source preview-source--selected">
+                    <strong>14</strong><span>All files</span>
+                  </div>
+                  <div class="preview-source"><strong>8</strong><span>Home</span></div>
+                  <div class="preview-source"><strong>6</strong><span>Lease</span></div>
+                </div>
+                <div class="preview-files">
+                  <div class="preview-file">
+                    <span class="material-icons file-pdf">picture_as_pdf</span>
+                    <strong>Insurance policy</strong>
+                    <small>Home - Updated May 12</small>
+                  </div>
+                  <div class="preview-file">
+                    <span class="material-icons file-doc">receipt_long</span>
+                    <strong>Roof service receipt</strong>
+                    <small>Maintenance - Apr 29</small>
+                  </div>
+                </div>
+              </div>
+
+              <aside class="preview-rail">
+                <div class="preview-label">Quick status</div>
+                <div class="rail-item">
+                  <span>Open tasks</span>
+                  <strong>2</strong>
+                </div>
+                <div class="rail-item">
+                  <span>Next reminder</span>
+                  <strong>May 30</strong>
+                </div>
+                <a class="rail-action" href="/public/pmpo-signup">
+                  <span class="material-icons">notifications_none</span> Add reminder
+                </a>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section id="core-map" class="core-map-section" aria-labelledby="core-map-title">
+          <div class="section-heading">
+            <div class="eyebrow eyebrow--dark">How Handout works</div>
+            <h2 id="core-map-title">One property record connects the work around it.</h2>
+            <p>
+              Handout starts with the property, then connects the records, tasks, money movement,
+              agreements, reminders, and people needed to keep that property manageable.
+            </p>
+          </div>
+
+          <div class="core-star" aria-label="Handout core feature map">
+            <div class="core-star-center">
+              <div class="core-star-shape">
+                <strong>Property Record</strong>
+                <span>Handout core</span>
+              </div>
+            </div>
+
+            <article class="core-star-item core-star-item--documents">
+              <span class="material-icons">folder_open</span>
+              <h3>Documents</h3>
+              <p>Store files, photos, insurance, warranties, and property details by address.</p>
+            </article>
+
+            <article class="core-star-item core-star-item--maintenance">
+              <span class="material-icons">home_repair_service</span>
+              <h3>Maintenance</h3>
+              <p>Track issues, repairs, receipts, assets, and service history in one timeline.</p>
+            </article>
+
+            <article class="core-star-item core-star-item--transactions">
+              <span class="material-icons">payments</span>
+              <h3>Transactions</h3>
+              <p>Connect income, expenses, fees, and property costs to the record they belong to.</p>
+            </article>
+
+            <article class="core-star-item core-star-item--leases">
+              <span class="material-icons">description</span>
+              <h3>Leases</h3>
+              <p>Keep agreements, tenants, dates, and related documents close to the property.</p>
+            </article>
+
+            <article class="core-star-item core-star-item--reminders">
+              <span class="material-icons">event_available</span>
+              <h3>Reminders</h3>
+              <p>Stay ahead of renewals, due dates, follow-ups, and recurring work.</p>
+            </article>
+
+            <article class="core-star-item core-star-item--people">
+              <span class="material-icons">groups</span>
+              <h3>People &amp; Pros</h3>
+              <p>Invite owners, coordinate tenants, and connect with service providers when needed.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="manage" class="management-section">
+          <div class="section-heading section-heading--left">
+            <div class="eyebrow eyebrow--dark">The essentials</div>
+            <h2>Keep every property organized and ready for action.</h2>
+          </div>
+          <div class="management-grid">
+            <article>
+              <span class="material-icons">description</span>
+              <h3>Documents and details</h3>
+              <p>
+                Keep leases, insurance, photos, and property details with the address they belong
+                to.
+              </p>
+            </article>
+            <article>
+              <span class="material-icons">build_circle</span>
+              <h3>Maintenance history</h3>
+              <p>
+                Record issues, repairs, receipts, and assets so the next decision starts with
+                context.
+              </p>
+            </article>
+            <article>
+              <span class="material-icons">payments</span>
+              <h3>Costs and reminders</h3>
+              <p>
+                Track transactions, expenses, leases, and due dates in the same property record.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="routine-section">
+          <div class="routine-copy">
+            <div class="eyebrow eyebrow--dark">A simple routine</div>
+            <h2>Capture it once. See what needs attention next.</h2>
+            <p>
+              Add the file, task, receipt, or reminder at the moment it matters. Handout keeps the
+              history readable by property instead of scattering it across folders and messages.
+            </p>
+          </div>
+          <div class="routine-flow">
+            <div class="flow-line">
+              <span class="flow-icon"><span class="material-icons">home</span></span>
+              <div><strong>Add a property</strong><small>Your home or a managed rental</small></div>
+            </div>
+            <div class="flow-line">
+              <span class="flow-icon"><span class="material-icons">upload_file</span></span>
+              <div>
+                <strong>Attach records</strong
+                ><small>Documents, receipts, assets, and leases</small>
+              </div>
+            </div>
+            <div class="flow-line">
+              <span class="flow-icon"><span class="material-icons">schedule</span></span>
+              <div>
+                <strong>Stay prepared</strong><small>Tasks and reminders when action is due</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="service" class="service-section">
+          <div class="service-inner">
+            <div>
+              <div class="eyebrow eyebrow--mint">Optional when work is needed</div>
+              <h2>Connect with pros when a job calls for it.</h2>
+            </div>
+            <p>
+              If a repair needs outside help, share a maintenance task with a service provider and
+              manage responses alongside the property's existing records. Service collaboration
+              supports your property record; it does not replace it.
+            </p>
+            <div class="service-tags">
+              <span><span class="material-icons">plumbing</span> Plumbing</span>
+              <span><span class="material-icons">electrical_services</span> Electrical</span>
+              <span><span class="material-icons">roofing</span> Roofing</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="cta-section">
+          <h2>Start a clearer record for every property you manage.</h2>
+          <p>
+            Organize your home or managed properties, then invite owners or connect pros as needed.
+          </p>
+          <div class="cta-actions">
+            <a class="primary-button" href="/public/pmpo-signup">Get Started</a>
+            <a class="secondary-button" data-login-link href="/public/login">Sign In</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-wordmark">Handout</div>
+        <div class="footer-links">
+          <a href="/about">About</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+          <a href="/contact-support">Contact &amp; Support</a>
+        </div>
+        <div class="footer-copy">&copy; 2026 Magnates Solution LLC. All rights reserved.</div>
+      </footer>
+    </div>
+
+    <script>
+      ;(() => {
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get('redirect')
+        if (!redirect) return
+        document.querySelectorAll('[data-login-link]').forEach((link) => {
+          try {
+            const url = new URL(link.getAttribute('href'), window.location.origin)
+            url.searchParams.set('redirect', redirect)
+            link.setAttribute('href', `${url.pathname}${url.search}`)
+          } catch (error) {
+            console.warn('Failed to append redirect to login link', error)
+          }
+        })
+      })()
+    </script>
+  </body>
+</html>

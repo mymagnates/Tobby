@@ -13,7 +13,7 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/landing',
+        redirect: '/public/login',
       },
       {
         path: 'login',
@@ -43,26 +43,6 @@ const routes = [
       {
         path: 'tenant-signup/:leaseId?',
         component: () => import('pages/TenantSignUpPage.vue'),
-        meta: { isPublic: true },
-      },
-      {
-        path: 'about',
-        component: () => import('pages/AboutPage.vue'),
-        meta: { isPublic: true },
-      },
-      {
-        path: 'contact-support',
-        component: () => import('pages/ContactSupportPage.vue'),
-        meta: { isPublic: true },
-      },
-      {
-        path: 'privacy',
-        component: () => import('pages/PrivacyPolicyPage.vue'),
-        meta: { isPublic: true },
-      },
-      {
-        path: 'terms',
-        component: () => import('pages/TermsOfUsePage.vue'),
         meta: { isPublic: true },
       },
       {
@@ -191,11 +171,6 @@ const routes = [
     component: () => import('pages/LoadingPage.vue'),
   },
   {
-    path: '/landing',
-    component: () => import('pages/LandingPage.vue'),
-    meta: { isPublic: true },
-  },
-  {
     path: '/logout-success',
     component: () => import('pages/LogoutSuccessPage.vue'),
   },
@@ -228,14 +203,6 @@ const routes = [
     redirect: (to) => `/public/application-detail/${to.params.applicationId}`,
   },
   {
-    path: '/about',
-    redirect: '/public/about',
-  },
-  {
-    path: '/contact-support',
-    redirect: '/public/contact-support',
-  },
-  {
     path: '/posts/:spSlug',
     redirect: (to) => `/public/handout/${to.params.spSlug}`,
   },
@@ -251,15 +218,6 @@ const routes = [
     path: '/sp-showcase/:spId',
     redirect: (to) => `/public/handout/${to.params.spId}`,
   },
-  {
-    path: '/privacy',
-    redirect: '/public/privacy',
-  },
-  {
-    path: '/terms',
-    redirect: '/public/terms',
-  },
-
   // ============================================
   // ERROR PAGES
   // ============================================

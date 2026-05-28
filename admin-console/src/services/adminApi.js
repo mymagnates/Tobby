@@ -69,4 +69,10 @@ export const adminApi = {
   adjustCredits: (body) => request('/admin/credits/adjust', { method: 'POST', body }),
   listEvents: (params) => request(`/admin/logs/events${qs(params)}`),
   listErrors: (params) => request(`/admin/logs/errors${qs(params)}`),
+  listDataCollections: () => request('/admin/data/collections'),
+  listDataRecords: (params) => request(`/admin/data/records${qs(params)}`),
+  listDataChanges: (params) => request(`/admin/data/changes${qs(params)}`),
+  updateDataRecord: (body) => request('/admin/data/update', { method: 'POST', body }),
+  deleteDataRecord: (body) => request('/admin/data/delete', { method: 'POST', body }),
+  rollbackDataChange: (body) => request('/admin/data/rollback', { method: 'POST', body }),
 }

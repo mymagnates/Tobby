@@ -505,11 +505,11 @@ const openPaymentMethod = () => {
 }
 
 const openSupport = () => {
-  router.push('/public/contact-support')
+  window.location.assign('/contact-support')
 }
 
 const openDataRequest = () => {
-  router.push('/public/privacy')
+  window.location.assign('/privacy')
 }
 
 const buyAddon = (addonKey) => {

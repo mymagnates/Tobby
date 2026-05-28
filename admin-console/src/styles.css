@@ -98,12 +98,18 @@ a { color: inherit; text-decoration: none; }
 
 button,
 input,
-select {
+select,
+textarea {
   border: 1px solid var(--border);
   background: #fff;
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 14px;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 button { cursor: pointer; }

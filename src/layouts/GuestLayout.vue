@@ -34,10 +34,10 @@
       <div class="footer-content">
         <div class="footer-logo">Handout</div>
         <div class="footer-links">
-          <router-link to="/public/about" class="footer-link">About</router-link>
-          <router-link to="/public/contact-support" class="footer-link">Contact &amp; Support</router-link>
-          <router-link to="/public/privacy" class="footer-link">Privacy Policy</router-link>
-          <router-link to="/public/terms" class="footer-link">Terms of Service</router-link>
+          <a href="/about" class="footer-link">About</a>
+          <a href="/contact-support" class="footer-link">Contact &amp; Support</a>
+          <a href="/privacy" class="footer-link">Privacy Policy</a>
+          <a href="/terms" class="footer-link">Terms of Service</a>
         </div>
         <div class="footer-copy">&copy; {{ currentYear }} Magnates Solution LLC. All rights reserved.</div>
       </div>
@@ -72,7 +72,7 @@ const goToRegister = () => {
 }
 
 const goHome = () => {
-  router.push('/landing')
+  window.location.assign('/landing')
 }
 </script>
 

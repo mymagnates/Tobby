@@ -102,7 +102,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
     if (requiresAuth && !isAuthenticated) {
       console.log('Router Guard - Authentication required, redirecting to landing')
-      // Save the intended destination to redirect after login
+      if (typeof window !== 'undefined') {
+        const redirectTarget = `/landing?redirect=${encodeURIComponent(to.fullPath)}`
+        window.location.assign(redirectTarget)
+        next(false)
+        return
+      }
       next({
         path: '/landing',
         query: { redirect: to.fullPath },

@@ -707,6 +707,17 @@
                     <q-icon name="home" size="14px" />
                     <span>{{ getOwnerMailingAddress(owner) }}</span>
                   </div>
+                  <q-btn
+                    v-if="selectedProperty && canManagePropertyAction(selectedProperty.id)"
+                    color="negative"
+                    outline
+                    no-caps
+                    icon="person_remove"
+                    label="Remove Access"
+                    class="full-width q-mt-sm"
+                    :loading="ownerAccessActionKey === `accepted:${owner.id || getOwnerEmail(owner)}`"
+                    @click="removeOwnerAccess(owner)"
+                  />
                 </div>
 
                 <div
@@ -724,6 +735,17 @@
                     <q-icon name="schedule" size="14px" />
                     <span>Sent {{ formatDate(invite.created_at || invite.updated_at) }}</span>
                   </div>
+                  <q-btn
+                    v-if="selectedProperty && canManagePropertyAction(selectedProperty.id)"
+                    color="negative"
+                    outline
+                    no-caps
+                    icon="cancel"
+                    label="Cancel Invite"
+                    class="full-width q-mt-sm"
+                    :loading="ownerAccessActionKey === `pending:${invite.id || invite.owner_email}`"
+                    @click="revokePendingOwnerInvite(invite)"
+                  />
                 </div>
               </div>
             </q-card-section>
@@ -1498,36 +1520,56 @@ const canInviteOwner = (property) => {
   return userDataStore.canShareProperty(property.id)
 }
 
-const createOwnerInvite = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = String(ownerEmail || '').trim().toLowerCase()
+const normalizeInviteEmail = (value) => String(value || '').trim().toLowerCase()
+
+const getExistingOwnerInviteConflict = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
+  if (!property?.id || !normalizedOwnerEmail) return null
+
+  const acceptedOwnerMatch = propertyOwnerProfiles.value.find(
+    (entry) => normalizeInviteEmail(getOwnerEmail(entry)) === normalizedOwnerEmail,
+  )
+  if (acceptedOwnerMatch) {
+    return {
+      type: 'owner_exists',
+      message: 'This email is already linked to this property as an owner or co-owner.',
+    }
+  }
+
   const existingInvites = await getAllDocuments('owner_invites')
-  const existingPendingInvite = existingInvites.find((entry) => {
+  const matchedInvite = existingInvites.find((entry) => {
     const sameProperty = String(entry?.property_id || '') === String(property.id || '')
-    const sameOwnerEmail = String(entry?.owner_email || '').trim().toLowerCase() === normalizedOwnerEmail
-    const isPending = String(entry?.status || '').toLowerCase() === 'pending'
-    return sameProperty && sameOwnerEmail && isPending
+    const sameOwnerEmail = normalizeInviteEmail(entry?.owner_email) === normalizedOwnerEmail
+    const status = String(entry?.status || '').trim().toLowerCase()
+    return sameProperty && sameOwnerEmail && (status === 'pending' || status === 'accepted')
   })
+
+  if (!matchedInvite) return null
+
+  const status = String(matchedInvite.status || '').trim().toLowerCase()
+  if (status === 'accepted') {
+    return {
+      type: 'invite_accepted',
+      message: 'This email has already accepted access to this property.',
+    }
+  }
+
+  return {
+    type: 'invite_pending',
+    message: 'A pending invite already exists for this email on this property.',
+  }
+}
+
+const createOwnerInvite = async (property, ownerEmail) => {
+  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
+  const conflict = await getExistingOwnerInviteConflict(property, normalizedOwnerEmail)
+  if (conflict) {
+    throw new Error(conflict.message)
+  }
 
   const token = generateOwnerInviteToken()
   const now = new Date()
   const expiresAt = createOwnerInviteExpiry()
-
-  if (existingPendingInvite?.id) {
-    await updateDocument('owner_invites', existingPendingInvite.id, {
-      invite_id: existingPendingInvite.invite_id || existingPendingInvite.id,
-      property_id: property.id,
-      pm_user_id: userDataStore.userId,
-      owner_email: normalizedOwnerEmail,
-      status: 'pending',
-      token,
-      expires_at: expiresAt,
-      accepted_at: null,
-      accepted_by_user_id: null,
-      updated_at: now,
-    })
-
-    return buildOwnerInviteUrl(token)
-  }
 
   const inviteId = token.slice(0, 20)
 
@@ -1553,7 +1595,7 @@ const promptOwnerInvite = (property) => {
     'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
     '',
   )
-  const email = String(input || '').trim().toLowerCase()
+  const email = normalizeInviteEmail(input)
   if (!email) return
   if (!/.+@.+\..+/.test(email)) {
     Notify.create({
@@ -1566,6 +1608,22 @@ const promptOwnerInvite = (property) => {
 
   ;(async () => {
     try {
+      const conflict = await getExistingOwnerInviteConflict(property, email)
+      if (conflict) {
+        Notify.create({
+          type: 'warning',
+          message: conflict.message,
+          position: 'top',
+          timeout: 5000,
+        })
+        return
+      }
+
+      const confirmed = window.confirm(
+        `Send an owner access invite to ${email} for ${property?.nickname || property?.address || 'this property'}?`,
+      )
+      if (!confirmed) return
+
       const response = await sendOwnerInviteEmailRequest({
         propertyId: property.id,
         ownerEmail: email,
@@ -1626,6 +1684,151 @@ const promptOwnerInvite = (property) => {
     }
   })()
 }
+
+const revokePendingOwnerInvite = async (invite) => {
+  if (!selectedProperty.value?.id || !invite?.id) return
+
+  const inviteEmail = normalizeInviteEmail(invite.owner_email)
+  const propertyLabel =
+    selectedProperty.value.nickname || selectedProperty.value.address || 'this property'
+  const confirmed = window.confirm(
+    `Cancel the pending invite for ${inviteEmail || 'this email'} on ${propertyLabel}?`,
+  )
+  if (!confirmed) return
+
+  ownerAccessActionKey.value = `pending:${invite.id || invite.owner_email}`
+  try {
+    const now = new Date()
+    await updateDocument('owner_invites', invite.id, {
+      status: 'revoked',
+      revoked_at: now,
+      revoked_by_user_id: userDataStore.userId,
+      updated_at: now,
+    })
+
+    await refreshData()
+    const refreshed = userProperties.value.find((property) => property.id === selectedProperty.value?.id)
+    if (refreshed) {
+      selectedProperty.value = cloneProperty(refreshed)
+    }
+    await loadPropertyOwnerInfo()
+
+    Notify.create({
+      type: 'positive',
+      message: 'Pending owner invite cancelled.',
+      position: 'top',
+    })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to cancel pending owner invite.',
+      position: 'top',
+    })
+  } finally {
+    ownerAccessActionKey.value = ''
+  }
+}
+
+const removeOwnerAccess = async (owner) => {
+  if (!selectedProperty.value?.id) return
+
+  const ownerId = String(owner?.id || '').trim()
+  const ownerEmail = normalizeInviteEmail(getOwnerEmail(owner))
+  const ownerLabel = ownerEmail || getOwnerDisplayName(owner) || 'this owner'
+  const propertyLabel =
+    selectedProperty.value.nickname || selectedProperty.value.address || 'this property'
+
+  if (!ownerId) {
+    Notify.create({
+      type: 'negative',
+      message: 'Owner access cannot be removed because the user record is missing.',
+      position: 'top',
+    })
+    return
+  }
+
+  const confirmed = window.confirm(
+    `Remove ${ownerLabel} access from ${propertyLabel}? This revokes owner/co-owner access for this property only.`,
+  )
+  if (!confirmed) return
+
+  ownerAccessActionKey.value = `accepted:${ownerId || ownerEmail}`
+  try {
+    const propertyId = selectedProperty.value.id
+    const now = new Date()
+    const propertyOwnerIds = Array.isArray(selectedProperty.value.owner_user_ids)
+      ? selectedProperty.value.owner_user_ids
+      : []
+    const nextOwnerIds = propertyOwnerIds.filter((id) => String(id || '') !== ownerId)
+    const currentPrimaryOwnerId = String(selectedProperty.value.primary_owner_user_id || '').trim()
+    const nextPrimaryOwnerId =
+      currentPrimaryOwnerId && currentPrimaryOwnerId !== ownerId && nextOwnerIds.includes(currentPrimaryOwnerId)
+        ? currentPrimaryOwnerId
+        : nextOwnerIds[0] || null
+
+    const ownerRoles = await getAllDocuments(`users/${ownerId}/roles`)
+    const ownerPoRoles = (ownerRoles || []).filter((role) => {
+      const roleName = String(role?.role || '').trim().toLowerCase()
+      const rolePropertyId = String(role?.property_id || '').trim()
+      return roleName === 'po' && rolePropertyId === String(propertyId)
+    })
+
+    await Promise.all(
+      ownerPoRoles.map((role) => deleteDocument(`users/${ownerId}/roles`, role.id)),
+    )
+
+    await updateDocument('properties', propertyId, {
+      owner_user_ids: nextOwnerIds,
+      primary_owner_user_id: nextPrimaryOwnerId,
+      ownership_mode: nextOwnerIds.length > 0 ? 'self_owned' : 'managed_for_owner',
+      updated_at: now,
+      updatedAt: now,
+    })
+
+    const invites = await getAllDocuments('owner_invites')
+    const matchingAcceptedInvites = (invites || []).filter((entry) => {
+      const sameProperty = String(entry?.property_id || '') === String(propertyId)
+      const sameAcceptedOwner = String(entry?.accepted_by_user_id || '') === ownerId
+      const sameEmail = ownerEmail && normalizeInviteEmail(entry?.owner_email) === ownerEmail
+      const status = String(entry?.status || '').trim().toLowerCase()
+      return sameProperty && status === 'accepted' && (sameAcceptedOwner || sameEmail)
+    })
+
+    await Promise.all(
+      matchingAcceptedInvites.map((invite) =>
+        updateDocument('owner_invites', invite.id, {
+          status: 'revoked',
+          revoked_at: now,
+          revoked_by_user_id: userDataStore.userId,
+          accepted_by_user_id: null,
+          updated_at: now,
+        }),
+      ),
+    )
+
+    await refreshData()
+    const refreshed = userProperties.value.find((property) => property.id === propertyId)
+    if (refreshed) {
+      selectedProperty.value = cloneProperty(refreshed)
+    }
+    await loadPropertyOwnerInfo()
+
+    Notify.create({
+      type: 'positive',
+      message: 'Owner access removed for this property.',
+      position: 'top',
+    })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to remove owner access.',
+      position: 'top',
+    })
+  } finally {
+    ownerAccessActionKey.value = ''
+  }
+}
+
 const propertyTypeOptions = ['Residential', 'Commercial', 'Industrial', 'Land', 'Mixed Use']
 const propertyStatusOptions = [
   'Available',
@@ -1723,6 +1926,7 @@ const deletingPhoto = ref(false)
 const photoToDelete = ref(null)
 const currentPhotoUrl = ref('')
 const currentPhotoTitle = ref('')
+const ownerAccessActionKey = ref('')
 
 const openInviteLinkDialog = (link, reason = '') => {
   inviteLinkValue.value = String(link || '').trim()
@@ -2034,7 +2238,10 @@ const loadPropertyOwnerInfo = async () => {
       .sort((a, b) => (toDateObject(b?.updated_at || b?.created_at)?.getTime() || 0) - (toDateObject(a?.updated_at || a?.created_at)?.getTime() || 0))
 
     propertyInvites.forEach((invite) => {
-      if (invite.accepted_by_user_id) ownerIds.add(invite.accepted_by_user_id)
+      const inviteStatus = String(invite?.status || '').trim().toLowerCase()
+      if (inviteStatus === 'accepted' && invite.accepted_by_user_id) {
+        ownerIds.add(invite.accepted_by_user_id)
+      }
     })
 
     propertyOwnerInvites.value = propertyInvites
