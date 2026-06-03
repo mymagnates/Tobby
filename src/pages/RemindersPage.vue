@@ -33,7 +33,7 @@
 
     <!-- Filters -->
     <div class="page-toolbar page-toolbar--stacked">
-      <q-input v-model="searchText" placeholder="Search tasks" borderless dense clearable class="page-tool-field">
+      <q-input v-model="searchText" placeholder="Search reminders" borderless dense clearable class="page-tool-field">
         <template v-slot:prepend>
           <q-icon name="search" size="18px" />
         </template>
@@ -86,137 +86,57 @@
 
     <!-- Reminders List -->
     <div v-if="filteredReminders.length > 0" class="reminders-grid entity-tiles">
-        <q-card
-          v-for="reminder in filteredReminders"
-          :key="reminder.id"
-          class="reminder-card entity-tile"
-          :class="{ 'reminder-inactive': !reminder.status }"
-          flat
-          bordered
-        >
-          <q-card-section>
-            <div class="row items-center q-mb-sm">
-              <q-chip size="sm" class="q-mr-sm chip-tag">
-                {{ reminder.category }}
-              </q-chip>
-              <q-chip
-                :color="reminder.status ? 'positive' : 'negative'"
-                text-color="white"
-                size="sm"
+      <q-card
+        v-for="reminder in filteredReminders"
+        :key="reminder.id"
+        class="reminder-card entity-tile"
+        :class="{ 'reminder-inactive': !reminder.status }"
+        flat
+        bordered
+        clickable
+        @click="openReminderDetail(reminder)"
+      >
+        <q-card-section>
+          <div class="entity-tile-head">
+            <div class="entity-file-mark" :class="reminder.status ? 'entity-file-mark--green' : 'entity-file-mark--orange'">
+              <q-icon name="notifications_active" size="22px" />
+            </div>
+            <div class="row items-center q-gutter-xs no-wrap">
+              <span class="entity-chip">{{ reminder.category || 'Reminder' }}</span>
+              <span
+                class="entity-chip"
+                :class="reminder.status ? 'entity-chip--green' : 'entity-chip--orange'"
               >
                 {{ reminder.status ? 'Active' : 'Inactive' }}
-              </q-chip>
-              <q-chip>{{ getPropertyName(reminder.property_id) }}</q-chip>
+              </span>
             </div>
+          </div>
 
-            <div class="text-h6 q-mb-sm">
-              <div v-if="reminder.note" class="text-body  q-mb-md">
-              <q-icon name="note" size="16px" class="q-mr-xs" />
-              {{ reminder.note }}
-            </div>
-           </div>
+          <div class="entity-tile-title text-clamp-2">
+            {{ reminder.note || `${reminder.category || 'Reminder'} reminder` }}
+          </div>
 
-            <div class="text-body2 text-grey-6 q-mb-xs">
-              <q-icon name="schedule" size="16px" class="q-mr-xs" />
-              Start: {{ formatDate(reminder.start_date) }}
-              <q-badge
-                v-if="reminder.renewals && reminder.renewals.length > 0"
-                color="orange"
-                :label="`${reminder.renewals.length}x renewed`"
-                class="q-ml-sm cursor-pointer"
-                @click.stop="viewRenewalHistory(reminder)"
-              >
-                <q-tooltip>Click to view renewal history</q-tooltip>
-              </q-badge>
-            </div>
-            <div class="text-body2 text-grey-7 q-mb-xs">
-              <q-icon name="event_available" size="16px" class="q-mr-xs" />
-              {{ getReminderDueLabel(reminder) }}
-            </div>
+          <div class="entity-tile-desc text-clamp-2">
+            {{ getPropertyName(reminder.property_id) }}
+          </div>
 
-            <div class="text-body2 text-grey-6 q-mb-xs">
-              <q-icon name="repeat" size="16px" class="q-mr-xs" />
-              Repeat: {{ reminder.repeat_by || 'One-time' }}
-            </div>
+          <div class="entity-tile-meta">
+            <span class="entity-chip entity-chip--blue">{{ getReminderDueLabel(reminder) }}</span>
+            <span
+              v-if="reminder.renewals && reminder.renewals.length > 0"
+              class="entity-chip entity-chip--orange"
+            >
+              {{ reminder.renewals.length }}x renewed
+            </span>
+          </div>
 
-            <div v-if="reminder.amount" class="text-body2 text-grey-6 q-mb-xs">
-              <q-icon name="attach_money" size="16px" class="q-mr-xs" />
-              Amount: ${{ formatCurrency(reminder.amount) }}
-            </div>
-
-
-          </q-card-section>
-
-          <q-card-actions class="reminder-actions">
-            <!-- First Row: Complete and Renew -->
-            <div class="action-row" v-if="canManageRecords">
-              <q-btn
-                flat
-                dense
-                color="positive"
-                icon="check_circle"
-                label="Complete"
-                @click="completeReminder(reminder)"
-                class="action-btn"
-              >
-                <q-tooltip>
-                  {{
-                    reminder.repeat_by &&
-                    String(reminder.repeat_by).toLowerCase() !== 'one-time'
-                      ? 'Complete & auto-defer'
-                      : 'Complete & deactivate'
-                  }}
-                </q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                dense
-                color="primary"
-                icon="refresh"
-                label="Renew"
-                @click="renewReminder(reminder)"
-                class="action-btn"
-              >
-                <q-tooltip>Renew reminder and set next due date</q-tooltip>
-              </q-btn>
-            </div>
-
-            <!-- Second Row: Status and Edit -->
-            <div class="action-row" v-if="canManageRecords">
-              <q-btn
-                flat
-                dense
-                :color="reminder.status ? 'negative' : 'positive'"
-                :icon="reminder.status ? 'pause' : 'play_arrow'"
-                :label="reminder.status ? 'Deactivate' : 'Activate'"
-                @click="toggleReminderStatus(reminder)"
-                class="action-btn"
-              />
-              <q-btn
-                flat
-                dense
-                color="primary"
-                icon="edit"
-                label="Edit"
-                @click="editReminder(reminder)"
-                class="action-btn"
-              />
-            </div>
-
-            <!-- Third Row: Delete -->
-            <div class="action-row" v-if="canManageRecords">
-              <q-btn
-                flat
-                dense
-                color="negative"
-                icon="delete"
-                label="Delete"
-                @click="deleteReminder(reminder)"
-                class="action-btn full-width"
-              />
-            </div>
-          </q-card-actions>
-        </q-card>
+          <div class="entity-tile-foot">
+            <span>{{ reminder.repeat_by || 'One-time' }}</span>
+            <span v-if="reminder.amount">${{ formatCurrency(reminder.amount) }}</span>
+            <span v-else>{{ formatDate(reminder.start_date) }}</span>
+          </div>
+        </q-card-section>
+      </q-card>
     </div>
 
     <!-- Empty State -->
@@ -254,11 +174,47 @@
       <div class="reminder-detail-body" v-if="selectedReminder">
         <div v-if="canManageRecords" class="reminder-detail-actions">
           <q-btn
+            color="positive"
+            unelevated
+            icon="check_circle"
+            label="Complete"
+            @click="completeReminder(selectedReminder)"
+          />
+          <q-btn
             color="primary"
             unelevated
             icon="refresh"
             label="Renew"
             @click="renewReminder(selectedReminder)"
+          />
+          <q-btn
+            color="primary"
+            outline
+            icon="edit"
+            label="Edit"
+            @click="editReminderFromDetail"
+          />
+          <q-btn
+            v-if="selectedReminder.renewals && selectedReminder.renewals.length > 0"
+            color="orange"
+            outline
+            icon="history"
+            label="Renewal History"
+            @click="viewRenewalHistory(selectedReminder)"
+          />
+          <q-btn
+            :color="selectedReminder.status ? 'negative' : 'positive'"
+            outline
+            :icon="selectedReminder.status ? 'pause' : 'play_arrow'"
+            :label="selectedReminder.status ? 'Deactivate' : 'Activate'"
+            @click="toggleReminderStatus(selectedReminder)"
+          />
+          <q-btn
+            color="negative"
+            outline
+            icon="delete"
+            label="Delete"
+            @click="deleteReminder(selectedReminder)"
           />
         </div>
         <div class="reminder-detail-grid">
@@ -737,6 +693,12 @@ const editReminder = (reminder) => {
   showCreateDialog.value = true
 }
 
+const editReminderFromDetail = () => {
+  if (!selectedReminder.value) return
+  showReminderDetail.value = false
+  editReminder(selectedReminder.value)
+}
+
 const openReminderDetail = (reminder) => {
   selectedReminder.value = reminder
   showReminderDetail.value = true
@@ -833,6 +795,9 @@ const completeReminder = async (reminder) => {
       const index = reminders.value.findIndex((r) => r.id === reminder.id)
       if (index !== -1) {
         reminders.value[index] = updatedReminder
+      }
+      if (selectedReminder.value?.id === reminder.id) {
+        selectedReminder.value = { ...updatedReminder }
       }
 
       Notify.create({
@@ -940,6 +905,9 @@ const toggleReminderStatus = async (reminder) => {
     if (index !== -1) {
       reminders.value[index] = updatedReminder
     }
+    if (selectedReminder.value?.id === reminder.id) {
+      selectedReminder.value = { ...updatedReminder }
+    }
 
     Notify.create({
       type: 'positive',
@@ -963,6 +931,9 @@ const deleteReminder = async (reminder) => {
     const index = reminders.value.findIndex((r) => r.id === reminder.id)
     if (index !== -1) {
       reminders.value.splice(index, 1)
+    }
+    if (selectedReminder.value?.id === reminder.id) {
+      closeReminderDetail()
     }
 
     Notify.create({

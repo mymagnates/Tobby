@@ -1072,6 +1072,10 @@ onMounted(loadDashboard)
   justify-content: center;
   min-height: 70vh;
   text-align: center;
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
+    linear-gradient(180deg, #faf8f3 0%, #faf8f3 42%, #f2ede4 100%);
 }
 
 .loading-content {

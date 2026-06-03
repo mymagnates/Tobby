@@ -41,130 +41,151 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form id="create-service-form" @submit="onSubmit" class="q-gutter-sm">
-          <div v-if="showPropertySelect" class="section-label q-mb-xs">Property Context</div>
-          <q-select
-            v-if="showPropertySelect"
-            v-model="selectedPropertyId"
-            :options="propertyOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            label="Select Property"
-            outlined
-            dense
-            :disable="serviceDisabled"
-            :rules="[(val) => !!val || 'Property selection is required']"
-            bg-color="grey-1"
-          >
-            <template #prepend>
-              <q-icon name="home" color="primary" />
-            </template>
-          </q-select>
+        <q-form id="create-service-form" @submit="onSubmit" class="q-gutter-md">
+          <section class="service-create-panel">
+            <div class="service-create-panel__header">
+              <div class="section-label">Property Context</div>
+              <div class="text-caption text-grey-6">Choose the main property and where this service applies.</div>
+            </div>
 
-          <q-select
-            v-model="selectedServicePropertyIds"
-            :options="propertyOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            multiple
-            use-chips
-            label="Properties Using This Service"
-            outlined
-            dense
-            :disable="serviceDisabled"
-            :rules="[(val) => Array.isArray(val) && val.length > 0 || 'Select at least one property']"
-            bg-color="grey-1"
-          >
-            <template #prepend>
-              <q-icon name="apartment" color="primary" />
-            </template>
-          </q-select>
+            <q-select
+              v-if="showPropertySelect"
+              v-model="selectedPropertyId"
+              :options="propertyOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              label="Select Property"
+              outlined
+              dense
+              :disable="serviceDisabled"
+              :rules="[(val) => !!val || 'Property selection is required']"
+              bg-color="grey-1"
+            >
+              <template #prepend>
+                <q-icon name="home" color="primary" />
+              </template>
+            </q-select>
 
-          <div class="section-label q-mb-xs q-mt-sm">Service Details</div>
-          <q-select
-            v-model="serviceForm.service_type"
-            :options="serviceTypeOptions"
-            dense
-            outlined
-            label="Service Type"
-            emit-value
-            map-options
-            :disable="serviceDisabled"
-            :rules="[(val) => !!val || 'Service type is required']"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.company_name"
-            dense
-            outlined
-            label="Company Name"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.term"
-            dense
-            outlined
-            label="Term"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.service_start_date"
-            dense
-            outlined
-            type="date"
-            label="Service Start Date"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
+            <q-select
+              v-model="selectedServicePropertyIds"
+              :options="propertyOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              multiple
+              use-chips
+              label="Properties Using This Service"
+              outlined
+              dense
+              :disable="serviceDisabled"
+              :rules="[(val) => Array.isArray(val) && val.length > 0 || 'Select at least one property']"
+              bg-color="grey-1"
+            >
+              <template #prepend>
+                <q-icon name="apartment" color="primary" />
+              </template>
+            </q-select>
+          </section>
 
-          <q-input
-            v-model="serviceForm.company_website"
-            dense
-            outlined
-            label="Company Website"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.agent_company"
-            dense
-            outlined
-            label="Agent Company"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.agent_name"
-            dense
-            outlined
-            label="Agent Contact"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.agent_phone"
-            dense
-            outlined
-            label="Agent Phone"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
-          <q-input
-            v-model="serviceForm.agent_email"
-            dense
-            outlined
-            label="Agent Email"
-            :disable="serviceDisabled"
-            bg-color="grey-1"
-          />
+          <section class="service-create-panel">
+            <div class="service-create-panel__header">
+              <div class="section-label">Service Details</div>
+              <div class="text-caption text-grey-6">Core service terms and provider information.</div>
+            </div>
 
+            <div class="service-create-form-grid">
+              <q-select
+                v-model="serviceForm.service_type"
+                :options="serviceTypeOptions"
+                dense
+                outlined
+                label="Service Type"
+                emit-value
+                map-options
+                :disable="serviceDisabled"
+                :rules="[(val) => !!val || 'Service type is required']"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.company_name"
+                dense
+                outlined
+                label="Company Name"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.term"
+                dense
+                outlined
+                label="Term"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.service_start_date"
+                dense
+                outlined
+                type="date"
+                label="Service Start Date"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.company_website"
+                dense
+                outlined
+                label="Company Website"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+            </div>
+          </section>
 
+          <section class="service-create-panel">
+            <div class="service-create-panel__header">
+              <div class="section-label">Agent Contact</div>
+              <div class="text-caption text-grey-6">Primary service contact details.</div>
+            </div>
+
+            <div class="service-create-form-grid">
+              <q-input
+                v-model="serviceForm.agent_company"
+                dense
+                outlined
+                label="Agent Company"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.agent_name"
+                dense
+                outlined
+                label="Agent Contact"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.agent_phone"
+                dense
+                outlined
+                label="Agent Phone"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+              <q-input
+                v-model="serviceForm.agent_email"
+                dense
+                outlined
+                label="Agent Email"
+                :disable="serviceDisabled"
+                bg-color="grey-1"
+              />
+            </div>
+          </section>
         </q-form>
       </q-card-section>
     </q-card>
@@ -374,6 +395,23 @@ watch(
   border: 1px solid var(--neutral-200);
 }
 
+.service-create-panel {
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(244, 250, 247, 0.88), rgba(255, 255, 255, 0.98));
+  padding: 16px;
+}
+
+.service-create-panel__header {
+  margin-bottom: 12px;
+}
+
+.service-create-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .top-action-btn {
   min-width: 112px;
   height: 36px;
@@ -405,5 +443,11 @@ watch(
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--neutral-600);
+}
+
+@media (max-width: 768px) {
+  .service-create-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

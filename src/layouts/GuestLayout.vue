@@ -30,7 +30,7 @@
       <router-view />
     </q-page-container>
 
-    <q-footer class="guest-footer">
+    <footer class="guest-footer">
       <div class="footer-content">
         <div class="footer-logo">Handout</div>
         <div class="footer-links">
@@ -39,9 +39,11 @@
           <a href="/privacy" class="footer-link">Privacy Policy</a>
           <a href="/terms" class="footer-link">Terms of Service</a>
         </div>
-        <div class="footer-copy">&copy; {{ currentYear }} Magnates Solution LLC. All rights reserved.</div>
+        <div class="footer-copy">
+          &copy; {{ currentYear }} Magnates Solution LLC. All rights reserved.
+        </div>
       </div>
-    </q-footer>
+    </footer>
   </q-layout>
 </template>
 
@@ -72,7 +74,9 @@ const goToRegister = () => {
 }
 
 const goHome = () => {
-  window.location.assign('/landing')
+  const host = String(window.location.hostname || '').toLowerCase()
+  const isLocalDev = ['localhost', '127.0.0.1', '0.0.0.0'].includes(host)
+  window.location.assign(isLocalDev ? '/landing.html' : '/landing')
 }
 </script>
 

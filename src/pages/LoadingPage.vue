@@ -273,7 +273,10 @@ onBeforeUnmount(() => {
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
 
 .loading-page {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
+    linear-gradient(180deg, #faf8f3 0%, #faf8f3 42%, #f2ede4 100%);
   height: 100vh;
   display: flex;
   align-items: center;

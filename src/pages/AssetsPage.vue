@@ -63,8 +63,8 @@
         :key="asset.id"
         class="entity-tile asset-tile"
         tabindex="0"
-        @click="canManagePropertyAction(asset.property_id) && openEditDialog(asset)"
-        @keyup.enter="canManagePropertyAction(asset.property_id) && openEditDialog(asset)"
+        @click="openAssetDetail(asset)"
+        @keyup.enter="openAssetDetail(asset)"
       >
         <div class="entity-tile-head">
           <div class="entity-file-mark entity-file-mark--blue">
@@ -124,7 +124,7 @@
     </div>
 
     <q-dialog v-model="showFormDialog" persistent maximized>
-      <q-card v-if="!editingAsset" class="create-fullscreen-card">
+      <q-card class="create-fullscreen-card">
         <q-card-section class="create-fullscreen-body">
           <CreateAsset
             @asset-created="onAssetCreated"
@@ -132,16 +132,228 @@
           />
         </q-card-section>
       </q-card>
+    </q-dialog>
 
-      <q-card v-else class="asset-form-dialog">
-        <q-card-section class="row items-center">
-          <div class="text-h6">Edit Asset</div>
-          <q-space />
-          <q-btn flat round dense icon="close" @click="closeDialog" />
-        </q-card-section>
+    <DetailShell
+      v-model="showAssetDetail"
+      title="Asset Details"
+      :subtitle="selectedAsset ? `${selectedAsset.property_name || 'Property'} • ${selectedAsset.type || 'Asset'}` : ''"
+    >
+      <template #actions>
+        <q-btn
+          v-if="selectedAsset && canManageRecords && !isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="primary"
+          icon="edit"
+          label="Edit"
+          @click="editSelectedAsset"
+        />
+        <q-btn
+          v-if="selectedAsset && canManageRecords && !isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="primary"
+          icon="photo_library"
+          label="Manage Images"
+          @click="editSelectedAsset"
+        />
+        <q-btn
+          v-if="selectedAsset && canManageRecords && !isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="primary"
+          icon="sticky_note_2"
+          label="Edit Note"
+          @click="openAssetNoteDialog"
+        />
+        <q-btn
+          v-if="selectedAsset && canManagePropertyAction(selectedAsset.property_id) && selectedAsset.status !== 'archived' && !isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="orange"
+          icon="archive"
+          label="Archive"
+          @click="archiveSelectedAsset"
+        />
+        <q-btn
+          v-else-if="selectedAsset && canManagePropertyAction(selectedAsset.property_id) && !isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="positive"
+          icon="unarchive"
+          label="Unarchive"
+          @click="unarchiveSelectedAsset"
+        />
+        <q-btn
+          v-if="selectedAsset && canManageRecords && isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="grey-7"
+          icon="close"
+          label="Cancel"
+          @click="cancelAssetDetailEdit"
+        />
+        <q-btn
+          v-if="selectedAsset && canManageRecords && isEditingAssetDetail"
+          flat
+          dense
+          no-caps
+          color="primary"
+          icon="save"
+          label="Save"
+          :loading="saving"
+          @click="saveAsset"
+        />
+      </template>
 
-        <q-card-section class="asset-form-body">
-          <q-form @submit="saveAsset" class="q-gutter-md">
+      <div v-if="selectedAsset" class="asset-detail-body">
+        <template v-if="!isEditingAssetDetail">
+        <div class="asset-detail-hero">
+          <div class="asset-detail-hero__identity">
+            <div class="asset-detail-badge">
+              {{ (selectedAsset.type || selectedAsset.nickname || 'A').slice(0, 1).toUpperCase() }}
+            </div>
+            <div class="asset-detail-hero__copy">
+              <div class="asset-detail-eyebrow">Asset Snapshot</div>
+              <div class="asset-detail-title">{{ selectedAsset.nickname || selectedAsset.type || 'Unnamed Asset' }}</div>
+              <div class="asset-detail-subtitle">
+                {{ selectedAsset.property_name || 'No property assigned' }}
+              </div>
+            </div>
+          </div>
+          <div class="asset-detail-hero__meta">
+            <q-chip
+              :color="selectedAsset.status === 'archived' ? 'orange' : 'positive'"
+              text-color="white"
+              class="asset-detail-status"
+            >
+              {{ selectedAsset.status === 'archived' ? 'Archived' : 'Active' }}
+            </q-chip>
+            <div class="asset-detail-hero__amount">
+              <span class="asset-detail-hero__meta-label">Location</span>
+              <strong>{{ selectedAsset.location || 'Not set' }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="asset-detail-sections">
+          <section class="asset-detail-section asset-detail-section--primary">
+            <div class="asset-detail-section__header">
+              <div>
+                <div class="asset-detail-section__eyebrow">Overview</div>
+                <h3>Core Information</h3>
+              </div>
+            </div>
+            <div class="asset-detail-grid">
+              <div class="detail-block">
+                <div class="detail-label">Type</div>
+                <div class="detail-value">{{ selectedAsset.type || 'N/A' }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Brand</div>
+                <div class="detail-value">{{ selectedAsset.brand || 'N/A' }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Model</div>
+                <div class="detail-value">{{ selectedAsset.model || 'N/A' }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Serial Number</div>
+                <div class="detail-value">{{ selectedAsset.serial || 'N/A' }}</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="asset-detail-section">
+            <div class="asset-detail-section__header">
+              <div>
+                <div class="asset-detail-section__eyebrow">Lifecycle</div>
+                <h3>Dates & Tracking</h3>
+              </div>
+            </div>
+            <div class="asset-detail-grid">
+              <div class="detail-block">
+                <div class="detail-label">MFG Date</div>
+                <div class="detail-value">{{ formatAssetDate(selectedAsset.mfg_date) }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Acquired Date</div>
+                <div class="detail-value">{{ formatAssetDate(selectedAsset.acquired_date) }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Created</div>
+                <div class="detail-value">{{ formatAssetDate(selectedAsset.created_at) }}</div>
+              </div>
+              <div class="detail-block">
+                <div class="detail-label">Updated</div>
+                <div class="detail-value">{{ formatAssetDate(selectedAsset.updated_at) }}</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="asset-detail-section">
+            <div class="asset-detail-section__header">
+              <div>
+                <div class="asset-detail-section__eyebrow">Notes</div>
+                <h3>Asset Notes</h3>
+              </div>
+            </div>
+            <div class="asset-detail-note-card">
+              {{ selectedAsset.notes || 'No notes added.' }}
+            </div>
+          </section>
+
+          <aside class="asset-detail-sidecard">
+            <div class="asset-detail-section__eyebrow">Reference</div>
+            <h3>Placement</h3>
+            <div class="asset-detail-sidecard__row">
+              <span>Property</span>
+              <strong>{{ selectedAsset.property_name || 'N/A' }}</strong>
+            </div>
+            <div class="asset-detail-sidecard__row">
+              <span>Nickname</span>
+              <strong>{{ selectedAsset.nickname || 'N/A' }}</strong>
+            </div>
+            <div class="asset-detail-sidecard__row">
+              <span>Location</span>
+              <strong>{{ selectedAsset.location || 'N/A' }}</strong>
+            </div>
+          </aside>
+        </div>
+
+        <div v-if="selectedAsset.images?.length" class="asset-detail-gallery">
+          <div class="asset-detail-section__header asset-detail-section__header--gallery">
+            <div>
+              <div class="asset-detail-section__eyebrow">Gallery</div>
+              <h3>Photos</h3>
+            </div>
+          </div>
+          <div class="asset-detail-image-grid">
+            <q-img
+              v-for="(image, index) in selectedAsset.images"
+              :key="`${image.storage_path || image.url}-${index}`"
+              :src="image.url"
+              fit="cover"
+              class="asset-detail-image"
+            />
+          </div>
+        </div>
+        </template>
+
+        <div v-else class="asset-detail-editor">
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Asset Details</div>
+              <div class="text-caption text-grey-6">Core information, status, and placement.</div>
+            </div>
+
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
                 <UniversalPropertySelect
@@ -158,6 +370,7 @@
                   label="Nickname *"
                   outlined
                   dense
+                  bg-color="grey-1"
                   :rules="[(val) => !!val || 'Nickname is required']"
                 />
               </div>
@@ -168,6 +381,7 @@
                   label="Type *"
                   outlined
                   dense
+                  bg-color="grey-1"
                   :rules="[(val) => !!val || 'Type is required']"
                 />
               </div>
@@ -178,6 +392,7 @@
                   label="Location"
                   outlined
                   dense
+                  bg-color="grey-1"
                   use-input
                   fill-input
                   hide-selected
@@ -190,122 +405,167 @@
                   label="Custom Location"
                   outlined
                   dense
+                  bg-color="grey-1"
                   hint="Enter a custom location"
                 />
               </div>
               <div class="col-12 col-md-4">
-                <q-input v-model="form.brand" label="Brand" outlined dense />
+                <q-input v-model="form.brand" label="Brand" outlined dense bg-color="grey-1" />
               </div>
               <div class="col-12 col-md-4">
-                <q-input v-model="form.model" label="Model" outlined dense />
+                <q-input v-model="form.model" label="Model" outlined dense bg-color="grey-1" />
               </div>
               <div class="col-12 col-md-4">
-                <q-input v-model="form.serial" label="Serial Number" outlined dense />
+                <q-input v-model="form.serial" label="Serial Number" outlined dense bg-color="grey-1" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="form.mfg_date" label="MFG Date" type="date" outlined dense />
+                <q-input v-model="form.mfg_date" label="MFG Date" type="date" outlined dense bg-color="grey-1" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="form.acquired_date" label="Acquired Date" type="date" outlined dense />
+                <q-input v-model="form.acquired_date" label="Acquired Date" type="date" outlined dense bg-color="grey-1" />
               </div>
               <div class="col-12">
-                <q-input v-model="form.notes" label="Notes" type="textarea" rows="3" outlined dense />
+                <q-input v-model="form.notes" label="Notes" type="textarea" rows="3" outlined dense bg-color="grey-1" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="form.status"
+                  :options="assetStatusOptions"
+                  label="Asset Status"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  emit-value
+                  map-options
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Product Tag Auto-Fill</div>
+              <div class="text-caption text-grey-6">Use a label photo or pasted text to update fields quickly.</div>
+            </div>
+
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-6">
+                <q-file
+                  v-model="tagScanFile"
+                  label="Upload product tag image (optional)"
+                  outlined
+                  dense
+                  accept="image/*"
+                  clearable
+                  bg-color="grey-1"
+                />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="tagTextInput"
+                  type="textarea"
+                  rows="2"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  label="Or paste tag text"
+                  hint="Supports parsing of brand/model/serial/date from label text."
+                />
+              </div>
+            </div>
+            <q-btn
+              class="q-mt-sm"
+              flat
+              color="primary"
+              icon="manage_search"
+              label="Analyze Tag"
+              @click="analyzeTagInput"
+              :loading="analyzingTag"
+            />
+          </section>
+
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Asset Images</div>
+              <div class="text-caption text-grey-6">Add, replace, or remove photos for this asset.</div>
+            </div>
+
+            <q-file
+              v-model="newImageFilesModel"
+              label="Add images"
+              outlined
+              dense
+              multiple
+              accept="image/*"
+              clearable
+              bg-color="grey-1"
+              @update:model-value="onNewImagesSelected"
+            />
+
+            <div v-if="form.images.length > 0" class="q-mt-md">
+              <div class="text-caption text-grey-7 q-mb-xs">Existing Images</div>
+              <div class="row q-col-gutter-sm">
+                <div v-for="(img, idx) in form.images" :key="`${img.storage_path || img.url}-${idx}`" class="col-6 col-md-3">
+                  <q-card flat bordered>
+                    <q-img :src="img.url" style="height: 120px" fit="cover" />
+                    <q-card-actions align="right" class="q-pa-xs">
+                      <q-btn flat dense round icon="delete" color="negative" @click="removeExistingImage(idx)" />
+                    </q-card-actions>
+                  </q-card>
+                </div>
               </div>
             </div>
 
-            <q-separator />
-
-            <div>
-              <div class="text-subtitle2 q-mb-sm">Product Tag Auto-Fill (Beta)</div>
-              <div class="row q-col-gutter-md">
-                <div class="col-12 col-md-6">
-                  <q-file
-                    v-model="tagScanFile"
-                    label="Upload product tag image (optional)"
-                    outlined
-                    dense
-                    accept="image/*"
-                    clearable
-                  />
-                </div>
-                <div class="col-12 col-md-6">
-                  <q-input
-                    v-model="tagTextInput"
-                    type="textarea"
-                    rows="2"
-                    outlined
-                    dense
-                    label="Or paste tag text"
-                    hint="Supports parsing of brand/model/serial/date from label text."
-                  />
-                </div>
-              </div>
-              <q-btn
-                class="q-mt-sm"
-                flat
-                color="primary"
-                icon="manage_search"
-                label="Analyze Tag"
-                @click="analyzeTagInput"
-                :loading="analyzingTag"
-              />
-            </div>
-
-            <q-separator />
-
-            <div>
-              <div class="text-subtitle2 q-mb-sm">Asset Images</div>
-              <q-file
-                v-model="newImageFilesModel"
-                label="Add images"
-                outlined
-                dense
-                multiple
-                accept="image/*"
-                clearable
-                @update:model-value="onNewImagesSelected"
-              />
-
-              <div v-if="form.images.length > 0" class="q-mt-md">
-                <div class="text-caption text-grey-7 q-mb-xs">Existing Images</div>
-                <div class="row q-col-gutter-sm">
-                  <div v-for="(img, idx) in form.images" :key="`${img.storage_path || img.url}-${idx}`" class="col-6 col-md-3">
-                    <q-card flat bordered>
-                      <q-img :src="img.url" style="height: 120px" fit="cover" />
-                      <q-card-actions align="right" class="q-pa-xs">
-                        <q-btn flat dense round icon="delete" color="negative" @click="removeExistingImage(idx)" />
-                      </q-card-actions>
-                    </q-card>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="newImagePreviews.length > 0" class="q-mt-md">
-                <div class="text-caption text-grey-7 q-mb-xs">New Images</div>
-                <div class="row q-col-gutter-sm">
-                  <div v-for="(img, idx) in newImagePreviews" :key="`${img.name}-${idx}`" class="col-6 col-md-3">
-                    <q-card flat bordered>
-                      <q-img :src="img.url" style="height: 120px" fit="cover" />
-                      <q-card-actions align="between" class="q-pa-xs">
-                        <div class="text-caption ellipsis">{{ img.name }}</div>
-                        <q-btn flat dense round icon="delete" color="negative" @click="removeNewImage(idx)" />
-                      </q-card-actions>
-                    </q-card>
-                  </div>
+            <div v-if="newImagePreviews.length > 0" class="q-mt-md">
+              <div class="text-caption text-grey-7 q-mb-xs">New Images</div>
+              <div class="row q-col-gutter-sm">
+                <div v-for="(img, idx) in newImagePreviews" :key="`${img.name}-${idx}`" class="col-6 col-md-3">
+                  <q-card flat bordered>
+                    <q-img :src="img.url" style="height: 120px" fit="cover" />
+                    <q-card-actions align="between" class="q-pa-xs">
+                      <div class="text-caption ellipsis">{{ img.name }}</div>
+                      <q-btn flat dense round icon="delete" color="negative" @click="removeNewImage(idx)" />
+                    </q-card-actions>
+                  </q-card>
                 </div>
               </div>
             </div>
+          </section>
+        </div>
+      </div>
+    </DetailShell>
 
-          </q-form>
+    <q-dialog v-model="showAssetNoteDialog" persistent>
+      <q-card class="asset-note-dialog">
+        <q-card-section class="row items-center q-pb-sm">
+          <div>
+            <div class="text-subtitle1 text-weight-bold">Edit Asset Note</div>
+            <div class="text-caption text-grey-6">
+              This note can be updated anytime, including archived assets.
+            </div>
+          </div>
+          <q-space />
+          <q-btn flat round dense icon="close" @click="showAssetNoteDialog = false" />
         </q-card-section>
-
-        <q-card-actions align="right" class="asset-form-footer">
-          <q-btn flat label="Cancel" @click="closeDialog" />
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="assetNoteDraft"
+            type="textarea"
+            autogrow
+            outlined
+            label="Asset Note"
+            bg-color="grey-1"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat no-caps label="Cancel" @click="showAssetNoteDialog = false" />
           <q-btn
             color="primary"
-            @click="saveAsset"
-            label="Update Asset"
-            :loading="saving"
+            unelevated
+            no-caps
+            label="Save Note"
+            :loading="savingAssetNote"
+            @click="saveAssetNote"
           />
         </q-card-actions>
       </q-card>
@@ -319,6 +579,7 @@ import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import CreateAsset from '../components/CreateAsset.vue'
 import UniversalPropertySelect from '../components/UniversalPropertySelect.vue'
+import DetailShell from '../components/details/DetailShell.vue'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
 
@@ -335,6 +596,12 @@ const selectedPropertyFilter = ref(null)
 const showArchived = ref(false)
 const showFormDialog = ref(false)
 const editingAsset = ref(null)
+const selectedAsset = ref(null)
+const showAssetDetail = ref(false)
+const isEditingAssetDetail = ref(false)
+const showAssetNoteDialog = ref(false)
+const assetNoteDraft = ref('')
+const savingAssetNote = ref(false)
 const analyzingTag = ref(false)
 
 const tagScanFile = ref(null)
@@ -365,6 +632,11 @@ const assetTypeOptions = [
   'Exterior',
   'Furniture',
   'Other',
+]
+
+const assetStatusOptions = [
+  { label: 'Active', value: 'active' },
+  { label: 'Archived', value: 'archived' },
 ]
 
 const locationOptions = [
@@ -546,6 +818,7 @@ function openCreateDialog() {
   resetNewImageSelection()
   tagScanFile.value = null
   tagTextInput.value = ''
+  isEditingAssetDetail.value = false
   showFormDialog.value = true
 }
 
@@ -572,12 +845,57 @@ function openEditDialog(asset) {
   resetNewImageSelection()
   tagScanFile.value = null
   tagTextInput.value = ''
-  showFormDialog.value = true
+  selectedAsset.value = asset
+  showAssetDetail.value = true
+  isEditingAssetDetail.value = true
+}
+
+function openAssetDetail(asset) {
+  selectedAsset.value = asset
+  isEditingAssetDetail.value = false
+  showAssetDetail.value = true
 }
 
 function closeDialog() {
   showFormDialog.value = false
-  editingAsset.value = null
+}
+
+function editSelectedAsset() {
+  if (!selectedAsset.value) return
+  openEditDialog(selectedAsset.value)
+}
+
+function cancelAssetDetailEdit() {
+  isEditingAssetDetail.value = false
+  if (selectedAsset.value) {
+    const asset = selectedAsset.value
+    const normalizedLocation = locationOptions.includes(asset.location) ? asset.location : 'Other'
+    form.value = {
+      property_id: asset.property_id,
+      nickname: asset.nickname || '',
+      type: asset.type || 'Appliance',
+      location: asset.location ? normalizedLocation : '',
+      location_other: asset.location && normalizedLocation === 'Other' ? asset.location : '',
+      brand: asset.brand || '',
+      model: asset.model || '',
+      serial: asset.serial || '',
+      mfg_date: asset.mfg_date || '',
+      acquired_date: asset.acquired_date || '',
+      notes: asset.notes || '',
+      status: asset.status || 'active',
+      images: Array.isArray(asset.images) ? [...asset.images] : [],
+    }
+    imagesMarkedForRemoval.value = []
+    resetNewImageSelection()
+    tagScanFile.value = null
+    tagTextInput.value = ''
+  }
+}
+
+function openAssetNoteDialog() {
+  if (!selectedAsset.value) return
+  assetNoteDraft.value = selectedAsset.value.notes || ''
+  showAssetNoteDialog.value = true
 }
 
 async function onAssetCreated() {
@@ -699,8 +1017,25 @@ async function saveAsset() {
       position: 'top',
     })
 
-    closeDialog()
-    await loadAssets()
+    if (editingAsset.value) {
+      const updatedAsset = {
+        ...editingAsset.value,
+        ...payload,
+        property_name: userDataStore.getPropertyName(form.value.property_id) || editingAsset.value.property_name || 'Property',
+      }
+      selectedAsset.value = updatedAsset
+      assets.value = assets.value.map((asset) =>
+        asset.id === editingAsset.value.id && asset.property_id === editingAsset.value.property_id
+          ? updatedAsset
+          : asset,
+      )
+      editingAsset.value = updatedAsset
+      isEditingAssetDetail.value = false
+      await loadAssets()
+    } else {
+      closeDialog()
+      await loadAssets()
+    }
   } catch (error) {
     console.error('Failed to save asset:', error)
     $q.notify({
@@ -721,6 +1056,9 @@ async function archiveAsset(asset) {
       updated_at: new Date().toISOString(),
     })
     await loadAssets()
+    if (selectedAsset.value?.id === asset.id) {
+      selectedAsset.value = { ...selectedAsset.value, status: 'archived', archived_at: new Date().toISOString() }
+    }
     $q.notify({ type: 'positive', message: 'Asset archived.', position: 'top' })
   } catch (error) {
     console.error('Failed to archive asset:', error)
@@ -736,11 +1074,64 @@ async function unarchiveAsset(asset) {
       updated_at: new Date().toISOString(),
     })
     await loadAssets()
+    if (selectedAsset.value?.id === asset.id) {
+      selectedAsset.value = { ...selectedAsset.value, status: 'active', archived_at: null }
+    }
     $q.notify({ type: 'positive', message: 'Asset unarchived.', position: 'top' })
   } catch (error) {
     console.error('Failed to unarchive asset:', error)
     $q.notify({ type: 'negative', message: 'Failed to unarchive asset.', position: 'top' })
   }
+}
+
+async function archiveSelectedAsset() {
+  if (!selectedAsset.value) return
+  await archiveAsset(selectedAsset.value)
+}
+
+async function unarchiveSelectedAsset() {
+  if (!selectedAsset.value) return
+  await unarchiveAsset(selectedAsset.value)
+}
+
+async function saveAssetNote() {
+  if (!selectedAsset.value) return
+  savingAssetNote.value = true
+  try {
+    const trimmedNote = assetNoteDraft.value?.trim() || ''
+    const updatedAt = new Date().toISOString()
+    await updateDocument(`properties/${selectedAsset.value.property_id}/assets`, selectedAsset.value.id, {
+      notes: trimmedNote,
+      updated_at: updatedAt,
+    })
+
+    selectedAsset.value = {
+      ...selectedAsset.value,
+      notes: trimmedNote,
+      updated_at: updatedAt,
+    }
+
+    assets.value = assets.value.map((asset) =>
+      asset.id === selectedAsset.value.id && asset.property_id === selectedAsset.value.property_id
+        ? { ...asset, notes: trimmedNote, updated_at: updatedAt }
+        : asset,
+    )
+
+    showAssetNoteDialog.value = false
+    $q.notify({ type: 'positive', message: 'Asset note updated.', position: 'top' })
+  } catch (error) {
+    console.error('Failed to update asset note:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update asset note.', position: 'top' })
+  } finally {
+    savingAssetNote.value = false
+  }
+}
+
+function formatAssetDate(value) {
+  if (!value) return 'N/A'
+  const date = value?.toDate ? value.toDate() : new Date(value)
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function cleanValue(value) {
@@ -930,5 +1321,267 @@ onUnmounted(() => {
   bottom: 0;
   z-index: 2;
   padding: 12px 16px;
+}
+
+.asset-detail-body {
+  padding: 18px;
+}
+
+.asset-detail-hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(227, 239, 255, 0.95), rgba(247, 250, 255, 0.92));
+  border: 1px solid rgba(53, 109, 214, 0.12);
+  box-shadow: 0 18px 44px rgba(29, 78, 216, 0.08);
+}
+
+.asset-detail-hero__identity {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+
+.asset-detail-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(53, 109, 214, 0.12);
+  flex-shrink: 0;
+}
+
+.asset-detail-hero__copy {
+  min-width: 0;
+}
+
+.asset-detail-eyebrow,
+.asset-detail-section__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4f46e5;
+}
+
+.asset-detail-title {
+  margin-top: 4px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--neutral-900);
+}
+
+.asset-detail-subtitle {
+  margin-top: 6px;
+  color: var(--neutral-600);
+  line-height: 1.45;
+}
+
+.asset-detail-hero__meta {
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.asset-detail-status {
+  font-weight: 700;
+}
+
+.asset-detail-hero__amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: var(--neutral-900);
+}
+
+.asset-detail-hero__meta-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--neutral-500);
+}
+
+.asset-detail-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(240px, 0.72fr);
+  gap: 16px;
+  margin-top: 18px;
+  align-items: start;
+}
+
+.asset-detail-editor {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.asset-detail-section,
+.asset-detail-sidecard {
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.asset-detail-section {
+  padding: 18px;
+}
+
+.asset-detail-section--primary {
+  grid-column: span 2;
+}
+
+.asset-detail-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.asset-detail-section__header h3,
+.asset-detail-sidecard h3 {
+  margin: 4px 0 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--neutral-900);
+}
+
+.asset-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-block {
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: 14px;
+  padding: 13px 14px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.88), rgba(255, 255, 255, 0.98));
+}
+
+.detail-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-500);
+}
+
+.detail-value {
+  margin-top: 7px;
+  color: var(--neutral-900);
+  line-height: 1.55;
+}
+
+.asset-detail-note-card {
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(246, 249, 255, 0.9), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  line-height: 1.65;
+  color: var(--neutral-800);
+  min-height: 116px;
+}
+
+.asset-detail-sidecard {
+  padding: 18px;
+}
+
+.asset-detail-sidecard__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(20, 28, 45, 0.08);
+}
+
+.asset-detail-sidecard__row:first-of-type {
+  margin-top: 8px;
+}
+
+.asset-detail-sidecard__row span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neutral-500);
+}
+
+.asset-detail-sidecard__row strong {
+  color: var(--neutral-900);
+  line-height: 1.45;
+}
+
+.asset-detail-gallery {
+  margin-top: 18px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  padding: 18px;
+}
+
+.asset-detail-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.asset-detail-image {
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+}
+
+.asset-note-dialog {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 18px;
+}
+
+@media (max-width: 768px) {
+  .asset-detail-hero,
+  .asset-detail-hero__identity {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .asset-detail-hero__meta {
+    min-width: 0;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .asset-detail-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-detail-section--primary {
+    grid-column: auto;
+  }
+
+  .asset-detail-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

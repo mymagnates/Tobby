@@ -155,22 +155,9 @@
 
   // Typography
   --font-title:
-    'Inter',
-    'Segoe UI Variable',
-    'Avenir Next',
-    'SF Pro Display',
-    'Segoe UI',
-    'Roboto',
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
-  --font-field:
-    'Inter',
-    'Segoe UI',
-    'Roboto',
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+    'Inter', 'Segoe UI Variable', 'Avenir Next', 'SF Pro Display', 'Segoe UI', 'Roboto',
+    'Helvetica Neue', Arial, sans-serif;
+  --font-field: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   --field-title-size: 0.82rem;
   --field-title-weight: 700;
   --field-title-letter-spacing: 0.02em;
@@ -566,43 +553,43 @@ body.body--dark {
   }
 
   .q-btn.bg-primary,
-  .q-btn[color="primary"] {
+  .q-btn[color='primary'] {
     color: var(--primary-color) !important;
     border: 1px solid var(--primary-color) !important;
   }
 
   .q-btn.bg-secondary,
-  .q-btn[color="secondary"] {
+  .q-btn[color='secondary'] {
     color: var(--secondary-color) !important;
     border: 1px solid var(--secondary-color) !important;
   }
 
   .q-btn.bg-accent,
-  .q-btn[color="accent"] {
+  .q-btn[color='accent'] {
     color: var(--accent-color) !important;
     border: 1px solid var(--accent-color) !important;
   }
 
   .q-btn.bg-positive,
-  .q-btn[color="positive"] {
+  .q-btn[color='positive'] {
     color: var(--success-color) !important;
     border: 1px solid var(--success-color) !important;
   }
 
   .q-btn.bg-negative,
-  .q-btn[color="negative"] {
+  .q-btn[color='negative'] {
     color: var(--error-color) !important;
     border: 1px solid var(--error-color) !important;
   }
 
   .q-btn.bg-warning,
-  .q-btn[color="warning"] {
+  .q-btn[color='warning'] {
     color: var(--warning-color) !important;
     border: 1px solid var(--warning-color) !important;
   }
 
   .q-btn.bg-info,
-  .q-btn[color="info"] {
+  .q-btn[color='info'] {
     color: var(--info-color) !important;
     border: 1px solid var(--info-color) !important;
   }
@@ -631,12 +618,24 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 // Heading Font - modern, sleek, and readable title stack
-h1, h2, h3, h4, h5, h6,
-.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.text-h1,
+.text-h2,
+.text-h3,
+.text-h4,
+.text-h5,
+.text-h6 {
   font-family: var(--font-title);
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -774,7 +773,12 @@ h1, h2, h3, h4, h5, h6,
 // Modern Button Styles - No Background Fill (Outline Only)
 .q-btn {
   border-radius: var(--border-radius-btn) !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   font-weight: 600;
   text-transform: none;
   letter-spacing: -0.01em;
@@ -785,7 +789,7 @@ h1, h2, h3, h4, h5, h6,
   line-height: 1.5;
   padding: var(--spacing-sm) var(--spacing-md);
   min-height: 40px;
-  
+
   // Default style: NO background fill - transparent with colored outline
   background: transparent !important;
   color: var(--primary-color) !important;
@@ -809,7 +813,7 @@ h1, h2, h3, h4, h5, h6,
 
   // Primary buttons: filled when unelevated (main CTA), outline otherwise
   &.bg-primary,
-  &[color="primary"] {
+  &[color='primary'] {
     &.unelevated,
     &.q-btn--unelevated,
     &.btn-filled {
@@ -847,7 +851,7 @@ h1, h2, h3, h4, h5, h6,
 
   // Positive/Success buttons - NO fill
   &.bg-positive,
-  &[color="positive"] {
+  &[color='positive'] {
     background: transparent !important;
     color: var(--success-color) !important;
     border: 1px solid var(--success-color) !important;
@@ -865,7 +869,7 @@ h1, h2, h3, h4, h5, h6,
 
   // Negative/Error buttons - NO fill
   &.bg-negative,
-  &[color="negative"] {
+  &[color='negative'] {
     background: transparent !important;
     color: var(--error-color) !important;
     border: 1px solid var(--error-color) !important;
@@ -883,7 +887,7 @@ h1, h2, h3, h4, h5, h6,
 
   // Warning buttons - NO fill
   &.bg-warning,
-  &[color="warning"] {
+  &[color='warning'] {
     background: transparent !important;
     color: var(--warning-color) !important;
     border: 1px solid var(--warning-color) !important;
@@ -901,7 +905,7 @@ h1, h2, h3, h4, h5, h6,
 
   // Info buttons - NO fill
   &.bg-info,
-  &[color="info"] {
+  &[color='info'] {
     background: transparent !important;
     color: var(--info-color) !important;
     border: 1px solid var(--info-color) !important;
@@ -1088,7 +1092,7 @@ h1, h2, h3, h4, h5, h6,
   background: transparent !important;
   color: var(--primary-color) !important;
   border: 1px solid var(--primary-color) !important;
-  
+
   &:hover {
     background: var(--primary-glow) !important;
     border-color: var(--primary-color) !important;
@@ -1105,7 +1109,7 @@ h1, h2, h3, h4, h5, h6,
   background: transparent !important;
   color: var(--primary-color) !important;
   border: 1px solid var(--primary-color) !important;
-  
+
   &:hover {
     background: var(--primary-glow) !important;
   }
@@ -1121,7 +1125,7 @@ h1, h2, h3, h4, h5, h6,
   background: transparent !important;
   color: white !important;
   border-color: rgba(255, 255, 255, 0.5) !important;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15) !important;
     border-color: white !important;
@@ -1135,7 +1139,7 @@ h1, h2, h3, h4, h5, h6,
 // Exception for round icon buttons (no border needed)
 .q-btn--round.q-btn--flat {
   border: none !important;
-  
+
   &:hover {
     background: var(--primary-glow) !important;
     border: none !important;
@@ -1143,12 +1147,12 @@ h1, h2, h3, h4, h5, h6,
 }
 
 // Cancel buttons with outline style - NO fill
-.q-btn[label="Cancel"],
-.q-btn[label="Close"] {
+.q-btn[label='Cancel'],
+.q-btn[label='Close'] {
   background: transparent !important;
   color: var(--primary-color) !important;
   border: 1px solid var(--primary-color) !important;
-  
+
   &:hover {
     background: var(--primary-glow) !important;
     color: var(--primary-color) !important;
@@ -1243,7 +1247,12 @@ h1, h2, h3, h4, h5, h6,
 // Input Styles - Clean underline (inp-style)
 // Inspired by minimal underline inputs with smooth focus transition
 .q-field {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   position: relative;
 
   .q-field__control {
@@ -1252,7 +1261,9 @@ h1, h2, h3, h4, h5, h6,
     border-bottom: 2px solid var(--neutral-300) !important;
     background: transparent !important;
     box-shadow: none !important;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease;
 
     &:hover {
       border-bottom-color: var(--neutral-400) !important;
@@ -1413,7 +1424,12 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional Chip Styles - Flat Design
 .q-chip {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   border-radius: var(--border-radius-sm);
   font-weight: 500;
   font-size: 0.8125rem;
@@ -1630,7 +1646,12 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional Badge Styles
 .q-badge {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   border-radius: var(--border-radius-sm);
   font-weight: 600;
   font-size: 0.75rem;
@@ -1712,8 +1733,13 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional Toolbar Styles
 .q-toolbar {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+
   .q-toolbar__title {
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     font-weight: 700;
@@ -1877,10 +1903,20 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .q-dialog {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
 
   .q-card {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family:
+      'Inter',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
   }
 
   .q-card__section h1,
@@ -1999,8 +2035,8 @@ h1, h2, h3, h4, h5, h6,
 // Dialog Close Button Styling
 .q-dialog .dialog-close-btn,
 .q-dialog .close-btn,
-.q-dialog .q-card-section:first-child .q-btn[icon="close"],
-.q-dialog .q-card-section:first-child .q-btn[icon="close"] .q-icon {
+.q-dialog .q-card-section:first-child .q-btn[icon='close'],
+.q-dialog .q-card-section:first-child .q-btn[icon='close'] .q-icon {
   color: white !important;
   opacity: 0.9 !important;
   transition: var(--transition) !important;
@@ -2091,7 +2127,12 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional Table Styles - Flat Design
 .q-table {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   border-radius: var(--border-radius-card);
   overflow: hidden;
   box-shadow: none;
@@ -2110,7 +2151,7 @@ h1, h2, h3, h4, h5, h6,
     letter-spacing: -0.01em;
     color: var(--neutral-700);
   }
-  
+
   .q-table__tbody td {
     font-size: 0.9375rem;
     line-height: 1.5;
@@ -2120,8 +2161,13 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional List Styles
 .q-list {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+
   .q-item {
     font-size: 0.9375rem;
     line-height: 1.5;
@@ -2140,12 +2186,17 @@ h1, h2, h3, h4, h5, h6,
 
 // Professional Menu Styles - Flat Design
 .q-menu {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   border-radius: var(--border-radius-sm);
   box-shadow: none;
   border: 1px solid var(--neutral-200);
   background: white;
-  
+
   .q-item {
     font-size: 0.9375rem;
     line-height: 1.5;
@@ -3388,7 +3439,7 @@ h1, h2, h3, h4, h5, h6,
     border-radius: var(--border-radius-sm);
     overflow: hidden;
     border: 1px solid var(--neutral-200);
-    
+
     .q-img {
       width: 120px;
       height: 120px;
@@ -3530,22 +3581,46 @@ h1, h2, h3, h4, h5, h6,
 body.body--dark {
   // Base colors
   color: #ffffff;
-  
+
   // Background utilities - use dark blue/slate, no grey
-  .bg-white { background-color: var(--bg-secondary) !important; }
-  .bg-grey-1, .bg-grey-2, .bg-grey-3 { background-color: var(--bg-tertiary) !important; }
-  .bg-grey-4, .bg-grey-5, .bg-grey-6 { background-color: var(--neutral-200) !important; }
+  .bg-white {
+    background-color: var(--bg-secondary) !important;
+  }
+  .bg-grey-1,
+  .bg-grey-2,
+  .bg-grey-3 {
+    background-color: var(--bg-tertiary) !important;
+  }
+  .bg-grey-4,
+  .bg-grey-5,
+  .bg-grey-6 {
+    background-color: var(--neutral-200) !important;
+  }
 
   // Text colors - no grey in dark mode, all white
   .text-grey,
-  .text-grey-1, .text-grey-2, .text-grey-3, .text-grey-4, .text-grey-5,
-  .text-grey-6, .text-grey-7, .text-grey-8, .text-grey-9, .text-grey-10 {
+  .text-grey-1,
+  .text-grey-2,
+  .text-grey-3,
+  .text-grey-4,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9,
+  .text-grey-10 {
     color: #ffffff !important;
   }
   // Quasar icon/component color="grey*" in dark mode
-  .text-grey-1 .q-icon, .text-grey-2 .q-icon, .text-grey-3 .q-icon,
-  .text-grey-4 .q-icon, .text-grey-5 .q-icon, .text-grey-6 .q-icon,
-  .text-grey-7 .q-icon, .text-grey-8 .q-icon, .text-grey-9 .q-icon,
+  .text-grey-1 .q-icon,
+  .text-grey-2 .q-icon,
+  .text-grey-3 .q-icon,
+  .text-grey-4 .q-icon,
+  .text-grey-5 .q-icon,
+  .text-grey-6 .q-icon,
+  .text-grey-7 .q-icon,
+  .text-grey-8 .q-icon,
+  .text-grey-9 .q-icon,
   .text-grey-10 .q-icon {
     color: #ffffff !important;
   }
@@ -3558,11 +3633,17 @@ body.body--dark {
   }
 
   // Drawers & Headers
-  .q-drawer { background: var(--bg-primary) !important; }
-  .q-header { background: var(--bg-primary) !important; }
+  .q-drawer {
+    background: var(--bg-primary) !important;
+  }
+  .q-header {
+    background: var(--bg-primary) !important;
+  }
 
   // Page
-  .q-page { background: var(--bg-primary) !important; }
+  .q-page {
+    background: var(--bg-primary) !important;
+  }
 
   // Inputs - no grey
   .q-field__control {
@@ -3573,36 +3654,67 @@ body.body--dark {
   .q-field.q-field--focused .q-field__control {
     border-bottom-color: var(--primary-color) !important;
   }
-  .q-field__native, .q-field__input { color: #ffffff !important; }
+  .q-field__native,
+  .q-field__input {
+    color: #ffffff !important;
+  }
   .q-field__native::placeholder,
-  .q-field__input::placeholder { color: rgba(255, 255, 255, 0.7) !important; }
-  .q-field__label { color: #ffffff !important; }
+  .q-field__input::placeholder {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  .q-field__label {
+    color: #ffffff !important;
+  }
 
   // Tables
-  .q-table { background: var(--bg-secondary) !important; }
-  .q-table thead th { background: var(--bg-tertiary) !important; color: #ffffff !important; }
-  .q-table tbody td { color: #ffffff !important; border-color: var(--border-color) !important; }
-  .q-table__bottom { background: var(--bg-secondary) !important; color: #ffffff !important; }
+  .q-table {
+    background: var(--bg-secondary) !important;
+  }
+  .q-table thead th {
+    background: var(--bg-tertiary) !important;
+    color: #ffffff !important;
+  }
+  .q-table tbody td {
+    color: #ffffff !important;
+    border-color: var(--border-color) !important;
+  }
+  .q-table__bottom {
+    background: var(--bg-secondary) !important;
+    color: #ffffff !important;
+  }
 
   // Lists
-  .q-item { color: #ffffff !important; }
-  .q-item:hover { background: var(--bg-tertiary) !important; }
-  .q-item__label--caption { color: #ffffff !important; }
+  .q-item {
+    color: #ffffff !important;
+  }
+  .q-item:hover {
+    background: var(--bg-tertiary) !important;
+  }
+  .q-item__label--caption {
+    color: #ffffff !important;
+  }
 
   // Menus
-  .q-menu { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
+  .q-menu {
+    background: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+  }
 
   // Dialogs
-  .q-dialog .q-card { background: var(--bg-secondary) !important; }
+  .q-dialog .q-card {
+    background: var(--bg-secondary) !important;
+  }
 
   // Buttons - Dark mode: NO fill, outline only
-  .q-btn:not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not([color="primary"]):not([color="positive"]):not([color="negative"]):not([color="warning"]):not([color="info"]) {
+  .q-btn:not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not(
+      [color='primary']
+    ):not([color='positive']):not([color='negative']):not([color='warning']):not([color='info']) {
     background: transparent !important;
     color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
   }
-  
-  .q-btn--flat:not(.bg-primary):not([color="primary"]) {
+
+  .q-btn--flat:not(.bg-primary):not([color='primary']) {
     background: transparent !important;
     color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
@@ -3614,41 +3726,57 @@ body.body--dark {
   }
 
   .q-btn.bg-primary:hover,
-  .q-btn[color="primary"]:hover {
+  .q-btn[color='primary']:hover {
     background: var(--primary-glow) !important;
     color: var(--primary-color) !important;
   }
 
   .q-btn.bg-positive:hover,
-  .q-btn[color="positive"]:hover {
+  .q-btn[color='positive']:hover {
     background: var(--success-glow) !important;
     color: var(--success-color) !important;
   }
 
   .q-btn.bg-negative:hover,
-  .q-btn[color="negative"]:hover {
+  .q-btn[color='negative']:hover {
     background: var(--error-glow) !important;
     color: var(--error-color) !important;
   }
 
   // Chips - no grey
-  .q-chip:not(.status-chip):not([class*='status-chip']):not(.bg-green):not(.bg-blue):not(.bg-orange):not(.bg-red):not(.bg-purple):not(.bg-grey):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info) {
+  .q-chip:not(.status-chip):not([class*='status-chip']):not(.bg-green):not(.bg-blue):not(
+      .bg-orange
+    ):not(.bg-red):not(.bg-purple):not(.bg-grey):not(.bg-positive):not(.bg-negative):not(
+      .bg-warning
+    ):not(.bg-info) {
     background: var(--neutral-200) !important;
     color: #ffffff !important;
   }
 
   // Banner
-  .q-banner { background: var(--bg-secondary) !important; color: #ffffff !important; }
+  .q-banner {
+    background: var(--bg-secondary) !important;
+    color: #ffffff !important;
+  }
 
   // Expansion
-  .q-expansion-item { background: var(--bg-secondary) !important; }
-  .q-expansion-item__content { background: var(--bg-secondary) !important; }
+  .q-expansion-item {
+    background: var(--bg-secondary) !important;
+  }
+  .q-expansion-item__content {
+    background: var(--bg-secondary) !important;
+  }
 
   // Separator
-  .q-separator { background: var(--border-color) !important; }
+  .q-separator {
+    background: var(--border-color) !important;
+  }
 
   // Tooltip
-  .q-tooltip { background: var(--neutral-200) !important; color: #ffffff !important; }
+  .q-tooltip {
+    background: var(--neutral-200) !important;
+    color: #ffffff !important;
+  }
 }
 
 // Authenticated workspace compact radius system
@@ -3678,3 +3806,16 @@ body.body--dark {
     border-radius: var(--border-radius-sm) !important;
   }
 }
+
+body:not(.body--dark) .dashboard-layout,
+body:not(.body--dark) .admin-layout {
+  --bg-primary: #faf8f3;
+  --bg-secondary: #f2ede4;
+  --bg-tertiary: #e9e2d6;
+  --bg-muted: #f2ede4;
+  --bg-surface: rgba(255, 255, 255, 0.94);
+}
+
+// Keep public authentication styles last so the app-wide Quasar overrides above
+// do not flatten the landing-aligned sign-in/sign-up layout.
+@import './public-auth.scss';

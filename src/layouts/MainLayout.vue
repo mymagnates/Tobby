@@ -1918,8 +1918,8 @@ watch(
 .dashboard-layout {
   background:
     radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
-    radial-gradient(circle at top right, rgba(36, 59, 83, 0.08), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, var(--bg-primary) 38%, #f3f6fb 100%);
+    radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
+    linear-gradient(180deg, #faf8f3 0%, var(--bg-primary) 42%, #f2ede4 100%);
 }
 
 /* Hide scrollbars globally while maintaining scroll functionality */
@@ -2487,7 +2487,10 @@ watch(
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.96);
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
+    rgba(250, 248, 243, 0.96);
   display: flex;
   flex-direction: column;
   align-items: center;

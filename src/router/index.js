@@ -34,6 +34,18 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   })
 
+  const getLandingTarget = (redirectPath = '/') => {
+    const encodedRedirect = encodeURIComponent(redirectPath)
+    if (typeof window !== 'undefined') {
+      const host = String(window.location.hostname || '').toLowerCase()
+      const isLocalDev = ['localhost', '127.0.0.1', '0.0.0.0'].includes(host)
+      if (isLocalDev) {
+        return `/landing.html?redirect=${encodedRedirect}`
+      }
+    }
+    return `/landing?redirect=${encodedRedirect}`
+  }
+
   // Navigation guard for authentication and role-based access control
   Router.beforeEach(async (to, from, next) => {
     const userDataStore = useUserDataStore()
@@ -103,7 +115,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     if (requiresAuth && !isAuthenticated) {
       console.log('Router Guard - Authentication required, redirecting to landing')
       if (typeof window !== 'undefined') {
-        const redirectTarget = `/landing?redirect=${encodeURIComponent(to.fullPath)}`
+        const redirectTarget = getLandingTarget(to.fullPath)
         window.location.assign(redirectTarget)
         next(false)
         return

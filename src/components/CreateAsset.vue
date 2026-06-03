@@ -40,105 +40,119 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form id="create-asset-form" @submit="onSubmit" class="q-gutter-sm">
-          <q-select
-            v-if="showPropertySelect"
-            v-model="selectedPropertyId"
-            :options="propertyOptions"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-            label="Select Property"
-            outlined
-            dense
-            required
-            :rules="[(val) => !!val || 'Property selection is required']"
-            :loading="propertiesLoading"
-            bg-color="grey-1"
-          />
-          <div
-            v-if="showPropertySelect && !propertiesLoading && propertyOptions.length === 0"
-            class="text-caption text-primary"
-          >
-            No properties found. Check console for details.
-          </div>
-          <div class="section-label q-mb-xs q-mt-sm">Asset Details</div>
-          <q-input
-            v-model="assetData.nickname"
-            label="Nickname *"
-            outlined
-            dense
-            :rules="[(val) => !!val || 'Nickname is required']"
-            bg-color="grey-1"
-          />
-
-          <q-select
-            v-model="assetData.type"
-            :options="assetTypeOptions"
-            label="Type *"
-            outlined
-            dense
-            :rules="[(val) => !!val || 'Type is required']"
-            bg-color="grey-1"
-          />
-
-          <q-select
-            v-model="assetData.location"
-            :options="locationOptions"
-            label="Location"
-            outlined
-            dense
-            use-input
-            fill-input
-            hide-selected
-            input-debounce="0"
-            bg-color="grey-1"
-          />
-
-          <q-input
-            v-if="assetData.location === 'Other'"
-            v-model="assetData.location_other"
-            label="Custom Location"
-            outlined
-            dense
-            bg-color="grey-1"
-          />
-
-          <div class="row q-col-gutter-sm">
-            <div class="col-12 col-md-4">
-              <q-input v-model="assetData.brand" label="Brand" outlined dense bg-color="grey-1" />
+        <q-form id="create-asset-form" @submit="onSubmit" class="q-gutter-md">
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Asset Details</div>
+              <div class="text-caption text-grey-6">Core information and placement.</div>
             </div>
-            <div class="col-12 col-md-4">
-              <q-input v-model="assetData.model" label="Model" outlined dense bg-color="grey-1" />
-            </div>
-            <div class="col-12 col-md-4">
-              <q-input v-model="assetData.serial" label="Serial Number" outlined dense bg-color="grey-1" />
-            </div>
-          </div>
 
-          <div class="row q-col-gutter-sm">
-            <div class="col-12 col-md-6">
-              <q-input v-model="assetData.mfg_date" label="MFG Date" type="date" outlined dense bg-color="grey-1" />
+            <q-select
+              v-if="showPropertySelect"
+              v-model="selectedPropertyId"
+              :options="propertyOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              label="Select Property"
+              outlined
+              dense
+              required
+              :rules="[(val) => !!val || 'Property selection is required']"
+              :loading="propertiesLoading"
+              bg-color="grey-1"
+            />
+            <div
+              v-if="showPropertySelect && !propertiesLoading && propertyOptions.length === 0"
+              class="text-caption text-primary"
+            >
+              No properties found. Check console for details.
             </div>
-            <div class="col-12 col-md-6">
-              <q-input
-                v-model="assetData.acquired_date"
-                label="Acquired Date"
-                type="date"
-                outlined
-                dense
-                bg-color="grey-1"
-              />
+
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="assetData.nickname"
+                  label="Nickname *"
+                  outlined
+                  dense
+                  :rules="[(val) => !!val || 'Nickname is required']"
+                  bg-color="grey-1"
+                />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="assetData.type"
+                  :options="assetTypeOptions"
+                  label="Type *"
+                  outlined
+                  dense
+                  :rules="[(val) => !!val || 'Type is required']"
+                  bg-color="grey-1"
+                />
+              </div>
             </div>
-          </div>
 
-          <q-input v-model="assetData.notes" label="Notes" type="textarea" rows="2" outlined dense bg-color="grey-1" />
+            <q-select
+              v-model="assetData.location"
+              :options="locationOptions"
+              label="Location"
+              outlined
+              dense
+              use-input
+              fill-input
+              hide-selected
+              input-debounce="0"
+              bg-color="grey-1"
+            />
 
-          <q-separator />
+            <q-input
+              v-if="assetData.location === 'Other'"
+              v-model="assetData.location_other"
+              label="Custom Location"
+              outlined
+              dense
+              bg-color="grey-1"
+            />
 
-          <div>
-            <div class="section-label q-mb-xs">Product Tag Auto-Fill</div>
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-4">
+                <q-input v-model="assetData.brand" label="Brand" outlined dense bg-color="grey-1" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="assetData.model" label="Model" outlined dense bg-color="grey-1" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="assetData.serial" label="Serial Number" outlined dense bg-color="grey-1" />
+              </div>
+            </div>
+
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-6">
+                <q-input v-model="assetData.mfg_date" label="MFG Date" type="date" outlined dense bg-color="grey-1" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input
+                  v-model="assetData.acquired_date"
+                  label="Acquired Date"
+                  type="date"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                />
+              </div>
+            </div>
+
+            <q-input v-model="assetData.notes" label="Notes" type="textarea" rows="2" outlined dense bg-color="grey-1" />
+          </section>
+
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Product Tag Auto-Fill</div>
+              <div class="text-caption text-grey-6">Use a label photo or pasted text to prefill fields.</div>
+            </div>
+
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-6">
                 <q-file
@@ -172,38 +186,41 @@
               @click="analyzeTagInput"
               :loading="analyzingTag"
             />
-          </div>
+          </section>
 
-          <q-separator />
-
-          <div class="section-label q-mb-xs">Asset Images</div>
-          <q-file
-            v-model="selectedFilesModel"
-            accept="image/*"
-            outlined
-            dense
-            multiple
-            label="Asset Images (Optional)"
-            clearable
-            bg-color="grey-1"
-            @update:model-value="onFilesSelected"
-          >
-            <template #prepend>
-              <q-icon name="attach_file" />
-            </template>
-          </q-file>
-
-          <div v-if="imagePreviews.length > 0" class="row q-col-gutter-sm">
-            <div v-for="(preview, index) in imagePreviews" :key="`${preview.name}-${index}`" class="col-6 col-md-3">
-              <q-card flat bordered>
-                <q-img :src="preview.url" style="height: 100px" fit="cover" />
-                <q-card-actions align="right" class="q-pa-xs">
-                  <q-btn flat dense round icon="delete" color="negative" @click="removeImage(index)" />
-                </q-card-actions>
-              </q-card>
+          <section class="asset-create-panel">
+            <div class="asset-create-panel__header">
+              <div class="section-label">Asset Images</div>
+              <div class="text-caption text-grey-6">Add gallery images during creation.</div>
             </div>
-          </div>
 
+            <q-file
+              v-model="selectedFilesModel"
+              accept="image/*"
+              outlined
+              dense
+              multiple
+              label="Asset Images (Optional)"
+              clearable
+              bg-color="grey-1"
+              @update:model-value="onFilesSelected"
+            >
+              <template #prepend>
+                <q-icon name="attach_file" />
+              </template>
+            </q-file>
+
+            <div v-if="imagePreviews.length > 0" class="row q-col-gutter-sm">
+              <div v-for="(preview, index) in imagePreviews" :key="`${preview.name}-${index}`" class="col-6 col-md-3">
+                <q-card flat bordered>
+                  <q-img :src="preview.url" style="height: 100px" fit="cover" />
+                  <q-card-actions align="right" class="q-pa-xs">
+                    <q-btn flat dense round icon="delete" color="negative" @click="removeImage(index)" />
+                  </q-card-actions>
+                </q-card>
+              </div>
+            </div>
+          </section>
         </q-form>
       </q-card-section>
     </q-card>
@@ -626,6 +643,17 @@ onUnmounted(() => {
 .elevated {
   border-radius: 14px;
   border: 1px solid var(--neutral-200);
+}
+
+.asset-create-panel {
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.98));
+  padding: 16px;
+}
+
+.asset-create-panel__header {
+  margin-bottom: 12px;
 }
 
 .top-action-btn {

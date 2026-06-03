@@ -183,13 +183,47 @@
 .public-auth-button {
   min-height: 50px;
   border-radius: 100px !important;
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  border: 1px solid var(--primary-dark) !important;
   font-weight: 600;
   box-shadow: 0 8px 20px rgba(26, 22, 18, 0.14);
 }
 
-.public-auth-text-link {
+.public-auth-page .public-auth-text-link {
+  background: transparent !important;
+  border-color: transparent !important;
   color: var(--primary-color);
   font-weight: 600;
+}
+
+.public-auth-page .q-btn--outline,
+.public-auth-page .secondary-action {
+  background: transparent !important;
+}
+
+.public-auth-page .q-field--outlined .q-field__control,
+.public-auth-page .q-input--outlined .q-field__control,
+.public-auth-page .q-select--outlined .q-field__control,
+.public-auth-page .q-textarea--outlined .q-field__control {
+  min-height: 50px;
+  border-radius: 12px !important;
+  border-bottom: 0 !important;
+  background: #fff !important;
+}
+
+.public-auth-page .q-field--outlined .q-field__control::before,
+.public-auth-page .q-input--outlined .q-field__control::before,
+.public-auth-page .q-select--outlined .q-field__control::before,
+.public-auth-page .q-textarea--outlined .q-field__control::before {
+  border: 1px solid var(--auth-border) !important;
+}
+
+.public-auth-page .q-field--outlined.q-field--focused .q-field__control::after,
+.public-auth-page .q-input--outlined.q-field--focused .q-field__control::after,
+.public-auth-page .q-select--outlined.q-field--focused .q-field__control::after,
+.public-auth-page .q-textarea--outlined.q-field--focused .q-field__control::after {
+  border-color: var(--primary-color) !important;
 }
 
 .public-auth-switch {
