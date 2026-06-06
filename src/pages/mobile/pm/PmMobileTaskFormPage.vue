@@ -271,13 +271,18 @@ const onSubmit = async () => {
       sp_lead_id: null,
       updatedAt: currentTimestamp,
     }
-    if (!previewWriteOnly.value) {
-      await createDocument(`properties/${finalPropertyId}/mxrecords`, payload)
-    }
+    const recordId = previewWriteOnly.value
+      ? `preview-${Date.now()}`
+      : await createDocument(`properties/${finalPropertyId}/mxrecords`, payload)
 
     Notify.create({ type: 'positive', message: 'Task created.', position: 'top' })
     resetForm()
-    router.push(isPreviewRoute.value ? '/mobile-preview/pm/manage' : '/mobile/pm/manage')
+    router.push({
+      path: isPreviewRoute.value
+        ? `/mobile-preview/pm/manage/view/tasks/${encodeURIComponent(recordId)}`
+        : `/mobile/pm/manage/view/tasks/${encodeURIComponent(recordId)}`,
+      query: { propertyId: finalPropertyId },
+    })
   } catch (error) {
     Notify.create({
       type: 'negative',

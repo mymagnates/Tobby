@@ -1,5 +1,5 @@
 <template>
-  <RoleWorkflowPage avatar-text="SP" :content="content" :loading="loading" />
+  <RoleWorkflowPage :content="content" :loading="loading" />
 </template>
 
 <script setup>
@@ -51,6 +51,7 @@ const fallbackContent = computed(() => localizeContent(spMobilePages[props.pageK
 const getLeadId = (lead) => String(lead?.id || lead?.lead_doc_id || lead?.lead_id || '').trim()
 const getBidId = (bid) => String(bid?.bid_id || bid?.id || '').trim()
 const getProjectId = (project) => String(project?.project_id || project?.id || '').trim()
+const firstText = (...values) => values.map((value) => String(value || '').trim()).find(Boolean) || ''
 const money = (value) => `$${Number(value || 0).toLocaleString()}`
 const statusTone = (status) => {
   const normalized = String(status || '').toLowerCase()
@@ -69,6 +70,13 @@ const leadItems = computed(() => leads.value.map((lead) => {
     status: 'Bid',
     tone: 'accent',
     to: id ? `${mobileBase.value}/sp/leads/${id}/bid` : '',
+    moderation: {
+      contentType: 'other',
+      contentId: id,
+      contentPath: id ? `marketplace_leads/${id}` : '',
+      reportedUserId: firstText(lead.pm_id, lead.owner_id, lead.created_by_user_id, lead.user_id),
+      reportedUserDisplayName: firstText(lead.pm_name, lead.owner_name, lead.created_by_name),
+    },
   }
 }))
 
@@ -82,6 +90,15 @@ const bidItems = computed(() => bids.value.map((bid) => {
     status: normalizedStatus,
     tone: statusTone(normalizedStatus),
     to: id ? `${mobileBase.value}/sp/bids/${id}/revision` : '',
+    moderation: {
+      contentType: 'bid',
+      contentId: id,
+      contentPath: bid.lead_doc_id
+        ? `marketplace_leads/${bid.lead_doc_id}/bids/${id}`
+        : '',
+      reportedUserId: firstText(bid.pm_id, bid.reviewed_by, bid.owner_id),
+      reportedUserDisplayName: firstText(bid.pm_name, bid.reviewer_name, bid.owner_name),
+    },
   }
 }))
 
@@ -94,6 +111,13 @@ const projectItems = computed(() => projects.value.map((project) => {
     status: project.status || 'Active',
     tone: statusTone(project.status || 'active'),
     to: id ? `${mobileBase.value}/sp/projects/${id}/detail` : '',
+    moderation: {
+      contentType: 'other',
+      contentId: id,
+      contentPath: id ? `sp_projects/${id}` : '',
+      reportedUserId: firstText(project.pm_id, project.owner_id, project.created_by_user_id),
+      reportedUserDisplayName: firstText(project.pm_name, project.owner_name, project.created_by_name),
+    },
   }
 }))
 
@@ -122,7 +146,20 @@ const postItems = computed(() => posts.value.map((post) => ({
   title: post.title || 'Handout post',
   meta: [post.content ? String(post.content).slice(0, 72) : 'Media post', post.created_at || post.updated_at].filter(Boolean).join(' - '),
   status: 'Post',
+  moderation: {
+    contentType: 'sp_post',
+    contentId: String(post.id || post.post_id || ''),
+    contentPath: resolvedPostPath(post),
+    reportedUserId: firstText(post.author_user_id, post.user_id, post.sp_id, spId.value),
+    reportedUserDisplayName: firstText(post.author_name, post.display_name, post.sp_name),
+  },
 })))
+
+const resolvedPostPath = (post) => {
+  const id = String(post?.id || post?.post_id || '').trim()
+  const ownerId = firstText(post?.sp_id, post?.user_id, spId.value)
+  return ownerId && id ? `users/${ownerId}/posts/${id}` : ''
+}
 
 const content = computed(() => {
   const base = fallbackContent.value
@@ -130,11 +167,7 @@ const content = computed(() => {
   if (props.pageKey === 'home' && leadItems.value.length) {
     return {
       ...base,
-      metrics: [
-        { label: 'New', value: String(leadItems.value.length), note: 'Leads' },
-        { label: 'Submitted', value: String(bidItems.value.length), note: 'Bids' },
-        { label: 'Active', value: String(projectItems.value.length), note: 'Projects' },
-      ],
+      metrics: [],
       sections: [{ title: 'Leads', items: leadItems.value }],
     }
   }

@@ -10,7 +10,7 @@ export const mobileTabsByRole = {
     { label: 'Home', icon: 'home', to: '/mobile/owner/home' },
     { label: 'Manage', icon: 'add_box', to: '/mobile/owner/manage' },
     { label: 'Property', icon: 'apartment', to: '/mobile/owner/property' },
-    { label: 'Financial', icon: 'query_stats', to: '/mobile/owner/financial' },
+    { label: 'Reports', icon: 'query_stats', to: '/mobile/owner/financial' },
     { label: 'Account', icon: 'person', to: '/mobile/owner/account' },
   ],
   sp: [
@@ -246,21 +246,34 @@ export const mobilePageContent = {
     },
     financial: {
       eyebrow: 'Owner',
-      title: 'Financial',
-      description: 'Income, expenses, net, and transaction records.',
+      title: 'Reports',
+      description: 'Simple portfolio status without full web report tools.',
+      metrics: [
+        { label: 'Health', value: 'Watch', note: '1 item' },
+        { label: 'Net', value: '$4.18k', note: 'Recorded' },
+        { label: 'Occ.', value: '2/3', note: 'Properties' },
+      ],
       sections: [
         {
-          title: 'This Month',
+          title: 'Status Summary',
           items: [
-            { icon: 'south_west', title: 'Rent income', meta: '$4,800 received' },
-            { icon: 'north_east', title: 'Expenses', meta: '$620 recorded' },
-            { icon: 'query_stats', title: 'Net', meta: '$4,180 estimated' },
+            { icon: 'account_balance_wallet', title: 'Cash flow', meta: '$4,800 income - $620 expense - $4,180 net', status: 'Positive', tone: 'accent' },
+            { icon: 'home', title: 'Occupancy', meta: '2 occupied - 1 vacant', status: '67%' },
+            { icon: 'warning', title: 'Rent risk', meta: '$0 outstanding', status: 'Clear', tone: 'accent' },
+            { icon: 'build', title: 'Maintenance', meta: '1 open - 3 resolved - avg 2 days', status: 'Watch', tone: 'warning' },
           ],
         },
         {
-          title: 'Transactions',
+          title: 'Needs Attention',
           items: [
-            { icon: 'receipt', title: 'Plumbing repair', meta: '123 Main St - $280 - Receipt attached' },
+            { icon: 'build', title: 'Kitchen sink repair', meta: '123 Main St - Open since May 20', status: 'Open', tone: 'warning' },
+          ],
+        },
+        {
+          title: 'Recent Activity',
+          items: [
+            { icon: 'receipt', title: 'Plumbing repair', meta: '123 Main St - -$280 - May 18', status: 'Repair' },
+            { icon: 'south_west', title: 'Rent received', meta: '123 Main St - +$2,400 - May 1', status: 'Rent', tone: 'accent' },
           ],
         },
       ],

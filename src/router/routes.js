@@ -96,6 +96,12 @@ const routes = [
     ],
   },
 
+  {
+    path: '/mobile-login',
+    component: () => import('pages/mobile/MobileLoginPage.vue'),
+    meta: { isPublic: true, isMobileAuth: true },
+  },
+
   // ============================================
   // MOBILE ROUTES (MobileLayout - Role-specific mobile terminal)
   // ============================================
@@ -123,6 +129,10 @@ const routes = [
         meta: { mobileRole: 'pm' },
       },
       {
+        path: 'pm/manage/create',
+        redirect: '/mobile/pm/home',
+      },
+      {
         path: 'pm/manage/task',
         component: () => import('pages/mobile/pm/PmMobileTaskFormPage.vue'),
         meta: { mobileRole: 'pm' },
@@ -130,6 +140,22 @@ const routes = [
       {
         path: 'pm/manage/bids',
         component: () => import('pages/mobile/pm/PmMobileBidsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/view/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'pm', recordType: route.params.recordType }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/view/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'pm',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
         meta: { mobileRole: 'pm' },
       },
       {
@@ -153,9 +179,23 @@ const routes = [
         meta: { mobileRole: 'pm' },
       },
       {
+        path: 'pm/property/:propertyId/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'pm',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
         path: 'pm/property/:propertyId/:recordType',
         component: () => import('pages/mobile/MobileRecordListPage.vue'),
-        props: (route) => ({ role: 'pm', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        props: (route) => ({
+          role: 'pm',
+          propertyId: route.params.propertyId,
+          recordType: route.params.recordType,
+        }),
         meta: { mobileRole: 'pm' },
       },
       {
@@ -165,7 +205,8 @@ const routes = [
       },
       {
         path: 'pm/account',
-        component: () => import('pages/mobile/pm/PmMobileAccountPage.vue'),
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'pm' },
         meta: { mobileRole: 'pm' },
       },
       {
@@ -185,6 +226,22 @@ const routes = [
         meta: { mobileRole: 'owner' },
       },
       {
+        path: 'owner/manage/view/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'owner', recordType: route.params.recordType }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/manage/view/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'owner',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
         path: 'owner/manage/:action',
         component: () => import('pages/mobile/owner/OwnerMobileManageActionPage.vue'),
         meta: { mobileRole: 'owner' },
@@ -198,7 +255,11 @@ const routes = [
       {
         path: 'owner/property/:propertyId/:recordType',
         component: () => import('pages/mobile/MobileRecordListPage.vue'),
-        props: (route) => ({ role: 'owner', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        props: (route) => ({
+          role: 'owner',
+          propertyId: route.params.propertyId,
+          recordType: route.params.recordType,
+        }),
         meta: { mobileRole: 'owner' },
       },
       {
@@ -209,8 +270,8 @@ const routes = [
       },
       {
         path: 'owner/account',
-        component: () => import('pages/mobile/owner/OwnerMobilePage.vue'),
-        props: { pageKey: 'account' },
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'owner' },
         meta: { mobileRole: 'owner' },
       },
       {
@@ -256,13 +317,21 @@ const routes = [
       {
         path: 'sp/projects/:projectId/detail',
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
-        props: (route) => ({ section: 'projects', action: 'detail', projectId: route.params.projectId }),
+        props: (route) => ({
+          section: 'projects',
+          action: 'detail',
+          projectId: route.params.projectId,
+        }),
         meta: { mobileRole: 'sp' },
       },
       {
         path: 'sp/projects/:projectId/invoice',
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
-        props: (route) => ({ section: 'projects', action: 'invoice', projectId: route.params.projectId }),
+        props: (route) => ({
+          section: 'projects',
+          action: 'invoice',
+          projectId: route.params.projectId,
+        }),
         meta: { mobileRole: 'sp' },
       },
       {
@@ -285,8 +354,8 @@ const routes = [
       },
       {
         path: 'sp/account',
-        component: () => import('pages/mobile/sp/SpMobilePage.vue'),
-        props: { pageKey: 'account' },
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'sp' },
         meta: { mobileRole: 'sp' },
       },
       {
@@ -337,8 +406,8 @@ const routes = [
       },
       {
         path: 'tenant/account',
-        component: () => import('pages/mobile/tenant/TenantMobilePage.vue'),
-        props: { pageKey: 'account' },
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'tenant' },
         meta: { mobileRole: 'tenant' },
       },
     ],
@@ -361,6 +430,10 @@ const routes = [
         meta: { mobileRole: 'pm' },
       },
       {
+        path: 'pm/manage/create',
+        redirect: '/mobile-preview/pm/home',
+      },
+      {
         path: 'pm/manage/task',
         component: () => import('pages/mobile/pm/PmMobileTaskFormPage.vue'),
         meta: { mobileRole: 'pm' },
@@ -368,6 +441,22 @@ const routes = [
       {
         path: 'pm/manage/bids',
         component: () => import('pages/mobile/pm/PmMobileBidsPage.vue'),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/view/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'pm', recordType: route.params.recordType }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'pm/manage/view/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'pm',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
         meta: { mobileRole: 'pm' },
       },
       {
@@ -391,9 +480,23 @@ const routes = [
         meta: { mobileRole: 'pm' },
       },
       {
+        path: 'pm/property/:propertyId/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'pm',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
+        meta: { mobileRole: 'pm' },
+      },
+      {
         path: 'pm/property/:propertyId/:recordType',
         component: () => import('pages/mobile/MobileRecordListPage.vue'),
-        props: (route) => ({ role: 'pm', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        props: (route) => ({
+          role: 'pm',
+          propertyId: route.params.propertyId,
+          recordType: route.params.recordType,
+        }),
         meta: { mobileRole: 'pm' },
       },
       {
@@ -403,8 +506,15 @@ const routes = [
       },
       {
         path: 'pm/account',
-        component: () => import('pages/mobile/pm/PmMobileAccountPage.vue'),
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'pm' },
         meta: { mobileRole: 'pm' },
+      },
+      {
+        path: 'owner/account',
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'owner' },
+        meta: { mobileRole: 'owner' },
       },
       {
         path: 'owner/:pageKey',
@@ -418,15 +528,41 @@ const routes = [
         meta: { mobileRole: 'owner' },
       },
       {
+        path: 'owner/manage/view/:recordType',
+        component: () => import('pages/mobile/MobileRecordListPage.vue'),
+        props: (route) => ({ role: 'owner', recordType: route.params.recordType }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
+        path: 'owner/manage/view/:recordType/:recordId',
+        component: () => import('pages/mobile/MobileRecordDetailPage.vue'),
+        props: (route) => ({
+          role: 'owner',
+          recordType: route.params.recordType,
+          recordId: route.params.recordId,
+        }),
+        meta: { mobileRole: 'owner' },
+      },
+      {
         path: 'owner/property/:propertyId/:recordType',
         component: () => import('pages/mobile/MobileRecordListPage.vue'),
-        props: (route) => ({ role: 'owner', propertyId: route.params.propertyId, recordType: route.params.recordType }),
+        props: (route) => ({
+          role: 'owner',
+          propertyId: route.params.propertyId,
+          recordType: route.params.recordType,
+        }),
         meta: { mobileRole: 'owner' },
       },
       {
         path: 'sp/leads/:leadId/bid',
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
         props: (route) => ({ section: 'bids', action: 'new', leadId: route.params.leadId }),
+        meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'sp/account',
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'sp' },
         meta: { mobileRole: 'sp' },
       },
       {
@@ -450,13 +586,21 @@ const routes = [
       {
         path: 'sp/projects/:projectId/detail',
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
-        props: (route) => ({ section: 'projects', action: 'detail', projectId: route.params.projectId }),
+        props: (route) => ({
+          section: 'projects',
+          action: 'detail',
+          projectId: route.params.projectId,
+        }),
         meta: { mobileRole: 'sp' },
       },
       {
         path: 'sp/projects/:projectId/invoice',
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
-        props: (route) => ({ section: 'projects', action: 'invoice', projectId: route.params.projectId }),
+        props: (route) => ({
+          section: 'projects',
+          action: 'invoice',
+          projectId: route.params.projectId,
+        }),
         meta: { mobileRole: 'sp' },
       },
       {
@@ -470,6 +614,12 @@ const routes = [
         component: () => import('pages/mobile/sp/SpMobileActionPage.vue'),
         props: (route) => ({ section: 'handout', action: route.params.action }),
         meta: { mobileRole: 'sp' },
+      },
+      {
+        path: 'tenant/account',
+        component: () => import('pages/mobile/MobileAccountPage.vue'),
+        props: { role: 'tenant' },
+        meta: { mobileRole: 'tenant' },
       },
       {
         path: 'tenant/:pageKey',
@@ -536,13 +686,19 @@ const routes = [
           { path: '/pm-po-feed', redirect: '/' },
           { path: '/universal-search', component: () => import('pages/UniversalSearchPage.vue') },
           { path: '/firebase-test', component: () => import('pages/FirebaseTestPage.vue') },
-          { path: '/edit-property/:propertyId', component: () => import('pages/EditPropertyPage.vue') },
+          {
+            path: '/edit-property/:propertyId',
+            component: () => import('pages/EditPropertyPage.vue'),
+          },
           { path: '/create-mxrecord', component: () => import('components/CreateMxRecord.vue') },
           {
             path: '/create-mxrecord/:propertyId',
             component: () => import('components/CreateMxRecord.vue'),
           },
-          { path: '/create-transaction', component: () => import('components/CreateTransaction.vue') },
+          {
+            path: '/create-transaction',
+            component: () => import('components/CreateTransaction.vue'),
+          },
           {
             path: '/create-transaction/:propertyId',
             component: () => import('components/CreateTransaction.vue'),
@@ -562,7 +718,10 @@ const routes = [
           { path: '/documents', component: () => import('pages/DocumentsPage.vue') },
           { path: '/assets/:propertyId?', component: () => import('pages/AssetsPage.vue') },
           { path: '/reports', component: () => import('pages/ReportsPage.vue') },
-          { path: '/account-type-setup', component: () => import('pages/AccountTypeSetupPage.vue') },
+          {
+            path: '/account-type-setup',
+            component: () => import('pages/AccountTypeSetupPage.vue'),
+          },
           { path: '/create-tenant', component: () => import('pages/CreateTenantPage.vue') },
           { path: '/property-services', component: () => import('pages/PropertyServicesPage.vue') },
           { path: '/user-profile', component: () => import('pages/UserProfilePage.vue') },

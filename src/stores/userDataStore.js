@@ -4,6 +4,7 @@ import {
   collection,
   doc,
   getDoc,
+  setDoc,
   query,
   orderBy,
   addDoc,
@@ -63,7 +64,9 @@ export const useUserDataStore = defineStore('userData', () => {
   const userId = computed(() => user.value?.uid)
   const isAuthenticated = computed(() => !!user.value)
   const userCategory = computed(() =>
-    normalizeAccountType(userProfile.value?.user_category || userProfile.value?.account_type || null),
+    normalizeAccountType(
+      userProfile.value?.user_category || userProfile.value?.account_type || null,
+    ),
   )
   const accountType = computed(() => normalizeAccountType(userProfile.value?.account_type || null))
   const ownerWorkspaceOnlyFlag = computed(() => Boolean(userProfile.value?.owner_workspace_only))
@@ -76,21 +79,26 @@ export const useUserDataStore = defineStore('userData', () => {
     return normalizedCategory === 'po'
   })
   const hasPoMembership = computed(() =>
-    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'po' && (role?.status || 'active') === 'active'),
+    userRoles.value.some(
+      (role) => normalizeRoleValue(role?.role) === 'po' && (role?.status || 'active') === 'active',
+    ),
   )
   const hasPmMembership = computed(() =>
-    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'pm' && (role?.status || 'active') === 'active'),
+    userRoles.value.some(
+      (role) => normalizeRoleValue(role?.role) === 'pm' && (role?.status || 'active') === 'active',
+    ),
   )
   // Owner workspace access should be driven by PO membership; the legacy PO
   // account fallback stays only to preserve pre-restructure users during migration.
   const hasOwnerWorkspaceAccess = computed(() => hasPoMembership.value || hasLegacyPoAccount.value)
   const isOwnerOnlyUser = computed(() => {
     const normalizedAccountType = accountType.value || userCategory.value
-    return hasOwnerWorkspaceAccess.value && (
-      ownerWorkspaceOnlyFlag.value ||
-      hasLegacyPoAccount.value ||
-      !hasPmMembership.value ||
-      normalizedAccountType === 'po'
+    return (
+      hasOwnerWorkspaceAccess.value &&
+      (ownerWorkspaceOnlyFlag.value ||
+        hasLegacyPoAccount.value ||
+        !hasPmMembership.value ||
+        normalizedAccountType === 'po')
     )
   })
   const isManagerCapableUser = computed(() => {
@@ -305,7 +313,10 @@ export const useUserDataStore = defineStore('userData', () => {
     const normalizedSearchId = normalizePropertyId(propertyId)
     if (!normalizedSearchId) return false
     return userRoles.value.some((role) => {
-      const active = String(role?.status || 'active').trim().toLowerCase() === 'active'
+      const active =
+        String(role?.status || 'active')
+          .trim()
+          .toLowerCase() === 'active'
       const sameProperty = comparePropertyIds(role?.property_id, normalizedSearchId)
       const normalizedRole = normalizeRoleValue(role?.role)
       return active && sameProperty && ['pm', 'po'].includes(normalizedRole)
@@ -317,7 +328,7 @@ export const useUserDataStore = defineStore('userData', () => {
    */
   const saveToStorage = () => {
     if (typeof window === 'undefined') return
-    
+
     try {
       if (user.value?.uid) {
         localStorage.setItem(STORAGE_KEYS.USER_ID, user.value.uid)
@@ -342,7 +353,7 @@ export const useUserDataStore = defineStore('userData', () => {
    */
   const loadFromStorage = (userId) => {
     if (typeof window === 'undefined') return false
-    
+
     try {
       const storedUserId = localStorage.getItem(STORAGE_KEYS.USER_ID)
       if (storedUserId !== userId) {
@@ -426,7 +437,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
     // Try to load from cache first
     const cacheLoaded = !forceFresh && loadFromStorage(newUser.uid)
-    
+
     if (cacheLoaded && userRoles.value.length > 0 && properties.value.length > 0) {
       // Cache is valid, but refresh dependent data sequentially so new roles/properties
       // added in another flow (for example, accepting another property invite) are not missed.
@@ -660,7 +671,7 @@ export const useUserDataStore = defineStore('userData', () => {
             console.error(`UserDataStore - Error loading property ${propertyId}:`, error)
             return null
           }
-        })
+        }),
       )
 
       properties.value = propertyDocs.filter(Boolean)
@@ -709,9 +720,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       const mxGroups = await Promise.all(
         accessiblePropertyIds.map(async (propertyId) => {
-          console.log(
-            `UserDataStore - Loading property ${propertyId} mxrecords subcollection`,
-          )
+          console.log(`UserDataStore - Loading property ${propertyId} mxrecords subcollection`)
           console.log(`UserDataStore - Full collection path: properties/${propertyId}/mxrecords`)
           try {
             const mxRecordsQuery = collection(db, 'properties', propertyId, 'mxrecords')
@@ -733,7 +742,7 @@ export const useUserDataStore = defineStore('userData', () => {
             console.error(`UserDataStore - Error loading tasks for property ${propertyId}:`, error)
             return []
           }
-        })
+        }),
       )
 
       mxRecords.value = mxGroups.flat()
@@ -780,9 +789,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       const transactionGroups = await Promise.all(
         accessiblePropertyIds.map(async (propertyId) => {
-          console.log(
-            `UserDataStore - Loading property ${propertyId} transactions subcollection`,
-          )
+          console.log(`UserDataStore - Loading property ${propertyId} transactions subcollection`)
           try {
             const transactionsQuery = query(
               collection(db, 'properties', propertyId, 'transactions'),
@@ -809,7 +816,7 @@ export const useUserDataStore = defineStore('userData', () => {
             )
             return []
           }
-        })
+        }),
       )
 
       transactions.value = transactionGroups.flat()
@@ -949,10 +956,11 @@ export const useUserDataStore = defineStore('userData', () => {
         ...updateData,
         updatedAt: new Date(),
       }
-      await updateDoc(userRef, payload)
+      await setDoc(userRef, payload, { merge: true })
 
       userProfile.value = {
         ...(userProfile.value || {}),
+        id: user.value.uid,
         ...updateData,
       }
       saveToStorage()
@@ -1015,7 +1023,10 @@ export const useUserDataStore = defineStore('userData', () => {
 
     console.log('Step 3: Return matching roles')
     if (matchingRoles.length) {
-      console.log('✅ Found matching roles:', matchingRoles.map((role) => role.role))
+      console.log(
+        '✅ Found matching roles:',
+        matchingRoles.map((role) => role.role),
+      )
       return matchingRoles
     } else {
       console.log('❌ No matching role found for property ID:', propertyId)
@@ -1056,14 +1067,16 @@ export const useUserDataStore = defineStore('userData', () => {
     return userRoles.value[0] || null
   })
 
-  const activePropertyRoleName = computed(() =>
-    normalizeRoleValue(activePropertyRole.value?.role) || null,
+  const activePropertyRoleName = computed(
+    () => normalizeRoleValue(activePropertyRole.value?.role) || null,
   )
   const isActiveRolePo = computed(() => activePropertyRoleName.value === 'po')
   const isActiveRolePm = computed(() => activePropertyRoleName.value === 'pm')
 
   const canManageProperty = (propertyId) =>
-    (getUserRolesForProperty(propertyId) || []).some((role) => normalizeRoleValue(role?.role) === 'pm')
+    (getUserRolesForProperty(propertyId) || []).some(
+      (role) => normalizeRoleValue(role?.role) === 'pm',
+    )
 
   const canCreateTransactionsForProperty = (propertyId) => {
     const role = normalizeRoleValue(getUserRoleForProperty(propertyId)?.role)

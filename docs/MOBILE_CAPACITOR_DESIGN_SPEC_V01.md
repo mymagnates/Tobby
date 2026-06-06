@@ -76,10 +76,12 @@ Tabs follow the same general pattern as PM but with owner-specific scope.
 
 Owner does not get AI in the current mobile scope.
 Owner can:
-- view property data and higher quality charts
+- view a simplified portfolio status report: recorded cash flow, occupancy, rent risk, maintenance performance, and recent activity
 - record transaction information
 - record task information
 - upload/manage documents from Manage
+
+Owner mobile uses a `Reports` tab for this status view. Mobile reports are status views only. Detailed charts, date-range analysis, export, and full transaction/task reports remain web functions. The mobile status page mirrors the web report categories at a glance only: cash flow, occupancy/vacancy, delinquency/rent status, maintenance performance, attention items, and recent activity.
 
 Owner should not show approval actions unless a real owner approval workflow exists.
 
@@ -152,4 +154,3 @@ Tenant inventory:
 - PM/Owner transaction/task/document/service/asset records must use existing web field names and Firestore paths.
 - SP project, bid, invoice, and handout data must follow existing web data structures.
 - Preview fallback data must not redefine production data contracts.
-

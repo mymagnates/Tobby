@@ -5,13 +5,7 @@
         :eyebrow="content.eyebrow"
         :title="content.title"
         :description="content.description"
-      >
-        <template #action>
-          <q-avatar size="36px" color="primary" text-color="white">
-            {{ avatarText }}
-          </q-avatar>
-        </template>
-      </MobilePageHeader>
+      />
 
       <template v-for="group in content.actionGroups || []" :key="group.title">
         <div class="mobile-section-title">{{ group.title }}</div>
@@ -87,14 +81,6 @@ const content = computed(() => mobilePageContent[props.role]?.[props.pageKey] ||
   title: props.pageKey,
   description: '',
   sections: [],
-})
-
-const avatarText = computed(() => {
-  if (props.role === 'pm') return 'PM'
-  if (props.role === 'owner') return 'OW'
-  if (props.role === 'sp') return 'SP'
-  if (props.role === 'tenant') return 'TT'
-  return 'M'
 })
 
 const hasContent = computed(() => Boolean(

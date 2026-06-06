@@ -87,6 +87,8 @@ export const createInMemoryStore = () => {
   const adClickEvents = new Map()
   const userRegionProfiles = new Map()
   const promoCampaigns = new Map()
+  const contentReports = new Map()
+  const blockedUsers = new Map()
 
   const ensureUser = (id = 'u-tt-1', roleHint = null) => {
     const existing = users.get(id)
@@ -344,20 +346,26 @@ export const createInMemoryStore = () => {
 
   const createInvoice = ({ actor, body }) => {
     const id = `invoc-${randomUUID()}`
-    const subtotal = Number(body?.subtotal || 0)
+    const amount = Number(body?.amount || 0)
+    const subtotal = Number(body?.subtotal ?? amount ?? 0)
     const tax = Number(body?.tax || 0)
     const discount = Number(body?.discount || 0)
     const total = subtotal + tax - discount
     const record = {
       id,
+      invoice_id: id,
+      project_id: body?.project_id || null,
       task_id: body?.task_id || null,
+      sp_id: body?.sp_id || actor.id,
       created_by: actor.id,
       line_items: Array.isArray(body?.line_items) ? body.line_items : [],
+      amount: Number.isFinite(amount) && amount > 0 ? amount : total,
       subtotal,
       tax,
       discount,
       total,
       currency: body?.currency || 'USD',
+      note: body?.note || '',
       status: 'draft',
       review_note: null,
       created_at: nowIso(),
@@ -420,6 +428,8 @@ export const createInMemoryStore = () => {
     adClickEvents,
     userRegionProfiles,
     promoCampaigns,
+    contentReports,
+    blockedUsers,
     ensureUser,
     ensureUserRegion,
     createTask,

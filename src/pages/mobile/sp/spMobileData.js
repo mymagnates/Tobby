@@ -79,12 +79,17 @@ export const spMobilePreviewProjects = [
     status: 'active',
     accepted_at: '2026-05-20',
     phases: {
-      scheduled: { done: true, completed_at: '2026-05-20T15:30:00.000Z' },
-      in_progress: { done: false, completed_at: null },
-      completed: { done: false, completed_at: null },
+      plan: { done: true, completed_at: '2026-05-20T15:30:00.000Z' },
+      execution: { done: false, completed_at: null },
+      payment: { done: false, completed_at: null },
+      close: { done: false, completed_at: null },
     },
     comments: [
-      { text: 'PM confirmed access window for tomorrow morning.', created_at: '2026-05-20T18:00:00.000Z', author: 'pm-preview' },
+      {
+        text: 'PM confirmed access window for tomorrow morning.',
+        created_at: '2026-05-20T18:00:00.000Z',
+        author: 'pm-preview',
+      },
     ],
   },
 ]
@@ -94,17 +99,26 @@ export const spMobilePages = {
     eyebrow: 'SP',
     title: 'Home',
     description: 'Leads available for review and bidding.',
-    metrics: [
-      { label: 'New', value: '2', note: 'Leads' },
-      { label: 'Due', value: '1', note: 'Bid' },
-      { label: 'Active', value: '2', note: 'Projects' },
-    ],
     sections: [
       {
         title: 'Leads',
         items: [
-          { icon: 'plumbing', title: 'Kitchen sink leak', meta: 'Plumbing - San Jose - Posted 1h ago', status: 'Bid', tone: 'accent', to: '/mobile/sp/leads/lead-kitchen-sink/bid' },
-          { icon: 'hvac', title: 'AC not cooling', meta: 'HVAC - Santa Clara - urgent', status: 'New', tone: 'warning', to: '/mobile/sp/leads/lead-ac-cooling/bid' },
+          {
+            icon: 'plumbing',
+            title: 'Kitchen sink leak',
+            meta: 'Plumbing - San Jose - Posted 1h ago',
+            status: 'Bid',
+            tone: 'accent',
+            to: '/mobile/sp/leads/lead-kitchen-sink/bid',
+          },
+          {
+            icon: 'hvac',
+            title: 'AC not cooling',
+            meta: 'HVAC - Santa Clara - urgent',
+            status: 'New',
+            tone: 'warning',
+            to: '/mobile/sp/leads/lead-ac-cooling/bid',
+          },
         ],
       },
     ],
@@ -117,8 +131,21 @@ export const spMobilePages = {
       {
         title: 'Submitted',
         items: [
-          { icon: 'request_quote', title: 'Plumbing repair quote', meta: '$280 - submitted today', status: 'Submitted', to: '/mobile/sp/bids/bid-plumbing-repair/revision' },
-          { icon: 'rate_review', title: 'Fence repair estimate', meta: '$740 - PM requested revision', status: 'Revise', tone: 'warning', to: '/mobile/sp/bids/bid-fence-repair/revision' },
+          {
+            icon: 'request_quote',
+            title: 'Plumbing repair quote',
+            meta: '$280 - submitted today',
+            status: 'Submitted',
+            to: '/mobile/sp/bids/bid-plumbing-repair/revision',
+          },
+          {
+            icon: 'rate_review',
+            title: 'Fence repair estimate',
+            meta: '$740 - PM requested revision',
+            status: 'Revise',
+            tone: 'warning',
+            to: '/mobile/sp/bids/bid-fence-repair/revision',
+          },
         ],
       },
     ],
@@ -131,14 +158,32 @@ export const spMobilePages = {
       {
         title: 'Active Projects',
         items: [
-          { icon: 'work', title: 'Bathroom faucet repair', meta: 'Accepted - invoice not sent', status: 'Active', tone: 'accent', to: '/mobile/sp/projects/project-bathroom-faucet/detail' },
-          { icon: 'upload_file', title: 'Completion proof', meta: 'Track phases and project notes', to: '/mobile/sp/projects/project-bathroom-faucet/detail' },
+          {
+            icon: 'work',
+            title: 'Bathroom faucet repair',
+            meta: 'Accepted - invoice not sent',
+            status: 'Active',
+            tone: 'accent',
+            to: '/mobile/sp/projects/project-bathroom-faucet/detail',
+          },
+          {
+            icon: 'upload_file',
+            title: 'Completion proof',
+            meta: 'Track phases and project notes',
+            to: '/mobile/sp/projects/project-bathroom-faucet/detail',
+          },
         ],
       },
       {
         title: 'Invoices',
         items: [
-          { icon: 'receipt_long', title: 'Create invoice', meta: 'Invoice stays attached to project', status: 'Project', to: '/mobile/sp/projects/project-bathroom-faucet/invoice' },
+          {
+            icon: 'receipt_long',
+            title: 'Create invoice',
+            meta: 'Invoice stays attached to project',
+            status: 'Project',
+            to: '/mobile/sp/projects/project-bathroom-faucet/invoice',
+          },
           { icon: 'payments', title: 'Paid invoices', meta: 'Payment history and receipts' },
         ],
       },
@@ -150,10 +195,22 @@ export const spMobilePages = {
     description: 'Manage posts and the public service handout page.',
     actionGroups: [
       {
-        title: 'Create',
+        title: 'Create Handout Content',
         actions: [
-          { icon: 'post_add', label: 'Post', hint: 'Work example for handout material', to: '/mobile/sp/handout/post' },
-          { icon: 'preview', label: 'Preview', hint: 'Review public handout page', to: '/mobile/sp/handout/preview' },
+          {
+            icon: 'post_add',
+            label: 'New Post',
+            hint: 'Add a work example',
+            to: '/mobile/sp/handout/post',
+            intent: 'create',
+          },
+          {
+            icon: 'preview',
+            label: 'Preview Handout',
+            hint: 'Review public page',
+            to: '/mobile/sp/handout/preview',
+            create: false,
+          },
         ],
       },
     ],
@@ -161,8 +218,18 @@ export const spMobilePages = {
       {
         title: 'Handout Content',
         items: [
-          { icon: 'collections', title: 'Selected posts', meta: '3 posts visible on handout', status: 'Live', tone: 'accent' },
-          { icon: 'map', title: 'Coverage and services', meta: 'Read from profile and services setup' },
+          {
+            icon: 'collections',
+            title: 'Selected posts',
+            meta: '3 posts visible on handout',
+            status: 'Live',
+            tone: 'accent',
+          },
+          {
+            icon: 'map',
+            title: 'Coverage and services',
+            meta: 'Read from profile and services setup',
+          },
           { icon: 'ios_share', title: 'Share link', meta: 'Copy or send the public page' },
         ],
       },

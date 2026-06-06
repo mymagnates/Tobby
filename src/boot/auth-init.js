@@ -11,6 +11,16 @@ import { useUserDataStore } from '../stores/userDataStore'
 export default defineBoot(async () => {
   return new Promise((resolve) => {
     const userDataStore = useUserDataStore()
+    let settled = false
+    let unsubscribe = null
+    const finish = () => {
+      if (settled) return
+      settled = true
+      if (typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+      resolve()
+    }
 
     if (typeof window !== 'undefined') {
       const cleanupKey = 'handout-clear-mock-v1'
@@ -32,7 +42,14 @@ export default defineBoot(async () => {
     }
     
     // Wait for auth state to be determined
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const timeout = window.setTimeout(() => {
+      console.warn('Auth init timed out; continuing app startup without a cached auth state.')
+      userDataStore.clearAllData()
+      finish()
+    }, 5000)
+
+    unsubscribe = onAuthStateChanged(auth, async (user) => {
+      window.clearTimeout(timeout)
       if (user) {
         // User is authenticated, initialize store with user data
         // This will load from cache if available (within 5 min), or fetch fresh data
@@ -47,8 +64,7 @@ export default defineBoot(async () => {
       }
       
       // Resolve after first auth state check
-      unsubscribe()
-      resolve()
+      finish()
     })
   })
 })

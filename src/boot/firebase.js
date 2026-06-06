@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
+import { getAuth, initializeAuth, browserLocalPersistence } from 'firebase/auth'
 import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics } from 'firebase/analytics'
@@ -46,16 +46,14 @@ try {
 // Initialize Firebase services
 let auth, db, storage
 try {
-  auth = getAuth(app)
-  
-  // Keep users signed in using LOCAL persistence
-  setPersistence(auth, browserLocalPersistence)
-    .then(() => {
-      console.log('Firebase Auth persistence set to LOCAL (always signed in)')
+  try {
+    auth = initializeAuth(app, {
+      persistence: browserLocalPersistence,
     })
-    .catch((error) => {
-      console.error('Error setting persistence:', error)
-    })
+  } catch (error) {
+    auth = getAuth(app)
+    console.warn('Firebase Auth was already initialized; using existing instance.', error)
+  }
   
   // Improve compatibility for networks/browsers that block Firestore streaming channel.
   db = initializeFirestore(app, {

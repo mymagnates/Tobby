@@ -29,6 +29,7 @@
 
       <MobileCard v-if="action === 'task'" title="Task" subtitle="Owner-submitted maintenance or follow-up item.">
         <div class="mobile-form-stack">
+          <q-input v-model="form.task_title" label="Title" outlined dense />
           <q-input v-model="form.report_date" type="date" label="Report Date" outlined dense :rules="[required]" />
           <q-select v-model="form.status" :options="taskStatuses" label="Status" outlined dense :rules="[required]" />
           <q-input v-model="form.description" label="Description" type="textarea" autogrow outlined dense :rules="[required]" />
@@ -85,11 +86,13 @@ import MobileCard from 'components/mobile/MobileCard.vue'
 import MobilePageHeader from 'components/mobile/MobilePageHeader.vue'
 import { useFirebase } from 'src/composables/useFirebase'
 import { useUserDataStore } from 'src/stores/userDataStore'
+import { useMobileNav } from 'src/pages/mobile/useMobileNav'
 
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { createDocument, uploadFile } = useFirebase()
+const { resolveMobileTo } = useMobileNav()
 
 const saving = ref(false)
 const selectedPropertyId = ref('')
@@ -99,6 +102,7 @@ const isPreviewRoute = computed(() => String(route.path || '').startsWith('/mobi
 const previewWriteOnly = computed(() => isPreviewRoute.value && !userDataStore.userId)
 
 const form = reactive({
+  task_title: '',
   report_date: new Date().toISOString().split('T')[0],
   status: 'open',
   description: '',
@@ -186,6 +190,14 @@ const createMobileDocument = async (path, payload) => {
   return createDocument(path, payload)
 }
 
+const openCreatedRecord = ({ recordType, recordId, propertyId }) => {
+  if (!recordType || !recordId) return
+  router.push({
+    path: resolveMobileTo(`/mobile/owner/manage/view/${recordType}/${encodeURIComponent(recordId)}`),
+    query: propertyId ? { propertyId } : {},
+  })
+}
+
 const onSubmit = async () => {
   const propertyId = String(selectedPropertyId.value || '').trim()
   if (!propertyId) {
@@ -195,10 +207,12 @@ const onSubmit = async () => {
 
   saving.value = true
   try {
-    if (action.value === 'task') await saveTask(propertyId)
-    else if (action.value === 'transaction') await saveTransaction(propertyId)
-    else if (action.value === 'document') await saveDocument(propertyId)
+    let created = null
+    if (action.value === 'task') created = await saveTask(propertyId)
+    else if (action.value === 'transaction') created = await saveTransaction(propertyId)
+    else if (action.value === 'document') created = await saveDocument(propertyId)
     else Notify.create({ type: 'info', message: 'This action is not configured yet.', position: 'top' })
+    openCreatedRecord(created || {})
   } catch (error) {
     Notify.create({ type: 'negative', message: error?.message || 'Failed to save.', position: 'top' })
   } finally {
@@ -210,9 +224,10 @@ const saveTask = async (propertyId) => {
   const now = new Date()
   const role = userDataStore.getUserRoleForProperty(propertyId)?.role || 'Owner'
   const userName = userDataStore.user?.displayName || userDataStore.user?.email || 'Owner'
-  await createMobileDocument(`properties/${propertyId}/mxrecords`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/mxrecords`, {
     create_id: userDataStore.userId,
     createAt: now,
+    task_title: String(form.task_title || '').trim(),
     report_date: form.report_date,
     description: form.description,
     status: form.status,
@@ -234,13 +249,14 @@ const saveTask = async (propertyId) => {
     updatedAt: now,
   })
   Notify.create({ type: 'positive', message: 'Task created.', position: 'top' })
+  return { recordType: 'tasks', recordId, propertyId }
 }
 
 const saveTransaction = async (propertyId) => {
   const amount = Number(form.amount)
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('Amount must be positive.')
   const role = userDataStore.getUserRoleForProperty(propertyId)?.role || 'Owner'
-  await createMobileDocument(`properties/${propertyId}/transactions`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/transactions`, {
     transac_id: `txn_${Date.now()}`,
     property_id: propertyId,
     role,
@@ -257,6 +273,7 @@ const saveTransaction = async (propertyId) => {
     created_datetime: new Date(),
   })
   Notify.create({ type: 'positive', message: 'Transaction saved.', position: 'top' })
+  return { recordType: 'transactions', recordId, propertyId }
 }
 
 const saveDocument = async (propertyId) => {
@@ -266,7 +283,7 @@ const saveDocument = async (propertyId) => {
   const extension = file.name?.split('.').pop()?.toLowerCase() || ''
   const fileUrl = previewWriteOnly.value ? '' : await uploadFile(`properties/${propertyId}/documents/${Date.now()}_${safeName}`, file)
   const now = new Date().toISOString()
-  await createMobileDocument(`properties/${propertyId}/documents`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/documents`, {
     name: form.name || file.name,
     description: form.description || null,
     note: form.description || null,
@@ -286,5 +303,6 @@ const saveDocument = async (propertyId) => {
   })
   selectedFile.value = null
   Notify.create({ type: 'positive', message: 'Document uploaded.', position: 'top' })
+  return { recordType: 'documents', recordId, propertyId }
 }
 </script>

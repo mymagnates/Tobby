@@ -146,14 +146,14 @@ const property = computed(() => {
 const propertyTitle = computed(() => property.value?.nickname || property.value?.displayName || property.value?.address || property.value?.title || 'Property records')
 const isInventory = computed(() => route.path.endsWith('/inventory'))
 
-const getLeasePropertyId = (lease) => lease?.property?.id || lease?.property_id?.id || lease?.property_id
+const getLeasePropertyId = (lease) => lease?.property?.id || lease?.property_id?.id || lease?.property_id || lease?.property_string_id
 const getLeaseDocId = (lease) => String(lease?.lease_doc_id || lease?.id || lease?.doc_id || '').trim()
 const getLeaseDisplayId = (lease) => String(lease?.LSID || lease?.lease_lsid || lease?.lease_id || getLeaseDocId(lease)).trim()
 const normalizeStatus = (value) => String(value || '').trim().toLowerCase()
 
 const propertyLeases = computed(() => accessibleLeases.value.filter((lease) => String(getLeasePropertyId(lease) || '') === routePropertyId.value))
 const activeLease = computed(() => {
-  return propertyLeases.value.find((lease) => ['active', 'current'].includes(normalizeStatus(lease.status))) || propertyLeases.value[0] || null
+  return propertyLeases.value.find((lease) => ['active', 'current', 'rented', 'occupied'].includes(normalizeStatus(lease.status))) || propertyLeases.value[0] || null
 })
 const activeLeaseMeta = computed(() => {
   if (!activeLease.value) return ''

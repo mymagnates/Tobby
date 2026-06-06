@@ -142,7 +142,7 @@ const createInvoice = async () => {
 const submitInvoice = async (row) => {
   submittingId.value = row.invoice_id
   try {
-    await spPortalApi.submitInvoice(row.invoice_id)
+    await spPortalApi.submitInvoice(row.invoice_id, userStore.userId)
     Notify.create({ type: 'positive', message: 'Invoice submitted.', position: 'top' })
     await loadData()
   } catch (error) {

@@ -164,7 +164,7 @@ const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { createDocument, uploadFile } = useFirebase()
-const { pushMobile } = useMobileNav()
+const { pushMobile, resolveMobileTo } = useMobileNav()
 
 const saving = ref(false)
 const selectedPropertyId = ref('')
@@ -287,6 +287,14 @@ const notifySaved = (label) => {
   Notify.create({ type: 'positive', message: `${label} saved.`, position: 'top' })
 }
 
+const openCreatedRecord = ({ recordType, recordId, propertyId }) => {
+  if (!recordType || !recordId) return
+  router.push({
+    path: resolveMobileTo(`/mobile/pm/manage/view/${recordType}/${encodeURIComponent(recordId)}`),
+    query: propertyId ? { propertyId } : {},
+  })
+}
+
 const createMobileDocument = async (path, payload) => {
   if (previewWriteOnly.value) return `preview-${Date.now()}`
   return createDocument(path, payload)
@@ -314,12 +322,14 @@ const onSubmit = async () => {
 
   saving.value = true
   try {
-    if (action.value === 'transaction') await saveTransaction(propertyId)
-    if (action.value === 'task') await saveTask(propertyId)
-    if (action.value === 'reminder') await saveReminder(propertyId)
-    if (action.value === 'document') await saveDocument(propertyId)
-    if (action.value === 'service') await saveService(propertyId)
-    if (action.value === 'asset') await saveAsset(propertyId)
+    let created = null
+    if (action.value === 'transaction') created = await saveTransaction(propertyId)
+    else if (action.value === 'task') created = await saveTask(propertyId)
+    else if (action.value === 'reminder') created = await saveReminder(propertyId)
+    else if (action.value === 'document') created = await saveDocument(propertyId)
+    else if (action.value === 'service') created = await saveService(propertyId)
+    else if (action.value === 'asset') created = await saveAsset(propertyId)
+    openCreatedRecord(created || {})
   } catch (error) {
     Notify.create({ type: 'negative', message: error?.message || 'Failed to save record.', position: 'top' })
   } finally {
@@ -330,7 +340,7 @@ const onSubmit = async () => {
 const saveTransaction = async (propertyId) => {
   const amount = Number(form.amount)
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('Amount must be positive.')
-  await createMobileDocument(`properties/${propertyId}/transactions`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/transactions`, {
     transac_id: `txn_${Date.now()}`,
     property_id: propertyId,
     role: userDataStore.getUserRoleForProperty(propertyId)?.role || 'PM',
@@ -347,10 +357,11 @@ const saveTransaction = async (propertyId) => {
     created_datetime: new Date(),
   })
   notifySaved('Transaction')
+  return { recordType: 'transactions', recordId, propertyId }
 }
 
 const saveReminder = async (propertyId) => {
-  await createMobileDocument(`properties/${propertyId}/reminders`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/reminders`, {
     category: form.category,
     start_date: form.start_date,
     due_date: form.due_date || form.start_date,
@@ -362,6 +373,7 @@ const saveReminder = async (propertyId) => {
     created_by: userDataStore.userId,
   })
   notifySaved('Reminder')
+  return { recordType: 'reminders', recordId, propertyId }
 }
 
 const saveDocument = async (propertyId) => {
@@ -372,7 +384,7 @@ const saveDocument = async (propertyId) => {
   const storagePath = `properties/${propertyId}/documents/${Date.now()}_${safeName}`
   const fileUrl = previewWriteOnly.value ? '' : await uploadFile(storagePath, file)
   const now = new Date().toISOString()
-  await createMobileDocument(`properties/${propertyId}/documents`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/documents`, {
     name: form.name || file.name,
     description: form.description || null,
     note: form.description || null,
@@ -392,6 +404,7 @@ const saveDocument = async (propertyId) => {
   })
   resetFileFields()
   notifySaved('Document')
+  return { recordType: 'documents', recordId, propertyId }
 }
 
 const saveTask = async (propertyId) => {
@@ -400,7 +413,7 @@ const saveTask = async (propertyId) => {
   const userName = userDataStore.user?.displayName || userDataStore.user?.email || 'Property Manager'
   const description = String(form.description || '').trim()
   if (!description) throw new Error('Description is required.')
-  await createMobileDocument(`properties/${propertyId}/mxrecords`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/mxrecords`, {
     create_id: userDataStore.userId || '',
     createAt: now,
     task_title: String(form.task_title || '').trim(),
@@ -434,12 +447,13 @@ const saveTask = async (propertyId) => {
     updatedAt: now,
   })
   notifySaved('Task')
+  return { recordType: 'tasks', recordId, propertyId }
 }
 
 const saveService = async (propertyId) => {
   const now = new Date().toISOString()
   const propertyLabel = propertyOptions.value.find((property) => property.value === propertyId)?.label || propertyId
-  await createMobileDocument(`properties/${propertyId}/services`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/services`, {
     service_type: form.service_type || 'maintenance',
     property_ids: [propertyId],
     properties: [{ id: propertyId, label: propertyLabel }],
@@ -457,11 +471,12 @@ const saveService = async (propertyId) => {
     updated_at: now,
   })
   notifySaved('Service')
+  return { recordType: 'services', recordId, propertyId }
 }
 
 const saveAsset = async (propertyId) => {
   const now = new Date().toISOString()
-  await createMobileDocument(`properties/${propertyId}/assets`, {
+  const recordId = await createMobileDocument(`properties/${propertyId}/assets`, {
     property_id: propertyId,
     nickname: form.nickname.trim(),
     type: form.type,
@@ -479,6 +494,7 @@ const saveAsset = async (propertyId) => {
     created_by: userDataStore.userId || '',
   })
   notifySaved('Asset')
+  return { recordType: 'assets', recordId, propertyId }
 }
 
 const chipClass = (tone) => {

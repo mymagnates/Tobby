@@ -91,6 +91,11 @@ const request = async (path, { method = 'GET', body, headers = {} } = {}) => {
   return payload
 }
 
+const spHeaders = (spId) => ({
+  ...(spId ? { 'X-User-Id': String(spId) } : {}),
+  'X-User-Role': 'sp',
+})
+
 const loadJsonArray = (key) => {
   if (typeof window === 'undefined') return []
   try {
@@ -752,6 +757,21 @@ export const marketplaceApi = {
     }
   },
 
+  async selectBid(bidId, actor = {}) {
+    const actorId = actor?.actor_id ? String(actor.actor_id) : null
+    const role = normalizeApiRole(actor?.actor_role) || 'pm'
+    return request(`/bids/${encodeURIComponent(bidId)}/select`, {
+      method: 'POST',
+      headers: {
+        ...(actorId ? { 'X-User-Id': actorId } : {}),
+        'X-User-Role': role,
+      },
+      body: {
+        lead_id: actor?.lead_id || actor?.lead_doc_id || null,
+      },
+    })
+  },
+
   contactSp(taskId, payload) {
     return request(`/tasks/${taskId}/sp-actions/contact`, { method: 'POST', body: payload })
   },
@@ -1018,18 +1038,22 @@ export const spPortalApi = {
     }
   },
 
-  async listProjects() {
+  async listProjects(spId = '') {
     try {
-      const res = await request('/sp/projects')
+      const res = await request('/sp/projects', { headers: spHeaders(spId) })
       return res.items || []
     } catch {
       return []
     }
   },
 
-  async updateProject(projectId, updates) {
+  async updateProject(projectId, updates, spId = '') {
     try {
-      return await request(`/sp/projects/${projectId}`, { method: 'PATCH', body: updates })
+      return await request(`/sp/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: spHeaders(spId || updates?.sp_id || ''),
+        body: updates,
+      })
     } catch {
       const rows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS)
       const index = rows.findIndex((row) => row.project_id === projectId)
@@ -1040,9 +1064,9 @@ export const spPortalApi = {
     }
   },
 
-  async listInvoices() {
+  async listInvoices(spId = '') {
     try {
-      const res = await request('/sp/invoices')
+      const res = await request('/sp/invoices', { headers: spHeaders(spId) })
       return res.items || []
     } catch {
       return []
@@ -1051,7 +1075,11 @@ export const spPortalApi = {
 
   async createInvoice(payload) {
     try {
-      return await request('/invoices', { method: 'POST', body: payload })
+      return await request('/invoices', {
+        method: 'POST',
+        headers: spHeaders(payload?.sp_id || ''),
+        body: payload,
+      })
     } catch {
       const rows = loadJsonArray(STORAGE_KEYS.SP_INVOICES)
       const next = {
@@ -1067,9 +1095,12 @@ export const spPortalApi = {
     }
   },
 
-  async submitInvoice(invoiceId) {
+  async submitInvoice(invoiceId, spId = '') {
     try {
-      return await request(`/invoices/${invoiceId}/submit`, { method: 'POST' })
+      return await request(`/invoices/${invoiceId}/submit`, {
+        method: 'POST',
+        headers: spHeaders(spId),
+      })
     } catch {
       const rows = loadJsonArray(STORAGE_KEYS.SP_INVOICES)
       const index = rows.findIndex((row) => row.invoice_id === invoiceId)

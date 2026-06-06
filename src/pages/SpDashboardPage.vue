@@ -969,7 +969,7 @@ const togglePhase = async (proj, phaseKey, val) => {
   }
   proj.phases = phases
   try {
-    await spPortalApi.updateProject(proj.project_id, { phases })
+    await spPortalApi.updateProject(proj.project_id, { phases }, userStore.userId)
   } catch {
     Notify.create({ type: 'negative', message: 'Failed to update phase.', position: 'top' })
   }
@@ -986,7 +986,7 @@ const addComment = async (proj) => {
   proj.comments = comments
   commentInputs.value[proj.project_id] = ''
   try {
-    await spPortalApi.updateProject(proj.project_id, { comments })
+    await spPortalApi.updateProject(proj.project_id, { comments }, userStore.userId)
   } catch {
     Notify.create({ type: 'negative', message: 'Failed to save comment.', position: 'top' })
   }

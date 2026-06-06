@@ -7,6 +7,7 @@ import {
 } from 'vue-router'
 import routes from './routes'
 import { useUserDataStore } from '../stores/userDataStore'
+import { getMobileHomePathForStore, isNativeMobileRuntime } from '../utils/mobileRuntime'
 
 /*
  * If not building with SSR mode, you can
@@ -39,6 +40,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const userDataStore = useUserDataStore()
     const userCategory = userDataStore.userCategory
     const isAuthenticated = !!userDataStore.user
+    const isNativeMobile = isNativeMobileRuntime()
     const hasSpServiceAreaConfigured = () => {
       const profile = userDataStore.userProfile || {}
       const spProfile = profile.sp_service_profile || {}
@@ -58,6 +60,27 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     if (standaloneRoutes.includes(to.path)) {
       console.log('Router Guard - Standalone route, allowing access')
       next()
+      return
+    }
+
+    if (to.path === '/mobile-login') {
+      if (isAuthenticated) {
+        next(getMobileHomePathForStore(userDataStore))
+        return
+      }
+      next()
+      return
+    }
+
+    if (isNativeMobile && ['/', '/landing', '/public/login'].includes(to.path)) {
+      if (isAuthenticated) {
+        next(getMobileHomePathForStore(userDataStore))
+        return
+      }
+      next({
+        path: '/mobile-login',
+        query: { redirect: '/mobile' },
+      })
       return
     }
 
@@ -102,11 +125,23 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
     if (requiresAuth && !isAuthenticated) {
       console.log('Router Guard - Authentication required, redirecting to landing')
+      if (isNativeMobile) {
+        next({
+          path: '/mobile-login',
+          query: { redirect: to.fullPath },
+        })
+        return
+      }
       // Save the intended destination to redirect after login
       next({
         path: '/landing',
         query: { redirect: to.fullPath },
       })
+      return
+    }
+
+    if (isNativeMobile && to.path.startsWith('/mobile')) {
+      next()
       return
     }
 

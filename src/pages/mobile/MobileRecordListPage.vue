@@ -17,11 +17,12 @@
         </div>
       </div>
 
-      <div v-else-if="rows.length" class="mobile-list">
-        <button
-          v-for="row in rows"
+      <div v-else-if="visibleRows.length" class="mobile-list">
+        <div
+          v-for="row in visibleRows"
           :key="row.id || row.title"
-          type="button"
+          role="button"
+          tabindex="0"
           class="mobile-list-row mobile-list-row--button"
           @click="openRecord(row)"
         >
@@ -31,7 +32,13 @@
             <div class="mobile-list-row__meta">{{ rowMeta(row) }}</div>
           </div>
           <span v-if="rowStatus(row)" class="mobile-chip">{{ rowStatus(row) }}</span>
-        </button>
+          <MobileModerationMenu
+            v-if="rowModeration(row)"
+            v-bind="rowModeration(row)"
+            @reported="removeRowFromView(row)"
+            @blocked="onModerationChanged"
+          />
+        </div>
       </div>
 
       <MobileEmptyState v-else title="No records" body="Records will appear here when available for this property." />
@@ -62,14 +69,17 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MobileEmptyState from 'components/mobile/MobileEmptyState.vue'
+import MobileModerationMenu from 'components/mobile/MobileModerationMenu.vue'
 import MobilePageHeader from 'components/mobile/MobilePageHeader.vue'
 import { useFirebase } from 'src/composables/useFirebase'
 import { useUserDataStore } from 'src/stores/userDataStore'
+import { useMobileModeration } from 'src/pages/mobile/useMobileModeration'
 
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const { getAllDocuments } = useFirebase()
+const { loadBlockedUsers, shouldHideModeratedItem } = useMobileModeration()
 
 const props = defineProps({
   role: {
@@ -94,6 +104,7 @@ const detailOpen = ref(false)
 const role = computed(() => String(props.role || route.params.role || 'pm'))
 const recordType = computed(() => String(props.recordType || route.params.recordType || 'documents'))
 const propertyId = computed(() => String(props.propertyId || route.params.propertyId || ''))
+const leasePropertyId = (lease) => lease?.property?.id || lease?.property_id?.id || lease?.property_id || lease?.property_string_id || ''
 
 const typeConfig = {
   documents: { title: 'Documents', icon: 'folder', path: 'documents' },
@@ -107,9 +118,14 @@ const typeConfig = {
 const config = computed(() => typeConfig[recordType.value] || typeConfig.documents)
 const eyebrow = computed(() => role.value === 'owner' ? 'Owner Property' : 'PM Property')
 const title = computed(() => config.value.title)
-const description = computed(() => `Property-scoped ${config.value.title.toLowerCase()}.`)
+const description = computed(() => propertyId.value
+  ? `Property-scoped ${config.value.title.toLowerCase()}.`
+  : `All accessible ${config.value.title.toLowerCase()}.`)
 const icon = computed(() => config.value.icon)
 const fileUrl = computed(() => selected.value?.file_url || selected.value?.url || selected.value?.image_url || '')
+const isPreviewRoute = computed(() => String(route.path || '').startsWith('/mobile-preview'))
+const mobileBase = computed(() => isPreviewRoute.value ? '/mobile-preview' : '/mobile')
+const firstText = (...values) => values.map((value) => String(value || '').trim()).find(Boolean) || ''
 
 const rowTitle = (row) => {
   if (recordType.value === 'leases') return row.LSID || row.lease_lsid || row.lease_id || row.id || 'Lease'
@@ -128,6 +144,42 @@ const rowMeta = (row) => {
   return [row.status, row.created_at || row.updated_at || row.created_date].filter(Boolean).join(' - ')
 }
 const rowStatus = (row) => row.status || row.transac_type || ''
+const contentTypeForRow = computed(() => {
+  if (recordType.value === 'tasks') return 'task_comment'
+  if (recordType.value === 'documents') return 'file'
+  return 'other'
+})
+const rowUserId = (row = {}) =>
+  firstText(
+    row.author_user_id,
+    row.created_by_user_id,
+    row.uploaded_by_user_id,
+    row.reported_by_user_id,
+    row.reporter_user_id,
+    row.user_id,
+    row.tenant_id,
+    row.sp_id,
+  )
+const rowUserName = (row = {}) =>
+  firstText(row.author_name, row.created_by_name, row.uploaded_by, row.reported_by, row.user_name)
+const rowModeration = (row = {}) => {
+  const id = firstText(row.id, row.mx_id, row.transac_id, row.lease_id, row.LSID, row.reminder_id)
+  if (!id) return null
+  const basePath =
+    propertyId.value && config.value.path
+      ? `properties/${propertyId.value}/${config.value.path}/${id}`
+      : ''
+  return {
+    contentType: contentTypeForRow.value,
+    contentId: id,
+    contentPath: basePath,
+    reportedUserId: rowUserId(row),
+    reportedUserDisplayName: rowUserName(row),
+  }
+}
+const visibleRows = computed(() =>
+  rows.value.filter((row) => !shouldHideModeratedItem({ moderation: rowModeration(row) })),
+)
 const detailFields = computed(() => {
   const row = selected.value || {}
   return [
@@ -139,37 +191,77 @@ const detailFields = computed(() => {
 })
 
 const openRecord = (row) => {
-  selected.value = row
-  detailOpen.value = true
+  const id = String(row.id || row.mx_id || row.transac_id || row.lease_id || row.LSID || '').trim()
+  const rowPropertyId = String(row.property_id || leasePropertyId(row) || propertyId.value || '').trim()
+  if (!id) {
+    selected.value = row
+    detailOpen.value = true
+    return
+  }
+  router.push({
+    path: `${mobileBase.value}/${role.value}/manage/view/${recordType.value}/${encodeURIComponent(id)}`,
+    query: rowPropertyId ? { propertyId: rowPropertyId } : {},
+  })
 }
 
 const openFile = () => {
   if (fileUrl.value) window.open(fileUrl.value, '_blank', 'noopener,noreferrer')
 }
 
+const removeRowFromView = (row) => {
+  const id = firstText(row?.id, row?.mx_id, row?.transac_id, row?.lease_id, row?.LSID, row?.reminder_id)
+  if (!id) return
+  rows.value = rows.value.filter((item) => firstText(item?.id, item?.mx_id, item?.transac_id, item?.lease_id, item?.LSID, item?.reminder_id) !== id)
+}
+
+const onModerationChanged = () => {}
+
 const loadRows = async () => {
   loading.value = true
   try {
     if (recordType.value === 'transactions') {
       if (!userDataStore.transactionsLoading && userDataStore.transactions.length === 0) await userDataStore.loadTransactions?.()
-      rows.value = (userDataStore.userAccessibleTransactions || []).filter((row) => String(row.property_id || '') === propertyId.value)
+      const source = userDataStore.userAccessibleTransactions || []
+      rows.value = propertyId.value
+        ? source.filter((row) => String(row.property_id || '') === propertyId.value)
+        : source
       return
     }
     if (recordType.value === 'tasks') {
       if (!userDataStore.mxRecordsLoading && userDataStore.mxRecords.length === 0) await userDataStore.loadMxRecords?.()
-      rows.value = (userDataStore.userAccessibleMxRecords || []).filter((row) => String(row.property_id || '') === propertyId.value)
+      const source = userDataStore.userAccessibleMxRecords || []
+      rows.value = propertyId.value
+        ? source.filter((row) => String(row.property_id || '') === propertyId.value)
+        : source
       return
     }
     if (recordType.value === 'leases') {
       if (!userDataStore.leasesLoading && userDataStore.leases.length === 0) await userDataStore.loadLeases?.()
-      rows.value = (userDataStore.userAccessibleLeases || []).filter((row) => String(row.property?.id || row.property_id?.id || row.property_id || '') === propertyId.value)
+      const source = userDataStore.userAccessibleLeases || []
+      rows.value = propertyId.value
+        ? source.filter((row) => String(leasePropertyId(row)) === propertyId.value)
+        : source
       return
     }
-    rows.value = await getAllDocuments(`properties/${propertyId.value}/${config.value.path}`).catch(() => [])
+    if (propertyId.value) {
+      rows.value = await getAllDocuments(`properties/${propertyId.value}/${config.value.path}`).catch(() => [])
+      return
+    }
+    const properties = userDataStore.userAccessibleProperties || []
+    const groups = await Promise.all(properties.map(async (property) => {
+      const id = String(property.id || property.property_id || '').trim()
+      if (!id) return []
+      const records = await getAllDocuments(`properties/${id}/${config.value.path}`).catch(() => [])
+      return records.map((row) => ({ ...row, property_id: row.property_id || id }))
+    }))
+    rows.value = groups.flat()
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadRows)
+onMounted(async () => {
+  await loadBlockedUsers()
+  await loadRows()
+})
 </script>

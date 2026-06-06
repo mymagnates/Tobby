@@ -186,6 +186,7 @@ const AD_DELIVERIES_COLLECTION = 'ad_deliveries'
 const AD_IMPRESSIONS_COLLECTION = 'ad_impressions'
 const AD_CLICKS_COLLECTION = 'ad_clicks'
 const AD_FEED_CACHE_COLLECTION = 'ad_feed_cache'
+const CONTENT_REPORTS_COLLECTION = 'content_reports'
 const SP_BID_CREDIT_COST = 1
 const SP_INITIAL_FREE_CREDITS = 3
 const SP_WEEKLY_FREE_CREDITS = 1
@@ -236,6 +237,54 @@ const extractPropertyId = (value) => {
     return parts.length ? normalizePropertyId(parts[parts.length - 1]) : null
   }
   return null
+}
+
+const normalizeProjectId = (value) => String(value || '').trim()
+
+const createProjectRow = ({ assignment, lead, bid }) => {
+  const projectId = normalizeProjectId(assignment?.project_id || assignment?.id)
+  return {
+    ...assignment,
+    id: projectId,
+    project_id: projectId,
+    assignment_id: assignment?.id || projectId,
+    lead_id: assignment?.lead_id || lead?.id || null,
+    task_id: assignment?.task_id || lead?.task_id || null,
+    bid_id: assignment?.bid_id || bid?.id || null,
+    sp_id: assignment?.sp_id || bid?.sp_id || null,
+    pm_id: assignment?.pm_id || lead?.creator_id || null,
+    title: lead?.title || lead?.task_title || bid?.lead_title || 'Accepted project',
+    task_title: lead?.task_title || lead?.title || bid?.lead_title || 'Accepted project',
+    project_title: lead?.title || lead?.task_title || bid?.lead_title || 'Accepted project',
+    category: lead?.category || lead?.trade || null,
+    address: lead?.property_address || lead?.address || lead?.location || null,
+    property_address: lead?.property_address || lead?.address || null,
+    location: lead?.location || lead?.city || lead?.property_address || null,
+    amount: bid?.amount || 0,
+    currency: bid?.currency || 'USD',
+    accepted_at: assignment?.accepted_at || assignment?.created_at || null,
+    phases: assignment?.phases || {},
+    comments: Array.isArray(assignment?.comments) ? assignment.comments : [],
+    status: assignment?.status || 'active',
+    created_at: assignment?.created_at || null,
+    updated_at: assignment?.updated_at || null,
+  }
+}
+
+const findProjectAssignment = (store, projectId) => {
+  const normalizedId = normalizeProjectId(projectId)
+  if (!normalizedId) return null
+  return findFirst(store.assignments, (assignment) => {
+    return [assignment?.id, assignment?.project_id].some((value) => normalizeProjectId(value) === normalizedId)
+  })
+}
+
+const findInvoice = (store, invoiceId) => {
+  const normalizedId = String(invoiceId || '').trim()
+  if (!normalizedId) return null
+  return store.invoices.get(normalizedId) || findFirst(store.invoices, (invoice) => {
+    return [invoice?.id, invoice?.invoice_id].some((value) => String(value || '').trim() === normalizedId)
+  })
 }
 
 const getDb = () => {
@@ -1316,6 +1365,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       }
     }
   }
+
+  const assertVerifiedUser = ({ authContext, res, requestId }) => {
+    if (authContext?.verified) return true
+    sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Firebase authentication is required')
+    return false
+  }
+
   const listFirestoreLeads = async ({ actor }) => {
     try {
       const db = getDb()
@@ -1776,6 +1832,53 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
     } catch {
       return []
+    }
+  }
+
+  const getFirestoreLeadBid = async ({ leadId, bidId }) => {
+    const normalizedBidId = String(bidId || '').trim()
+    if (!normalizedBidId) return null
+    const db = getDb()
+    const normalizedLeadId = String(leadId || '').trim()
+
+    if (normalizedLeadId) {
+      try {
+        const bidDoc = await db
+          .collection(LEADS_COLLECTION)
+          .doc(normalizedLeadId)
+          .collection(LEAD_BIDS_SUBCOLLECTION)
+          .doc(normalizedBidId)
+          .get()
+        if (bidDoc.exists) {
+          const leadDoc = await db.collection(LEADS_COLLECTION).doc(normalizedLeadId).get()
+          const lead = leadDoc.exists ? normalizeLead({ id: leadDoc.id, ...(leadDoc.data() || {}) }) : null
+          return {
+            lead,
+            bid: normalizeBid({ id: bidDoc.id, ...(bidDoc.data() || {}) }),
+            lead_ref: leadDoc.ref,
+            bid_ref: bidDoc.ref,
+          }
+        }
+      } catch {
+        return null
+      }
+    }
+
+    try {
+      const snap = await db.collectionGroup(LEAD_BIDS_SUBCOLLECTION).get()
+      const bidDoc = snap.docs.find((doc) => doc.id === normalizedBidId)
+      if (!bidDoc) return null
+      const leadRef = bidDoc.ref.parent.parent
+      if (!leadRef) return null
+      const leadDoc = await leadRef.get()
+      return {
+        lead: leadDoc.exists ? normalizeLead({ id: leadDoc.id, ...(leadDoc.data() || {}) }) : null,
+        bid: normalizeBid({ id: bidDoc.id, ...(bidDoc.data() || {}) }),
+        lead_ref: leadRef,
+        bid_ref: bidDoc.ref,
+      }
+    } catch {
+      return null
     }
   }
 
@@ -3573,6 +3676,120 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, { role: actor.role, permissions: getPermissions(actor.role) })
   })
 
+  route('POST', '/content-reports', async ({ actor, authContext, body, res, requestId }) => {
+    if (!assertVerifiedUser({ authContext, res, requestId })) return
+
+    const contentType = String(body?.content_type || 'other').trim()
+    const allowedTypes = new Set([
+      'task_comment',
+      'message',
+      'sp_post',
+      'bid',
+      'handout_profile',
+      'file',
+      'other',
+    ])
+    const contentId = String(body?.content_id || '').trim()
+    const contentPath = String(body?.content_path || '').trim()
+    if (!contentId && !contentPath) {
+      return sendError(res, requestId, 400, 'INVALID_CONTENT_REFERENCE', 'Content id or path is required.')
+    }
+
+    const now = new Date().toISOString()
+    const reportId = `report-${randomUUID()}`
+    const report = {
+      id: reportId,
+      status: 'open',
+      content_type: allowedTypes.has(contentType) ? contentType : 'other',
+      content_id: contentId,
+      content_path: contentPath,
+      reported_user_id: String(body?.reported_user_id || '').trim(),
+      reason: String(body?.reason || 'other').trim() || 'other',
+      note: String(body?.note || '').trim(),
+      source: String(body?.source || 'web').trim() || 'web',
+      reporter_user_id: actor.id,
+      reporter_role: actor.role || null,
+      created_at: now,
+      updated_at: now,
+    }
+
+    if (!store.contentReports) store.contentReports = new Map()
+    store.contentReports.set(reportId, report)
+
+    try {
+      await getDb().collection(CONTENT_REPORTS_COLLECTION).doc(reportId).set(report, { merge: true })
+    } catch {
+      // Keep in-memory fallback for local/test runs; production should persist Firestore.
+    }
+
+    ok(res, requestId, { report: { id: report.id, status: report.status } })
+  })
+
+  route('POST', '/blocked-users', async ({ actor, authContext, body, res, requestId }) => {
+    if (!assertVerifiedUser({ authContext, res, requestId })) return
+
+    const blockedUserId = String(body?.blocked_user_id || '').trim()
+    if (!blockedUserId) {
+      return sendError(res, requestId, 400, 'INVALID_BLOCKED_USER', 'Blocked user id is required.')
+    }
+    if (blockedUserId === actor.id) {
+      return sendError(res, requestId, 400, 'INVALID_BLOCKED_USER', 'You cannot block yourself.')
+    }
+
+    const now = new Date().toISOString()
+    const block = {
+      blocked_user_id: blockedUserId,
+      blocked_user_display_name: String(body?.blocked_user_display_name || '').trim(),
+      reason: String(body?.reason || '').trim(),
+      source: String(body?.source || 'web').trim() || 'web',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    }
+
+    if (!store.blockedUsers) store.blockedUsers = new Map()
+    store.blockedUsers.set(`${actor.id}:${blockedUserId}`, { ...block, user_id: actor.id })
+
+    try {
+      await getDb()
+        .collection('users')
+        .doc(actor.id)
+        .collection('blocked_users')
+        .doc(blockedUserId)
+        .set(block, { merge: true })
+    } catch {
+      // Keep in-memory fallback for local/test runs; production should persist Firestore.
+    }
+
+    ok(res, requestId, { block: { blocked_user_id: blockedUserId, status: block.status } })
+  })
+
+  route('GET', '/blocked-users', async ({ actor, authContext, res, requestId }) => {
+    if (!assertVerifiedUser({ authContext, res, requestId })) return
+
+    let items = []
+    try {
+      const snap = await getDb()
+        .collection('users')
+        .doc(actor.id)
+        .collection('blocked_users')
+        .get()
+      items = snap.docs.map((doc) => ({ blocked_user_id: doc.id, ...doc.data() }))
+    } catch {
+      items = [...(store.blockedUsers?.values?.() || [])].filter((row) => row.user_id === actor.id)
+    }
+
+    ok(res, requestId, {
+      items: items
+        .filter((row) => String(row?.status || 'active') === 'active')
+        .map((row) => ({
+          blocked_user_id: String(row.blocked_user_id || ''),
+          blocked_user_display_name: String(row.blocked_user_display_name || ''),
+          created_at: row.created_at || null,
+        })),
+    })
+  })
+
   route('POST', '/owner-invites/email', async ({ actor, body, req, res, requestId }) => {
     const propertyId = String(body?.property_id || '').trim()
     const ownerEmail = normalizeEmail(body?.owner_email)
@@ -5091,23 +5308,75 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, { bid: result.bid })
   })
 
-  route('POST', '/bids/:id/select', async ({ actor, params, res, requestId }) => {
+  route('POST', '/bids/:id/select', async ({ actor, params, body, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
     const bid = store.bids.get(params.id)
-    if (!bid) return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
-    const lead = store.leads.get(bid.lead_id)
-    if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
-    if (lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can select a bid')
+    if (bid) {
+      const lead = store.leads.get(bid.lead_id)
+      if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
+      if (lead.creator_id !== actor.id) {
+        return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can select a bid')
+      }
+
+      const result = selectBidAndAssign({ store, lead, winningBid: bid, actorId: actor.id })
+      if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+
+      return ok(res, requestId, {
+        bid: result.bid,
+        lead: result.lead,
+        assignment: result.assignment,
+      })
     }
 
-    const result = selectBidAndAssign({ store, lead, winningBid: bid, actorId: actor.id })
-    if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
+    const firestoreMatch = await getFirestoreLeadBid({ leadId: body?.lead_id || body?.lead_doc_id, bidId: params.id })
+    if (!firestoreMatch?.lead || !firestoreMatch?.bid) {
+      return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
+    }
+    const firestoreLead = firestoreMatch.lead
+    const firestoreBid = firestoreMatch.bid
+    if (firestoreLead.creator_id && firestoreLead.creator_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can select a bid')
+    }
+    if (!['open', 'paused', 'assigned'].includes(String(firestoreLead.status || 'open'))) {
+      return sendError(res, requestId, 400, 'LEAD_NOT_OPEN', 'Lead is not open for selection')
+    }
+    if (!['submitted', 'shortlisted', 'revision_requested', 'selected'].includes(String(firestoreBid.status || 'submitted'))) {
+      return sendError(res, requestId, 400, 'BID_NOT_SELECTABLE', `Bid status "${firestoreBid.status}" cannot be selected`)
+    }
+
+    const selectedAt = new Date().toISOString()
+    const selectedBid = normalizeBid({
+      ...firestoreBid,
+      status: 'selected',
+      status_changed_by: actor.id,
+      updated_at: selectedAt,
+    })
+    const selectedLead = normalizeLead({
+      ...firestoreLead,
+      status: 'assigned',
+      assigned_sp_id: selectedBid.sp_id,
+      assigned_bid_id: selectedBid.id,
+      creator_id: firestoreLead.creator_id || actor.id,
+      updated_at: selectedAt,
+    })
+    await firestoreMatch.bid_ref.set(selectedBid, { merge: true })
+    await firestoreMatch.lead_ref.set(selectedLead, { merge: true })
+
+    const existingAssignment = findFirst(store.assignments, (assignment) => {
+      return assignment.lead_id === selectedLead.id && assignment.bid_id === selectedBid.id
+    })
+    const assignment = existingAssignment || store.createAssignment({
+      lead: selectedLead,
+      bid: selectedBid,
+      spId: selectedBid.sp_id,
+    })
+    assignment.status = assignment.status === 'pending_acceptance' ? 'active' : assignment.status
+    assignment.updated_at = selectedAt
 
     ok(res, requestId, {
-      bid: result.bid,
-      lead: result.lead,
-      assignment: result.assignment,
+      bid: selectedBid,
+      lead: selectedLead,
+      assignment,
     })
   })
 
@@ -5410,11 +5679,68 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   })
 
   // -----------------------------------------------------------------------
-  // Existing invoice endpoints (unchanged)
+  // SP project and invoice endpoints
   // -----------------------------------------------------------------------
+
+  route('GET', '/sp/projects', async ({ actor, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const blockedStatuses = new Set(['declined', 'revoked'])
+    const items = [...store.assignments.values()]
+      .filter((assignment) => assignment.sp_id === actor.id)
+      .filter((assignment) => !blockedStatuses.has(String(assignment.status || '').toLowerCase()))
+      .map((assignment) => createProjectRow({
+        assignment,
+        lead: store.leads.get(assignment.lead_id),
+        bid: store.bids.get(assignment.bid_id),
+      }))
+      .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
+
+    ok(res, requestId, { items })
+  })
+
+  route('PATCH', '/sp/projects/:id', async ({ actor, params, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const assignment = findProjectAssignment(store, params.id)
+    if (!assignment) return sendError(res, requestId, 404, 'PROJECT_NOT_FOUND', 'Project not found')
+    if (assignment.sp_id !== actor.id) {
+      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can update project')
+    }
+
+    if (body?.phases && typeof body.phases === 'object' && !Array.isArray(body.phases)) {
+      assignment.phases = body.phases
+    }
+    if (Array.isArray(body?.comments)) {
+      assignment.comments = body.comments
+    }
+    if (body?.status) {
+      assignment.status = String(body.status)
+    }
+    assignment.updated_at = new Date().toISOString()
+
+    ok(res, requestId, createProjectRow({
+      assignment,
+      lead: store.leads.get(assignment.lead_id),
+      bid: store.bids.get(assignment.bid_id),
+    }))
+  })
+
+  route('GET', '/sp/invoices', async ({ actor, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const items = [...store.invoices.values()]
+      .filter((invoice) => invoice.created_by === actor.id || invoice.sp_id === actor.id)
+      .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))
+    ok(res, requestId, { items })
+  })
 
   route('POST', '/invoices', async ({ actor, body, req, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    if (body?.project_id) {
+      const assignment = findProjectAssignment(store, body.project_id)
+      if (!assignment) return sendError(res, requestId, 404, 'PROJECT_NOT_FOUND', 'Project not found')
+      if (assignment.sp_id !== actor.id) {
+        return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can create project invoice')
+      }
+    }
     const idempotencyKey = String(req.headers['idempotency-key'] || '')
     const invoice = withIdempotency({
       store,
@@ -5426,7 +5752,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('POST', '/invoices/:id/submit', async ({ actor, params, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
-    const invoice = store.invoices.get(params.id)
+    const invoice = findInvoice(store, params.id)
     if (!invoice) return sendError(res, requestId, 404, 'INVOICE_NOT_FOUND', 'Invoice not found')
     if (invoice.created_by !== actor.id) {
       return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only owner SP can submit invoice.')
@@ -5438,7 +5764,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('POST', '/invoices/:id/review', async ({ actor, params, body, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
-    const invoice = store.invoices.get(params.id)
+    const invoice = findInvoice(store, params.id)
     if (!invoice) return sendError(res, requestId, 404, 'INVOICE_NOT_FOUND', 'Invoice not found')
     const nextStatus = String(body?.status || '')
     if (!['changes_requested', 'approved', 'rejected'].includes(nextStatus)) {
@@ -5870,7 +6196,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         if (row.method !== req.method) continue
         const params = pathMatch(url.pathname, row.pattern)
         if (!params) continue
-        return row.handler({ req, res, requestId, actor, params, body, query: url.searchParams })
+        return row.handler({
+          req,
+          res,
+          requestId,
+          actor,
+          authContext,
+          params,
+          body,
+          query: url.searchParams,
+        })
       }
       return sendError(res, requestId, 404, 'NOT_FOUND', 'API route not found')
     } catch (error) {

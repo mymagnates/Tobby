@@ -12,8 +12,20 @@ export const tenantMobilePages = {
       {
         title: 'Today',
         items: [
-          { icon: 'home', title: '123 Main St - Unit 2B', meta: 'Active lease - ends Aug 2026', status: 'Active', tone: 'accent' },
-          { icon: 'build_circle', title: 'Dishwasher not draining', meta: 'Submitted yesterday - PM update pending', status: 'Open', tone: 'warning' },
+          {
+            icon: 'home',
+            title: '123 Main St - Unit 2B',
+            meta: 'Active lease - ends Aug 2026',
+            status: 'Active',
+            tone: 'accent',
+          },
+          {
+            icon: 'build_circle',
+            title: 'Dishwasher not draining',
+            meta: 'Submitted yesterday - PM update pending',
+            status: 'Open',
+            tone: 'warning',
+          },
         ],
       },
     ],
@@ -24,9 +36,15 @@ export const tenantMobilePages = {
     description: 'Submit and track maintenance requests.',
     actionGroups: [
       {
-        title: 'Create',
+        title: 'Create Request',
+        intent: 'create',
         actions: [
-          { icon: 'add_task', label: 'Submit', hint: 'Category, photos, description, urgency', to: '/mobile/tenant/requests/new' },
+          {
+            icon: 'add_task',
+            label: 'New Request',
+            hint: 'Category, photos, urgency',
+            to: '/mobile/tenant/requests/new',
+          },
         ],
       },
     ],
@@ -34,8 +52,18 @@ export const tenantMobilePages = {
       {
         title: 'Request History',
         items: [
-          { icon: 'build', title: 'Dishwasher not draining', meta: 'Open - submitted yesterday', status: 'Open', tone: 'warning' },
-          { icon: 'check_circle', title: 'Smoke detector battery', meta: 'Closed - completed last week' },
+          {
+            icon: 'build',
+            title: 'Dishwasher not draining',
+            meta: 'Open - submitted yesterday',
+            status: 'Open',
+            tone: 'warning',
+          },
+          {
+            icon: 'check_circle',
+            title: 'Smoke detector battery',
+            meta: 'Closed - completed last week',
+          },
         ],
       },
     ],
@@ -50,7 +78,14 @@ export const tenantMobilePages = {
         items: [
           { icon: 'description', title: 'Lease term', meta: 'Sep 2025 - Aug 2026' },
           { icon: 'payments', title: 'Rent and deposit', meta: '$2,400 rent - $2,400 deposit' },
-          { icon: 'inventory_2', title: 'Move-in inventory', meta: 'Assigned list available for tenant review', status: 'Open', tone: 'accent', to: '/mobile/tenant/lease/inventory' },
+          {
+            icon: 'inventory_2',
+            title: 'Move-in inventory',
+            meta: 'Assigned list available for tenant review',
+            status: 'Open',
+            tone: 'accent',
+            to: '/mobile/tenant/lease/inventory',
+          },
         ],
       },
     ],
@@ -59,11 +94,25 @@ export const tenantMobilePages = {
     eyebrow: 'Tenant',
     title: 'Documents',
     description: 'Lease documents, notices, receipts, and request files.',
+    actionGroups: [
+      {
+        title: 'Create Document',
+        intent: 'create',
+        actions: [
+          {
+            icon: 'upload_file',
+            label: 'Upload Document',
+            hint: 'Attach a tenant file',
+            to: '/mobile/tenant/documents/upload',
+            wide: true,
+          },
+        ],
+      },
+    ],
     sections: [
       {
         title: 'Documents',
         items: [
-          { icon: 'upload_file', title: 'Upload document', meta: 'Attach a tenant file to the lease', status: 'Add', tone: 'accent', to: '/mobile/tenant/documents/upload' },
           { icon: 'description', title: 'Lease agreement', meta: 'Lease - current term' },
           { icon: 'campaign', title: 'Entry notice', meta: 'Notice - uploaded May 18' },
           { icon: 'receipt', title: 'Rent receipt', meta: 'Receipt - May payment' },
