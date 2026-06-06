@@ -79,6 +79,15 @@
                 label="Bid"
                 @click="openBidDialog(props.row)"
               />
+              <q-btn
+                size="sm"
+                flat
+                dense
+                color="grey-7"
+                icon="flag"
+                class="q-ml-xs"
+                @click="openReportLead(props.row)"
+              />
             </q-td>
           </template>
         </q-table>
@@ -194,6 +203,29 @@
                     {{ comment.comment || comment.body || 'No comment text.' }}
                   </q-item-label>
                 </q-item-section>
+                <q-item-section side top>
+                  <q-btn-dropdown flat dense round icon="more_vert">
+                    <q-list dense>
+                      <q-item clickable v-close-popup @click="openReportComment(comment, index)">
+                        <q-item-section avatar>
+                          <q-icon name="flag" color="grey-7" />
+                        </q-item-section>
+                        <q-item-section>Report</q-item-section>
+                      </q-item>
+                      <q-item
+                        v-if="getCommentAuthorId(comment)"
+                        clickable
+                        v-close-popup
+                        @click="openBlockCommentAuthor(comment)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="block" color="negative" />
+                        </q-item-section>
+                        <q-item-section>Block User</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                </q-item-section>
               </q-item>
             </q-list>
           </div>
@@ -211,6 +243,14 @@
       :lead="selectedLead"
       @submitted="handleBidSubmitted"
     />
+
+    <ReportContentDialog
+      v-model="moderationDialog"
+      :mode="moderationMode"
+      :content="moderationContent"
+      @reported="handleContentReported"
+      @blocked="handleUserBlocked"
+    />
   </q-page>
 </template>
 
@@ -219,6 +259,8 @@ import { onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { spPortalApi } from 'src/services/webApiClient'
+import { listBlockedUsers } from 'src/services/contentModeration'
+import ReportContentDialog from 'src/components/ReportContentDialog.vue'
 import SpBidDialog from 'src/components/SpBidDialog.vue'
 
 const userStore = useUserDataStore()
@@ -228,6 +270,11 @@ const bidDialog = ref(false)
 const leadDetailDialog = ref(false)
 const selectedLead = ref(null)
 const selectedLeadDetail = ref(null)
+const moderationDialog = ref(false)
+const moderationMode = ref('report')
+const moderationContent = ref({})
+const reportedContentIds = ref(new Set())
+const blockedUserIds = ref(new Set())
 
 const columns = [
   { name: 'title', label: 'Lead', field: 'title', align: 'left' },
@@ -239,10 +286,21 @@ const columns = [
   { name: 'actions', label: 'Action', field: 'actions', align: 'right' },
 ]
 
+const loadBlockedUsers = async () => {
+  try {
+    const response = await listBlockedUsers()
+    const ids = (response?.items || []).map((item) => String(item.blocked_user_id || '').trim()).filter(Boolean)
+    blockedUserIds.value = new Set(ids)
+  } catch {
+    blockedUserIds.value = new Set()
+  }
+}
+
 const loadLeads = async () => {
   loading.value = true
   try {
-    rows.value = await spPortalApi.listLeads(userStore.userId)
+    const leads = await spPortalApi.listLeads(userStore.userId)
+    rows.value = leads.filter((lead) => !blockedUserIds.value.has(getLeadReporterId(lead)))
   } catch (error) {
     Notify.create({ type: 'negative', message: error.message || 'Failed to load leads.', position: 'top' })
   } finally {
@@ -320,9 +378,82 @@ const getLeadComments = (lead) => {
         ? { id: `comment-${index}`, comment, created_at: null }
         : comment,
     )
+    .filter((comment, index) => !reportedContentIds.value.has(`task_comment:${getCommentId(comment, index)}`))
+    .filter((comment) => !blockedUserIds.value.has(getCommentAuthorId(comment)))
     .sort((a, b) =>
       String(b.created_at || b.updated_at || '').localeCompare(String(a.created_at || a.updated_at || '')),
     )
+}
+
+const getLeadReporterId = (lead) =>
+  String(lead?.creator_id || lead?.created_by || lead?.pm_user_id || lead?.owner_user_id || '').trim()
+
+const getLeadReporterName = (lead) =>
+  String(lead?.creator_name || lead?.pm_name || lead?.owner_name || lead?.created_by_name || '').trim()
+
+const getCommentId = (comment, index = 0) =>
+  String(comment?.id || comment?.comment_id || comment?.created_at || `comment-${index}`)
+
+const getCommentAuthorId = (comment) =>
+  String(comment?.user_id || comment?.author_id || comment?.created_by || comment?.creator_id || '').trim()
+
+const getCommentAuthorName = (comment) =>
+  String(comment?.user_name || comment?.author_name || comment?.created_by_name || '').trim()
+
+const getLeadContentId = (lead) =>
+  String(lead?.id || lead?.lead_doc_id || lead?.lead_id || lead?.task_doc_id || '').trim()
+
+const openReportLead = (lead) => {
+  const leadId = getLeadContentId(lead)
+  moderationMode.value = 'report'
+  moderationContent.value = {
+    content_type: 'lead',
+    content_id: leadId,
+    content_path: leadId ? `marketplace_leads/${leadId}` : '',
+    reported_user_id: getLeadReporterId(lead),
+    reported_user_display_name: getLeadReporterName(lead),
+    source: 'sp_leads',
+  }
+  moderationDialog.value = true
+}
+
+const openReportComment = (comment, index = 0) => {
+  const leadId = getLeadContentId(selectedLeadDetail.value)
+  const commentId = getCommentId(comment, index)
+  moderationMode.value = 'report'
+  moderationContent.value = {
+    content_type: 'task_comment',
+    content_id: commentId,
+    content_path: leadId ? `marketplace_leads/${leadId}/comments/${commentId}` : '',
+    reported_user_id: getCommentAuthorId(comment) || getLeadReporterId(selectedLeadDetail.value),
+    reported_user_display_name: getCommentAuthorName(comment) || getLeadReporterName(selectedLeadDetail.value),
+    source: 'sp_leads',
+  }
+  moderationDialog.value = true
+}
+
+const openBlockCommentAuthor = (comment) => {
+  moderationMode.value = 'block'
+  moderationContent.value = {
+    reported_user_id: getCommentAuthorId(comment),
+    reported_user_display_name: getCommentAuthorName(comment),
+    source: 'sp_leads',
+  }
+  moderationDialog.value = true
+}
+
+const handleContentReported = () => {
+  const content = moderationContent.value || {}
+  if (content.content_type && content.content_id) {
+    reportedContentIds.value = new Set(reportedContentIds.value).add(`${content.content_type}:${content.content_id}`)
+  }
+}
+
+const handleUserBlocked = () => {
+  const blockedUserId = moderationContent.value?.reported_user_id || ''
+  if (!blockedUserId) return
+  blockedUserIds.value = new Set(blockedUserIds.value).add(blockedUserId)
+  rows.value = rows.value.filter((lead) => getLeadReporterId(lead) !== blockedUserId)
 }
 
 const getCommentCount = (lead) => {
@@ -371,7 +502,10 @@ const handleBidSubmitted = (res) => {
   })
 }
 
-onMounted(loadLeads)
+onMounted(async () => {
+  await loadBlockedUsers()
+  await loadLeads()
+})
 </script>
 
 <style scoped>

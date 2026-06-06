@@ -286,7 +286,7 @@
                 Supporting Documents ({{ application.documents?.length || 0 }})
               </div>
               <q-btn
-                v-if="!isPoUser"
+                v-if="canUploadSupportingDocuments"
                 flat
                 dense
                 color="white"
@@ -325,7 +325,7 @@
                     round
                     color="primary"
                     icon="download"
-                    @click="downloadDocument(doc.url)"
+                    @click="downloadDocument(doc.id)"
                   >
                     <q-tooltip>Download</q-tooltip>
                   </q-btn>
@@ -522,7 +522,7 @@
 
             <!-- Action Buttons (for property managers/owners) -->
             <div
-              v-if="!isPoUser && (application.status === 'pending' || application.status === 'under review')"
+              v-if="canManageApplicationReview && (application.status === 'pending' || application.status === 'under review')"
               class="row justify-center q-gutter-md q-mt-lg"
             >
               <q-btn
@@ -796,7 +796,7 @@
                 Supporting Documents ({{ application.documents?.length || 0 }})
               </div>
               <q-btn
-                v-if="!isPoUser"
+                v-if="canUploadSupportingDocuments"
                 flat
                 dense
                 color="white"
@@ -835,7 +835,7 @@
                     round
                     color="primary"
                     icon="download"
-                    @click="downloadDocument(doc.url)"
+                    @click="downloadDocument(doc.id)"
                   >
                     <q-tooltip>Download</q-tooltip>
                   </q-btn>
@@ -982,10 +982,16 @@ import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import { collection, doc, setDoc } from 'firebase/firestore'
 import { db } from '../boot/firebase'
+import {
+  fetchLeaseApplicationRequest,
+  getLeaseApplicationDocumentAccessRequest,
+  uploadLeaseApplicationDocumentRequest,
+} from '../services/leaseApplicationApi'
 
 const route = useRoute()
 const router = useRouter()
-const { getDocument, updateDocument, uploadImagesWithDetails } = useFirebase()
+const { getDocument, updateDocument } = useFirebase()
+const applicationAccessToken = computed(() => String(route.query.access || '').trim())
 
 // Determine if page is within MainLayout based on route meta
 const isWithinLayout = computed(() => {
@@ -994,6 +1000,11 @@ const isWithinLayout = computed(() => {
   // isPublic = GuestLayout without sidebar (applicants)
   return route.meta.isPrivate === true
 })
+
+const canManageApplicationReview = computed(() => isWithinLayout.value)
+const canUploadSupportingDocuments = computed(
+  () => isWithinLayout.value || Boolean(applicationAccessToken.value),
+)
 
 // State
 const application = ref(null)
@@ -1059,7 +1070,12 @@ const fetchApplicationData = async (applicationId) => {
 
   try {
     console.log('Fetching application data for ID:', applicationId)
-    const appDoc = await getDocument(`lease_applications/${applicationId}`)
+    const response = await fetchLeaseApplicationRequest({
+      applicationId,
+      accessToken: applicationAccessToken.value,
+      includeAuth: !applicationAccessToken.value,
+    })
+    const appDoc = response?.application || null
 
     if (!appDoc) {
       error.value = 'Application not found.'
@@ -1091,8 +1107,24 @@ const fetchApplicationData = async (applicationId) => {
 }
 
 // Download document
-const downloadDocument = (url) => {
-  window.open(url, '_blank')
+const downloadDocument = async (documentId) => {
+  if (!application.value?.id || !documentId) return
+  try {
+    const response = await getLeaseApplicationDocumentAccessRequest({
+      applicationId: application.value.id,
+      documentId,
+      accessToken: applicationAccessToken.value,
+    })
+    if (response?.url) {
+      window.open(response.url, '_blank', 'noopener')
+    }
+  } catch (err) {
+    Notify.create({
+      type: 'negative',
+      message: err?.message || 'Failed to access document.',
+      position: 'top',
+    })
+  }
 }
 
 // Print application
@@ -1143,35 +1175,20 @@ const uploadDocument = async () => {
   try {
     console.log('Uploading document...')
 
-    // Upload file to Firebase Storage
-    const files = [newDocument.value.file]
-    const uploadPath = `lease_applications/${application.value.id}/documents`
-    const uploadResults = await uploadImagesWithDetails(files, uploadPath)
-
-    // Prepare document data
-    const documentData = {
+    const response = await uploadLeaseApplicationDocumentRequest({
+      applicationId: application.value.id,
+      accessToken: applicationAccessToken.value,
       name: newDocument.value.name,
       description: newDocument.value.description,
-      url: uploadResults[0].url,
-      storage_path: uploadResults[0].storagePath,
-      file_name: uploadResults[0].fileName,
-      uploaded_at: new Date().toISOString(),
+      file: newDocument.value.file,
+    })
+    const documentData = response?.document || null
+    if (!documentData) {
+      throw new Error('Document upload did not return metadata.')
     }
 
-    // Get existing documents or initialize empty array
-    const existingDocuments = application.value.documents || []
-
-    // Add new document to the array
-    const updatedDocuments = [...existingDocuments, documentData]
-
-    // Update application in Firestore
-    await updateDocument('lease_applications', application.value.id, {
-      documents: updatedDocuments,
-      updated_at: new Date().toISOString(),
-    })
-
-    // Update local application data
-    application.value.documents = updatedDocuments
+    const existingDocuments = Array.isArray(application.value.documents) ? application.value.documents : []
+    application.value.documents = [...existingDocuments, documentData]
 
     Notify.create({
       type: 'positive',

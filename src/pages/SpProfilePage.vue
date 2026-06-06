@@ -9,6 +9,13 @@
         <div class="row items-center q-gutter-sm">
           <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
           <q-btn
+            outline
+            color="negative"
+            icon="delete_forever"
+            label="Request Deletion"
+            @click="openDeleteAccountDialog"
+          />
+          <q-btn
             flat
             color="primary"
             icon="open_in_new"
@@ -139,6 +146,44 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showDeleteAccountDialog" persistent>
+      <q-card class="delete-account-dialog">
+        <q-card-section>
+          <div class="text-h6 text-negative">Request Account Deletion</div>
+          <p class="text-body2 q-mt-sm q-mb-none">
+            This submits a deletion request for your service provider account. Active bids,
+            projects, invoices, credits, and shared records may need review before final closure.
+          </p>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="deleteAccountReason"
+            outlined
+            autogrow
+            label="Optional note"
+            placeholder="Add context for the support team"
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="deleteAccountConfirmText"
+            outlined
+            label="Type DELETE to confirm"
+            :rules="[(val) => String(val || '').trim().toUpperCase() === 'DELETE' || 'Type DELETE to confirm']"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat color="grey-7" label="Cancel" :disable="deletingAccount" v-close-popup />
+          <q-btn
+            color="negative"
+            label="Submit Request"
+            :loading="deletingAccount"
+            :disable="deleteAccountConfirmText.trim().toUpperCase() !== 'DELETE'"
+            @click="submitAccountDeletionRequest"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -148,6 +193,7 @@ import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { resolveSpSlug } from 'src/utils/spPosts'
+import { requestAccountDeletion } from 'src/services/accountPrivacy'
 
 const userStore = useUserDataStore()
 const router = useRouter()
@@ -170,6 +216,10 @@ const accountPhone = ref('Not set')
 const accountAddress = ref('Not set')
 const showContactEditDialog = ref(false)
 const savingContact = ref(false)
+const showDeleteAccountDialog = ref(false)
+const deletingAccount = ref(false)
+const deleteAccountConfirmText = ref('')
+const deleteAccountReason = ref('')
 const contactForm = ref({
   contact: '',
   email: '',
@@ -251,6 +301,42 @@ const saveContactInfo = async () => {
   }
 }
 
+const openDeleteAccountDialog = () => {
+  deleteAccountConfirmText.value = ''
+  deleteAccountReason.value = ''
+  showDeleteAccountDialog.value = true
+}
+
+const submitAccountDeletionRequest = async () => {
+  if (deleteAccountConfirmText.value.trim().toUpperCase() !== 'DELETE') return
+  try {
+    deletingAccount.value = true
+    await requestAccountDeletion({
+      userId: userStore.user?.uid || userStore.userId,
+      email: userStore.userProfile?.email || userStore.user?.email || '',
+      accountType: userStore.userProfile?.account_type || userStore.userProfile?.user_category || 'sp',
+      source: 'web_sp_profile',
+      reason: deleteAccountReason.value,
+    })
+    await userStore.loadUserProfile()
+    showDeleteAccountDialog.value = false
+    Notify.create({
+      type: 'positive',
+      message: 'Account deletion request submitted.',
+      caption: 'Support will review active SP obligations before closure.',
+      position: 'top',
+    })
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to submit account deletion request.',
+      position: 'top',
+    })
+  } finally {
+    deletingAccount.value = false
+  }
+}
+
 const openPublicShowcase = () => {
   if (!userStore.userId) return
   const slug = resolveSpSlug(userStore.userProfile || {}, userStore.userId)
@@ -302,5 +388,10 @@ onMounted(() => {
 
 .account-value-edit {
   color: var(--primary-color);
+}
+
+.delete-account-dialog {
+  width: min(560px, 92vw);
+  border-radius: var(--border-radius-card);
 }
 </style>

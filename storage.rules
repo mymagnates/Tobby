@@ -28,6 +28,12 @@ service firebase.storage {
       allow read, write: if isSignedIn();
     }
 
+    // Sensitive lease application documents are only accessed through backend-issued
+    // signed URLs after application-level authorization checks.
+    match /secure/lease_applications/{allPaths=**} {
+      allow read, write: if false;
+    }
+
     // Keep everything else private unless explicitly added later.
     match /{allPaths=**} {
       allow read, write: if false;

@@ -932,11 +932,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
+import {
+  submitLeaseApplicationRequest,
+  uploadLeaseApplicationDocumentRequest,
+} from '../services/leaseApplicationApi'
 
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
-const { createDocument, uploadImagesWithDetails, getDocument } = useFirebase()
+const { getDocument } = useFirebase()
 
 // Lease data from URL
 const selectedLeaseData = ref(null)
@@ -1158,36 +1162,33 @@ const submitApplication = async () => {
   try {
     submitting.value = true
 
-    // Upload documents first
-    let uploadedDocuments = []
-    if (applicationForm.value.documents.length > 0) {
-      const files = applicationForm.value.documents.map((doc) => doc.file)
-      const uploadPath = `lease_applications/${Date.now()}`
-
-      const uploadResults = await uploadImagesWithDetails(files, uploadPath)
-
-      uploadedDocuments = applicationForm.value.documents.map((doc, index) => ({
-        name: doc.name,
-        description: doc.description,
-        url: uploadResults[index].url,
-        storage_path: uploadResults[index].storagePath,
-        file_name: uploadResults[index].fileName,
-        uploaded_at: new Date().toISOString(),
-      }))
-    }
-
-    // Prepare application data (no authentication required)
     const applicationData = {
       ...applicationForm.value,
-      documents: uploadedDocuments,
       submitted_at: new Date().toISOString(),
-      submitted_by: userDataStore.userId || null, // Optional - may be null for anonymous applications
       status: 'pending',
       created_at: new Date().toISOString(),
     }
 
-    // Save to Firestore and get the document ID
-    const applicationId = await createDocument('lease_applications', applicationData)
+    const response = await submitLeaseApplicationRequest({
+      application: applicationData,
+      documents: [],
+    })
+    const applicationId = String(response?.application_id || '').trim()
+    const accessToken = String(response?.access_token || '').trim()
+    if (!applicationId || !accessToken) {
+      throw new Error('Application submission did not return access credentials.')
+    }
+
+    for (const document of applicationForm.value.documents) {
+      if (!document?.file || !document?.name) continue
+      await uploadLeaseApplicationDocumentRequest({
+        applicationId,
+        accessToken,
+        name: document.name,
+        description: document.description,
+        file: document.file,
+      })
+    }
 
     Notify.create({
       type: 'positive',
@@ -1199,8 +1200,10 @@ const submitApplication = async () => {
     // Reset form
     resetForm()
 
-    // Navigate to public application detail page (GuestLayout)
-    router.push(`/public/application-detail/${applicationId}`)
+    router.push({
+      path: `/public/application-detail/${applicationId}`,
+      query: { access: accessToken },
+    })
   } catch (error) {
     console.error('Error submitting application:', error)
     Notify.create({

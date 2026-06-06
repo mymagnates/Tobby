@@ -181,10 +181,20 @@
                 </q-item>
                 <q-item clickable @click="openDataRequest">
                   <q-item-section>
-                    <q-item-label>Privacy / Data Request</q-item-label>
+                    <q-item-label>Privacy Policy</q-item-label>
+                    <q-item-label caption>Review how Handout collects and protects data.</q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <q-icon name="open_in_new" size="16px" />
+                  </q-item-section>
+                </q-item>
+                <q-item clickable @click="openDeleteAccountDialog">
+                  <q-item-section>
+                    <q-item-label class="text-negative">Request Account Deletion</q-item-label>
+                    <q-item-label caption>Submit an account closure and deletion request.</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-icon name="delete_forever" color="negative" size="18px" />
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -273,6 +283,45 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="showDeleteAccountDialog" persistent>
+      <q-card class="delete-account-dialog">
+        <q-card-section>
+          <div class="text-h6 text-negative">Request Account Deletion</div>
+          <p class="text-body2 q-mt-sm q-mb-none">
+            This submits a deletion request for your Handout account. Property, lease,
+            transaction, and service records may need to be retained or transferred where required
+            for legal, accounting, security, or shared-workspace reasons.
+          </p>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="deleteAccountReason"
+            outlined
+            autogrow
+            label="Optional note"
+            placeholder="Add context for the support team"
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="deleteAccountConfirmText"
+            outlined
+            label="Type DELETE to confirm"
+            :rules="[(val) => String(val || '').trim().toUpperCase() === 'DELETE' || 'Type DELETE to confirm']"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat color="grey-7" label="Cancel" :disable="deletingAccount" v-close-popup />
+          <q-btn
+            color="negative"
+            label="Submit Request"
+            :loading="deletingAccount"
+            :disable="deleteAccountConfirmText.trim().toUpperCase() !== 'DELETE'"
+            @click="submitAccountDeletionRequest"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -283,12 +332,11 @@ import { normalizeRoleValue } from '../utils/roleUtils'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useQuasar } from 'quasar'
 import { billingApi } from '../services/webApiClient'
-import { useFirebase } from '../composables/useFirebase'
+import { requestAccountDeletion } from '../services/accountPrivacy'
 
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
-useFirebase()
 
 const userProfile = computed(() => userDataStore.userProfile || {})
 const userRoles = computed(() => userDataStore.userRoles || [])
@@ -441,6 +489,10 @@ const billingHistoryRows = computed(() =>
 const showBillingHistoryDialog = ref(false)
 const showContactEditDialog = ref(false)
 const savingContact = ref(false)
+const showDeleteAccountDialog = ref(false)
+const deletingAccount = ref(false)
+const deleteAccountConfirmText = ref('')
+const deleteAccountReason = ref('')
 const contactForm = ref({
   displayName: '',
   phone: '',
@@ -510,6 +562,12 @@ const openSupport = () => {
 
 const openDataRequest = () => {
   window.location.assign('/privacy')
+}
+
+const openDeleteAccountDialog = () => {
+  deleteAccountConfirmText.value = ''
+  deleteAccountReason.value = ''
+  showDeleteAccountDialog.value = true
 }
 
 const buyAddon = (addonKey) => {
@@ -592,6 +650,32 @@ const saveContactInfo = async () => {
     notifyApiError(error, 'Unable to update contact info.')
   } finally {
     savingContact.value = false
+  }
+}
+
+const submitAccountDeletionRequest = async () => {
+  if (deleteAccountConfirmText.value.trim().toUpperCase() !== 'DELETE') return
+  try {
+    deletingAccount.value = true
+    await requestAccountDeletion({
+      userId: userDataStore.user?.uid || userProfile.value.id,
+      email: userProfile.value.email || userDataStore.user?.email || '',
+      accountType: userProfile.value.account_type || userProfile.value.user_category || '',
+      source: 'web_profile',
+      reason: deleteAccountReason.value,
+    })
+    await userDataStore.loadUserProfile()
+    showDeleteAccountDialog.value = false
+    $q.notify({
+      type: 'positive',
+      message: 'Account deletion request submitted.',
+      caption: 'Support will review retention and shared-workspace obligations before closure.',
+      position: 'top',
+    })
+  } catch (error) {
+    notifyApiError(error, 'Unable to submit account deletion request.')
+  } finally {
+    deletingAccount.value = false
   }
 }
 
@@ -788,5 +872,10 @@ onMounted(async () => {
 :global(body.body--dark) .quota-card {
   border-color: var(--neutral-300);
   background: var(--bg-tertiary);
+}
+
+.delete-account-dialog {
+  width: min(560px, 92vw);
+  border-radius: var(--border-radius-card);
 }
 </style>

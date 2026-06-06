@@ -534,6 +534,34 @@
                     >
                       <q-tooltip>Add photos to this comment</q-tooltip>
                     </q-btn>
+                    <q-btn-dropdown
+                      flat
+                      dense
+                      round
+                      icon="more_vert"
+                      size="sm"
+                      class="moderation-menu"
+                    >
+                      <q-list dense style="min-width: 160px">
+                        <q-item clickable v-close-popup @click="openReportTaskComment(log, logIndex)">
+                          <q-item-section avatar>
+                            <q-icon name="flag" color="negative" />
+                          </q-item-section>
+                          <q-item-section>Report comment</q-item-section>
+                        </q-item>
+                        <q-item
+                          v-if="getTaskCommentAuthorId(log)"
+                          clickable
+                          v-close-popup
+                          @click="openBlockTaskCommentAuthor(log)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="block" color="grey-7" />
+                          </q-item-section>
+                          <q-item-section>Block user</q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-btn-dropdown>
                     <div class="log-time">{{ formatDate(log.log_timestamp) }}</div>
                   </div>
                 </div>
@@ -1575,6 +1603,14 @@
     </q-card>
   </q-dialog>
 
+  <ReportContentDialog
+    v-model="moderationDialog"
+    :mode="moderationMode"
+    :content="moderationContent"
+    @reported="handleTaskContentReported"
+    @blocked="handleTaskUserBlocked"
+  />
+
 </template>
 
 <script setup>
@@ -1585,7 +1621,9 @@ import { useFirebase } from '../composables/useFirebase'
 import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import DetailShell from '../components/details/DetailShell.vue'
+import ReportContentDialog from '../components/ReportContentDialog.vue'
 import { Notify } from 'quasar'
+import { listBlockedUsers } from '../services/contentModeration'
 import { agentApi, marketplaceApi, spCardsApi } from '../services/webApiClient'
 
 const userDataStore = useUserDataStore()
@@ -1688,6 +1726,11 @@ const showTaskPublishDialog = ref(false)
 const taskPublishDialogSource = ref('detail')
 const activeTaskPublishTarget = ref(null)
 const publishingTaskToSp = ref(false)
+const moderationDialog = ref(false)
+const moderationMode = ref('report')
+const moderationContent = ref({})
+const reportedContentIds = ref(new Set())
+const blockedUserIds = ref(new Set())
 
 const taskTransactionTypeOptions = [
   'Rent',
@@ -1779,9 +1822,14 @@ const normalizedAccessibleMxRecords = computed(() =>
 )
 
 const selectedMxRecordLogs = computed(() =>
-  (Array.isArray(selectedMxRecord.value?.logs) ? selectedMxRecord.value.logs : []).filter(
-    (log) => log && typeof log === 'object',
-  ),
+  (Array.isArray(selectedMxRecord.value?.logs) ? selectedMxRecord.value.logs : []).filter((log, index) => {
+    if (!log || typeof log !== 'object') return false
+    const contentId = getTaskCommentReportId(log, index)
+    const authorId = getTaskCommentAuthorId(log)
+    if (contentId && reportedContentIds.value.has(contentId)) return false
+    if (authorId && blockedUserIds.value.has(authorId)) return false
+    return true
+  }),
 )
 
 const normalizeFilterValue = (status) => String(status || '').toLowerCase()
@@ -1933,6 +1981,61 @@ const normalizeId = (...values) => {
   return ''
 }
 
+const getTaskCommentReportId = (log, index = 0) =>
+  normalizeId(log?.id, log?.comment_id, log?.log_id, log?.log_timestamp, `comment-${index}`)
+
+const getTaskCommentAuthorId = (log) =>
+  normalizeId(log?.user_id, log?.created_by, log?.created_by_user_id, log?.author_id)
+
+const getTaskCommentAuthorName = (log) =>
+  String(log?.user_name || log?.created_by_name || log?.author_name || 'Task user').trim()
+
+const openReportTaskComment = (log, index = 0) => {
+  const taskId = normalizeId(selectedMxRecord.value?.id, selectedMxRecord.value?.mx_id)
+  const propertyId = extractTaskPropertyId(selectedMxRecord.value?.property_id)
+  const contentId = getTaskCommentReportId(log, index)
+  moderationMode.value = 'report'
+  moderationContent.value = {
+    content_type: 'task_comment',
+    content_id: contentId,
+    content_path:
+      propertyId && taskId
+        ? `properties/${propertyId}/mxrecords/${taskId}/logs/${contentId}`
+        : `mxrecords/${taskId || 'unknown'}/logs/${contentId}`,
+    content_label: `Task comment by ${getTaskCommentAuthorName(log)}`,
+    reported_user_id: getTaskCommentAuthorId(log),
+    reported_user_display_name: getTaskCommentAuthorName(log),
+    source: 'task_detail',
+  }
+  moderationDialog.value = true
+}
+
+const openBlockTaskCommentAuthor = (log) => {
+  const authorId = getTaskCommentAuthorId(log)
+  if (!authorId) return
+  moderationMode.value = 'block'
+  moderationContent.value = {
+    target_user_id: authorId,
+    target_user_display_name: getTaskCommentAuthorName(log),
+    source: 'task_detail',
+  }
+  moderationDialog.value = true
+}
+
+const handleTaskContentReported = (report) => {
+  const contentId = String(report?.content_id || moderationContent.value?.content_id || '').trim()
+  if (contentId) {
+    reportedContentIds.value = new Set([...reportedContentIds.value, contentId])
+  }
+}
+
+const handleTaskUserBlocked = (block) => {
+  const userId = String(block?.blocked_user_id || moderationContent.value?.target_user_id || '').trim()
+  if (userId) {
+    blockedUserIds.value = new Set([...blockedUserIds.value, userId])
+  }
+}
+
 const getBidTaskLabel = (bid, fallbackRecord = selectedMxRecord.value) => {
   const taskRef = normalizeId(
     bid?.mx_id,
@@ -1953,9 +2056,23 @@ onMounted(async () => {
     } else if (userDataStore.mxRecords.length === 0) {
       await userDataStore.loadMxRecords()
     }
+    await loadBlockedUsers()
   }
   tryOpenDeepLinkedMxRecord()
 })
+
+const loadBlockedUsers = async () => {
+  try {
+    const rows = await listBlockedUsers()
+    blockedUserIds.value = new Set(
+      rows
+        .map((row) => String(row?.blocked_user_id || row?.id || '').trim())
+        .filter(Boolean),
+    )
+  } catch (error) {
+    console.warn('Unable to load blocked users for task page:', error)
+  }
+}
 
 const getPropertyName = (propertyId) => {
   const property = userDataStore.getPropertyById(propertyId)

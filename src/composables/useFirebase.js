@@ -6,9 +6,6 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
-  signInWithPopup,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
 } from 'firebase/auth'
 import {
   doc,
@@ -23,6 +20,13 @@ import {
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { auth, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
+
+const FIREBASE_DEBUG_LOGS_ENABLED = false
+const debugLog = (...args) => {
+  if (FIREBASE_DEBUG_LOGS_ENABLED) {
+    console.debug(...args)
+  }
+}
 
 export function useFirebase() {
   const user = ref(null)
@@ -76,7 +80,7 @@ export function useFirebase() {
       
       // Persist session with LOCAL auth persistence
       sessionManager.setLoginTime()
-      console.log('User signed in successfully; session persistence is always-on')
+      debugLog('User signed in successfully; session persistence is always-on')
       
       return result
     } catch (err) {
@@ -120,56 +124,24 @@ export function useFirebase() {
     }
   }
 
-  const signInWithGoogle = async () => {
-    try {
-      loading.value = true
-      error.value = null
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      sessionManager.setLoginTime()
-      return result
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const signInWithFacebook = async () => {
-    try {
-      loading.value = true
-      error.value = null
-      const provider = new FacebookAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      sessionManager.setLoginTime()
-      return result
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
   const logout = async () => {
     try {
       loading.value = true
       error.value = null
-      console.log('useFirebase - Starting logout process...')
+      debugLog('useFirebase - Starting logout process...')
 
       // Clear store data before signing out to prevent race conditions
-      console.log('useFirebase - Clearing user data...')
+      debugLog('useFirebase - Clearing user data...')
       userDataStore.clearAllData()
 
       // Clear session login time
       sessionManager.clearLoginTime()
 
       // Sign out from Firebase
-      console.log('useFirebase - Signing out from Firebase...')
+      debugLog('useFirebase - Signing out from Firebase...')
       await signOut(auth)
 
-      console.log('useFirebase - Logout completed successfully')
+      debugLog('useFirebase - Logout completed successfully')
     } catch (err) {
       console.error('useFirebase - Logout error:', err)
       error.value = err.message
@@ -182,45 +154,45 @@ export function useFirebase() {
   // Firestore methods
   const createDocument = async (collectionName, data, id = null) => {
     try {
-      console.log('=== createDocument called ===')
-      console.log('Collection name:', collectionName)
-      console.log('Data:', data)
-      console.log('ID:', id)
+      debugLog('=== createDocument called ===')
+      debugLog('Collection name:', collectionName)
+      debugLog('Data:', data)
+      debugLog('ID:', id)
 
       loading.value = true
       error.value = null
 
       // Handle subcollection paths (e.g., "users/userId/roles")
       if (collectionName.includes('/')) {
-        console.log('Handling subcollection path')
+        debugLog('Handling subcollection path')
         const pathParts = collectionName.split('/')
-        console.log('Path parts:', pathParts)
+        debugLog('Path parts:', pathParts)
         const collectionRef = collection(db, ...pathParts)
-        console.log('Collection reference created:', collectionRef)
+        debugLog('Collection reference created:', collectionRef)
 
         if (id) {
-          console.log('Using setDoc with provided ID')
+          debugLog('Using setDoc with provided ID')
           await setDoc(doc(collectionRef, id), data)
-          console.log('Document set successfully with ID:', id)
+          debugLog('Document set successfully with ID:', id)
           return id
         } else {
-          console.log('Using addDoc to generate ID')
+          debugLog('Using addDoc to generate ID')
           const docRef = await addDoc(collectionRef, data)
-          console.log('Document added successfully with ID:', docRef.id)
+          debugLog('Document added successfully with ID:', docRef.id)
           return docRef.id
         }
       } else {
-        console.log('Handling top-level collection')
+        debugLog('Handling top-level collection')
         // Handle top-level collections
         if (id) {
-          console.log('Using setDoc with provided ID for top-level')
+          debugLog('Using setDoc with provided ID for top-level')
           await setDoc(doc(db, collectionName, id), data)
-          console.log('Top-level document set successfully with ID:', id)
+          debugLog('Top-level document set successfully with ID:', id)
           return id
         } else {
-          console.log('Using addDoc to generate ID for top-level')
+          debugLog('Using addDoc to generate ID for top-level')
           const docRef = await addDoc(collection(db, collectionName), data)
-          console.log('Top-level document added successfully with ID:', docRef.id)
+          debugLog('Top-level document added successfully with ID:', docRef.id)
           return docRef.id
         }
       }
@@ -236,7 +208,7 @@ export function useFirebase() {
       throw err
     } finally {
       loading.value = false
-      console.log('=== createDocument completed ===')
+      debugLog('=== createDocument completed ===')
     }
   }
 
@@ -399,7 +371,7 @@ export function useFirebase() {
       const now = new Date()
       const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
 
-      console.log(`Uploading ${normalizedFiles.length} images for property: ${propertyName} (${propertyId})`)
+      debugLog(`Uploading ${normalizedFiles.length} images for property: ${propertyName} (${propertyId})`)
       await waitForAuthenticatedUser()
 
       const uploadPromises = normalizedFiles.map(async (file, index) => {
@@ -417,7 +389,7 @@ export function useFirebase() {
         // Create storage path: images/context/propertyId/filename
         const storagePath = `images/${context}/${propertyId}/${fileName}`
 
-        console.log(`Uploading image ${index + 1}/${files.length}:`, {
+        debugLog(`Uploading image ${index + 1}/${files.length}:`, {
           originalName: file.name,
           newFileName: fileName,
           storagePath: storagePath,
@@ -429,7 +401,7 @@ export function useFirebase() {
         const snapshot = await uploadBytes(fileRef, file)
         const downloadURL = await getDownloadURL(snapshot.ref)
 
-        console.log(`Image uploaded successfully: ${fileName}`)
+        debugLog(`Image uploaded successfully: ${fileName}`)
 
         return {
           url: downloadURL,
@@ -441,7 +413,7 @@ export function useFirebase() {
       })
 
       const uploadResults = await Promise.all(uploadPromises)
-      console.log(`All ${normalizedFiles.length} images uploaded successfully`)
+      debugLog(`All ${normalizedFiles.length} images uploaded successfully`)
 
       return uploadResults.map((result) => result.url) // Return just the URLs for backward compatibility
     } catch (err) {
@@ -477,7 +449,7 @@ export function useFirebase() {
       const now = new Date()
       const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
 
-      console.log(
+      debugLog(
         `Uploading ${normalizedFiles.length} files with details for property: ${propertyName} (${propertyId})`,
       )
       await waitForAuthenticatedUser()
@@ -497,7 +469,7 @@ export function useFirebase() {
         // Create storage path: images/context/propertyId/filename
         const storagePath = `images/${context}/${propertyId}/${fileName}`
 
-        console.log(`Uploading file ${index + 1}/${files.length}:`, {
+        debugLog(`Uploading file ${index + 1}/${files.length}:`, {
           originalName: file.name,
           newFileName: fileName,
           storagePath: storagePath,
@@ -509,7 +481,7 @@ export function useFirebase() {
         const snapshot = await uploadBytes(fileRef, file)
         const downloadURL = await getDownloadURL(snapshot.ref)
 
-        console.log(`File uploaded successfully: ${fileName}`)
+        debugLog(`File uploaded successfully: ${fileName}`)
 
         return {
           url: downloadURL,
@@ -521,7 +493,7 @@ export function useFirebase() {
       })
 
       const uploadResults = await Promise.all(uploadPromises)
-      console.log(`All ${normalizedFiles.length} files uploaded successfully with details`)
+      debugLog(`All ${normalizedFiles.length} files uploaded successfully with details`)
 
       return uploadResults // Return full details including storage paths
     } catch (err) {
@@ -560,8 +532,6 @@ export function useFirebase() {
     signIn,
     signUp,
     resetPassword,
-    signInWithGoogle,
-    signInWithFacebook,
     logout,
 
     // Firestore methods

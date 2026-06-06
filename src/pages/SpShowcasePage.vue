@@ -31,6 +31,26 @@
             <div v-if="showContactSection" class="q-mt-lg">
               <q-btn unelevated color="primary" no-caps :label="handoutConfig.cta_text || 'Contact for quote'" />
             </div>
+            <div class="q-mt-md row q-gutter-sm">
+              <q-btn
+                outline
+                dense
+                no-caps
+                color="grey-7"
+                icon="flag"
+                label="Report"
+                @click="openReportHandout"
+              />
+              <q-btn
+                outline
+                dense
+                no-caps
+                color="negative"
+                icon="block"
+                label="Block"
+                @click="openBlockProvider"
+              />
+            </div>
           </div>
           <div class="col-12 col-lg-5">
             <q-img
@@ -122,6 +142,17 @@
                     <source :src="row.media_url" />
                   </video>
                 </div>
+                <div class="q-mt-sm">
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    color="grey-7"
+                    icon="flag"
+                    label="Report"
+                    @click="openReportPost(row)"
+                  />
+                </div>
               </q-card-section>
             </q-card>
           </div>
@@ -167,13 +198,23 @@
         </q-card-section>
       </q-card>
     </div>
+
+    <ReportContentDialog
+      v-model="moderationDialog"
+      :mode="moderationMode"
+      :content="moderationContent"
+      @reported="handleContentReported"
+      @blocked="handleUserBlocked"
+    />
   </q-page>
 </template>
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import ReportContentDialog from 'src/components/ReportContentDialog.vue'
 import { useFirebase } from 'src/composables/useFirebase'
+import { listBlockedUsers } from 'src/services/contentModeration'
 import { resolveSpName, resolveSpSlug } from 'src/utils/spPosts'
 
 const route = useRoute()
@@ -219,6 +260,11 @@ const posts = ref([])
 const serviceDescriptions = ref([])
 const notFound = ref(false)
 const targetUserId = ref('')
+const moderationDialog = ref(false)
+const moderationMode = ref('report')
+const moderationContent = ref({})
+const reportedContentIds = ref(new Set())
+const blockedUserIds = ref(new Set())
 
 const routeSlug = computed(() => String(route.params.spSlug || '').trim())
 const avatarText = computed(() => String(businessName.value || 'SP').slice(0, 2).toUpperCase())
@@ -235,8 +281,9 @@ const visibleServices = computed(() =>
 )
 const featuredPosts = computed(() => {
   const selectedIds = handoutConfig.featured_post_ids.map((item) => String(item))
-  if (!selectedIds.length) return posts.value.slice(0, 3)
-  return posts.value.filter((row) => selectedIds.includes(String(row.id || '')))
+  const visibleRows = posts.value.filter((row) => !reportedContentIds.value.has(`sp_post:${row.id}`))
+  if (!selectedIds.length) return visibleRows.slice(0, 3)
+  return visibleRows.filter((row) => selectedIds.includes(String(row.id || '')))
 })
 const featuredImages = computed(() => {
   const selected = handoutConfig.featured_image_urls.filter(Boolean)
@@ -254,6 +301,15 @@ const showContactSection = computed(() =>
   (handoutConfig.show_email && profile.email) ||
   (handoutConfig.show_website && profile.website)
 )
+
+const providerModerationPayload = computed(() => ({
+  content_type: 'handout_profile',
+  content_id: targetUserId.value || routeSlug.value,
+  content_path: targetUserId.value ? `users/${targetUserId.value}` : '',
+  reported_user_id: targetUserId.value,
+  reported_user_display_name: businessName.value,
+  source: 'public_handout',
+}))
 
 const formatDate = (value) => {
   if (!value) return ''
@@ -339,11 +395,65 @@ const resolveUserBySlug = async () => {
 
 const loadPosts = async () => {
   if (!targetUserId.value) return
+  if (blockedUserIds.value.has(targetUserId.value)) {
+    posts.value = []
+    return
+  }
   const rows = await getCollectionData(`users/${targetUserId.value}/posts`).catch(() => [])
   posts.value = sortByRecent(rows)
 }
 
+const loadBlockedUsers = async () => {
+  try {
+    const response = await listBlockedUsers()
+    const ids = (response?.items || []).map((item) => String(item.blocked_user_id || '').trim()).filter(Boolean)
+    blockedUserIds.value = new Set(ids)
+  } catch {
+    blockedUserIds.value = new Set()
+  }
+}
+
+const openReportHandout = () => {
+  moderationMode.value = 'report'
+  moderationContent.value = providerModerationPayload.value
+  moderationDialog.value = true
+}
+
+const openBlockProvider = () => {
+  moderationMode.value = 'block'
+  moderationContent.value = providerModerationPayload.value
+  moderationDialog.value = true
+}
+
+const openReportPost = (post) => {
+  moderationMode.value = 'report'
+  moderationContent.value = {
+    content_type: 'sp_post',
+    content_id: post?.id || '',
+    content_path: targetUserId.value && post?.id ? `users/${targetUserId.value}/posts/${post.id}` : '',
+    reported_user_id: targetUserId.value,
+    reported_user_display_name: businessName.value,
+    source: 'public_handout',
+  }
+  moderationDialog.value = true
+}
+
+const handleContentReported = () => {
+  const content = moderationContent.value || {}
+  if (content.content_type && content.content_id) {
+    reportedContentIds.value = new Set(reportedContentIds.value).add(`${content.content_type}:${content.content_id}`)
+  }
+}
+
+const handleUserBlocked = () => {
+  const blockedUserId = moderationContent.value?.reported_user_id || ''
+  if (!blockedUserId) return
+  blockedUserIds.value = new Set(blockedUserIds.value).add(blockedUserId)
+  posts.value = []
+}
+
 const loadPage = async () => {
+  await loadBlockedUsers()
   const doc = await resolveUserBySlug()
   if (!doc || !targetUserId.value) return
   hydrateProfile(doc)

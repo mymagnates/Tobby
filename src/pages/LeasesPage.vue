@@ -1326,6 +1326,7 @@ import LeaseDocuments from '../components/LeaseDocuments.vue'
 import { Notify } from 'quasar'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../boot/firebase'
+import { listLeaseApplicationsForLeaseRequest } from '../services/leaseApplicationApi'
 
 // Router
 const router = useRouter()
@@ -1572,19 +1573,8 @@ const fetchLeaseApplications = async (leaseId) => {
   try {
     console.log('Fetching applications for lease:', leaseId)
 
-    // Query applications with matching lease_id
-    const applicationsRef = collection(db, 'lease_applications')
-    const q = query(applicationsRef, where('lease_id', '==', leaseId))
-    const querySnapshot = await getDocs(q)
-
-    const applications = []
-    querySnapshot.forEach((doc) => {
-      applications.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
-
+    const response = await listLeaseApplicationsForLeaseRequest({ leaseId })
+    const applications = Array.isArray(response?.rows) ? response.rows : []
     leaseApplications.value = applications
     console.log(`Found ${applications.length} applications for lease ${leaseId}`)
   } catch (error) {

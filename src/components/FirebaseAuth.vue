@@ -70,17 +70,6 @@
               class="public-auth-button full-width"
             />
 
-            <q-btn
-              outline
-              color="grey-7"
-              icon="public"
-              label="Sign In with Google"
-              :loading="socialLoading === 'google'"
-              @click="handleGoogleSignIn"
-              class="full-width q-mt-md"
-              v-if="enableGoogleSignIn"
-            />
-
             <div class="public-auth-switch">
               <span>Don't have an account?</span>
               <q-btn
@@ -203,7 +192,6 @@ const {
   signIn,
   signUp,
   resetPassword,
-  signInWithGoogle,
   logout,
 } = useFirebase()
 
@@ -215,9 +203,7 @@ const displayName = ref('')
 const showSignUp = ref(false)
 const showForgotPassword = ref(false)
 const resetEmail = ref('')
-const socialLoading = ref('')
 const redirectingAfterAuth = ref(false)
-const enableGoogleSignIn = ref(false)
 
 const goToLoadingOnce = () => {
   if (redirectingAfterAuth.value) return
@@ -288,18 +274,6 @@ const handleForgotPassword = async () => {
     })
   } catch (err) {
     console.error('Password reset error:', err)
-  }
-}
-
-const handleGoogleSignIn = async () => {
-  if (!enableGoogleSignIn.value) return
-  try {
-    socialLoading.value = 'google'
-    await signInWithGoogle()
-  } catch (err) {
-    console.error('Google sign-in error:', err)
-  } finally {
-    socialLoading.value = ''
   }
 }
 

@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
+import { getStorage } from 'firebase-admin/storage'
 import { createInMemoryStore } from './store.js'
 import {
   DEFAULT_GEMINI_MODEL,
@@ -187,6 +188,8 @@ const LEAD_BIDS_SUBCOLLECTION = 'bids'
 const SP_CREDIT_ACCOUNTS_COLLECTION = 'sp_credit_accounts'
 const SP_CREDIT_LEDGER_COLLECTION = 'sp_credit_ledger'
 const SP_CREDIT_ORDERS_COLLECTION = 'sp_credit_orders'
+const ACCOUNT_DELETION_REQUESTS_COLLECTION = 'account_deletion_requests'
+const CONTENT_REPORTS_COLLECTION = 'content_reports'
 const ADMIN_METRICS_DAILY_COLLECTION = 'admin_metrics_daily'
 const ADMIN_EVENTS_COLLECTION = 'admin_events'
 const ADMIN_ERRORS_COLLECTION = 'admin_errors'
@@ -204,6 +207,8 @@ const SP_FREE_CREDIT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 const TASK_ADDRESS_BACKFILL_TOKEN = 'backfill-2026-04-02'
 const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
   'users',
+  ACCOUNT_DELETION_REQUESTS_COLLECTION,
+  CONTENT_REPORTS_COLLECTION,
   TASKS_COLLECTION,
   LEADS_COLLECTION,
   SP_CREDIT_ACCOUNTS_COLLECTION,
@@ -217,6 +222,7 @@ const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
 ])
 let firestoreDb = null
 let firebaseAuth = null
+let storageBucket = null
 
 const DEFAULT_INVITE_EMAIL_FROM = 'onboarding@resend.dev'
 const OWNER_INVITE_PENDING = 'pending'
@@ -271,6 +277,13 @@ const getFirebaseAuth = () => {
   if (!getApps().length) initializeApp()
   firebaseAuth = getAuth()
   return firebaseAuth
+}
+
+const getStorageBucket = () => {
+  if (storageBucket) return storageBucket
+  if (!getApps().length) initializeApp()
+  storageBucket = getStorage().bucket()
+  return storageBucket
 }
 
 const normalizeRole = (role) => {
@@ -546,6 +559,145 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   }
 
+  const saveAccountDeletionRequest = async ({ actor, claims, body, source = 'api' }) => {
+    const actorId = String(actor?.id || claims?.uid || '').trim()
+    if (!actorId) {
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    }
+
+    const now = new Date().toISOString()
+    const email = String(claims?.email || actor?.email || body?.email || '').trim()
+    const accountType = String(
+      body?.account_type || actor?.account_type || actor?.role || claims?.account_type || claims?.role || '',
+    )
+      .trim()
+      .toLowerCase()
+    const reason = String(body?.reason || '').trim().slice(0, 2000)
+    const requestId = `${actorId}_account_deletion`
+    const payload = {
+      id: requestId,
+      request_type: 'account_deletion',
+      status: 'requested',
+      user_id: actorId,
+      email,
+      account_type: accountType,
+      source,
+      reason,
+      requested_at: now,
+      updated_at: now,
+    }
+
+    const db = getDb()
+    await Promise.all([
+      db.collection('users').doc(actorId).collection('privacy_requests').doc('account_deletion').set(payload, { merge: true }),
+      db.collection(ACCOUNT_DELETION_REQUESTS_COLLECTION).doc(requestId).set(payload, { merge: true }),
+      db.collection('users').doc(actorId).set(
+        {
+          account_deletion_requested: true,
+          account_deletion_status: 'requested',
+          account_deletion_requested_at: now,
+          updatedAt: now,
+        },
+        { merge: true },
+      ),
+    ])
+
+    return payload
+  }
+
+  const sanitizeModerationReason = (value) => {
+    const normalized = String(value || '').trim().toLowerCase()
+    const allowed = new Set(['spam', 'harassment', 'offensive', 'inappropriate', 'scam', 'privacy', 'other'])
+    return allowed.has(normalized) ? normalized : 'other'
+  }
+
+  const sanitizeContentType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase()
+    const allowed = new Set([
+      'task_comment',
+      'message',
+      'sp_post',
+      'bid',
+      'handout_profile',
+      'file',
+      'lead',
+      'other',
+    ])
+    return allowed.has(normalized) ? normalized : 'other'
+  }
+
+  const saveContentReport = async ({ actor, verified, body, req }) => {
+    const contentType = sanitizeContentType(body?.content_type)
+    const contentId = String(body?.content_id || '').trim().slice(0, 240)
+    const contentPath = String(body?.content_path || '').trim().slice(0, 512)
+    if (!contentId && !contentPath) {
+      throw createApiError(400, 'CONTENT_REFERENCE_REQUIRED', 'content_id or content_path is required.')
+    }
+
+    const now = new Date().toISOString()
+    const reportId = randomUUID()
+    const payload = {
+      id: reportId,
+      reporter_user_id: verified ? String(actor?.id || '').trim() || null : null,
+      reporter_role: verified ? actor?.role || null : null,
+      reported_user_id: String(body?.reported_user_id || '').trim().slice(0, 160) || null,
+      reported_user_display_name: String(body?.reported_user_display_name || '').trim().slice(0, 240) || '',
+      content_type: contentType,
+      content_id: contentId,
+      content_path: contentPath,
+      reason: sanitizeModerationReason(body?.reason),
+      note: String(body?.note || '').trim().slice(0, 2000),
+      status: 'open',
+      source: String(body?.source || 'web').trim().slice(0, 80) || 'web',
+      user_agent: String(req?.headers?.['user-agent'] || '').trim().slice(0, 500),
+      ip_address: String(req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '').trim().slice(0, 200),
+      created_at: now,
+      updated_at: now,
+    }
+
+    await getDb().collection(CONTENT_REPORTS_COLLECTION).doc(reportId).set(payload, { merge: true })
+    return payload
+  }
+
+  const saveBlockedUser = async ({ actor, verified, body }) => {
+    if (!verified) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    const actorId = String(actor?.id || '').trim()
+    const blockedUserId = String(body?.blocked_user_id || '').trim()
+    if (!actorId) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    if (!blockedUserId) throw createApiError(400, 'BLOCKED_USER_REQUIRED', 'blocked_user_id is required.')
+    if (blockedUserId === actorId) throw createApiError(400, 'CANNOT_BLOCK_SELF', 'You cannot block your own account.')
+
+    const now = new Date().toISOString()
+    const payload = {
+      blocked_user_id: blockedUserId,
+      blocked_user_display_name: String(body?.blocked_user_display_name || '').trim().slice(0, 240),
+      reason: String(body?.reason || '').trim().slice(0, 1000),
+      status: 'active',
+      source: String(body?.source || 'web').trim().slice(0, 80) || 'web',
+      created_at: now,
+      updated_at: now,
+    }
+
+    await getDb()
+      .collection('users')
+      .doc(actorId)
+      .collection('blocked_users')
+      .doc(blockedUserId)
+      .set(payload, { merge: true })
+    return payload
+  }
+
+  const listBlockedUsers = async ({ actor, verified }) => {
+    if (!verified) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    const actorId = String(actor?.id || '').trim()
+    if (!actorId) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    const snap = await getDb().collection('users').doc(actorId).collection('blocked_users').get()
+    return snap.docs
+      .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+      .filter((row) => String(row.status || 'active').toLowerCase() === 'active')
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+  }
+
   const getFirestorePropertyById = async (propertyId) => {
     const ref = String(propertyId || '').trim()
     if (!ref) return null
@@ -597,6 +749,225 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     } catch {
       return false
     }
+  }
+
+  const LEASE_APPLICATION_PRIVATE_DOC_ID = 'profile'
+  const LEASE_APPLICATION_ACCESS_LOGS_COLLECTION = 'lease_application_access_logs'
+
+  const sanitizeFileName = (value, fallback = 'document') => {
+    const raw = String(value || '').trim()
+    if (!raw) return fallback
+    const cleaned = raw.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_')
+    return cleaned.slice(0, 160) || fallback
+  }
+
+  const hashLeaseApplicationAccessToken = (token) =>
+    createHash('sha256').update(String(token || '')).digest('hex')
+
+  const createLeaseApplicationAccessToken = () =>
+    `${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`
+
+  const parseBase64PayloadToBuffer = (payload) => {
+    const raw = String(payload || '').trim()
+    if (!raw) throw createApiError(400, 'INVALID_FILE_PAYLOAD', 'File payload is missing.')
+    const normalized = raw.includes('base64,') ? raw.slice(raw.indexOf('base64,') + 7) : raw
+    return Buffer.from(normalized, 'base64')
+  }
+
+  const buildLeaseApplicationDocumentRecord = ({
+    documentId,
+    fileName,
+    description,
+    originalFilename,
+    contentType,
+    size,
+    storagePath,
+    uploadedByUid = null,
+  }) => ({
+    id: documentId,
+    name: String(fileName || '').trim() || 'Document',
+    description: String(description || '').trim(),
+    file_name: String(originalFilename || '').trim() || 'document',
+    content_type: String(contentType || 'application/octet-stream').trim(),
+    file_size: Number(size || 0),
+    storage_path: storagePath,
+    uploaded_at: new Date().toISOString(),
+    uploaded_by_uid: uploadedByUid || null,
+  })
+
+  const maskPhone = (value) => {
+    const digits = String(value || '').replace(/\D/g, '')
+    if (digits.length < 4) return ''
+    return `(***) ***-${digits.slice(-4)}`
+  }
+
+  const buildLeaseApplicationSummary = ({ id, application, documents = [], submittedBy = null, now }) => {
+    const applicant = application?.applicant || {}
+    const firstName = String(applicant.first_name || '').trim()
+    const lastName = String(applicant.last_name || '').trim()
+    return {
+      id,
+      schema_version: 2,
+      property_id: application?.property_id || null,
+      lease_id: application?.lease_id || null,
+      desired_move_in_date: application?.desired_move_in_date || null,
+      number_of_occupants: Number(application?.number_of_occupants || 0) || 0,
+      applicant_display_name: [firstName, lastName].filter(Boolean).join(' ').trim() || 'Applicant',
+      applicant_email_masked: maskEmail(applicant.email),
+      applicant_phone_masked: maskPhone(applicant.phone),
+      status: String(application?.status || 'pending').trim().toLowerCase() || 'pending',
+      document_count: Array.isArray(documents) ? documents.length : 0,
+      has_documents: Array.isArray(documents) && documents.length > 0,
+      submitted_at: application?.submitted_at || now,
+      submitted_by: submittedBy || null,
+      created_at: application?.created_at || now,
+      updated_at: now,
+      pii_location: 'private',
+    }
+  }
+
+  const buildLeaseApplicationPrivatePayload = ({
+    summary,
+    application,
+    documents = [],
+    accessTokenHash = '',
+    now,
+  }) => ({
+    schema_version: 2,
+    property_id: summary.property_id || null,
+    lease_id: summary.lease_id || null,
+    applicant: application?.applicant || {},
+    vehicles: Array.isArray(application?.vehicles) ? application.vehicles : [],
+    pets: Array.isArray(application?.pets) ? application.pets : [],
+    co_applicants: Array.isArray(application?.co_applicants) ? application.co_applicants : [],
+    additional_notes: String(application?.additional_notes || '').trim(),
+    documents,
+    access_token_hash: accessTokenHash,
+    desired_move_in_date: summary.desired_move_in_date || null,
+    number_of_occupants: summary.number_of_occupants || 0,
+    submitted_at: summary.submitted_at || now,
+    created_at: summary.created_at || now,
+    updated_at: now,
+  })
+
+  const getLeaseApplicationSummaryAndPrivate = async (applicationId) => {
+    const ref = String(applicationId || '').trim()
+    if (!ref) return { summary: null, privateData: null }
+    const db = getDb()
+    const summarySnap = await db.collection('lease_applications').doc(ref).get()
+    if (!summarySnap.exists) return { summary: null, privateData: null }
+    const summary = { id: summarySnap.id, ...(summarySnap.data() || {}) }
+    const privateSnap = await db
+      .collection('lease_applications')
+      .doc(ref)
+      .collection('private')
+      .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+      .get()
+    const privateData = privateSnap.exists ? { id: privateSnap.id, ...(privateSnap.data() || {}) } : null
+    return { summary, privateData }
+  }
+
+  const buildLeaseApplicationResponse = ({ summary, privateData }) => {
+    if (!summary) return null
+    const legacyApplicant = summary?.applicant || {}
+    const legacyDocuments = Array.isArray(summary?.documents) ? summary.documents : []
+    const sourcePrivate = privateData || {}
+    return {
+      ...summary,
+      applicant: sourcePrivate.applicant || legacyApplicant || null,
+      vehicles: Array.isArray(sourcePrivate.vehicles) ? sourcePrivate.vehicles : Array.isArray(summary?.vehicles) ? summary.vehicles : [],
+      pets: Array.isArray(sourcePrivate.pets) ? sourcePrivate.pets : Array.isArray(summary?.pets) ? summary.pets : [],
+      co_applicants: Array.isArray(sourcePrivate.co_applicants)
+        ? sourcePrivate.co_applicants
+        : Array.isArray(summary?.co_applicants)
+          ? summary.co_applicants
+          : [],
+      additional_notes:
+        sourcePrivate.additional_notes != null ? sourcePrivate.additional_notes : String(summary?.additional_notes || '').trim(),
+      documents: Array.isArray(sourcePrivate.documents) ? sourcePrivate.documents : legacyDocuments,
+    }
+  }
+
+  const assertLeaseApplicationAccess = async ({ actor, verified, applicationId, accessToken = '' }) => {
+    const { summary, privateData } = await getLeaseApplicationSummaryAndPrivate(applicationId)
+    if (!summary) throw createApiError(404, 'APPLICATION_NOT_FOUND', 'Application not found.')
+
+    const propertyId = extractPropertyId(summary.property_id)
+    const tokenHash = hashLeaseApplicationAccessToken(accessToken)
+    const storedHash = String(privateData?.access_token_hash || '').trim()
+
+    if (storedHash && tokenHash && storedHash === tokenHash) {
+      return {
+        summary,
+        privateData,
+        mode: 'token',
+      }
+    }
+
+    if (verified && actor?.id) {
+      if (actor.role === 'admin') {
+        return { summary, privateData, mode: 'admin' }
+      }
+
+      if (propertyId && (await hasShareAccessToProperty({ actor, propertyId }))) {
+        return { summary, privateData, mode: 'property-role' }
+      }
+
+      if (String(summary.submitted_by || '').trim() && String(summary.submitted_by).trim() === String(actor.id).trim()) {
+        return { summary, privateData, mode: 'owner' }
+      }
+    }
+
+    throw createApiError(403, 'PERMISSION_DENIED', 'You do not have access to this application.')
+  }
+
+  const uploadLeaseApplicationDocumentFile = async ({
+    applicationId,
+    filePayload,
+    documentName,
+    description,
+    uploadedByUid = null,
+  }) => {
+    const documentId = randomUUID()
+    const contentType = String(filePayload?.content_type || 'application/octet-stream').trim()
+    const originalFilename = sanitizeFileName(filePayload?.original_filename || 'document')
+    const buffer = parseBase64PayloadToBuffer(filePayload?.data_base64)
+    const safeName = sanitizeFileName(originalFilename)
+    const storagePath = `secure/lease_applications/${applicationId}/${documentId}/${safeName}`
+    const bucket = getStorageBucket()
+    const file = bucket.file(storagePath)
+
+    await file.save(buffer, {
+      resumable: false,
+      metadata: {
+        contentType,
+        metadata: {
+          application_id: String(applicationId),
+          document_id: documentId,
+          uploaded_by_uid: String(uploadedByUid || ''),
+        },
+      },
+    })
+
+    return buildLeaseApplicationDocumentRecord({
+      documentId,
+      fileName: documentName,
+      description,
+      originalFilename,
+      contentType,
+      size: Number(filePayload?.size || buffer.length || 0),
+      storagePath,
+      uploadedByUid,
+    })
+  }
+
+  const createLeaseApplicationSignedReadUrl = async (storagePath) => {
+    const [url] = await getStorageBucket().file(String(storagePath || '').trim()).getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 5 * 60 * 1000,
+      version: 'v4',
+    })
+    return url
   }
 
   const buildOwnerInviteUrl = ({ origin, token }) => {
@@ -3094,6 +3465,287 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return ok(res, requestId, summary)
   })
 
+  route('POST', '/lease-applications', async ({ body, actor, verified, res, requestId }) => {
+    const application = body?.application && typeof body.application === 'object' ? body.application : null
+    if (!application) {
+      return sendError(res, requestId, 400, 'INVALID_APPLICATION', 'Application payload is required.')
+    }
+
+    const applicant = application?.applicant || {}
+    const propertyId = extractPropertyId(application?.property_id)
+    const leaseId = String(application?.lease_id || '').trim()
+    const firstName = String(applicant.first_name || '').trim()
+    const lastName = String(applicant.last_name || '').trim()
+    const applicantEmail = String(applicant.email || '').trim().toLowerCase()
+
+    if (!propertyId && !leaseId) {
+      return sendError(res, requestId, 400, 'PROPERTY_OR_LEASE_REQUIRED', 'Property or lease is required.')
+    }
+    if (!firstName || !lastName || !/.+@.+\..+/.test(applicantEmail)) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INCOMPLETE_APPLICATION',
+        'Applicant first name, last name, and email are required.',
+      )
+    }
+
+    try {
+      const db = getDb()
+      const applicationRef = db.collection('lease_applications').doc()
+      const applicationId = applicationRef.id
+      const now = new Date().toISOString()
+      const accessToken = createLeaseApplicationAccessToken()
+      const submittedDocuments = Array.isArray(body?.documents) ? body.documents : []
+      const uploadedDocuments = []
+
+      for (const row of submittedDocuments) {
+        if (!row?.file) continue
+        const uploaded = await uploadLeaseApplicationDocumentFile({
+          applicationId,
+          filePayload: row.file,
+          documentName: row.name,
+          description: row.description,
+          uploadedByUid: verified ? actor?.id || null : null,
+        })
+        uploadedDocuments.push(uploaded)
+      }
+
+      const normalizedApplication = {
+        ...application,
+        property_id: propertyId || application?.property_id || null,
+        lease_id: leaseId || null,
+        status: 'pending',
+        submitted_at: now,
+        created_at: now,
+      }
+
+      const summary = buildLeaseApplicationSummary({
+        id: applicationId,
+        application: normalizedApplication,
+        documents: uploadedDocuments,
+        submittedBy: verified ? actor?.id || null : null,
+        now,
+      })
+      const privatePayload = buildLeaseApplicationPrivatePayload({
+        summary,
+        application: normalizedApplication,
+        documents: uploadedDocuments,
+        accessTokenHash: hashLeaseApplicationAccessToken(accessToken),
+        now,
+      })
+
+      await applicationRef.set(summary)
+      await applicationRef.collection('private').doc(LEASE_APPLICATION_PRIVATE_DOC_ID).set(privatePayload)
+
+      return ok(res, requestId, {
+        application_id: applicationId,
+        access_token: accessToken,
+        application: buildLeaseApplicationResponse({ summary, privateData: privatePayload }),
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'APPLICATION_CREATE_FAILED',
+        error?.message || 'Failed to submit application.',
+        true,
+      )
+    }
+  })
+
+  route('GET', '/lease-applications/:id', async ({ actor, verified, params, query, res, requestId }) => {
+    try {
+      const accessToken = String(query.get('access') || '').trim()
+      const { summary, privateData } = await assertLeaseApplicationAccess({
+        actor,
+        verified,
+        applicationId: params.id,
+        accessToken,
+      })
+      return ok(res, requestId, {
+        application: buildLeaseApplicationResponse({ summary, privateData }),
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'APPLICATION_READ_FAILED',
+        error?.message || 'Failed to load application.',
+      )
+    }
+  })
+
+  route('GET', '/leases/:leaseId/applications', async ({ actor, verified, params, res, requestId }) => {
+    if (!verified) {
+      return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Authentication is required.')
+    }
+
+    try {
+      const leaseId = String(params.leaseId || '').trim()
+      const leaseSnap = await getDb().collection('leases').doc(leaseId).get()
+      if (!leaseSnap.exists) {
+        return sendError(res, requestId, 404, 'LEASE_NOT_FOUND', 'Lease not found.')
+      }
+      const leaseData = leaseSnap.data() || {}
+      const propertyId = extractPropertyId(leaseData.property_id)
+      if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+        return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'You do not have access to this lease.')
+      }
+
+      const snap = await getDb().collection('lease_applications').where('lease_id', '==', leaseId).get()
+      const rows = []
+      for (const row of snap.docs) {
+        const summary = { id: row.id, ...(row.data() || {}) }
+        const privateSnap = await row.ref.collection('private').doc(LEASE_APPLICATION_PRIVATE_DOC_ID).get()
+        const privateData = privateSnap.exists ? privateSnap.data() || {} : null
+        const merged = buildLeaseApplicationResponse({ summary, privateData })
+        rows.push({
+          id: summary.id,
+          lease_id: summary.lease_id || null,
+          property_id: summary.property_id || null,
+          status: summary.status || 'pending',
+          submitted_at: summary.submitted_at || null,
+          desired_move_in_date: summary.desired_move_in_date || null,
+          number_of_occupants: summary.number_of_occupants || 0,
+          applicant_display_name: summary.applicant_display_name || '',
+          applicant_email_masked: summary.applicant_email_masked || '',
+          applicant_phone_masked: summary.applicant_phone_masked || '',
+          document_count: summary.document_count || 0,
+          has_documents: Boolean(summary.has_documents),
+          applicant: merged?.applicant
+            ? {
+                first_name: merged.applicant.first_name || '',
+                last_name: merged.applicant.last_name || '',
+                email: merged.applicant.email || '',
+                phone: merged.applicant.phone || '',
+              }
+            : null,
+        })
+      }
+      rows.sort((a, b) => String(b.submitted_at || '').localeCompare(String(a.submitted_at || '')))
+      return ok(res, requestId, { rows })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'APPLICATION_LIST_FAILED',
+        error?.message || 'Failed to load applications.',
+      )
+    }
+  })
+
+  route('POST', '/lease-applications/:id/documents', async ({ actor, verified, params, body, res, requestId }) => {
+    try {
+      const accessToken = String(body?.access_token || '').trim()
+      const { summary, privateData } = await assertLeaseApplicationAccess({
+        actor,
+        verified,
+        applicationId: params.id,
+        accessToken,
+      })
+      const documentName = String(body?.name || '').trim()
+      if (!documentName || !body?.file) {
+        return sendError(res, requestId, 400, 'INVALID_DOCUMENT', 'Document name and file are required.')
+      }
+
+      const uploaded = await uploadLeaseApplicationDocumentFile({
+        applicationId: params.id,
+        filePayload: body.file,
+        documentName,
+        description: body?.description || '',
+        uploadedByUid: verified ? actor?.id || null : null,
+      })
+
+      const existingDocuments = Array.isArray(privateData?.documents)
+        ? privateData.documents
+        : Array.isArray(summary?.documents)
+          ? summary.documents
+          : []
+      const nextDocuments = [...existingDocuments, uploaded]
+      const nextUpdatedAt = new Date().toISOString()
+
+      await getDb().collection('lease_applications').doc(params.id).set(
+        {
+          document_count: nextDocuments.length,
+          has_documents: nextDocuments.length > 0,
+          updated_at: nextUpdatedAt,
+        },
+        { merge: true },
+      )
+      await getDb()
+        .collection('lease_applications')
+        .doc(params.id)
+        .collection('private')
+        .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+        .set(
+          {
+            documents: nextDocuments,
+            updated_at: nextUpdatedAt,
+          },
+          { merge: true },
+        )
+
+      return ok(res, requestId, { document: uploaded })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'DOCUMENT_UPLOAD_FAILED',
+        error?.message || 'Failed to upload document.',
+      )
+    }
+  })
+
+  route('POST', '/lease-applications/:id/documents/:documentId/access', async ({ actor, verified, params, body, req, res, requestId }) => {
+    try {
+      const accessToken = String(body?.access_token || '').trim()
+      const { summary, privateData, mode } = await assertLeaseApplicationAccess({
+        actor,
+        verified,
+        applicationId: params.id,
+        accessToken,
+      })
+      const documents = Array.isArray(privateData?.documents)
+        ? privateData.documents
+        : Array.isArray(summary?.documents)
+          ? summary.documents
+          : []
+      const target = documents.find((doc) => String(doc.id || '') === String(params.documentId || ''))
+      if (!target?.storage_path) {
+        return sendError(res, requestId, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.')
+      }
+
+      const url = await createLeaseApplicationSignedReadUrl(target.storage_path)
+      await getDb().collection(LEASE_APPLICATION_ACCESS_LOGS_COLLECTION).add({
+        application_id: params.id,
+        document_id: target.id || params.documentId,
+        storage_path: target.storage_path,
+        access_mode: mode,
+        actor_id: verified ? actor?.id || null : null,
+        actor_role: verified ? actor?.role || null : null,
+        ip_address: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').trim(),
+        user_agent: String(req.headers['user-agent'] || '').trim(),
+        created_at: new Date().toISOString(),
+      })
+
+      return ok(res, requestId, { url, expires_in_seconds: 300 })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'DOCUMENT_ACCESS_FAILED',
+        error?.message || 'Failed to prepare document access.',
+      )
+    }
+  })
+
   route('GET', '/auth/me', async ({ actor, res, requestId }) => {
     ok(res, requestId, {
       user: { id: actor.id, role: actor.role, email: actor.email || null },
@@ -3102,6 +3754,97 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('GET', '/auth/permissions', async ({ actor, res, requestId }) => {
     ok(res, requestId, { role: actor.role, permissions: getPermissions(actor.role) })
+  })
+
+  route('POST', '/account-deletion-requests', async ({ actor, verified, claims, body, res, requestId }) => {
+    if (!verified) {
+      return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Firebase authentication is required')
+    }
+    try {
+      const request = await saveAccountDeletionRequest({
+        actor,
+        claims,
+        body,
+        source: String(body?.source || 'api').trim() || 'api',
+      })
+      return ok(res, requestId, {
+        request: {
+          id: request.id,
+          status: request.status,
+          requested_at: request.requested_at,
+        },
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error.status || 500,
+        error.code || 'ACCOUNT_DELETION_REQUEST_FAILED',
+        error.message || 'Unable to submit account deletion request',
+        error.status >= 500,
+      )
+    }
+  })
+
+  route('POST', '/content-reports', async ({ actor, verified, body, req, res, requestId }) => {
+    try {
+      const report = await saveContentReport({ actor, verified, body, req })
+      return ok(res, requestId, {
+        report: {
+          id: report.id,
+          status: report.status,
+          created_at: report.created_at,
+        },
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error.status || 500,
+        error.code || 'CONTENT_REPORT_FAILED',
+        error.message || 'Unable to submit content report.',
+        error.status >= 500,
+      )
+    }
+  })
+
+  route('POST', '/blocked-users', async ({ actor, verified, body, res, requestId }) => {
+    try {
+      const block = await saveBlockedUser({ actor, verified, body })
+      return ok(res, requestId, {
+        block: {
+          blocked_user_id: block.blocked_user_id,
+          blocked_user_display_name: block.blocked_user_display_name,
+          status: block.status,
+          created_at: block.created_at,
+        },
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error.status || 500,
+        error.code || 'BLOCK_USER_FAILED',
+        error.message || 'Unable to block user.',
+        error.status >= 500,
+      )
+    }
+  })
+
+  route('GET', '/blocked-users', async ({ actor, verified, res, requestId }) => {
+    try {
+      const items = await listBlockedUsers({ actor, verified })
+      return ok(res, requestId, { items })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error.status || 500,
+        error.code || 'BLOCKED_USERS_LOAD_FAILED',
+        error.message || 'Unable to load blocked users.',
+        error.status >= 500,
+      )
+    }
   })
 
   route('POST', '/owner-invites/email', async ({ actor, body, req, res, requestId }) => {
@@ -5505,7 +6248,17 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         if (row.method !== req.method) continue
         const params = pathMatch(url.pathname, row.pattern)
         if (!params) continue
-        return row.handler({ req, res, requestId, actor, params, body, query: url.searchParams })
+        return row.handler({
+          req,
+          res,
+          requestId,
+          actor,
+          verified: authContext?.verified === true,
+          claims: authContext?.claims || null,
+          params,
+          body,
+          query: url.searchParams,
+        })
       }
       return sendError(res, requestId, 404, 'NOT_FOUND', 'API route not found')
     } catch (error) {
