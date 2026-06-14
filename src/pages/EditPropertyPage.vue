@@ -2,10 +2,23 @@
   <q-page class="edit-property q-pa-md">
     <div class="row justify-center">
       <div class="col-12 col-md-8">
-        <q-card>
-          <q-card-section>
-            <div class="text-h5 q-mb-md">Edit Property</div>
+        <q-card class="edit-property-card">
+          <q-card-section class="edit-property-header">
+            <div>
+              <div class="text-h5 text-weight-bold">Edit Property</div>
+              <div class="text-caption text-grey-7 q-mt-xs">
+                Update the core property profile and return to the previous property view.
+              </div>
+            </div>
+            <div class="row items-center q-gutter-sm">
+              <q-btn flat no-caps icon="arrow_back" label="Back" @click="closePage" />
+              <q-btn flat round dense icon="close" @click="closePage" />
+            </div>
+          </q-card-section>
 
+          <q-separator />
+
+          <q-card-section>
             <q-form @submit="onSubmit" class="q-gutter-md">
               <!-- Basic Property Information -->
               <div class="row q-gutter-md">
@@ -264,7 +277,13 @@
                   />
                 </div>
                 <div class="col-12 col-md-6">
-                  <q-btn color="secondary" label="Cancel" class="full-width" @click="onCancel" />
+                  <q-btn
+                    type="button"
+                    color="secondary"
+                    label="Cancel"
+                    class="full-width"
+                    @click="closePage"
+                  />
                 </div>
               </div>
             </q-form>
@@ -289,6 +308,12 @@ const { createDocument, deleteDocument } = useFirebase()
 
 const propertyId = route.params.propertyId
 const updating = ref(false)
+
+const fallbackCloseRoute = computed(() => {
+  const returnTo = String(route.query.returnTo || '').trim()
+  if (returnTo.startsWith('/')) return returnTo
+  return '/my-properties'
+})
 
 // Property data structure
 const propertyData = ref({
@@ -381,7 +406,7 @@ onMounted(async () => {
       message: 'Property ID is required',
       position: 'top',
     })
-    router.push('/my-properties')
+    router.push(fallbackCloseRoute.value)
     return
   }
 
@@ -393,7 +418,7 @@ onMounted(async () => {
         message: 'Property not found',
         position: 'top',
       })
-      router.push('/my-properties')
+      router.push(fallbackCloseRoute.value)
       return
     }
 
@@ -406,7 +431,7 @@ onMounted(async () => {
         message: 'You do not have access to edit this property',
         position: 'top',
       })
-      router.push('/my-properties')
+      router.push(fallbackCloseRoute.value)
       return
     }
 
@@ -459,9 +484,17 @@ onMounted(async () => {
       message: 'Failed to load property data',
       position: 'top',
     })
-    router.push('/my-properties')
+    router.push(fallbackCloseRoute.value)
   }
 })
+
+const closePage = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push(fallbackCloseRoute.value)
+}
 
 const onSubmit = async () => {
   try {
@@ -573,8 +606,7 @@ const onSubmit = async () => {
       position: 'top',
     })
 
-    // Navigate back to My Properties page
-    router.push('/my-properties')
+    closePage()
   } catch (error) {
     console.error('Error updating property:', error)
     Notify.create({
@@ -587,14 +619,28 @@ const onSubmit = async () => {
   }
 }
 
-const onCancel = () => {
-  router.push('/my-properties')
-}
 </script>
 
 <style scoped>
 .edit-property {
   max-width: 800px;
   margin: 0 auto;
+}
+
+.edit-property-card {
+  border-radius: 18px;
+}
+
+.edit-property-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .edit-property-header {
+    flex-direction: column;
+  }
 }
 </style>

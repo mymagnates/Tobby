@@ -118,6 +118,7 @@
           </q-btn>
 
           <q-btn
+            v-if="false"
             flat
             round
             dense
@@ -555,7 +556,6 @@ const { locale, t } = useI18n()
 const PAGE_TITLES = {
   '/': 'Dashboard',
   '/pm-po-feed': 'PM/PO Feed',
-  '/universal-search': 'Universal Search',
   '/my-properties': 'My Properties',
   '/property-view': 'Property View',
   '/transactions': 'Transactions',
@@ -571,7 +571,6 @@ const PAGE_TITLES = {
   '/tenant-home': 'Tenant Home',
   '/create-tenant': 'Create Tenant',
   '/sp-profile': 'SP Profile',
-  '/sp-handout-builder': 'Build Handout',
 }
 
 const headerPageTitle = computed(() =>
@@ -588,13 +587,39 @@ const hasOwnerWorkspaceAccess = computed(() => Boolean(userDataStore.hasOwnerWor
 const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUser))
 const isPmPo = computed(() => ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) || hasOwnerWorkspaceAccess.value || userDataStore.isManagerCapableUser)
 const isTenantUser = computed(() => String(userDataStore.userCategory || '').toLowerCase() === 'tt')
-const showUniversalSearchButton = computed(
-  () => isPmPo.value && !isOwnerWorkspaceOnly.value && !String(route.path || '').startsWith('/sp-'),
-)
+const isNativePmOnlyLaunch = computed(() => {
+  if (typeof window === 'undefined') return false
+  const capacitor = window.Capacitor
+  return Boolean(
+    capacitor &&
+      typeof capacitor.isNativePlatform === 'function' &&
+      capacitor.isNativePlatform(),
+  )
+})
+const nativePmOnlyBlockedPrefixes = [
+  '/po-dashboard',
+  '/tenant-home',
+  '/tenants',
+  '/create-tenant',
+  '/sp-dashboard',
+  '/sp-cards',
+  '/sp-leads',
+  '/sp-bids',
+  '/sp-invoices',
+  '/sp-services',
+  '/sp-credits',
+  '/sp-payment-method',
+  '/sp-profile',
+  '/sp-handout-builder',
+]
+const isNativePmOnlyBlockedPath = (path = '') =>
+  nativePmOnlyBlockedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+const showUniversalSearchButton = computed(() => false)
 const showFloatingAssistant = computed(() => {
   const path = String(route.path || '')
   if (path.startsWith('/sp-')) return false
   if (path.startsWith('/po-dashboard')) return false
+  if (path.startsWith('/user-profile')) return false
   if (isOwnerWorkspaceOnly.value) return false
   return true
 })
@@ -751,11 +776,14 @@ const globalCreateOptions = [
 ]
 
 const filteredGlobalCreateOptions = computed(() => {
+  const options = isNativePmOnlyLaunch.value
+    ? globalCreateOptions.filter((option) => option.key !== 'tenant')
+    : globalCreateOptions
   if (isOwnerWorkspaceOnly.value) {
     const allowed = new Set(['task', 'transaction', 'reminder', 'asset', 'service'])
-    return globalCreateOptions.filter((option) => allowed.has(option.key))
+    return options.filter((option) => allowed.has(option.key))
   }
-  return globalCreateOptions
+  return options
 })
 
 const globalContacts = []
@@ -1490,22 +1518,20 @@ const runAssistantIntake = async () => {
   }
 }
 
-// Initialize dark mode from localStorage
+// Dark mode is temporarily disabled.
 onMounted(() => {
-  const savedDarkMode = localStorage.getItem('handout-dark-mode')
-  if (savedDarkMode !== null) {
-    isDarkMode.value = savedDarkMode === 'true'
-    $q.dark.set(isDarkMode.value)
-    applyDarkModeClass(isDarkMode.value)
-  }
+  isDarkMode.value = false
+  $q.dark.set(false)
+  localStorage.removeItem('handout-dark-mode')
+  applyDarkModeClass(false)
   window.addEventListener('open-global-assistant', handleOpenGlobalAssistant)
 })
 // Toggle dark mode
 function toggleDarkMode() {
-  isDarkMode.value = !isDarkMode.value
-  $q.dark.set(isDarkMode.value)
-  localStorage.setItem('handout-dark-mode', isDarkMode.value.toString())
-  applyDarkModeClass(isDarkMode.value)
+  isDarkMode.value = false
+  $q.dark.set(false)
+  localStorage.removeItem('handout-dark-mode')
+  applyDarkModeClass(false)
 }
 // Apply dark mode class to body for custom styling
 function applyDarkModeClass(isDark) {
@@ -1633,6 +1659,9 @@ const linksList = computed(() => {
 
   // Filter links based on user category
   const filtered = allLinksList.value.filter((link) => {
+    if (isNativePmOnlyLaunch.value && isNativePmOnlyBlockedPath(link.link)) {
+      return false
+    }
     if (link.link === '/reports' && !hasReportsData.value && !hasOwnerWorkspaceAccess.value) {
       return false
     }

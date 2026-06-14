@@ -73,7 +73,7 @@
     </div>
 
     <!-- Summary Stats -->
-    <div class="row q-gutter-md q-mb-md">
+    <div class="task-summary-strip q-mb-md">
       <q-card
         class="summary-card cursor-pointer"
         :class="{ 'filter-active': activeFilter === 'all' }"
@@ -115,6 +115,7 @@
         </q-card-section>
       </q-card>
       <q-card
+        v-if="showSpPublishUi"
         class="summary-card cursor-pointer"
         :class="{ 'filter-active': activeFilter === 'published' }"
         @click="setFilter('published')"
@@ -185,7 +186,7 @@
               {{ mxRecord.status || 'open' }}
             </q-chip>
             <q-chip
-              v-if="isTaskPublished(mxRecord)"
+              v-if="showSpPublishUi && isTaskPublished(mxRecord)"
               color="positive"
               text-color="white"
               size="sm"
@@ -240,7 +241,7 @@
         @click="addCommentFromDialog"
       />
       <q-btn
-        v-if="canManageRecords && selectedMxRecord"
+        v-if="showSpPublishUi && canManageRecords && selectedMxRecord"
         unelevated
         :color="isTaskPublished(selectedMxRecord) ? 'positive' : 'deep-orange'"
         text-color="white"
@@ -257,7 +258,7 @@
         <div v-if="selectedMxRecord" class="mxrecord-details-layout">
           <div class="mxrecord-details-full">
           <q-banner
-            v-if="selectedMxRecord.assigned_sp"
+            v-if="showSpPublishUi && selectedMxRecord.assigned_sp"
             rounded
             class="assigned-sp-banner q-mb-md"
           >
@@ -293,7 +294,7 @@
           </q-banner>
 
           <q-banner
-            v-if="isTaskPublished(selectedMxRecord)"
+            v-if="showSpPublishUi && isTaskPublished(selectedMxRecord)"
             rounded
             class="bg-green-1 text-green-10 q-mb-md"
           >
@@ -301,7 +302,54 @@
             Flag: This task has been published to service providers.
           </q-banner>
 
-          <div v-if="loadingTaskBids || taskBids.length > 0" class="details-section">
+          <div class="details-section task-snapshot-section">
+            <div class="section-title">Task Snapshot</div>
+            <div class="task-snapshot-grid">
+              <div class="task-snapshot-card">
+                <div class="detail-label">Due Date</div>
+                <div class="detail-value">{{ formatTaskOptionalDate(selectedMxRecord.due_date) }}</div>
+              </div>
+              <div class="task-snapshot-card">
+                <div class="detail-label">Last Updated</div>
+                <div class="detail-value">{{ formatTaskOptionalDate(selectedMxRecord.updatedAt || selectedMxRecord.updated_at) }}</div>
+              </div>
+              <div class="task-snapshot-card">
+                <div class="detail-label">Photos</div>
+                <div class="detail-value">{{ getTaskPhotoCount(selectedMxRecord) }}</div>
+              </div>
+              <div class="task-snapshot-card">
+                <div class="detail-label">Visible Comments</div>
+                <div class="detail-value">{{ selectedMxRecordLogs.length }}</div>
+              </div>
+              <div class="task-snapshot-card">
+                <div class="detail-label">Linked Transactions</div>
+                <div class="detail-value">{{ selectedTaskTransactionRows.length }}</div>
+                <div v-if="selectedTaskTransactionRows.length" class="task-snapshot-caption">
+                  ${{ formatTransactionAmount(taskTransactionsTotal) }} total
+                </div>
+              </div>
+              <div v-if="showSpPublishUi" class="task-snapshot-card">
+                <div class="detail-label">Bids</div>
+                <div class="detail-value">{{ visibleTaskBids.length }}</div>
+                <div v-if="selectedBidIdForTask" class="task-snapshot-caption">Selected bid on file</div>
+              </div>
+              <div v-if="showSpPublishUi" class="task-snapshot-card">
+                <div class="detail-label">Assigned SP</div>
+                <div class="detail-value">{{ getTaskAssignedSpLabel(selectedMxRecord) }}</div>
+              </div>
+              <div v-if="showSpPublishUi" class="task-snapshot-card">
+                <div class="detail-label">SP Publish</div>
+                <div class="detail-value">
+                  {{ isTaskPublished(selectedMxRecord) ? 'Published' : 'Not Published' }}
+                </div>
+                <div v-if="selectedMxRecord.sp_published_by_role" class="task-snapshot-caption">
+                  By {{ normalizeRoleLabel(selectedMxRecord.sp_published_by_role) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="showSpPublishUi && (loadingTaskBids || taskBids.length > 0)" class="details-section">
             <div class="section-title row items-center justify-between">
               <span>Bids</span>
               <q-chip dense color="blue-grey-1" text-color="blue-grey-8" icon="gavel">
@@ -433,7 +481,7 @@
                 <div class="detail-label">Property</div>
                 <div class="detail-value">{{ getPropertyName(selectedMxRecord.property_id) }}</div>
               </div>
-              <div class="detail-item">
+              <div v-if="showSpPublishUi" class="detail-item">
                 <div class="detail-label">SP Publish Status</div>
                 <div class="detail-value">
                   <q-chip
@@ -718,13 +766,13 @@
                   <div class="detail-label">Next Step</div>
                   <div class="detail-value">{{ taskInsight.recommended_next_step || 'N/A' }}</div>
                 </div>
-                <div class="detail-item">
+                <div v-if="showSpPublishUi" class="detail-item">
                   <div class="detail-label">Suggested Service</div>
                   <div class="detail-value">
                     {{ taskInsight.suggest_sp ? (taskInsight.suggested_service_type || 'service review') : 'Not necessary yet' }}
                   </div>
                 </div>
-                <div v-if="taskInsight.suggest_sp && canManageRecords && selectedMxRecord" class="row q-gutter-sm">
+                <div v-if="showSpPublishUi && taskInsight.suggest_sp && canManageRecords && selectedMxRecord" class="row q-gutter-sm">
                   <q-btn
                     color="primary"
                     text-color="white"
@@ -742,7 +790,7 @@
             </q-card-section>
           </q-card>
 
-          <q-card v-if="showSpRecommendationPanel" class="sp-recommendations-panel" flat bordered>
+          <q-card v-if="showSpPublishUi && showSpRecommendationPanel" class="sp-recommendations-panel" flat bordered>
             <q-card-section>
               <div class="sp-panel-header q-mb-sm">
                 <div>
@@ -829,7 +877,7 @@
     </div>
   </DetailShell>
 
-  <q-dialog v-model="showTaskPublishDialog" persistent>
+  <q-dialog v-if="showSpPublishUi" v-model="showTaskPublishDialog" persistent>
     <q-card style="min-width: 440px; max-width: 640px">
       <q-card-section class="row items-center justify-between">
         <div class="text-subtitle1 text-weight-bold">
@@ -1421,7 +1469,7 @@
     </q-card>
   </q-dialog>
 
-  <q-dialog v-model="showBidSpDetailDialog">
+  <q-dialog v-if="showSpPublishUi" v-model="showBidSpDetailDialog">
     <q-card class="task-bid-detail-card" style="min-width: 420px; max-width: 640px">
       <q-card-section class="row items-center justify-between task-bid-detail-head">
         <div>
@@ -1463,7 +1511,7 @@
     </q-card>
   </q-dialog>
 
-  <q-dialog v-model="showTaskBidDetailDialog">
+  <q-dialog v-if="showSpPublishUi" v-model="showTaskBidDetailDialog">
     <q-card class="task-bid-detail-card" style="min-width: 460px; max-width: 720px">
       <q-card-section class="row items-center justify-between task-bid-detail-head">
         <div>
@@ -1633,6 +1681,8 @@ const searchQuery = ref('')
 const activeFilter = ref('all') // 'all', 'open', 'closed', 'cancel', 'published'
 const selectedProperty = ref(null)
 const dateFilter = ref(null)
+// PM-only launch: keep marketplace publish surfaces hidden while preserving backend compatibility.
+const showSpPublishUi = false
 
 // Filter options
 const dateFilterOptions = [
@@ -1649,7 +1699,7 @@ const taskStatusFilterOptions = [
   { label: 'Open', value: 'open' },
   { label: 'Closed', value: 'closed' },
   { label: 'Cancelled', value: 'cancel' },
-  { label: 'Published to SP', value: 'published' },
+  ...(showSpPublishUi ? [{ label: 'Published to SP', value: 'published' }] : []),
 ]
 
 const taskStatusFilterLabel = computed(() => getFilterLabel(activeFilter.value))
@@ -1871,7 +1921,7 @@ const filteredMxRecords = computed(() => {
     records = records.filter((record) => normalizeFilterValue(record.status) === 'closed')
   } else if (activeFilter.value === 'cancel') {
     records = records.filter((record) => normalizeFilterValue(record.status) === 'cancel')
-  } else if (activeFilter.value === 'published') {
+  } else if (showSpPublishUi && activeFilter.value === 'published') {
     records = records.filter((record) => isTaskPublished(record))
   }
 
@@ -1956,7 +2006,8 @@ const publishedRecords = computed(() =>
 
 // Filter functions
 const setFilter = (filter) => {
-  activeFilter.value = normalizeFilterValue(filter) || 'all'
+  const nextFilter = normalizeFilterValue(filter) || 'all'
+  activeFilter.value = !showSpPublishUi && nextFilter === 'published' ? 'all' : nextFilter
   console.log('Tasks filter set to:', activeFilter.value)
 }
 
@@ -2159,6 +2210,25 @@ const formatDate = (timestamp) => {
   return date.toLocaleDateString()
 }
 
+const formatTaskOptionalDate = (timestamp) => {
+  if (!timestamp) return 'N/A'
+  return formatDate(timestamp)
+}
+
+const getTaskPhotoCount = (mxRecord) => {
+  const taskPhotos = Array.isArray(mxRecord?.image_urls) ? mxRecord.image_urls.length : 0
+  const commentPhotos = (Array.isArray(mxRecord?.logs) ? mxRecord.logs : []).reduce((count, log) => {
+    return count + (Array.isArray(log?.image_urls) ? log.image_urls.length : 0)
+  }, 0)
+  return taskPhotos + commentPhotos
+}
+
+const getTaskAssignedSpLabel = (mxRecord) => {
+  const assigned = mxRecord?.assigned_sp
+  if (!assigned) return 'N/A'
+  return assigned.sp_name || assigned.company_name || assigned.sp_id || 'Assigned'
+}
+
 const isTaskPublished = (mxRecord) => {
   if (!mxRecord || typeof mxRecord !== 'object') return false
   if (mxRecord.sp_published === true) return true
@@ -2303,6 +2373,7 @@ const buildTaskPublishPayload = (mxRecord, source = 'detail') => {
 }
 
 const publishTaskToServiceProvider = async (mxRecord, source = 'detail') => {
+  if (!showSpPublishUi) return false
   if (!mxRecord || typeof mxRecord !== 'object') return false
 
   const propertyId = extractTaskPropertyId(mxRecord.property_id)
@@ -2368,6 +2439,7 @@ const publishTaskToServiceProvider = async (mxRecord, source = 'detail') => {
 }
 
 const openTaskPublishDialog = (mxRecord, source = 'detail') => {
+  if (!showSpPublishUi) return
   if (!canManageRecords.value) return
   if (!mxRecord || typeof mxRecord !== 'object') return
   activeTaskPublishTarget.value = mxRecord
@@ -2410,12 +2482,20 @@ const viewMxRecord = (mxRecord) => {
   selectedTaskBidDetail.value = null
   showTaskBidDetailDialog.value = false
   loadTaskInsight(mxRecord)
-  loadTaskBids(mxRecord)
-  if (showSpRecommendationPanel.value) loadRecommendedSps(mxRecord)
+  if (showSpPublishUi) {
+    loadTaskBids(mxRecord)
+    if (showSpRecommendationPanel.value) loadRecommendedSps(mxRecord)
+  } else {
+    taskBids.value = []
+    recommendedSps.value = []
+    loadingTaskBids.value = false
+    loadingRecommendedSps.value = false
+  }
   loadTaskTransactions(mxRecord)
 }
 
 const openTaskBidDetailDialog = (bid) => {
+  if (!showSpPublishUi) return
   if (!bid || typeof bid !== 'object') return
   selectedTaskBidDetail.value = {
     bid_row: bid,
@@ -2740,6 +2820,7 @@ async function loadTaskBids(mxRecord) {
 }
 
 const contactRecommendedSp = async (sp) => {
+  if (!showSpPublishUi) return
   if (!selectedMxRecord.value) return
   try {
     await marketplaceApi.contactSp(selectedMxRecord.value.id, { sp_id: sp.sp_id })
@@ -2750,6 +2831,7 @@ const contactRecommendedSp = async (sp) => {
 }
 
 const requestQuoteFromSp = async (sp) => {
+  if (!showSpPublishUi) return
   if (!selectedMxRecord.value) return
   try {
     await marketplaceApi.requestQuote(selectedMxRecord.value.id, { sp_id: sp.sp_id })
@@ -2842,6 +2924,7 @@ const isBidAssigned = (bid) => {
 }
 
 const openBidSpDetailDialog = (bid) => {
+  if (!showSpPublishUi) return
   selectedBidSpDetail.value = {
     sp_id: String(bid?.sp_id || ''),
     name: getBidSpName(bid),
@@ -2852,6 +2935,7 @@ const openBidSpDetailDialog = (bid) => {
 }
 
 const openAssignedSpDetailDialog = () => {
+  if (!showSpPublishUi) return
   if (!selectedMxRecord.value?.assigned_sp) return
   const assigned = selectedMxRecord.value.assigned_sp
   selectedBidSpDetail.value = {
@@ -2864,6 +2948,7 @@ const openAssignedSpDetailDialog = () => {
 }
 
 const assignTaskToBidSp = async (bid) => {
+  if (!showSpPublishUi) return
   if (!canManageRecords.value) return
   if (!selectedMxRecord.value) return
   const spId = String(bid?.sp_id || '')
@@ -3851,7 +3936,7 @@ const closeCreateMxRecordDialog = () => {
 
 const onMxRecordCreated = (createdRecord) => {
   closeCreateMxRecordDialog()
-  if (createdRecord && canManageRecords.value) {
+  if (showSpPublishUi && createdRecord && canManageRecords.value) {
     openTaskPublishDialog(createdRecord, 'create')
     return
   }
@@ -4267,9 +4352,38 @@ const refreshData = async () => {
 }
 
 .summary-card {
-  min-width: 120px;
+  min-width: 0;
   transition: all 0.2s ease-in-out;
   cursor: pointer;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+}
+
+.task-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.task-summary-strip .summary-card {
+  width: 100%;
+}
+
+.task-summary-strip .summary-card :deep(.q-card__section) {
+  padding: 8px 6px;
+}
+
+.task-summary-strip .text-h6 {
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.task-summary-strip .text-caption {
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summary-card:hover {
@@ -4281,6 +4395,31 @@ const refreshData = async () => {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   border: 2px solid var(--q-primary);
+}
+
+.task-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: 8px;
+}
+
+.task-snapshot-card {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  border-radius: var(--border-radius-card);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.task-snapshot-card .detail-value {
+  overflow-wrap: anywhere;
+}
+
+.task-snapshot-caption {
+  margin-top: 3px;
+  color: var(--neutral-600);
+  font-size: 0.72rem;
+  line-height: 1.25;
 }
 
 .cursor-pointer {

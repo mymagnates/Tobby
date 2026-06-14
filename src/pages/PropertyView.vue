@@ -59,7 +59,7 @@
               :src="getPropertyPreviewImageUrl(selectedProperty)"
               :alt="selectedProperty.nickname"
               class="property-main-image"
-              fit="contain"
+              fit="cover"
             >
             </q-img>
           </q-card>
@@ -790,6 +790,7 @@
       maximized
       transition-show="slide-up"
       transition-hide="slide-down"
+      @hide="handlePropertyDialogHide"
     >
       <q-card class="create-fullscreen-card property-detail-dialog-card">
         <div v-if="selectedProperty" class="property-detail-frame">
@@ -800,7 +801,7 @@
               dense
               icon="close"
               class="property-detail-close"
-              @click="closePropertyDialog"
+              @click.stop.prevent="closePropertyDialog"
             />
             <div class="row items-start justify-between q-col-gutter-sm">
               <div class="col">
@@ -852,7 +853,7 @@
                   text-color="white"
                   label="Close"
                   class="top-action-btn"
-                  @click="closePropertyDialog"
+                  @click.stop.prevent="closePropertyDialog"
                 />
               </div>
             </div>
@@ -867,7 +868,7 @@
                     :src="selectedProperty.image_url || '/placeholder-property.jpg'"
                     :alt="selectedProperty.nickname"
                     class="property-detail-img"
-                    fit="contain"
+                    fit="cover"
                   />
                   <div class="row items-center justify-between q-gutter-sm q-mt-sm">
                     <div class="text-caption text-grey-6">
@@ -1515,6 +1516,10 @@ const {
   getDocument,
 } = useFirebase()
 const canManageRecords = computed(() => userDataStore.isManagerCapableUser)
+const canManagePropertyAction = (propertyId) => {
+  if (!propertyId) return false
+  return userDataStore.canManageProperty(propertyId)
+}
 const canInviteOwner = (property) => {
   if (!property?.id) return false
   return userDataStore.canShareProperty(property.id)
@@ -2332,7 +2337,13 @@ const onSnapshotSelected = async (file) => {
     console.error('Error replacing snapshot:', error)
     Notify.create({
       type: 'negative',
-      message: error?.message || 'Failed to replace snapshot.',
+      message: error?.code === 'storage/unauthorized'
+        ? 'Upload blocked by Firebase Storage permissions.'
+        : error?.code === 'storage/unauthenticated'
+          ? 'Your login session is not available for uploads. Please sign in again.'
+          : error?.code === 'permission-denied'
+            ? 'Upload record blocked by Firestore permissions.'
+            : error?.message || 'Failed to replace snapshot.',
       position: 'top',
     })
   } finally {
@@ -3419,12 +3430,24 @@ const onAssetCreated = () => {
 }
 
 // Dialog functions
-const closePropertyDialog = () => {
+const resetPropertyDialogState = () => {
   if (isEditMode.value) {
     cancelEdit()
   }
-  showPropertyDialog.value = false
   isEditMode.value = false
+  editLoading.value = false
+  snapshotUploadFile.value = null
+}
+
+const handlePropertyDialogHide = () => {
+  resetPropertyDialogState()
+}
+
+const closePropertyDialog = (event) => {
+  event?.stopPropagation?.()
+  event?.preventDefault?.()
+  resetPropertyDialogState()
+  showPropertyDialog.value = false
 }
 
 const toggleEditMode = () => {
@@ -3487,8 +3510,9 @@ const cancelEdit = () => {
 
 <style scoped>
 .property-view-container {
+  --property-summary-card-height: 360px;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  grid-template-columns: 280px minmax(0, 1fr) minmax(240px, 260px);
   gap: 16px;
   align-items: start;
   height: calc(100vh - 112px);
@@ -3497,8 +3521,8 @@ const cancelEdit = () => {
 
 .property-sidebar {
   position: sticky;
-  top: 92px;
-  max-height: calc(100vh - 116px);
+  top: 16px;
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -3564,18 +3588,21 @@ const cancelEdit = () => {
 
 .property-details-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
   gap: 12px;
   height: fit-content;
+  align-items: stretch;
 }
 
 .property-action-rail {
   position: sticky;
-  top: 92px;
+  top: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 
 .property-action-card {
@@ -3658,12 +3685,20 @@ const cancelEdit = () => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  align-self: stretch;
+  height: auto;
+  min-height: var(--property-summary-card-height);
 }
 
+.lease-status-card,
+.property-history-card,
+.property-services-card,
+.property-documents-card,
+.property-assets-card,
 .tasks-summary-card,
 .transaction-summary-card,
 .rent-tracking-card {
-  grid-column: 1 / span 2;
+  grid-column: 1 / -1;
 }
 
 
@@ -3674,9 +3709,11 @@ const cancelEdit = () => {
 
 .property-main-image {
   width: 100%;
-  height: 160px;
+  height: 100%;
+  min-height: 100%;
   border-radius: var(--border-radius-sm);
   background: var(--neutral-100, #f5f6f8);
+  flex: 1;
 }
 
 .property-main-image :deep(.q-img__container) {
@@ -3686,7 +3723,7 @@ const cancelEdit = () => {
 }
 
 .property-main-image :deep(img) {
-  object-fit: contain !important;
+  object-fit: cover !important;
   object-position: center center !important;
 }
 
@@ -3738,24 +3775,16 @@ const cancelEdit = () => {
 }
 
 .property-info-card {
-  grid-column: 1;
+  grid-column: 2;
   transition: all 0.2s ease;
   cursor: pointer;
+  min-height: var(--property-summary-card-height);
+  overflow: visible;
 }
 
 .property-info-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.tasks-summary-card {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.transaction-summary-card {
-  grid-column: 2;
-  grid-row: 2;
 }
 
 .property-documents-card {
@@ -3779,18 +3808,21 @@ const cancelEdit = () => {
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
+  align-items: stretch;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 74px;
   padding: 8px 10px;
   border: 1px solid rgba(36, 59, 83, 0.08);
   border-radius: var(--border-radius-card);
   background: rgba(248, 250, 252, 0.7);
+  justify-content: center;
 }
 
 .info-label {
@@ -3807,8 +3839,9 @@ const cancelEdit = () => {
   font-weight: 500;
   color: var(--neutral-800);
   font-size: 0.86rem;
-  line-height: 1.25;
+  line-height: 1.35;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .history-card-header {
@@ -4131,7 +4164,7 @@ const cancelEdit = () => {
 }
 
 .property-detail-img :deep(img) {
-  object-fit: contain !important;
+  object-fit: cover !important;
   object-position: center center !important;
 }
 
@@ -4163,10 +4196,24 @@ const cancelEdit = () => {
 }
 
 /* Responsive design */
+@media (max-width: 1280px) {
+  .property-view-container {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .property-action-rail {
+    grid-column: 2;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 @media (max-width: 1024px) {
   .property-view-container {
     grid-template-columns: 1fr;
     height: auto;
+    --property-summary-card-height: auto;
   }
 
   .property-sidebar {
@@ -4184,6 +4231,7 @@ const cancelEdit = () => {
 
   .property-action-rail {
     position: static;
+    grid-column: 1;
     order: 3;
   }
 
@@ -4197,10 +4245,15 @@ const cancelEdit = () => {
 
   .property-image-card {
     grid-column: 1;
+    height: auto;
+    min-height: 280px;
   }
 
   .property-info-card {
     grid-column: 1;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
 
   .tasks-summary-card {

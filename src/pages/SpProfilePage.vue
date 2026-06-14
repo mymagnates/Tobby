@@ -97,48 +97,54 @@
     </q-card>
 
     <q-dialog v-model="showContactEditDialog">
-      <q-card style="min-width: 420px; max-width: 90vw">
-        <q-card-section class="row items-center justify-between">
-          <div class="text-h6">Update Contact Info</div>
-          <q-btn icon="close" flat round dense color="primary" v-close-popup />
+      <q-card class="profile-contact-dialog">
+        <q-card-section class="dialog-header profile-contact-dialog__header">
+          <div>
+            <div class="text-h6">Update Contact Info</div>
+            <div class="profile-contact-dialog__subtitle">
+              Keep your service provider contact details current.
+            </div>
+          </div>
+          <q-btn icon="close" flat round dense class="dialog-close-btn" v-close-popup />
         </q-card-section>
-        <q-separator />
-        <q-card-section class="q-pa-md">
-          <q-input
-            v-model="contactForm.contact"
-            label="Contact"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.email"
-            label="Email"
-            type="email"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.phone"
-            label="Phone"
-            type="tel"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.address"
-            label="Address"
-            outlined
-            dense
-            autogrow
-          />
+        <q-card-section class="profile-contact-dialog__body">
+          <div class="profile-contact-dialog__grid">
+            <q-input
+              v-model="contactForm.contact"
+              label="Contact"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.email"
+              label="Email"
+              type="email"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.phone"
+              label="Phone"
+              type="tel"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.address"
+              label="Address"
+              outlined
+              dense
+              autogrow
+              class="profile-contact-dialog__wide"
+            />
+          </div>
         </q-card-section>
-        <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat label="Cancel" color="grey" v-close-popup />
+        <q-card-actions align="right" class="profile-contact-dialog__actions">
+          <q-btn outline no-caps label="Cancel" color="primary" v-close-popup />
           <q-btn
             color="primary"
+            unelevated
+            no-caps
             label="Save"
             :loading="savingContact"
             @click="saveContactInfo"

@@ -29,21 +29,14 @@ describe('sessionManager', () => {
   })
 
   describe('setLoginTime', () => {
-    it('should set login time in localStorage', () => {
+    it('should clear persisted timeout state when using always-on persistence', () => {
       sessionManager.setLoginTime()
-      expect(localStorageMock.setItem).toHaveBeenCalled()
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('firebase_session_login_time')
     })
 
-    it('should store current timestamp', () => {
-      const beforeTime = Date.now()
+    it('should not store a timestamp for always-on persistence', () => {
       sessionManager.setLoginTime()
-      const afterTime = Date.now()
-
-      const callArgs = localStorageMock.setItem.mock.calls[0]
-      const storedTime = parseInt(callArgs[1], 10)
-
-      expect(storedTime).toBeGreaterThanOrEqual(beforeTime)
-      expect(storedTime).toBeLessThanOrEqual(afterTime)
+      expect(localStorageMock.setItem).not.toHaveBeenCalled()
     })
   })
 
@@ -79,7 +72,7 @@ describe('sessionManager', () => {
 
       const expired = sessionManager.isSessionExpired()
 
-      expect(expired).toBe(true)
+      expect(expired).toBe(false)
     })
 
     it('should return false if no login time', () => {
@@ -104,8 +97,7 @@ describe('sessionManager', () => {
 
       const remaining = sessionManager.getRemainingTime()
 
-      expect(remaining).toBeGreaterThan(0)
-      expect(remaining).toBeLessThan(SESSION_TIMEOUT_MS)
+      expect(remaining).toBe(Number.POSITIVE_INFINITY)
     })
 
     it('should return 0 for expired session', () => {
@@ -114,23 +106,23 @@ describe('sessionManager', () => {
 
       const remaining = sessionManager.getRemainingTime()
 
-      expect(remaining).toBe(0)
+      expect(remaining).toBe(Number.POSITIVE_INFINITY)
     })
 
     it('should return 0 if no login time', () => {
       const remaining = sessionManager.getRemainingTime()
-      expect(remaining).toBe(0)
+      expect(remaining).toBe(Number.POSITIVE_INFINITY)
     })
   })
 
   describe('getRemainingTimeFormatted', () => {
-    it('should return formatted time string', () => {
+    it('should return always-on label', () => {
       const recentTime = Date.now() - 1000
       localStorageMock.setItem('firebase_session_login_time', recentTime.toString())
 
       const formatted = sessionManager.getRemainingTimeFormatted()
 
-      expect(formatted).toMatch(/\d+h \d+m/)
+      expect(formatted).toBe('Always')
     })
   })
 })

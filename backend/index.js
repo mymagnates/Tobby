@@ -24,6 +24,8 @@ const getHandler = () => {
         process.env.GEMINI_API_KEY ||
         process.env.GOOGLE_API_KEY ||
         '',
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     },
   })
   cachedHandler = handler
@@ -34,7 +36,12 @@ export const mkpl = onRequest(
   {
     region: 'us-central1',
     cors: true,
-    secrets: [resendApiKeySecret, inviteEmailFromSecret, appBaseUrlSecret, geminiApiKeySecret],
+    secrets: [
+      resendApiKeySecret,
+      inviteEmailFromSecret,
+      appBaseUrlSecret,
+      geminiApiKeySecret,
+    ],
   },
   (req, res) => getHandler()(req, res),
 )
@@ -42,7 +49,10 @@ export const mkpl = onRequest(
 if (!getApps().length) initializeApp()
 const db = getFirestore()
 
-const normalizeTaskStatus = (status) => String(status || '').trim().toLowerCase()
+const normalizeTaskStatus = (status) =>
+  String(status || '')
+    .trim()
+    .toLowerCase()
 
 const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
   const normalized = normalizeTaskStatus(taskStatus)
@@ -69,7 +79,11 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
   const taskStatus = String(taskData?.status || 'open')
   const nextLeadStatus = mapTaskStatusToLeadStatus(taskStatus, currentLead.status || 'open')
   const description = String(taskData?.description || currentLead.description || '')
-  const comments = Array.isArray(taskData?.comments) ? taskData.comments : (Array.isArray(currentLead.comments) ? currentLead.comments : [])
+  const comments = Array.isArray(taskData?.comments)
+    ? taskData.comments
+    : Array.isArray(currentLead.comments)
+      ? currentLead.comments
+      : []
   const imageUrls = Array.isArray(taskData?.image_urls)
     ? taskData.image_urls
     : Array.isArray(taskData?.photos)
@@ -82,11 +96,13 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
   const title = String(
     taskData?.title ||
       currentLead.title ||
-      (description ? description.slice(0, 80) : 'New Task Lead')
+      (description ? description.slice(0, 80) : 'New Task Lead'),
   )
   const isPublishedToSp =
     taskData?.sp_published === true ||
-    String(taskData?.sp_publish_status || '').trim().toLowerCase() === 'published'
+    String(taskData?.sp_publish_status || '')
+      .trim()
+      .toLowerCase() === 'published'
 
   return {
     lead_id: currentLead.lead_id || currentLead.id || `lead-task-${taskId}`,
@@ -103,10 +119,26 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
         currentLead.property_address_line1 ||
         '',
     ),
-    property_address_line1: String(taskData?.property_address_line1 || currentLead.property_address_line1 || ''),
-    property_address_line2: String(taskData?.property_address_line2 || currentLead.property_address_line2 || ''),
-    property_city: String(taskData?.property_city || taskData?.city || currentLead.property_city || currentLead.city || ''),
-    property_state: String(taskData?.property_state || taskData?.state || currentLead.property_state || currentLead.state || ''),
+    property_address_line1: String(
+      taskData?.property_address_line1 || currentLead.property_address_line1 || '',
+    ),
+    property_address_line2: String(
+      taskData?.property_address_line2 || currentLead.property_address_line2 || '',
+    ),
+    property_city: String(
+      taskData?.property_city ||
+        taskData?.city ||
+        currentLead.property_city ||
+        currentLead.city ||
+        '',
+    ),
+    property_state: String(
+      taskData?.property_state ||
+        taskData?.state ||
+        currentLead.property_state ||
+        currentLead.state ||
+        '',
+    ),
     property_zip: String(
       taskData?.property_zip ||
         taskData?.zip_code ||
@@ -118,8 +150,20 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
         currentLead.zip ||
         '',
     ),
-    city: String(taskData?.city || taskData?.property_city || currentLead.city || currentLead.property_city || ''),
-    state: String(taskData?.state || taskData?.property_state || currentLead.state || currentLead.property_state || ''),
+    city: String(
+      taskData?.city ||
+        taskData?.property_city ||
+        currentLead.city ||
+        currentLead.property_city ||
+        '',
+    ),
+    state: String(
+      taskData?.state ||
+        taskData?.property_state ||
+        currentLead.state ||
+        currentLead.property_state ||
+        '',
+    ),
     zip_code: String(
       taskData?.zip_code ||
         taskData?.property_zip ||
@@ -158,14 +202,15 @@ const buildLeadPatchFromTask = ({ taskId, propertyId, taskData, existingLead }) 
     visibility_mode: currentLead.visibility_mode || 'public',
     sp_published: isPublishedToSp,
     sp_publish_status: isPublishedToSp ? 'published' : 'draft',
-    sp_published_at:
-      taskData?.sp_published_at || currentLead.sp_published_at || null,
+    sp_published_at: taskData?.sp_published_at || currentLead.sp_published_at || null,
     bid_deadline: currentLead.bid_deadline || null,
     bid_count: currentLead.bid_count || 0,
     assigned_sp_id: currentLead.assigned_sp_id || null,
     assigned_bid_id: currentLead.assigned_bid_id || null,
     comments,
-    comment_count: Number(taskData?.comment_count ?? comments.length ?? currentLead.comment_count ?? 0),
+    comment_count: Number(
+      taskData?.comment_count ?? comments.length ?? currentLead.comment_count ?? 0,
+    ),
     image_urls: imageUrls,
     photo_count: Number(taskData?.photo_count ?? imageUrls.length ?? currentLead.photo_count ?? 0),
     source: currentLead.source || 'task-trigger',
@@ -183,7 +228,9 @@ const upsertLeadFromTask = async ({ propertyId, taskId, taskData }) => {
   const leadRef = db.collection('marketplace_leads').doc(leadDocId)
   const isPublishedToSp =
     taskData?.sp_published === true ||
-    String(taskData?.sp_publish_status || '').trim().toLowerCase() === 'published'
+    String(taskData?.sp_publish_status || '')
+      .trim()
+      .toLowerCase() === 'published'
 
   if (!isPublishedToSp) {
     const existingLeadSnap = await leadRef.get()
@@ -208,7 +255,7 @@ const upsertLeadFromTask = async ({ propertyId, taskId, taskData }) => {
       ...patch,
       updated_server_at: FieldValue.serverTimestamp(),
     },
-    { merge: true }
+    { merge: true },
   )
 }
 
@@ -225,7 +272,7 @@ export const onTaskCreatedLeadSync = onDocumentCreated(
       taskId: event.params.mxrecordId,
       taskData,
     })
-  }
+  },
 )
 
 export const onTaskUpdatedLeadSync = onDocumentUpdated(
@@ -241,7 +288,7 @@ export const onTaskUpdatedLeadSync = onDocumentUpdated(
       taskId: event.params.mxrecordId,
       taskData,
     })
-  }
+  },
 )
 
 const normalizeRef = (value) => String(value || '').trim()
@@ -267,17 +314,25 @@ const buildAssignedSpFromTaskSelection = ({ taskData, bidData, actorId, accepted
       bidData?.sp_name ||
       bidData?.sp_business_name ||
       bidData?.provider_name ||
-      ''
+      '',
   ).trim(),
   sp_contact: taskData?.assigned_sp?.sp_contact || bidData?.sp_contact || null,
-  sp_rating: taskData?.assigned_sp?.sp_rating || bidData?.sp_rating || bidData?.sp_rating_avg || null,
-  bid_id: normalizeRef(taskData?.selected_bid_id || taskData?.assigned_sp?.bid_id || bidData?.bid_id || bidData?.id),
+  sp_rating:
+    taskData?.assigned_sp?.sp_rating || bidData?.sp_rating || bidData?.sp_rating_avg || null,
+  bid_id: normalizeRef(
+    taskData?.selected_bid_id || taskData?.assigned_sp?.bid_id || bidData?.bid_id || bidData?.id,
+  ),
   bid_amount: Number(taskData?.assigned_sp?.bid_amount || bidData?.amount || 0),
   assigned_at: acceptedAt,
   assigned_by: normalizeRef(taskData?.assigned_sp?.assigned_by || actorId),
 })
 
-const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData = null, taskData }) => {
+const syncTaskSelectionToMarketplace = async ({
+  propertyId,
+  taskId,
+  beforeData = null,
+  taskData,
+}) => {
   const previousBidId = normalizeRef(beforeData?.selected_bid_id || beforeData?.assigned_sp?.bid_id)
   const previousSpId = normalizeRef(beforeData?.assigned_sp_id || beforeData?.assigned_sp?.sp_id)
   const selectedBidId = normalizeRef(taskData?.selected_bid_id || taskData?.assigned_sp?.bid_id)
@@ -301,7 +356,12 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
     await Promise.all([
       ...bidSnap.docs.map((doc) => {
         const data = doc.data() || {}
-        if (String(data.status || '').trim().toLowerCase() !== 'accepted') return Promise.resolve()
+        if (
+          String(data.status || '')
+            .trim()
+            .toLowerCase() !== 'accepted'
+        )
+          return Promise.resolve()
         return doc.ref.set(
           {
             status: 'submitted',
@@ -310,7 +370,7 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
             project_title: null,
             updated_at: new Date().toISOString(),
           },
-          { merge: true }
+          { merge: true },
         )
       }),
       leadRef.set(
@@ -321,9 +381,13 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
           updated_at: new Date().toISOString(),
           updated_server_at: FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       ),
-      db.collection('sp_projects').doc(taskId).delete().catch(() => {}),
+      db
+        .collection('sp_projects')
+        .doc(taskId)
+        .delete()
+        .catch(() => {}),
     ])
     return
   }
@@ -338,20 +402,27 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
     acceptedAt,
   })
 
-  const projectTitle = String(taskData?.title || taskData?.task_title || leadData.title || 'Untitled Project').trim()
+  const projectTitle = String(
+    taskData?.title || taskData?.task_title || leadData.title || 'Untitled Project',
+  ).trim()
   const projectAddress = String(
     taskData?.property_address ||
       taskData?.property_id?.address ||
       leadData.address ||
       leadData.property_address_line1 ||
-      ''
+      '',
   ).trim()
 
   const bidSnap = await bidsRef.get()
   const writes = bidSnap.docs.map((doc) => {
     const data = doc.data() || {}
     const isSelected = doc.id === selectedBidId
-    if (!isSelected && String(data.status || '').trim().toLowerCase() === 'withdrawn') {
+    if (
+      !isSelected &&
+      String(data.status || '')
+        .trim()
+        .toLowerCase() === 'withdrawn'
+    ) {
       return Promise.resolve()
     }
     return doc.ref.set(
@@ -362,7 +433,7 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
         project_title: isSelected ? projectTitle : null,
         updated_at: new Date().toISOString(),
       },
-      { merge: true }
+      { merge: true },
     )
   })
 
@@ -375,34 +446,37 @@ const syncTaskSelectionToMarketplace = async ({ propertyId, taskId, beforeData =
         updated_at: new Date().toISOString(),
         updated_server_at: FieldValue.serverTimestamp(),
       },
-      { merge: true }
-    )
+      { merge: true },
+    ),
   )
 
   writes.push(
-    db.collection('sp_projects').doc(taskId).set(
-      {
-        project_id: taskId,
-        mxrecord_id: taskId,
-        property_id: normalizeRef(propertyId || taskData?.property_id),
-        lead_id: leadDoc.id,
-        selected_bid_id: assignedSp.bid_id,
-        sp_id: assignedSp.sp_id,
-        title: projectTitle,
-        task_title: projectTitle,
-        address: projectAddress,
-        location: projectAddress,
-        status: 'active',
-        accepted_at: acceptedAt,
-        assigned_sp: assignedSp,
-        comments: Array.isArray(taskData?.comments) ? taskData.comments : [],
-        phases: taskData?.phases && typeof taskData.phases === 'object' ? taskData.phases : {},
-        created_at: toIsoString(taskData?.createAt) || acceptedAt,
-        updated_at: new Date().toISOString(),
-        updated_server_at: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    )
+    db
+      .collection('sp_projects')
+      .doc(taskId)
+      .set(
+        {
+          project_id: taskId,
+          mxrecord_id: taskId,
+          property_id: normalizeRef(propertyId || taskData?.property_id),
+          lead_id: leadDoc.id,
+          selected_bid_id: assignedSp.bid_id,
+          sp_id: assignedSp.sp_id,
+          title: projectTitle,
+          task_title: projectTitle,
+          address: projectAddress,
+          location: projectAddress,
+          status: 'active',
+          accepted_at: acceptedAt,
+          assigned_sp: assignedSp,
+          comments: Array.isArray(taskData?.comments) ? taskData.comments : [],
+          phases: taskData?.phases && typeof taskData.phases === 'object' ? taskData.phases : {},
+          created_at: toIsoString(taskData?.createAt) || acceptedAt,
+          updated_at: new Date().toISOString(),
+          updated_server_at: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      ),
   )
 
   await Promise.all(writes)
@@ -421,7 +495,7 @@ export const onTaskCreatedBidSelectionSync = onDocumentCreated(
       taskId: event.params.mxrecordId,
       taskData,
     })
-  }
+  },
 )
 
 export const onTaskUpdatedBidSelectionSync = onDocumentUpdated(
@@ -439,5 +513,5 @@ export const onTaskUpdatedBidSelectionSync = onDocumentUpdated(
       beforeData,
       taskData,
     })
-  }
+  },
 )

@@ -37,7 +37,7 @@
                     @click="openContactEditDialog('phone')"
                   />
                 </div>
-                <div class="col-auto">
+                <div v-if="showProfileBillingActions" class="col-auto">
                   <q-btn
                     outline
                     color="primary"
@@ -58,7 +58,7 @@
                   />
                 </div>
 
-                <div class="col-auto">
+                <div v-if="showProfileBillingActions" class="col-auto">
                   <q-btn
                     class="full-width"
                     outline
@@ -139,7 +139,14 @@
                 <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="ratioColor(aiTokensRatio)" />
                 <div class="row items-center justify-between q-mt-xs">
                   <div class="text-caption text-grey-7">{{ aiTokensRemainingDisplay }} left this month</div>
-                  <q-btn outline color="primary" size="sm" label="Buy Tokens" @click="buyAddon('ai_tokens_pack')" />
+                  <q-btn
+                    v-if="showProfileBillingActions"
+                    outline
+                    color="primary"
+                    size="sm"
+                    label="Buy Tokens"
+                    @click="buyAddon('ai_tokens_pack')"
+                  />
                 </div>
               </div>
 
@@ -151,7 +158,14 @@
                 <q-linear-progress rounded size="8px" :value="storageRatio" :color="ratioColor(storageRatio)" />
                 <div class="row items-center justify-between q-mt-xs">
                   <div class="text-caption text-grey-7">{{ Math.round(storageRatio * 100) }}% used</div>
-                  <q-btn outline color="primary" size="sm" label="Buy +20GB" @click="buyAddon('storage_20gb')" />
+                  <q-btn
+                    v-if="showProfileBillingActions"
+                    outline
+                    color="primary"
+                    size="sm"
+                    label="Buy +20GB"
+                    @click="buyAddon('storage_20gb')"
+                  />
                 </div>
               </div>
             </q-card-section>
@@ -235,47 +249,53 @@
     </q-dialog>
 
     <q-dialog v-model="showContactEditDialog">
-      <q-card style="min-width: 420px; max-width: 90vw">
-        <q-card-section class="row items-center justify-between">
-          <div class="text-h6">Update Contact Info</div>
-          <q-btn icon="close" flat round dense color="primary" v-close-popup />
+      <q-card class="profile-contact-dialog">
+        <q-card-section class="dialog-header profile-contact-dialog__header">
+          <div>
+            <div class="text-h6">Update Contact Info</div>
+            <div class="profile-contact-dialog__subtitle">
+              Keep your public account details current.
+            </div>
+          </div>
+          <q-btn icon="close" flat round dense class="dialog-close-btn" v-close-popup />
         </q-card-section>
-        <q-separator />
-        <q-card-section class="q-pa-md">
-          <q-input
-            v-model="contactForm.displayName"
-            label="Display Name"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.phone"
-            label="Phone"
-            type="tel"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.companyName"
-            label="Company Name"
-            outlined
-            dense
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="contactForm.address"
-            label="Address"
-            outlined
-            dense
-            autogrow
-          />
+        <q-card-section class="profile-contact-dialog__body">
+          <div class="profile-contact-dialog__grid">
+            <q-input
+              v-model="contactForm.displayName"
+              label="Display Name"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.phone"
+              label="Phone"
+              type="tel"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.companyName"
+              label="Company Name"
+              outlined
+              dense
+            />
+            <q-input
+              v-model="contactForm.address"
+              label="Address"
+              outlined
+              dense
+              autogrow
+              class="profile-contact-dialog__wide"
+            />
+          </div>
         </q-card-section>
-        <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat label="Cancel" color="grey" v-close-popup />
+        <q-card-actions align="right" class="profile-contact-dialog__actions">
+          <q-btn outline no-caps label="Cancel" color="primary" v-close-popup />
           <q-btn
             color="primary"
+            unelevated
+            no-caps
             label="Save"
             :loading="savingContact"
             @click="saveContactInfo"
@@ -337,6 +357,7 @@ import { requestAccountDeletion } from '../services/accountPrivacy'
 const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
+const showProfileBillingActions = false
 
 const userProfile = computed(() => userDataStore.userProfile || {})
 const userRoles = computed(() => userDataStore.userRoles || [])

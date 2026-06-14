@@ -4,6 +4,7 @@
       <div class="brand">Handout Admin</div>
       <router-link class="nav-link" to="/overview" active-class="active">Overview</router-link>
       <router-link class="nav-link" to="/users" active-class="active">Users & Roles</router-link>
+      <router-link class="nav-link" to="/support" active-class="active">Support Inbox</router-link>
       <router-link class="nav-link" to="/billing" active-class="active">Billing & Credits</router-link>
       <router-link class="nav-link" to="/logs" active-class="active">Ops Logs</router-link>
       <router-link class="nav-link" to="/data-management" active-class="active">Data Management</router-link>

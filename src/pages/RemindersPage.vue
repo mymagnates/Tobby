@@ -1,38 +1,7 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Quick Stats -->
-    <div class="row q-gutter-md q-mb-lg">
-      <q-card class="summary-card">
-        <q-card-section class="text-center">
-          <div class="text-h4 text-primary">{{ reminders.length }}</div>
-          <div class="text-subtitle2">Total Reminders</div>
-        </q-card-section>
-      </q-card>
-
-      <q-card class="summary-card">
-        <q-card-section class="text-center">
-          <div class="text-h4 text-primary">{{ activeReminders }}</div>
-          <div class="text-subtitle2">Active</div>
-        </q-card-section>
-      </q-card>
-
-      <q-card class="summary-card">
-        <q-card-section class="text-center">
-          <div class="text-h4 text-orange">{{ recurringReminders }}</div>
-          <div class="text-subtitle2">Recurring</div>
-        </q-card-section>
-      </q-card>
-
-      <q-card class="summary-card">
-        <q-card-section class="text-center">
-          <div class="text-h4 text-primary">{{ oneTimeReminders }}</div>
-          <div class="text-subtitle2">One-time</div>
-        </q-card-section>
-      </q-card>
-    </div>
-
     <!-- Filters -->
-    <div class="page-toolbar page-toolbar--stacked">
+    <div class="page-toolbar page-toolbar--stacked q-mb-md">
       <q-input v-model="searchText" placeholder="Search reminders" borderless dense clearable class="page-tool-field">
         <template v-slot:prepend>
           <q-icon name="search" size="18px" />
@@ -82,6 +51,37 @@
         class="page-tool-action"
         @click="openCreateDialog"
       />
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="reminder-summary-strip q-mb-md">
+      <q-card class="summary-card">
+        <q-card-section class="text-center">
+          <div class="text-h6 text-primary">{{ reminders.length }}</div>
+          <div class="text-caption">Total Reminders</div>
+        </q-card-section>
+      </q-card>
+
+      <q-card class="summary-card">
+        <q-card-section class="text-center">
+          <div class="text-h6 text-primary">{{ activeReminders }}</div>
+          <div class="text-caption">Active</div>
+        </q-card-section>
+      </q-card>
+
+      <q-card class="summary-card">
+        <q-card-section class="text-center">
+          <div class="text-h6 text-orange">{{ recurringReminders }}</div>
+          <div class="text-caption">Recurring</div>
+        </q-card-section>
+      </q-card>
+
+      <q-card class="summary-card">
+        <q-card-section class="text-center">
+          <div class="text-h6 text-primary">{{ oneTimeReminders }}</div>
+          <div class="text-caption">One-time</div>
+        </q-card-section>
+      </q-card>
     </div>
 
     <!-- Reminders List -->
@@ -1114,15 +1114,44 @@ watch(
 
 <style scoped>
 .summary-card {
-  min-width: 120px;
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--neutral-200);
-  transition: var(--transition);
+  min-width: 0;
+  border-radius: var(--border-radius-card);
+  box-shadow: none;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+  transition: all 0.2s ease-in-out;
+}
+
+.reminder-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.reminder-summary-strip .summary-card {
+  width: 100%;
+}
+
+.reminder-summary-strip .summary-card :deep(.q-card__section) {
+  padding: 8px 6px;
+}
+
+.reminder-summary-strip .text-h6 {
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.reminder-summary-strip .text-caption {
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summary-card:hover {
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .reminder-card {

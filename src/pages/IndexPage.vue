@@ -597,17 +597,18 @@
 
         <div class="feed-preview-main-text">{{ selectedFeedItem.brief || 'No description.' }}</div>
 
-        <div
-          v-if="selectedFeedItem.type === 'task' && selectedFeedItem.bidCount > 0"
-          class="feed-preview-bid"
-        >
-          {{ selectedFeedItem.latestBidSummary }}
+        <div v-if="feedPreviewOverviewFields.length" class="feed-preview-overview-grid">
+          <div
+            v-for="field in feedPreviewOverviewFields"
+            :key="`overview-${field.key}`"
+            class="feed-preview-overview-card"
+          >
+            <div class="feed-preview-section-label">{{ field.label }}</div>
+            <div class="feed-preview-section-value">{{ field.value }}</div>
+          </div>
         </div>
 
-        <div
-          v-if="!['task', 'bid'].includes(String(selectedFeedItem.type || '').toLowerCase())"
-          class="feed-preview-section"
-        >
+        <div class="feed-preview-section">
           <div class="feed-preview-section-title">{{ feedPreviewSourceTitle }}</div>
           <div v-if="!feedPreviewSourceFields.length" class="feed-preview-empty">
             No detailed source fields available.
@@ -1104,6 +1105,7 @@ const loadBidFeedItems = async () => {
               resolvePropertyThumbnail(task?.property_id),
             ),
             eventDate: bid?.created_at,
+            snapshot: { bid: { ...bid }, task: { ...task } },
           }))
         } catch {
           return []
@@ -1517,6 +1519,7 @@ const leaseFeedItems = computed(() =>
       dataId: normalizeId(lease.id, lease.lease_id, lease.LSID),
       thumbnailUrl: resolveThumbnailUrl(lease, resolvePropertyThumbnail(leasePropertyId)),
       eventDate: lease.updatedAt || lease.created_datetime || lease.lease_create_date,
+      snapshot: { ...lease },
     }
   }),
 )
@@ -1694,6 +1697,60 @@ const feedPreviewSubtitle = computed(() => {
   return `${typeLabel} • ${property}`
 })
 
+const feedPreviewOverviewFields = computed(() => {
+  const post = selectedFeedItem.value
+  if (!post) return []
+  const type = String(post.type || '').toLowerCase()
+  const snapshot = post.snapshot || {}
+  const taskSnapshot = type === 'bid' ? snapshot.task || {} : snapshot
+  const bidSnapshot = type === 'bid' ? snapshot.bid || {} : {}
+  const rows = []
+
+  if (type === 'task') {
+    rows.push(
+      { key: 'status', label: 'Status', value: safeDisplay(snapshot.status) },
+      { key: 'due_date', label: 'Due Date', value: formatDetailDate(snapshot.due_date) },
+      {
+        key: 'bids',
+        label: 'Bids',
+        value: post.bidCount > 0 ? String(post.bidCount) : 'N/A',
+      },
+    )
+  } else if (type === 'transaction') {
+    rows.push(
+      { key: 'amount', label: 'Amount', value: formatDetailCurrency(snapshot.amount ?? post.amount) },
+      {
+        key: 'direction',
+        label: 'Flow',
+        value: formatTransactionFlow(snapshot),
+      },
+    )
+  } else if (type === 'lease') {
+    rows.push(
+      { key: 'status', label: 'Status', value: safeDisplay(snapshot.status) },
+      { key: 'start', label: 'Start', value: formatDetailDate(pickFirstValue(snapshot, ['start_date', 'lease_start_date', 'move_in_date'])) },
+      { key: 'rent', label: 'Rent', value: formatDetailCurrency(pickFirstValue(snapshot, ['rate_amount', 'rent', 'monthly_rent'])) },
+    )
+  } else if (type === 'bid') {
+    rows.push(
+      { key: 'amount', label: 'Bid Amount', value: formatDetailCurrency(bidSnapshot.amount) },
+      { key: 'status', label: 'Bid Status', value: safeDisplay(bidSnapshot.status || post.latestBidStatus) },
+      {
+        key: 'sp',
+        label: 'Service Provider',
+        value: safeDisplay(pickFirstValue(bidSnapshot, ['sp_business_name', 'sp_name', 'sp_display_name'])),
+      },
+      {
+        key: 'task',
+        label: 'Related Task',
+        value: safeDisplay(taskSnapshot.task_title || taskSnapshot.title || taskSnapshot.mx_id || post.taskId),
+      },
+    )
+  }
+
+  return rows.filter((row) => row.value !== 'N/A')
+})
+
 const capitalizeFirst = (value) => {
   const text = String(value || '').trim()
   if (!text) return ''
@@ -1747,6 +1804,13 @@ const safeDisplay = (value) => {
   return text || 'N/A'
 }
 
+const formatTransactionFlow = (transaction) => {
+  const from = capitalizeFirst(transaction?.transac_from)
+  const to = capitalizeFirst(transaction?.transac_to)
+  if (from && to) return `${from} to ${to}`
+  return safeDisplay(from || to)
+}
+
 const getTaskCommentsSummary = (task) => {
   const logs = Array.isArray(task?.logs) ? task.logs : []
   const directComments = Array.isArray(task?.comments) ? task.comments : []
@@ -1785,13 +1849,8 @@ const feedPreviewSourceFields = computed(() => {
 
   if (type === 'transaction') {
     const tx = post.snapshot || {}
-    const propertyId = tx.property_id || tx.propertyId || post.property_id
     return [
-      { key: 'property', label: 'Property', value: safeDisplay(post.property || resolvePropertyName(propertyId)) },
       { key: 'date', label: 'Date', value: formatDetailDate(tx.transac_date || tx.date || post.eventDate) },
-      { key: 'from', label: 'From', value: safeDisplay(capitalizeFirst(tx.transac_from)) },
-      { key: 'to', label: 'To', value: safeDisplay(capitalizeFirst(tx.transac_to)) },
-      { key: 'amount', label: 'Amount', value: formatDetailCurrency(tx.amount ?? post.amount) },
       { key: 'type', label: 'Type', value: safeDisplay(tx.transac_type) },
       { key: 'note', label: 'Note', value: safeDisplay(tx.note || tx.description || post.brief) },
     ]
@@ -1801,6 +1860,11 @@ const feedPreviewSourceFields = computed(() => {
     const task = post.snapshot || {}
     const comments = getTaskCommentsSummary(task)
     return [
+      {
+        key: 'reported',
+        label: 'Reported',
+        value: formatDetailDate(task.report_date || task.createAt || post.eventDate),
+      },
       {
         key: 'description',
         label: 'Task Description',
@@ -1813,15 +1877,17 @@ const feedPreviewSourceFields = computed(() => {
 
   if (type === 'lease') {
     const lease = post.snapshot || {}
-    const moveInDate = pickFirstValue(lease, ['start_date', 'lease_start_date', 'move_in_date'])
     return [
-      { key: 'movein', label: 'Move-In Date', value: formatDetailDate(moveInDate) },
       {
         key: 'term',
         label: 'Term',
         value: lease.lease_term ? `${lease.lease_term} months` : 'N/A',
       },
-      { key: 'rate', label: 'Rate', value: formatDetailCurrency(lease.rate_amount) },
+      {
+        key: 'deposit',
+        label: 'Deposit',
+        value: formatDetailCurrency(pickFirstValue(lease, ['deposit_amount', 'security_deposit'])),
+      },
       {
         key: 'rate_type',
         label: 'Rate Type',
@@ -1832,14 +1898,14 @@ const feedPreviewSourceFields = computed(() => {
 
   if (type === 'bid') {
     const bid = post.snapshot?.bid || {}
+    const task = post.snapshot?.task || {}
     return [
       {
-        key: 'sp',
-        label: 'Service Provider',
-        value: safeDisplay(pickFirstValue(bid, ['sp_business_name', 'sp_name', 'sp_display_name'])),
+        key: 'task',
+        label: 'Task',
+        value: safeDisplay(task.task_title || task.title || task.mx_id || post.taskId),
       },
-      { key: 'amount', label: 'Amount', value: formatDetailCurrency(bid.amount) },
-      { key: 'status', label: 'Status', value: safeDisplay(bid.status) },
+      { key: 'submitted', label: 'Submitted', value: formatDetailDate(bid.created_at || post.eventDate) },
       {
         key: 'note',
         label: 'Note',
@@ -2574,10 +2640,18 @@ watch(feedViewMode, (nextValue) => {
   color: var(--neutral-900);
 }
 
-.feed-preview-bid {
-  font-size: 0.84rem;
-  color: #6d28d9;
-  font-weight: 600;
+.feed-preview-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.feed-preview-overview-card {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: var(--border-radius-sm);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(248, 250, 252, 0.94));
+  padding: 8px 10px;
+  min-width: 0;
 }
 
 .feed-preview-empty {
@@ -4176,6 +4250,11 @@ watch(feedViewMode, (nextValue) => {
 
 :global(body.body--dark) .feed-preview-main-text {
   color: #f8fafc !important;
+}
+
+:global(body.body--dark) .feed-preview-overview-card {
+  background: rgba(15, 23, 42, 0.74) !important;
+  border-color: rgba(96, 165, 250, 0.22) !important;
 }
 
 :global(body.body--dark) .feed-preview-section-field {

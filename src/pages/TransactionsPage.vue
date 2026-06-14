@@ -57,10 +57,10 @@
         </div>
 
         <!-- Summary Stats -->
-        <div class="row q-gutter-md q-mb-md">
+        <div class="transaction-summary-strip q-mb-md">
       <q-card
         class="summary-card cursor-pointer"
-        :class="{ 'filter-active': activeTypeFilter === 'all' }"
+        :class="['transaction-summary-card--total', { 'filter-active': activeTypeFilter === 'all' }]"
         @click="clearTypeFilter"
       >
         <q-card-section class="text-center">
@@ -72,7 +72,7 @@
         v-for="type in transactionTypes"
         :key="type"
         class="summary-card cursor-pointer"
-        :class="{ 'filter-active': activeTypeFilter === type }"
+        :class="[getTransactionSummaryToneClass(type), { 'filter-active': activeTypeFilter === type }]"
         @click="setTypeFilter(type)"
       >
         <q-card-section class="text-center">
@@ -750,6 +750,20 @@ const getTransactionTypeTextColor = (type) => {
   return colors[type] || 'text-grey'
 }
 
+const getTransactionSummaryToneClass = (type) => {
+  const tones = {
+    'Rent Payment': 'transaction-summary-card--green',
+    'Security Deposit': 'transaction-summary-card--blue',
+    'Maintenance Fee': 'transaction-summary-card--orange',
+    'Utility Payment': 'transaction-summary-card--purple',
+    'Insurance Payment': 'transaction-summary-card--indigo',
+    'Property Tax': 'transaction-summary-card--red',
+    'HOA Fee': 'transaction-summary-card--teal',
+    Other: 'transaction-summary-card--grey',
+  }
+  return tones[type] || 'transaction-summary-card--grey'
+}
+
 // View transaction details
 const viewTransaction = (transaction) => {
   selectedTransaction.value = transaction
@@ -1088,9 +1102,83 @@ watch(
 }
 
 .summary-card {
-  min-width: 120px;
+  min-width: 0;
   transition: all 0.2s ease-in-out;
   cursor: pointer;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+}
+
+.transaction-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.transaction-summary-strip .summary-card {
+  width: 100%;
+}
+
+.transaction-summary-strip .summary-card :deep(.q-card__section) {
+  padding: 8px 6px;
+}
+
+.transaction-summary-strip .text-h6 {
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.transaction-summary-strip .text-caption {
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-summary-card--total {
+  background: rgba(25, 118, 210, 0.07);
+  border-color: rgba(25, 118, 210, 0.22);
+}
+
+.transaction-summary-card--green {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.transaction-summary-card--blue {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.transaction-summary-card--orange {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.transaction-summary-card--purple {
+  background: rgba(168, 85, 247, 0.08);
+  border-color: rgba(168, 85, 247, 0.24);
+}
+
+.transaction-summary-card--indigo {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.24);
+}
+
+.transaction-summary-card--red {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
+.transaction-summary-card--teal {
+  background: rgba(20, 184, 166, 0.08);
+  border-color: rgba(20, 184, 166, 0.24);
+}
+
+.transaction-summary-card--grey {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.22);
 }
 
 .summary-card:hover {

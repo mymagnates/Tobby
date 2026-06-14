@@ -69,6 +69,12 @@ export const adminApi = {
   adjustCredits: (body) => request('/admin/credits/adjust', { method: 'POST', body }),
   listEvents: (params) => request(`/admin/logs/events${qs(params)}`),
   listErrors: (params) => request(`/admin/logs/errors${qs(params)}`),
+  listSupportTickets: (params) => request(`/admin/support/tickets${qs(params)}`),
+  getSupportTicket: (id) => request(`/admin/support/tickets/${encodeURIComponent(String(id))}`),
+  updateSupportTicket: (id, body) =>
+    request(`/admin/support/tickets/${encodeURIComponent(String(id))}/update`, { method: 'POST', body }),
+  addSupportComment: (id, body) =>
+    request(`/admin/support/tickets/${encodeURIComponent(String(id))}/comment`, { method: 'POST', body }),
   listDataCollections: () => request('/admin/data/collections'),
   listDataRecords: (params) => request(`/admin/data/records${qs(params)}`),
   listDataChanges: (params) => request(`/admin/data/changes${qs(params)}`),

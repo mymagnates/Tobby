@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
-import { getAnalytics } from 'firebase/analytics'
 
 // Your Firebase configuration
 // Replace these values with your actual Firebase project configuration
@@ -45,11 +44,12 @@ try {
 
 // Initialize Firebase services
 let auth, db, storage
+let authPersistenceReady = Promise.resolve()
 try {
   auth = getAuth(app)
   
   // Keep users signed in using LOCAL persistence
-  setPersistence(auth, browserLocalPersistence)
+  authPersistenceReady = setPersistence(auth, browserLocalPersistence)
     .then(() => {
       console.log('Firebase Auth persistence set to LOCAL (always signed in)')
     })
@@ -70,14 +70,23 @@ try {
   throw new Error(`Firebase services initialization failed: ${error.message}`)
 }
 
-// Initialize Analytics (only in browser environment)
+// Initialize Analytics lazily and skip native Capacitor launches.
 let analytics = null
-if (typeof window !== 'undefined') {
-  try {
-    analytics = getAnalytics(app)
-  } catch (error) {
-    console.warn('Analytics initialization failed:', error)
-  }
+if (
+  typeof window !== 'undefined' &&
+  !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())
+) {
+  void import('firebase/analytics')
+    .then(({ getAnalytics }) => {
+      try {
+        analytics = getAnalytics(app)
+      } catch (error) {
+        console.warn('Analytics initialization failed:', error)
+      }
+    })
+    .catch((error) => {
+      console.warn('Analytics module could not be loaded:', error)
+    })
 }
 
 const envDisableListen = String(import.meta.env.VITE_DISABLE_FIRESTORE_LISTEN || '').toLowerCase()
@@ -142,5 +151,5 @@ export const sessionManager = {
   },
 }
 
-export { app, auth, db, storage, analytics }
+export { app, auth, authPersistenceReady, db, storage, analytics }
 export default app

@@ -48,7 +48,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="row q-gutter-md q-mb-lg">
+    <div class="lease-summary-strip q-mb-md">
       <q-card
         class="summary-card clickable-card"
         :class="{ 'active-filter': statusFilter === null }"
@@ -56,8 +56,8 @@
         @click="toggleStatusFilter(null)"
       >
         <q-card-section class="text-center">
-          <div class="text-h4 text-primary">{{ userAccessibleLeases.length }}</div>
-          <div class="text-subtitle2">All Leases</div>
+          <div class="text-h6 text-primary">{{ userAccessibleLeases.length }}</div>
+          <div class="text-caption">All Leases</div>
         </q-card-section>
       </q-card>
 
@@ -68,8 +68,8 @@
         @click="toggleStatusFilter('Available')"
       >
         <q-card-section class="text-center">
-          <div class="text-h4 text-green">{{ availableCount }}</div>
-          <div class="text-subtitle2">Available</div>
+          <div class="text-h6 text-green">{{ availableCount }}</div>
+          <div class="text-caption">Available</div>
         </q-card-section>
       </q-card>
 
@@ -80,8 +80,8 @@
         @click="toggleStatusFilter('Rented')"
       >
         <q-card-section class="text-center">
-          <div class="text-h4 text-blue">{{ rentedCount }}</div>
-          <div class="text-subtitle2">Rented</div>
+          <div class="text-h6 text-blue">{{ rentedCount }}</div>
+          <div class="text-caption">Rented</div>
         </q-card-section>
       </q-card>
 
@@ -92,8 +92,8 @@
         @click="toggleStatusFilter('Pending')"
       >
         <q-card-section class="text-center">
-          <div class="text-h4 text-orange">{{ pendingCount }}</div>
-          <div class="text-subtitle2">Pending</div>
+          <div class="text-h6 text-orange">{{ pendingCount }}</div>
+          <div class="text-caption">Pending</div>
         </q-card-section>
       </q-card>
 
@@ -104,8 +104,8 @@
         @click="toggleStatusFilter('Expired')"
       >
         <q-card-section class="text-center">
-          <div class="text-h4 text-red">{{ expiredCount }}</div>
-          <div class="text-subtitle2">Expired</div>
+          <div class="text-h6 text-red">{{ expiredCount }}</div>
+          <div class="text-caption">Expired</div>
         </q-card-section>
       </q-card>
     </div>
@@ -2221,30 +2221,58 @@ watch(
 
 <style scoped>
 .summary-card {
-  min-width: 120px;
-  flex: 1;
+  min-width: 0;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid rgba(20, 28, 45, 0.08);
+}
+
+.lease-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.lease-summary-strip .summary-card {
+  width: 100%;
+}
+
+.lease-summary-strip .summary-card :deep(.q-card__section) {
+  padding: 8px 6px;
+}
+
+.lease-summary-strip .text-h6 {
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.lease-summary-strip .text-caption {
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .clickable-card {
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
+  border: 1px solid rgba(20, 28, 45, 0.08);
 }
 
 .clickable-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .active-filter {
   border: 2px solid var(--q-primary) !important;
-  box-shadow: 0 4px 12px rgba(36, 87, 115, 0.3);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   background: linear-gradient(135deg, rgba(36, 87, 115, 0.05) 0%, rgba(36, 87, 115, 0.1) 100%);
 }
 
 .active-filter:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(36, 87, 115, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(36, 87, 115, 0.3);
 }
 
 .leases-grid {
@@ -2254,25 +2282,32 @@ watch(
 }
 
 .lease-card {
+  min-height: 190px;
   transition: all 0.2s ease;
   border-radius: var(--border-radius-card);
   overflow: hidden;
-  border: 1px solid var(--neutral-200);
-  background: white;
+  border: 1px solid rgba(20, 28, 45, 0.08) !important;
+  background: #fff;
+  box-shadow: none;
   cursor: pointer;
   width: 100%;
-  min-height: 190px;
 }
 
 .lease-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--q-primary);
 }
 
 /* Compact Card Content */
 .lease-card-content {
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  height: 100%;
+  padding: 0;
+  position: relative;
 }
 
 /* Compact Header */
@@ -2280,7 +2315,6 @@ watch(
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
 }
 
 .lease-main-info {
@@ -2292,8 +2326,15 @@ watch(
 }
 
 .lease-avatar-compact {
-  background: var(--primary-color);
+  width: 38px;
+  height: 38px;
+  background: #f1f5f9;
+  border-radius: var(--border-radius-sm);
   flex-shrink: 0;
+}
+
+.lease-avatar-compact :deep(.q-icon) {
+  color: var(--primary-color) !important;
 }
 
 .lease-info-compact {
@@ -2302,13 +2343,13 @@ watch(
 }
 
 .lease-name-compact {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--neutral-900);
+  min-height: 40px;
+  font-size: 15px;
+  font-weight: 650;
+  color: #0f172a;
+  line-height: 1.32;
   margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
 .lease-meta-compact {
@@ -2325,24 +2366,21 @@ watch(
 }
 
 .lease-address-compact {
-  font-size: 12px;
-  color: var(--neutral-600);
+  font-size: 0.85rem;
+  color: #666;
   display: flex;
   align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 /* Details Row */
 .lease-details-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--neutral-200);
 }
 
 .lease-specs-compact {
@@ -2367,19 +2405,23 @@ watch(
 }
 
 .lease-rent-compact {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 28, 45, 0.06);
   display: flex;
   align-items: baseline;
   gap: 2px;
   flex-shrink: 0;
-  padding-left: 12px;
-  border-left: 1px solid var(--neutral-200);
+  text-align: left;
 }
 
 .lease-amount-compact {
-  font-size: 18px;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: var(--primary-color);
-  line-height: 1;
+  color: #1976d2;
+  line-height: 1.15;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  white-space: nowrap;
 }
 
 .lease-label-compact {

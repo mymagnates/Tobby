@@ -18,7 +18,7 @@ import {
   getDocs,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { auth, db, storage, sessionManager } from '../boot/firebase'
+import { app, auth, authPersistenceReady, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
 
 const FIREBASE_DEBUG_LOGS_ENABLED = false
@@ -34,25 +34,50 @@ export function useFirebase() {
   const error = ref(null)
   const userDataStore = useUserDataStore()
 
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const createDownloadToken = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }
+
   const waitForAuthenticatedUser = async () => {
-    if (auth.currentUser) return auth.currentUser
+    await authPersistenceReady
+
+    if (auth.currentUser) {
+      await auth.currentUser.getIdToken(true)
+      return auth.currentUser
+    }
 
     if (typeof auth.authStateReady === 'function') {
       await auth.authStateReady()
-      if (auth.currentUser) return auth.currentUser
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true)
+        return auth.currentUser
+      }
     }
 
-    const currentUser = await new Promise((resolve) => {
+    let currentUser = await new Promise((resolve) => {
+      let unsubscribe = null
       const timeout = setTimeout(() => {
-        unsubscribe()
+        if (unsubscribe) unsubscribe()
         resolve(null)
-      }, 5000)
-      const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      }, 3000)
+      unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        if (!nextUser) return
         clearTimeout(timeout)
-        unsubscribe()
+        if (unsubscribe) unsubscribe()
         resolve(nextUser)
       })
     })
+
+    const startedAt = Date.now()
+    while (!currentUser && Date.now() - startedAt < 5000) {
+      await wait(250)
+      currentUser = auth.currentUser
+    }
 
     if (!currentUser) {
       const authError = new Error('User is not authenticated. Please sign in again before uploading.')
@@ -60,8 +85,49 @@ export function useFirebase() {
       throw authError
     }
 
-    await currentUser.getIdToken()
+    await currentUser.getIdToken(true)
     return currentUser
+  }
+
+  const uploadFileWithRestFallback = async (path, file) => {
+    const currentUser = await waitForAuthenticatedUser()
+    const fileRef = storageRef(storage, path)
+
+    try {
+      const snapshot = await uploadBytes(fileRef, file)
+      return getDownloadURL(snapshot.ref)
+    } catch (uploadError) {
+      if (uploadError?.code !== 'storage/unauthenticated') {
+        throw uploadError
+      }
+
+      const bucket = app?.options?.storageBucket
+      if (!bucket) throw uploadError
+
+      const token = await currentUser.getIdToken(true)
+      const downloadToken = createDownloadToken()
+      const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(path)}`
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': file?.type || 'application/octet-stream',
+          'x-goog-meta-firebaseStorageDownloadTokens': downloadToken,
+        },
+        body: file,
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const errorMessage = payload?.error?.message || uploadError.message || 'Storage upload failed'
+        const restError = new Error(errorMessage)
+        restError.code = response.status === 401 ? 'storage/unauthenticated' : 'storage/unauthorized'
+        restError.payload = payload
+        throw restError
+      }
+
+      return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media&token=${encodeURIComponent(downloadToken)}`
+    }
   }
 
   // Auth state observer
@@ -320,11 +386,7 @@ export function useFirebase() {
     try {
       loading.value = true
       error.value = null
-      await waitForAuthenticatedUser()
-      const fileRef = storageRef(storage, path)
-      const snapshot = await uploadBytes(fileRef, file)
-      const downloadURL = await getDownloadURL(snapshot.ref)
-      return downloadURL
+      return await uploadFileWithRestFallback(path, file)
     } catch (err) {
       error.value = err.message
       throw err
@@ -397,9 +459,7 @@ export function useFirebase() {
         })
 
         // Upload file and get download URL
-        const fileRef = storageRef(storage, storagePath)
-        const snapshot = await uploadBytes(fileRef, file)
-        const downloadURL = await getDownloadURL(snapshot.ref)
+        const downloadURL = await uploadFileWithRestFallback(storagePath, file)
 
         debugLog(`Image uploaded successfully: ${fileName}`)
 
@@ -477,9 +537,7 @@ export function useFirebase() {
         })
 
         // Upload file and get download URL
-        const fileRef = storageRef(storage, storagePath)
-        const snapshot = await uploadBytes(fileRef, file)
-        const downloadURL = await getDownloadURL(snapshot.ref)
+        const downloadURL = await uploadFileWithRestFallback(storagePath, file)
 
         debugLog(`File uploaded successfully: ${fileName}`)
 

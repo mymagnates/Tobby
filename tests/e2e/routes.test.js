@@ -3,13 +3,19 @@ import { describe, it, expect, vi } from 'vitest'
 // Mock dynamic imports in routes
 vi.mock('../../src/layouts/GuestLayout.vue', () => ({}))
 vi.mock('../../src/layouts/MainLayout.vue', () => ({}))
+vi.mock('../../src/layouts/ApplicationLayout.vue', () => ({}))
 vi.mock('../../src/components/FirebaseAuth.vue', () => ({}))
+vi.mock('../../src/pages/RegisterLandingPage.vue', () => ({}))
+vi.mock('../../src/pages/PmPoSignUpPage.vue', () => ({}))
+vi.mock('../../src/pages/SpSignUpPage.vue', () => ({}))
+vi.mock('../../src/pages/OwnerInvitePage.vue', () => ({}))
+vi.mock('../../src/pages/SpShowcasePage.vue', () => ({}))
 vi.mock('../../src/pages/LeaseApplicationPage.vue', () => ({}))
 vi.mock('../../src/pages/ApplicationDetailPage.vue', () => ({}))
 vi.mock('../../src/pages/TenantSignUpPage.vue', () => ({}))
 vi.mock('../../src/pages/IndexPage.vue', () => ({}))
 vi.mock('../../src/pages/FirebaseTestPage.vue', () => ({}))
-vi.mock('../../src/components/CreateProperty.vue', () => ({}))
+vi.mock('../../src/pages/CreatePropertyPage.vue', () => ({}))
 vi.mock('../../src/pages/EditPropertyPage.vue', () => ({}))
 vi.mock('../../src/components/CreateMxRecord.vue', () => ({}))
 vi.mock('../../src/components/CreateTransaction.vue', () => ({}))
@@ -24,8 +30,32 @@ vi.mock('../../src/pages/ReportsPage.vue', () => ({}))
 vi.mock('../../src/pages/TenantHomePage.vue', () => ({}))
 vi.mock('../../src/pages/CreateTenantPage.vue', () => ({}))
 vi.mock('../../src/pages/UserProfilePage.vue', () => ({}))
+vi.mock('../../src/pages/AssetsPage.vue', () => ({}))
+vi.mock('../../src/pages/DocumentsPage.vue', () => ({}))
+vi.mock('../../src/pages/PropertyServicesPage.vue', () => ({}))
+vi.mock('../../src/pages/AccountTypeSetupPage.vue', () => ({}))
+vi.mock('../../src/pages/SpDashboardPage.vue', () => ({}))
+vi.mock('../../src/pages/SpCardsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpLeadsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpBidsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpDocumentsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpMessagesPage.vue', () => ({}))
+vi.mock('../../src/pages/SpProjectsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpInvoicesPage.vue', () => ({}))
+vi.mock('../../src/pages/SpServicesPage.vue', () => ({}))
+vi.mock('../../src/pages/SpCreditsPage.vue', () => ({}))
+vi.mock('../../src/pages/SpPaymentMethodPage.vue', () => ({}))
+vi.mock('../../src/pages/SpProfilePage.vue', () => ({}))
+vi.mock('../../src/pages/SpHandoutBuilderPage.vue', () => ({}))
+vi.mock('../../src/pages/PoDashboardPage.vue', () => ({}))
+vi.mock('../../src/pages/UniversalSearchPage.vue', () => ({}))
 vi.mock('../../src/pages/LoadingPage.vue', () => ({}))
 vi.mock('../../src/pages/LogoutSuccessPage.vue', () => ({}))
+vi.mock('../../src/layouts/AdminLayout.vue', () => ({}))
+vi.mock('../../src/pages/AdminOverviewPage.vue', () => ({}))
+vi.mock('../../src/pages/AdminUsersPage.vue', () => ({}))
+vi.mock('../../src/pages/AdminBillingPage.vue', () => ({}))
+vi.mock('../../src/pages/AdminLogsPage.vue', () => ({}))
 vi.mock('../../src/pages/ErrorNotFound.vue', () => ({}))
 
 import routes from '../../src/router/routes'
@@ -59,19 +89,19 @@ describe('Router Routes', () => {
     })
 
     it('should have lease application route', () => {
-      const publicRoute = routes.find((r) => r.path === '/public')
-      const leaseRoute = publicRoute.children.find((r) => r.path === 'lease-application/:leaseId?')
+      const applyRoute = routes.find((r) => r.path === '/apply')
+      const leaseRoute = applyRoute.children.find((r) => r.path === 'lease-application/:leaseId?')
       expect(leaseRoute).toBeDefined()
       expect(leaseRoute.meta?.isPublic).toBe(true)
     })
 
     it('should have tenant signup route', () => {
       const publicRoute = routes.find((r) => r.path === '/public')
-      const signupRoute = publicRoute.children.find((r) => r.path === 'tenant-signup/:propertyId')
+      const signupRoute = publicRoute.children.find((r) => r.path === 'tenant-signup/:leaseId?')
       expect(signupRoute).toBeDefined()
       expect(signupRoute.meta?.isPublic).toBe(true)
     })
-  })
+    })
 
   describe('authenticated routes', () => {
     it('should have index route', () => {
@@ -83,7 +113,8 @@ describe('Router Routes', () => {
     it('should have properties routes', () => {
       const authRoute = routes.find((r) => r.path === '/')
       const createPropRoute = authRoute.children.find((r) => r.path === 'create-property')
-      const myPropsRoute = authRoute.children.find((r) => r.path === 'my-properties')
+      const shellRoute = authRoute.children.find((r) => r.path === '')
+      const myPropsRoute = shellRoute.children.find((r) => r.path === '/my-properties')
       
       expect(createPropRoute).toBeDefined()
       expect(myPropsRoute).toBeDefined()
@@ -91,8 +122,9 @@ describe('Router Routes', () => {
 
     it('should have leases routes', () => {
       const authRoute = routes.find((r) => r.path === '/')
-      const leasesRoute = authRoute.children.find((r) => r.path === 'leases')
-      const createLeaseRoute = authRoute.children.find((r) => r.path === 'create-lease')
+      const shellRoute = authRoute.children.find((r) => r.path === '')
+      const leasesRoute = shellRoute.children.find((r) => r.path === '/leases')
+      const createLeaseRoute = shellRoute.children.find((r) => r.path === '/create-lease')
       
       expect(leasesRoute).toBeDefined()
       expect(createLeaseRoute).toBeDefined()
@@ -100,13 +132,15 @@ describe('Router Routes', () => {
 
     it('should have transactions route', () => {
       const authRoute = routes.find((r) => r.path === '/')
-      const transactionsRoute = authRoute.children.find((r) => r.path === 'transactions')
+      const shellRoute = authRoute.children.find((r) => r.path === '')
+      const transactionsRoute = shellRoute.children.find((r) => r.path === '/transactions')
       expect(transactionsRoute).toBeDefined()
     })
 
     it('should have tenants route', () => {
       const authRoute = routes.find((r) => r.path === '/')
-      const tenantsRoute = authRoute.children.find((r) => r.path === 'tenants')
+      const shellRoute = authRoute.children.find((r) => r.path === '')
+      const tenantsRoute = shellRoute.children.find((r) => r.path === '/tenants')
       expect(tenantsRoute).toBeDefined()
     })
   })

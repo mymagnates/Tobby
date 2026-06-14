@@ -146,6 +146,11 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
         lead_id: leadId,
         amount: 320,
         note: 'Can complete in one visit.',
+        included_scope: 'Inspect and repair the water heater.',
+        estimated_start_date: '2026-06-12',
+        estimated_duration: '1 day',
+        valid_until: '2026-06-20',
+        disclaimer_acknowledged: true,
       }),
     })
     expect(bidRes.status).toBe(200)
@@ -170,7 +175,7 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
     expect(historyRes.status).toBe(200)
 
     const grantEntry = historyRes.payload.items.find(
-      (row) => row.entry_type === 'grant' && row.delta === 3
+      (row) => row.entry_type === 'adjustment' && row.delta === 3 && row.source_type === 'free_credit'
     )
     expect(grantEntry).toBeTruthy()
 
@@ -181,7 +186,7 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
     expect(purchaseEntry.delta).toBe(5)
 
     const consumeEntry = historyRes.payload.items.find(
-      (row) => row.entry_type === 'bid_use' && row.source_type === 'bid'
+      (row) => row.entry_type === 'consume' && row.source_type === 'bid'
     )
     expect(consumeEntry).toBeTruthy()
     expect(consumeEntry.delta).toBe(-1)
@@ -208,7 +213,8 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
     })
     expect(historyRes.status).toBe(200)
     const weeklyGrant = historyRes.payload.items.find(
-      (row) => row.entry_type === 'grant' && row.delta === 1 && row.source_id === 'weekly'
+      (row) =>
+        row.entry_type === 'adjustment' && row.delta === 1 && row.source_id === 'weekly'
     )
     expect(weeklyGrant).toBeTruthy()
   })

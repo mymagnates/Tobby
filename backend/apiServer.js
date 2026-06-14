@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
@@ -113,7 +113,8 @@ const notModified = (res, etag) => {
   })
   res.end()
 }
-const createApiError = (status, code, message) => Object.assign(new Error(message), { status, code })
+const createApiError = (status, code, message) =>
+  Object.assign(new Error(message), { status, code })
 
 const getPermissions = (role) => {
   switch (role) {
@@ -194,6 +195,8 @@ const ADMIN_METRICS_DAILY_COLLECTION = 'admin_metrics_daily'
 const ADMIN_EVENTS_COLLECTION = 'admin_events'
 const ADMIN_ERRORS_COLLECTION = 'admin_errors'
 const ADMIN_DATA_CHANGE_LOGS_COLLECTION = 'admin_data_change_logs'
+const SUPPORT_TICKETS_COLLECTION = 'support_tickets'
+const SUPPORT_TICKET_COMMENTS_COLLECTION = 'support_ticket_comments'
 const AGENT_EVENTS_COLLECTION = 'agent_events'
 const AD_POSTS_COLLECTION = 'ad_posts'
 const AD_DELIVERIES_COLLECTION = 'ad_deliveries'
@@ -204,7 +207,46 @@ const SP_BID_CREDIT_COST = 1
 const SP_INITIAL_FREE_CREDITS = 3
 const SP_WEEKLY_FREE_CREDITS = 1
 const SP_FREE_CREDIT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+const SP_BID_CREDIT_SKUS = Object.freeze([
+  {
+    sku_code: 'sp_bid_single',
+    sku_name: 'Single bid credit',
+    credits: 1,
+    amount_cents: 499,
+    currency: 'USD',
+    always_on: true,
+  },
+  {
+    sku_code: 'sp_bid_starter_10',
+    sku_name: 'Starter bid credit pack',
+    credits: 10,
+    amount_cents: 2999,
+    currency: 'USD',
+    always_on: true,
+  },
+])
+const SP_CREDIT_ORDER_STATUSES = new Set([
+  'pending',
+  'created',
+  'checkout_created',
+  'paid',
+  'credited',
+  'failed',
+  'canceled',
+  'cancelled',
+  'refunded',
+])
 const TASK_ADDRESS_BACKFILL_TOKEN = 'backfill-2026-04-02'
+const SUPPORT_TICKET_STATUSES = new Set([
+  'open',
+  'triaged',
+  'in_progress',
+  'waiting_on_user',
+  'resolved',
+  'closed',
+])
+const SUPPORT_TICKET_CATEGORIES = new Set(['account', 'task_lead', 'payment_credit', 'bug'])
+const SUPPORT_TICKET_PRIORITIES = new Set(['low', 'normal', 'high', 'urgent'])
 const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
   'users',
   ACCOUNT_DELETION_REQUESTS_COLLECTION,
@@ -217,6 +259,8 @@ const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
   ADMIN_METRICS_DAILY_COLLECTION,
   ADMIN_EVENTS_COLLECTION,
   ADMIN_ERRORS_COLLECTION,
+  SUPPORT_TICKETS_COLLECTION,
+  SUPPORT_TICKET_COMMENTS_COLLECTION,
   AGENT_EVENTS_COLLECTION,
   'owner_invites',
 ])
@@ -235,7 +279,10 @@ const createOwnerInviteExpiry = (days = 7) => {
   expiresAt.setDate(expiresAt.getDate() + days)
   return expiresAt
 }
-const normalizeEmail = (value) => String(value || '').trim().toLowerCase()
+const normalizeEmail = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
 const escapeHtml = (value) =>
   String(value || '')
     .replace(/&/g, '&amp;')
@@ -287,7 +334,9 @@ const getStorageBucket = () => {
 }
 
 const normalizeRole = (role) => {
-  const next = String(role || '').trim().toLowerCase()
+  const next = String(role || '')
+    .trim()
+    .toLowerCase()
   if (next === 'pm' || next === 'po' || next === 'pm_po') return 'pm_po'
   if (next === 'sp') return 'sp'
   if (next === 'tt') return 'tt'
@@ -304,14 +353,16 @@ const normalizeLead = (lead) => {
 const normalizeBid = (bid) => {
   if (!bid) return null
   const id = bid.id || bid.bid_id
-  const rawStatus = String(bid.status || 'submitted').trim().toLowerCase()
+  const rawStatus = String(bid.status || 'submitted')
+    .trim()
+    .toLowerCase()
   const validUntilValue = bid.valid_until
   const validUntilDate = validUntilValue ? new Date(validUntilValue) : null
   const isExpired = Boolean(
     validUntilDate &&
-    !Number.isNaN(validUntilDate.getTime()) &&
-    ['submitted', 'shortlisted'].includes(rawStatus) &&
-    validUntilDate.getTime() < Date.now()
+      !Number.isNaN(validUntilDate.getTime()) &&
+      ['submitted', 'shortlisted'].includes(rawStatus) &&
+      validUntilDate.getTime() < Date.now(),
   )
   return {
     ...bid,
@@ -321,7 +372,10 @@ const normalizeBid = (bid) => {
   }
 }
 
-const normalizeTaskStatus = (status) => String(status || '').trim().toLowerCase()
+const normalizeTaskStatus = (status) =>
+  String(status || '')
+    .trim()
+    .toLowerCase()
 
 const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
   const normalized = normalizeTaskStatus(taskStatus)
@@ -338,7 +392,7 @@ const mapTaskStatusToLeadStatus = (taskStatus, currentLeadStatus = 'open') => {
 const isMaintenanceRelated = (text = '') => {
   const value = String(text || '').toLowerCase()
   return /(leak|drip|pipe|toilet|sink|faucet|water|plumbing|electrical|outlet|breaker|power|wiring|light|ac|air\s*conditioning|hvac|heat|heater|thermostat|washer|dryer|dishwasher|fridge|refrigerator|stove|oven|clog|mold|pest|roof|window|door|lock|garage|vent|transaction|payment|paid|pay|invoice|rent|deposit|refund|fee|charge|transfer|remind|reminder|due|renewal|renew|schedule|scheduled|recurring|monthly|weekly|yearly|annual|floor|flooring|spc|paint|painting|fence|gate|garden|gardening|landscaping|service|vendor|provider|contract|company|loan|insurance|pest control|lawn|pool|cleaning|security|alarm|trash|waste|snow removal)/.test(
-    value
+    value,
   )
 }
 
@@ -354,7 +408,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const routes = []
   const route = (method, pattern, handler) => routes.push({ method, pattern, handler })
   const rateLimits = new Map()
-  const geminiApiKey = config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ''
+  const geminiApiKey =
+    config.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ''
   const geminiModel = config.geminiModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
   const llmProvider = config.llmProvider || process.env.LLM_PROVIDER || DEFAULT_LLM_PROVIDER
   const vertexProjectId = resolveVertexProjectId(config)
@@ -367,23 +422,29 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     config.inviteEmailFrom || process.env.INVITE_EMAIL_FROM || DEFAULT_INVITE_EMAIL_FROM,
   ).trim()
   const appBaseUrl = String(config.appBaseUrl || process.env.APP_BASE_URL || '').trim()
+  const stripeSecretKey = String(
+    config.stripeSecretKey || process.env.STRIPE_SECRET_KEY || '',
+  ).trim()
+  const stripeWebhookSecret = String(
+    config.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || '',
+  ).trim()
   const agentAllowedOrigins = String(
-    config.agentAllowedOrigins || process.env.AGENT_ALLOWED_ORIGINS || ''
+    config.agentAllowedOrigins || process.env.AGENT_ALLOWED_ORIGINS || '',
   ).trim()
   const agentRateLimitPerMin = Number(
-    config.agentRateLimitPerMin || process.env.AGENT_RATE_LIMIT_PER_MIN || 30
+    config.agentRateLimitPerMin || process.env.AGENT_RATE_LIMIT_PER_MIN || 30,
   )
-  const feedCacheTtlMs = Math.max(
-    0,
-    Number(config.feedCacheTtlSeconds || process.env.FEED_CACHE_TTL_SECONDS || 60)
-  ) * 1000
-  const feedRequestWindowMs = Math.max(
-    1000,
-    Number(config.feedRequestWindowSeconds || process.env.FEED_REQUEST_WINDOW_SECONDS || 30)
-  ) * 1000
+  const feedCacheTtlMs =
+    Math.max(0, Number(config.feedCacheTtlSeconds || process.env.FEED_CACHE_TTL_SECONDS || 60)) *
+    1000
+  const feedRequestWindowMs =
+    Math.max(
+      1000,
+      Number(config.feedRequestWindowSeconds || process.env.FEED_REQUEST_WINDOW_SECONDS || 30),
+    ) * 1000
   const feedMaxRequestsPerWindow = Math.max(
     1,
-    Number(config.feedMaxRequestsPerWindow || process.env.FEED_MAX_REQUESTS_PER_WINDOW || 20)
+    Number(config.feedMaxRequestsPerWindow || process.env.FEED_MAX_REQUESTS_PER_WINDOW || 20),
   )
   const feedCache = new Map()
   const feedInFlight = new Map()
@@ -393,7 +454,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!agentAllowedOrigins) return true
     const origin = String(req.headers.origin || '').trim()
     if (!origin) return false
-    return agentAllowedOrigins.split(',').map((v) => v.trim()).includes(origin)
+    return agentAllowedOrigins
+      .split(',')
+      .map((v) => v.trim())
+      .includes(origin)
   }
 
   const hitRateLimit = ({ key, limit, windowMs = 60000 }) => {
@@ -435,8 +499,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const claims = await getFirebaseAuth().verifyIdToken(token)
       const claimRole = normalizeRole(claims?.role || claims?.account_type || claims?.user_category)
       const hasAdminClaim =
-        claims?.admin === true ||
-        (Array.isArray(claims?.roles) && claims.roles.includes('admin'))
+        claims?.admin === true || (Array.isArray(claims?.roles) && claims.roles.includes('admin'))
       const resolvedRole = hasAdminClaim ? 'admin' : claimRole || fallbackRole || 'tt'
       const actor = store.ensureUser(String(claims.uid || fallbackId), resolvedRole)
       actor.role = resolvedRole
@@ -494,7 +557,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         items = items.filter((lead) => {
           const explicitlyPublished =
             lead?.sp_published === true ||
-            String(lead?.sp_publish_status || '').trim().toLowerCase() === 'published'
+            String(lead?.sp_publish_status || '')
+              .trim()
+              .toLowerCase() === 'published'
           if (!explicitlyPublished) return false
           return isSpEligibleForLead(lead, spProfile)
         })
@@ -568,11 +633,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const now = new Date().toISOString()
     const email = String(claims?.email || actor?.email || body?.email || '').trim()
     const accountType = String(
-      body?.account_type || actor?.account_type || actor?.role || claims?.account_type || claims?.role || '',
+      body?.account_type ||
+        actor?.account_type ||
+        actor?.role ||
+        claims?.account_type ||
+        claims?.role ||
+        '',
     )
       .trim()
       .toLowerCase()
-    const reason = String(body?.reason || '').trim().slice(0, 2000)
+    const reason = String(body?.reason || '')
+      .trim()
+      .slice(0, 2000)
     const requestId = `${actorId}_account_deletion`
     const payload = {
       id: requestId,
@@ -589,8 +661,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
     const db = getDb()
     await Promise.all([
-      db.collection('users').doc(actorId).collection('privacy_requests').doc('account_deletion').set(payload, { merge: true }),
-      db.collection(ACCOUNT_DELETION_REQUESTS_COLLECTION).doc(requestId).set(payload, { merge: true }),
+      db
+        .collection('users')
+        .doc(actorId)
+        .collection('privacy_requests')
+        .doc('account_deletion')
+        .set(payload, { merge: true }),
+      db
+        .collection(ACCOUNT_DELETION_REQUESTS_COLLECTION)
+        .doc(requestId)
+        .set(payload, { merge: true }),
       db.collection('users').doc(actorId).set(
         {
           account_deletion_requested: true,
@@ -606,13 +686,25 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const sanitizeModerationReason = (value) => {
-    const normalized = String(value || '').trim().toLowerCase()
-    const allowed = new Set(['spam', 'harassment', 'offensive', 'inappropriate', 'scam', 'privacy', 'other'])
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+    const allowed = new Set([
+      'spam',
+      'harassment',
+      'offensive',
+      'inappropriate',
+      'scam',
+      'privacy',
+      'other',
+    ])
     return allowed.has(normalized) ? normalized : 'other'
   }
 
   const sanitizeContentType = (value) => {
-    const normalized = String(value || '').trim().toLowerCase()
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
     const allowed = new Set([
       'task_comment',
       'message',
@@ -628,10 +720,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   const saveContentReport = async ({ actor, verified, body, req }) => {
     const contentType = sanitizeContentType(body?.content_type)
-    const contentId = String(body?.content_id || '').trim().slice(0, 240)
-    const contentPath = String(body?.content_path || '').trim().slice(0, 512)
+    const contentId = String(body?.content_id || '')
+      .trim()
+      .slice(0, 240)
+    const contentPath = String(body?.content_path || '')
+      .trim()
+      .slice(0, 512)
     if (!contentId && !contentPath) {
-      throw createApiError(400, 'CONTENT_REFERENCE_REQUIRED', 'content_id or content_path is required.')
+      throw createApiError(
+        400,
+        'CONTENT_REFERENCE_REQUIRED',
+        'content_id or content_path is required.',
+      )
     }
 
     const now = new Date().toISOString()
@@ -640,17 +740,32 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       id: reportId,
       reporter_user_id: verified ? String(actor?.id || '').trim() || null : null,
       reporter_role: verified ? actor?.role || null : null,
-      reported_user_id: String(body?.reported_user_id || '').trim().slice(0, 160) || null,
-      reported_user_display_name: String(body?.reported_user_display_name || '').trim().slice(0, 240) || '',
+      reported_user_id:
+        String(body?.reported_user_id || '')
+          .trim()
+          .slice(0, 160) || null,
+      reported_user_display_name:
+        String(body?.reported_user_display_name || '')
+          .trim()
+          .slice(0, 240) || '',
       content_type: contentType,
       content_id: contentId,
       content_path: contentPath,
       reason: sanitizeModerationReason(body?.reason),
-      note: String(body?.note || '').trim().slice(0, 2000),
+      note: String(body?.note || '')
+        .trim()
+        .slice(0, 2000),
       status: 'open',
-      source: String(body?.source || 'web').trim().slice(0, 80) || 'web',
-      user_agent: String(req?.headers?.['user-agent'] || '').trim().slice(0, 500),
-      ip_address: String(req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '').trim().slice(0, 200),
+      source:
+        String(body?.source || 'web')
+          .trim()
+          .slice(0, 80) || 'web',
+      user_agent: String(req?.headers?.['user-agent'] || '')
+        .trim()
+        .slice(0, 500),
+      ip_address: String(req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '')
+        .trim()
+        .slice(0, 200),
       created_at: now,
       updated_at: now,
     }
@@ -660,20 +775,31 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const saveBlockedUser = async ({ actor, verified, body }) => {
-    if (!verified) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    if (!verified)
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
     const actorId = String(actor?.id || '').trim()
     const blockedUserId = String(body?.blocked_user_id || '').trim()
-    if (!actorId) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
-    if (!blockedUserId) throw createApiError(400, 'BLOCKED_USER_REQUIRED', 'blocked_user_id is required.')
-    if (blockedUserId === actorId) throw createApiError(400, 'CANNOT_BLOCK_SELF', 'You cannot block your own account.')
+    if (!actorId)
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    if (!blockedUserId)
+      throw createApiError(400, 'BLOCKED_USER_REQUIRED', 'blocked_user_id is required.')
+    if (blockedUserId === actorId)
+      throw createApiError(400, 'CANNOT_BLOCK_SELF', 'You cannot block your own account.')
 
     const now = new Date().toISOString()
     const payload = {
       blocked_user_id: blockedUserId,
-      blocked_user_display_name: String(body?.blocked_user_display_name || '').trim().slice(0, 240),
-      reason: String(body?.reason || '').trim().slice(0, 1000),
+      blocked_user_display_name: String(body?.blocked_user_display_name || '')
+        .trim()
+        .slice(0, 240),
+      reason: String(body?.reason || '')
+        .trim()
+        .slice(0, 1000),
       status: 'active',
-      source: String(body?.source || 'web').trim().slice(0, 80) || 'web',
+      source:
+        String(body?.source || 'web')
+          .trim()
+          .slice(0, 80) || 'web',
       created_at: now,
       updated_at: now,
     }
@@ -688,9 +814,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const listBlockedUsers = async ({ actor, verified }) => {
-    if (!verified) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    if (!verified)
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
     const actorId = String(actor?.id || '').trim()
-    if (!actorId) throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    if (!actorId)
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
     const snap = await getDb().collection('users').doc(actorId).collection('blocked_users').get()
     return snap.docs
       .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
@@ -722,8 +850,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return rolesSnap.docs.some((doc) => {
         const data = doc.data() || {}
         const sameProperty = extractPropertyId(data.property_id) === normalizedPropertyId
-        const active = String(data.status || 'active').trim().toLowerCase() === 'active'
-        const role = String(data.role || '').trim().toLowerCase()
+        const active =
+          String(data.status || 'active')
+            .trim()
+            .toLowerCase() === 'active'
+        const role = String(data.role || '')
+          .trim()
+          .toLowerCase()
         return sameProperty && active && role === 'pm'
       })
     } catch {
@@ -742,8 +875,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return rolesSnap.docs.some((doc) => {
         const data = doc.data() || {}
         const sameProperty = extractPropertyId(data.property_id) === normalizedPropertyId
-        const active = String(data.status || 'active').trim().toLowerCase() === 'active'
-        const role = String(data.role || '').trim().toLowerCase()
+        const active =
+          String(data.status || 'active')
+            .trim()
+            .toLowerCase() === 'active'
+        const role = String(data.role || '')
+          .trim()
+          .toLowerCase()
         return sameProperty && active && (role === 'pm' || role === 'po')
       })
     } catch {
@@ -762,7 +900,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const hashLeaseApplicationAccessToken = (token) =>
-    createHash('sha256').update(String(token || '')).digest('hex')
+    createHash('sha256')
+      .update(String(token || ''))
+      .digest('hex')
 
   const createLeaseApplicationAccessToken = () =>
     `${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`
@@ -801,7 +941,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return `(***) ***-${digits.slice(-4)}`
   }
 
-  const buildLeaseApplicationSummary = ({ id, application, documents = [], submittedBy = null, now }) => {
+  const buildLeaseApplicationSummary = ({
+    id,
+    application,
+    documents = [],
+    submittedBy = null,
+    now,
+  }) => {
     const applicant = application?.applicant || {}
     const firstName = String(applicant.first_name || '').trim()
     const lastName = String(applicant.last_name || '').trim()
@@ -815,7 +961,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       applicant_display_name: [firstName, lastName].filter(Boolean).join(' ').trim() || 'Applicant',
       applicant_email_masked: maskEmail(applicant.email),
       applicant_phone_masked: maskPhone(applicant.phone),
-      status: String(application?.status || 'pending').trim().toLowerCase() || 'pending',
+      status:
+        String(application?.status || 'pending')
+          .trim()
+          .toLowerCase() || 'pending',
       document_count: Array.isArray(documents) ? documents.length : 0,
       has_documents: Array.isArray(documents) && documents.length > 0,
       submitted_at: application?.submitted_at || now,
@@ -863,7 +1012,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .collection('private')
       .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
       .get()
-    const privateData = privateSnap.exists ? { id: privateSnap.id, ...(privateSnap.data() || {}) } : null
+    const privateData = privateSnap.exists
+      ? { id: privateSnap.id, ...(privateSnap.data() || {}) }
+      : null
     return { summary, privateData }
   }
 
@@ -875,20 +1026,35 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return {
       ...summary,
       applicant: sourcePrivate.applicant || legacyApplicant || null,
-      vehicles: Array.isArray(sourcePrivate.vehicles) ? sourcePrivate.vehicles : Array.isArray(summary?.vehicles) ? summary.vehicles : [],
-      pets: Array.isArray(sourcePrivate.pets) ? sourcePrivate.pets : Array.isArray(summary?.pets) ? summary.pets : [],
+      vehicles: Array.isArray(sourcePrivate.vehicles)
+        ? sourcePrivate.vehicles
+        : Array.isArray(summary?.vehicles)
+          ? summary.vehicles
+          : [],
+      pets: Array.isArray(sourcePrivate.pets)
+        ? sourcePrivate.pets
+        : Array.isArray(summary?.pets)
+          ? summary.pets
+          : [],
       co_applicants: Array.isArray(sourcePrivate.co_applicants)
         ? sourcePrivate.co_applicants
         : Array.isArray(summary?.co_applicants)
           ? summary.co_applicants
           : [],
       additional_notes:
-        sourcePrivate.additional_notes != null ? sourcePrivate.additional_notes : String(summary?.additional_notes || '').trim(),
+        sourcePrivate.additional_notes != null
+          ? sourcePrivate.additional_notes
+          : String(summary?.additional_notes || '').trim(),
       documents: Array.isArray(sourcePrivate.documents) ? sourcePrivate.documents : legacyDocuments,
     }
   }
 
-  const assertLeaseApplicationAccess = async ({ actor, verified, applicationId, accessToken = '' }) => {
+  const assertLeaseApplicationAccess = async ({
+    actor,
+    verified,
+    applicationId,
+    accessToken = '',
+  }) => {
     const { summary, privateData } = await getLeaseApplicationSummaryAndPrivate(applicationId)
     if (!summary) throw createApiError(404, 'APPLICATION_NOT_FOUND', 'Application not found.')
 
@@ -913,7 +1079,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         return { summary, privateData, mode: 'property-role' }
       }
 
-      if (String(summary.submitted_by || '').trim() && String(summary.submitted_by).trim() === String(actor.id).trim()) {
+      if (
+        String(summary.submitted_by || '').trim() &&
+        String(summary.submitted_by).trim() === String(actor.id).trim()
+      ) {
         return { summary, privateData, mode: 'owner' }
       }
     }
@@ -962,16 +1131,20 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const createLeaseApplicationSignedReadUrl = async (storagePath) => {
-    const [url] = await getStorageBucket().file(String(storagePath || '').trim()).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 5 * 60 * 1000,
-      version: 'v4',
-    })
+    const [url] = await getStorageBucket()
+      .file(String(storagePath || '').trim())
+      .getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 5 * 60 * 1000,
+        version: 'v4',
+      })
     return url
   }
 
   const buildOwnerInviteUrl = ({ origin, token }) => {
-    const baseUrl = String(appBaseUrl || origin || '').trim().replace(/\/$/, '')
+    const baseUrl = String(appBaseUrl || origin || '')
+      .trim()
+      .replace(/\/$/, '')
     if (!baseUrl) return `/public/owner-invite/${token}`
     return `${baseUrl}/public/owner-invite/${token}`
   }
@@ -1002,11 +1175,19 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         propertyAddress ? `Property: ${propertyAddress}` : null,
         '',
         `Accept invitation: ${inviteUrl}`,
-      ].filter(Boolean).join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     }
   }
 
-  const sendOwnerInviteEmail = async ({ to, inviteUrl, propertyName, propertyAddress, inviterName }) => {
+  const sendOwnerInviteEmail = async ({
+    to,
+    inviteUrl,
+    propertyName,
+    propertyAddress,
+    inviterName,
+  }) => {
     if (!resendApiKey) {
       return { emailSent: false, reason: 'missing_resend_api_key' }
     }
@@ -1061,7 +1242,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const parseLegacyAddressParts = (rawAddress) => {
     const text = String(rawAddress || '').trim()
     if (!text) return { city: '', state: '', zip: '' }
-    const parts = text.split(',').map((item) => item.trim()).filter(Boolean)
+    const parts = text
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
     if (parts.length < 2) return { city: '', state: '', zip: '' }
     const city = parts[parts.length - 2] || ''
     const stateZip = parts[parts.length - 1] || ''
@@ -1083,7 +1267,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const normalizePropertyAddress = (property) => {
     const source = property && typeof property === 'object' ? property : {}
     const address = source.address && typeof source.address === 'object' ? source.address : {}
-    const legacy = typeof source.address === 'string' ? parseLegacyAddressParts(source.address) : { city: '', state: '', zip: '' }
+    const legacy =
+      typeof source.address === 'string'
+        ? parseLegacyAddressParts(source.address)
+        : { city: '', state: '', zip: '' }
     const line1 = String(
       address.street ||
         address.street1 ||
@@ -1094,9 +1281,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         source.address1 ||
         '',
     ).trim()
-    const line2 = String(address.line2 || address.unit || source.address_line2 || source.unit || '').trim()
+    const line2 = String(
+      address.line2 || address.unit || source.address_line2 || source.unit || '',
+    ).trim()
     const city = String(address.city || source.city || source.city_name || legacy.city || '').trim()
-    const state = String(address.state || source.state || source.state_code || legacy.state || '').trim()
+    const state = String(
+      address.state || source.state || source.state_code || legacy.state || '',
+    ).trim()
     const zip = String(
       address.zip ||
         address.zipCode ||
@@ -1209,7 +1400,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             status: task.status,
             updatedAt: new Date().toISOString(),
           },
-          { merge: true }
+          { merge: true },
         )
     } catch {
       // no-op
@@ -1315,7 +1506,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       task_title: taskTitle,
       address,
       location: String(row.location || address).trim(),
-      status: String(row.status || 'active').trim().toLowerCase() || 'active',
+      status:
+        String(row.status || 'active')
+          .trim()
+          .toLowerCase() || 'active',
       accepted_at: row.accepted_at || row.selected_bid_at || row.created_at || null,
       comments: Array.isArray(row.comments) ? row.comments : [],
       phases: row.phases && typeof row.phases === 'object' ? row.phases : {},
@@ -1333,8 +1527,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           const propertyId = String(doc.ref?.parent?.parent?.id || '').trim()
           const assignedSpId = String(data.assigned_sp_id || data.assigned_sp?.sp_id || '').trim()
           if (assignedSpId !== targetSpId) return null
-      return normalizeSpProject({
-        ...data,
+          return normalizeSpProject({
+            ...data,
             id: doc.id,
             project_id: doc.id,
             mxrecord_id: doc.id,
@@ -1354,7 +1548,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             task_title: data.title || data.task_title || data.name || '',
             title: data.title || data.task_title || data.name || '',
           })
-      })
+        })
         .filter(Boolean)
 
     try {
@@ -1362,28 +1556,37 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const rows = []
 
       try {
-        const projectsSnap = await db.collection('sp_projects').where('sp_id', '==', targetSpId).get()
+        const projectsSnap = await db
+          .collection('sp_projects')
+          .where('sp_id', '==', targetSpId)
+          .get()
         rows.push(
           ...projectsSnap.docs.map((doc) =>
             normalizeSpProject({
               id: doc.id,
               ...(doc.data() || {}),
-            })
-          )
+            }),
+          ),
         )
       } catch (error) {
         void error
       }
 
       try {
-        const directSnap = await db.collectionGroup('mxrecords').where('assigned_sp_id', '==', targetSpId).get()
+        const directSnap = await db
+          .collectionGroup('mxrecords')
+          .where('assigned_sp_id', '==', targetSpId)
+          .get()
         rows.push(...mapSnapshot(directSnap))
       } catch (error) {
         void error
       }
 
       try {
-        const nestedSnap = await db.collectionGroup('mxrecords').where('assigned_sp.sp_id', '==', targetSpId).get()
+        const nestedSnap = await db
+          .collectionGroup('mxrecords')
+          .where('assigned_sp.sp_id', '==', targetSpId)
+          .get()
         rows.push(...mapSnapshot(nestedSnap))
       } catch (error) {
         void error
@@ -1397,7 +1600,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
 
       return Array.from(merged.values()).sort((a, b) =>
-        String(b.accepted_at || b.created_at || '').localeCompare(String(a.accepted_at || a.created_at || ''))
+        String(b.accepted_at || b.created_at || '').localeCompare(
+          String(a.accepted_at || a.created_at || ''),
+        ),
       )
     } catch {
       return []
@@ -1441,20 +1646,256 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return Number.isFinite(parsed) ? parsed : fallback
   }
 
+  const listSpBidCreditSkus = () => SP_BID_CREDIT_SKUS.map((sku) => ({ ...sku }))
+
+  const findSpBidCreditSku = (skuCode) =>
+    SP_BID_CREDIT_SKUS.find((sku) => sku.sku_code === String(skuCode || '').trim()) || null
+
+  const normalizeCreditOrderStatus = (value, fallback = 'created') => {
+    const next = String(value || fallback)
+      .trim()
+      .toLowerCase()
+    if (next === 'cancelled') return 'canceled'
+    return SP_CREDIT_ORDER_STATUSES.has(next) ? next : fallback
+  }
+
+  const buildSpCreditAccountSnapshot = (spId, data = {}, now = new Date().toISOString()) => ({
+    ...buildDefaultSpCreditAccount(spId, data?.created_at || now),
+    ...(data || {}),
+    sp_id: spId,
+    balance: toNumber(data?.balance, 0),
+    lifetime_purchased: toNumber(data?.lifetime_purchased, 0),
+    lifetime_used: toNumber(data?.lifetime_used, 0),
+    lifetime_refunded: toNumber(data?.lifetime_refunded, 0),
+    lifetime_granted: toNumber(data?.lifetime_granted, 0),
+    last_free_credit_at: data?.last_free_credit_at || null,
+  })
+
+  const buildSpCreditOrderFromSku = ({ actor, body = {}, now = new Date().toISOString() }) => {
+    const sku = findSpBidCreditSku(body?.sku_code || body?.package_id)
+    const allowLegacyManualOrder =
+      String(body?.provider || '').trim() === 'manual_placeholder' ||
+      String(body?.provider || '').trim() === 'manual'
+
+    const resolvedSku =
+      sku ||
+      (allowLegacyManualOrder &&
+      Number(body?.credits) > 0 &&
+      (Number(body?.amount_cents) > 0 || Number(body?.amount) > 0)
+        ? {
+            sku_code: String(body?.sku_code || body?.package_id || `manual-${randomUUID()}`),
+            sku_name: String(body?.sku_name || body?.package_name || 'Manual bid credit pack'),
+            credits: Math.max(1, Number(body?.credits || 1)),
+            amount_cents:
+              Number(body?.amount_cents) > 0
+                ? Math.round(Number(body.amount_cents))
+                : Math.max(1, Math.round(Number(body.amount || 0) * 100)),
+            currency: String(body?.currency || 'USD').trim() || 'USD',
+            always_on: false,
+          }
+        : null)
+
+    if (!resolvedSku) {
+      throw createApiError(
+        400,
+        'INVALID_SKU',
+        'sku_code must be sp_bid_single or sp_bid_starter_10',
+      )
+    }
+
+    const amountDollars = Number((resolvedSku.amount_cents / 100).toFixed(2))
+    return {
+      id: `credit-order-${randomUUID()}`,
+      sp_id: actor.id,
+      sku_code: resolvedSku.sku_code,
+      sku_name: resolvedSku.sku_name,
+      package_id: resolvedSku.sku_code,
+      credits: resolvedSku.credits,
+      amount: amountDollars,
+      amount_cents: resolvedSku.amount_cents,
+      currency: resolvedSku.currency,
+      status: allowLegacyManualOrder ? 'pending' : 'created',
+      provider: body?.provider || 'stripe',
+      provider_order_id: null,
+      provider_txn_id: null,
+      provider_checkout_session_id: null,
+      provider_payment_intent_id: null,
+      provider_customer_id: null,
+      created_at: now,
+      updated_at: now,
+      paid_at: null,
+      failed_at: null,
+      canceled_at: null,
+      refunded_at: null,
+      fulfilled_at: null,
+      metadata: body?.metadata && typeof body.metadata === 'object' ? body.metadata : {},
+    }
+  }
+
+  const createStripeCheckoutSessionPlaceholder = ({
+    order,
+    body = {},
+    now = new Date().toISOString(),
+  }) => {
+    const successUrl =
+      String(body?.success_url || body?.successUrl || '').trim() ||
+      (appBaseUrl ? `${appBaseUrl.replace(/\/$/, '')}/sp-credits?checkout=success` : null)
+    const cancelUrl =
+      String(body?.cancel_url || body?.cancelUrl || '').trim() ||
+      (appBaseUrl ? `${appBaseUrl.replace(/\/$/, '')}/sp-credits?checkout=cancel` : null)
+    const sessionId = `checkout-session-${randomUUID()}`
+    return {
+      id: sessionId,
+      order_id: order.id,
+      stripe_configured: Boolean(stripeSecretKey),
+      checkout_url: null,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      created_at: now,
+      message: stripeSecretKey
+        ? 'Stripe secret is configured; install Stripe SDK to create a live Checkout Session.'
+        : 'Stripe is not configured yet. Order was created but no live Checkout URL is available.',
+    }
+  }
+
+  const createStripeCheckoutSession = async ({ order, body = {}, now = new Date().toISOString() }) => {
+    if (!stripeSecretKey) {
+      return createStripeCheckoutSessionPlaceholder({ order, body, now })
+    }
+
+    const successUrl =
+      String(body?.success_url || body?.successUrl || '').trim() ||
+      (appBaseUrl ? `${appBaseUrl.replace(/\/$/, '')}/sp-credits?checkout=success` : null)
+    const cancelUrl =
+      String(body?.cancel_url || body?.cancelUrl || '').trim() ||
+      (appBaseUrl ? `${appBaseUrl.replace(/\/$/, '')}/sp-credits?checkout=cancel` : null)
+    if (!successUrl || !cancelUrl) {
+      throw createApiError(
+        400,
+        'MISSING_CHECKOUT_REDIRECTS',
+        'success_url and cancel_url are required when APP_BASE_URL is not configured.',
+      )
+    }
+
+    const params = new URLSearchParams()
+    params.set('mode', 'payment')
+    params.set('success_url', successUrl)
+    params.set('cancel_url', cancelUrl)
+    params.set('client_reference_id', order.id)
+    params.set('metadata[order_id]', order.id)
+    params.set('metadata[sp_id]', order.sp_id)
+    params.set('metadata[sku_code]', order.sku_code || '')
+    params.set('metadata[source]', 'handout_sp_credit')
+    params.set('line_items[0][quantity]', '1')
+    params.set('line_items[0][price_data][currency]', String(order.currency || 'USD').toLowerCase())
+    params.set('line_items[0][price_data][unit_amount]', String(Number(order.amount_cents || 0)))
+    params.set('line_items[0][price_data][product_data][name]', String(order.sku_name || order.sku_code))
+    params.set('payment_method_types[0]', 'card')
+    params.set('allow_promotion_codes', 'false')
+
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${stripeSecretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw createApiError(
+        502,
+        'STRIPE_CHECKOUT_SESSION_FAILED',
+        payload?.error?.message || 'Failed to create Stripe Checkout Session',
+      )
+    }
+
+    return {
+      id: payload.id,
+      order_id: order.id,
+      stripe_configured: true,
+      checkout_url: payload.url || null,
+      success_url: payload.success_url || successUrl,
+      cancel_url: payload.cancel_url || cancelUrl,
+      created_at: now,
+      message: 'Stripe Checkout Session created successfully.',
+      provider_payload: {
+        id: payload.id,
+        url: payload.url || null,
+        payment_status: payload.payment_status || null,
+      },
+    }
+  }
+
+  const verifyStripeWebhookSignature = ({ req, rawPayload, webhookSecret }) => {
+    const signatureHeader = String(req?.headers?.['stripe-signature'] || '').trim()
+    if (!signatureHeader) {
+      throw createApiError(401, 'MISSING_STRIPE_SIGNATURE', 'Stripe signature is required')
+    }
+
+    const rawValue = String(rawPayload || '')
+    const parts = signatureHeader.split(',').reduce((acc, part) => {
+      const [key, value] = String(part || '').split('=', 2)
+      if (key && value) acc[key.trim()] = value.trim()
+      return acc
+    }, {})
+    const timestamp = parts.t
+    const signatures = Object.entries(parts)
+      .filter(([key]) => key === 'v1')
+      .map(([, value]) => value)
+
+    if (!timestamp || !signatures.length) {
+      throw createApiError(401, 'INVALID_STRIPE_SIGNATURE', 'Stripe signature header is invalid')
+    }
+
+    const signedPayload = `${timestamp}.${rawValue}`
+    const expected = createHmac('sha256', webhookSecret).update(signedPayload).digest('hex')
+    const expectedBuffer = Buffer.from(expected, 'hex')
+    const isValid = signatures.some((signature) => {
+      try {
+        const candidate = Buffer.from(signature, 'hex')
+        return (
+          candidate.length === expectedBuffer.length &&
+          timingSafeEqual(candidate, expectedBuffer)
+        )
+      } catch {
+        return false
+      }
+    })
+
+    if (!isValid) {
+      throw createApiError(401, 'INVALID_STRIPE_SIGNATURE', 'Stripe signature verification failed')
+    }
+
+    const toleranceSeconds = 300
+    const eventTimestamp = Number(timestamp)
+    if (
+      Number.isFinite(eventTimestamp) &&
+      Math.abs(Math.floor(Date.now() / 1000) - eventTimestamp) > toleranceSeconds
+    ) {
+      throw createApiError(401, 'STALE_STRIPE_SIGNATURE', 'Stripe signature timestamp is too old')
+    }
+  }
+
   const getTaskAddressPatch = (task, property) => {
     const sourceTask = task && typeof task === 'object' ? task : {}
     const sourceProperty = property && typeof property === 'object' ? property : {}
     const propertyAddress = normalizePropertyAddress(sourceProperty)
     const taskAddress = normalizePropertyAddress(sourceTask)
 
-    const line1 = taskAddress.line1 || propertyAddress.line1 || String(sourceTask.property_name || '').trim()
+    const line1 =
+      taskAddress.line1 || propertyAddress.line1 || String(sourceTask.property_name || '').trim()
     const line2 = taskAddress.line2 || propertyAddress.line2
     const city = taskAddress.city || propertyAddress.city
     const state = taskAddress.state || propertyAddress.state
     const zip = taskAddress.zip || propertyAddress.zip
 
     return {
-      property_name: line1 || String(sourceProperty.displayName || sourceProperty.name || sourceTask.property_name || '').trim(),
+      property_name:
+        line1 ||
+        String(
+          sourceProperty.displayName || sourceProperty.name || sourceTask.property_name || '',
+        ).trim(),
       property_address_line1: line1,
       property_address_line2: line2,
       property_city: city,
@@ -1472,6 +1913,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     balance: 0,
     lifetime_purchased: 0,
     lifetime_used: 0,
+    lifetime_refunded: 0,
     lifetime_granted: 0,
     last_free_credit_at: null,
     created_at: now,
@@ -1484,6 +1926,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       balance: toNumber(account?.balance, 0),
       lifetime_purchased: toNumber(account?.lifetime_purchased, 0),
       lifetime_used: toNumber(account?.lifetime_used, 0),
+      lifetime_refunded: toNumber(account?.lifetime_refunded, 0),
       lifetime_granted: toNumber(account?.lifetime_granted, 0),
       last_free_credit_at: account?.last_free_credit_at || null,
     }
@@ -1524,16 +1967,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref)
         const baseAccount = snap.exists
-          ? {
-              ...buildDefaultSpCreditAccount(spId, snap.data()?.created_at || now),
-              ...(snap.data() || {}),
-              sp_id: spId,
-              balance: toNumber(snap.data()?.balance, 0),
-              lifetime_purchased: toNumber(snap.data()?.lifetime_purchased, 0),
-              lifetime_used: toNumber(snap.data()?.lifetime_used, 0),
-              lifetime_granted: toNumber(snap.data()?.lifetime_granted, 0),
-              last_free_credit_at: snap.data()?.last_free_credit_at || null,
-            }
+          ? buildSpCreditAccountSnapshot(spId, snap.data() || {}, now)
           : buildDefaultSpCreditAccount(spId, now)
 
         const granted = applySpFreeCreditPolicy(baseAccount, now)
@@ -1546,7 +1980,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
               created_at: baseAccount.created_at || now,
               updated_at: granted.account.updated_at || now,
             },
-            { merge: true }
+            { merge: true },
           )
         }
         if (granted.granted > 0) {
@@ -1554,12 +1988,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(ledgerId), {
             id: ledgerId,
             sp_id: spId,
-            entry_type: 'grant',
+            entry_type: 'adjustment',
             delta: granted.granted,
             balance_after: granted.account.balance,
             source_type: 'free_credit',
             source_id: granted.grantType || 'starter',
+            provider: null,
+            provider_ref: null,
             created_at: now,
+            created_by: 'system',
+            note: `Automatic ${granted.grantType || 'starter'} bid credit grant`,
             meta: {
               grant_type: granted.grantType || 'starter',
             },
@@ -1610,6 +2048,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           balance: toNumber(existing.balance, 0),
           lifetime_purchased: toNumber(existing.lifetime_purchased, 0),
           lifetime_used: toNumber(existing.lifetime_used, 0),
+          lifetime_refunded: toNumber(existing.lifetime_refunded, 0),
           lifetime_granted: toNumber(existing.lifetime_granted, 0),
           last_free_credit_at: existing.last_free_credit_at || null,
         }
@@ -1621,12 +2060,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       appendSpCreditLedgerMemory({
         id: ledgerId,
         sp_id: spId,
-        entry_type: 'grant',
+        entry_type: 'adjustment',
         delta: granted.granted,
         balance_after: granted.account.balance,
         source_type: 'free_credit',
         source_id: granted.grantType || 'starter',
+        provider: null,
+        provider_ref: null,
         created_at: now,
+        created_by: 'system',
+        note: `Automatic ${granted.grantType || 'starter'} bid credit grant`,
         meta: {
           grant_type: granted.grantType || 'starter',
         },
@@ -1658,23 +2101,17 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
       const existingSnap = await tx.get(bidsRef.where('sp_id', '==', actor.id))
       const existingRows = existingSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
-      const latestVersion = existingRows.reduce((max, row) => Math.max(max, Number(row.version_number || 0)), 0)
+      const latestVersion = existingRows.reduce(
+        (max, row) => Math.max(max, Number(row.version_number || 0)),
+        0,
+      )
       const previousBid = [...existingRows].sort((a, b) =>
-        String(b.created_at || '').localeCompare(String(a.created_at || ''))
+        String(b.created_at || '').localeCompare(String(a.created_at || '')),
       )[0]
 
       const accountSnap = await tx.get(accountRef)
       const accountData = accountSnap.exists
-        ? {
-            ...buildDefaultSpCreditAccount(actor.id, accountSnap.data()?.created_at || now),
-            ...(accountSnap.data() || {}),
-            sp_id: actor.id,
-            balance: toNumber(accountSnap.data()?.balance, 0),
-            lifetime_purchased: toNumber(accountSnap.data()?.lifetime_purchased, 0),
-            lifetime_used: toNumber(accountSnap.data()?.lifetime_used, 0),
-            lifetime_granted: toNumber(accountSnap.data()?.lifetime_granted, 0),
-            last_free_credit_at: accountSnap.data()?.last_free_credit_at || null,
-          }
+        ? buildSpCreditAccountSnapshot(actor.id, accountSnap.data() || {}, now)
         : buildDefaultSpCreditAccount(actor.id, now)
       const granted = applySpFreeCreditPolicy(accountData, now)
       if (granted.granted > 0 || !accountSnap.exists) {
@@ -1686,7 +2123,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             created_at: accountData.created_at || now,
             updated_at: granted.account.updated_at || now,
           },
-          { merge: true }
+          { merge: true },
         )
       }
       if (granted.granted > 0) {
@@ -1694,12 +2131,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(ledgerId), {
           id: ledgerId,
           sp_id: actor.id,
-          entry_type: 'grant',
+          entry_type: 'adjustment',
           delta: granted.granted,
           balance_after: granted.account.balance,
           source_type: 'free_credit',
           source_id: granted.grantType || 'starter',
+          provider: null,
+          provider_ref: null,
           created_at: now,
+          created_by: 'system',
+          note: `Automatic ${granted.grantType || 'starter'} bid credit grant`,
           meta: {
             grant_type: granted.grantType || 'starter',
           },
@@ -1710,7 +2151,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         throw createApiError(
           402,
           'INSUFFICIENT_CREDITS',
-          'Insufficient credits. Your free credit will refresh next week.'
+          'Insufficient credits. Your free credit will refresh next week.',
         )
       }
 
@@ -1738,7 +2179,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         warranty: body?.warranty || '',
         attachments: Array.isArray(body?.attachments) ? body.attachments : [],
         upfront_payment_expected: body?.upfront_payment_expected || 'no',
-        upfront_payment_amount: body?.upfront_payment_amount != null ? Number(body.upfront_payment_amount) : null,
+        upfront_payment_amount:
+          body?.upfront_payment_amount != null ? Number(body.upfront_payment_amount) : null,
         upfront_payment_timing: body?.upfront_payment_timing || '',
         upfront_payment_timing_note: body?.upfront_payment_timing_note || '',
         remaining_payment_expectation: body?.remaining_payment_expectation || '',
@@ -1768,21 +2210,25 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           updated_at: now,
           created_at: accountData.created_at || now,
         },
-        { merge: true }
+        { merge: true },
       )
 
       const ledgerId = `credit-ledger-${randomUUID()}`
       tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(ledgerId), {
         id: ledgerId,
         sp_id: actor.id,
-        entry_type: 'bid_use',
+        entry_type: 'consume',
         delta: -SP_BID_CREDIT_COST,
         balance_after: nextBalance,
         source_type: 'bid',
         source_id: bidId,
         lead_id: leadId,
         task_id: bid.task_id || null,
+        provider: null,
+        provider_ref: null,
         created_at: now,
+        created_by: actor.id,
+        note: 'Bid submitted successfully',
         meta: {
           bid_amount: bid.amount,
           currency: bid.currency,
@@ -1801,39 +2247,89 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const lead = found.lead
     if (!lead) return { ok: false, status: 404, code: 'LEAD_NOT_FOUND', message: 'Lead not found' }
     if (lead.status !== 'open') {
-      return { ok: false, status: 400, code: 'LEAD_NOT_OPEN', message: 'Lead is not accepting bids' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'LEAD_NOT_OPEN',
+        message: 'Lead is not accepting bids',
+      }
     }
 
     const spProfile = store.spProfiles.get(actor.id)
     if (!spProfile) {
-      return { ok: false, status: 404, code: 'SP_PROFILE_NOT_FOUND', message: 'SP profile not found' }
+      return {
+        ok: false,
+        status: 404,
+        code: 'SP_PROFILE_NOT_FOUND',
+        message: 'SP profile not found',
+      }
     }
     if (!isSpEligibleForLead(lead, spProfile)) {
-      return { ok: false, status: 403, code: 'NOT_ELIGIBLE', message: 'You are not eligible to bid on this lead' }
+      return {
+        ok: false,
+        status: 403,
+        code: 'NOT_ELIGIBLE',
+        message: 'You are not eligible to bid on this lead',
+      }
     }
     if (!body?.amount || Number(body.amount) <= 0) {
-      return { ok: false, status: 400, code: 'INVALID_AMOUNT', message: 'Bid amount must be a positive number' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'INVALID_AMOUNT',
+        message: 'Bid amount must be a positive number',
+      }
     }
     if (!String(body?.included_scope || '').trim()) {
-      return { ok: false, status: 400, code: 'MISSING_INCLUDED_SCOPE', message: 'Included scope is required' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'MISSING_INCLUDED_SCOPE',
+        message: 'Included scope is required',
+      }
     }
     if (!String(body?.estimated_start_date || body?.availability_date || '').trim()) {
-      return { ok: false, status: 400, code: 'MISSING_ESTIMATED_START_DATE', message: 'Estimated start date is required' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'MISSING_ESTIMATED_START_DATE',
+        message: 'Estimated start date is required',
+      }
     }
     if (!String(body?.estimated_duration || '').trim()) {
-      return { ok: false, status: 400, code: 'MISSING_ESTIMATED_DURATION', message: 'Estimated duration is required' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'MISSING_ESTIMATED_DURATION',
+        message: 'Estimated duration is required',
+      }
     }
     if (!String(body?.valid_until || '').trim()) {
-      return { ok: false, status: 400, code: 'MISSING_VALID_UNTIL', message: 'Bid valid-until date is required' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'MISSING_VALID_UNTIL',
+        message: 'Bid valid-until date is required',
+      }
     }
     if (!body?.disclaimer_acknowledged) {
-      return { ok: false, status: 400, code: 'DISCLAIMER_REQUIRED', message: 'Bid disclaimer must be acknowledged' }
+      return {
+        ok: false,
+        status: 400,
+        code: 'DISCLAIMER_REQUIRED',
+        message: 'Bid disclaimer must be acknowledged',
+      }
     }
 
     if (found.source === 'firestore') {
       try {
         const txResult = await createBidWithCreditInFirestore({ actor, leadId, body })
-        return { ok: true, bid: txResult.bid, credits_balance: txResult.balance, credit_cost: txResult.credit_cost }
+        return {
+          ok: true,
+          bid: txResult.bid,
+          credits_balance: txResult.balance,
+          credit_cost: txResult.credit_cost,
+        }
       } catch (error) {
         if (error?.code && error?.status) {
           return {
@@ -1870,14 +2366,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     appendSpCreditLedgerMemory({
       id: `credit-ledger-${randomUUID()}`,
       sp_id: actor.id,
-      entry_type: 'bid_use',
+      entry_type: 'consume',
       delta: -SP_BID_CREDIT_COST,
       balance_after: nextBalance,
       source_type: 'bid',
       source_id: bid.id,
       lead_id: lead.id,
       task_id: bid.task_id || null,
+      provider: null,
+      provider_ref: null,
       created_at: new Date().toISOString(),
+      created_by: actor.id,
+      note: 'Bid submitted successfully',
       meta: { bid_amount: bid.amount, currency: bid.currency || 'USD' },
     })
     return {
@@ -1987,12 +2487,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return row
   }
 
-  const appendAgentEvent = async ({
-    eventType,
-    actor,
-    requestId,
-    metadata = {},
-  }) => {
+  const appendAgentEvent = async ({ eventType, actor, requestId, metadata = {} }) => {
     const now = new Date().toISOString()
     const id = `agent-event-${randomUUID()}`
     const row = {
@@ -2027,7 +2522,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       // fallback to memory
     }
     return [...(store.adminMetricsDaily?.values?.() || [])].sort((a, b) =>
-      String(a.date || '').localeCompare(String(b.date || ''))
+      String(a.date || '').localeCompare(String(b.date || '')),
     )
   }
 
@@ -2044,7 +2539,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       // fallback to memory
     }
     return [...(store.adminEvents?.values?.() || [])].sort((a, b) =>
-      String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      String(b.created_at || '').localeCompare(String(a.created_at || '')),
     )
   }
 
@@ -2061,7 +2556,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       // fallback to memory
     }
     return [...(store.adminErrors?.values?.() || [])].sort((a, b) =>
-      String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      String(b.created_at || '').localeCompare(String(a.created_at || '')),
     )
   }
 
@@ -2137,6 +2632,117 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   }
 
+  const normalizeSupportStatus = (value, fallback = 'open') => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+    return SUPPORT_TICKET_STATUSES.has(normalized) ? normalized : fallback
+  }
+
+  const normalizeSupportCategory = (value, fallback = 'bug') => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+    return SUPPORT_TICKET_CATEGORIES.has(normalized) ? normalized : fallback
+  }
+
+  const normalizeSupportPriority = (value, fallback = 'normal') => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+    return SUPPORT_TICKET_PRIORITIES.has(normalized) ? normalized : fallback
+  }
+
+  const normalizeSupportAttachments = (value) => {
+    if (!Array.isArray(value)) return []
+    return value
+      .map((item) => {
+        if (typeof item === 'string')
+          return { url: item, name: item.split('/').pop() || 'attachment' }
+        if (!item || typeof item !== 'object') return null
+        return {
+          name: String(item.name || item.file_name || 'attachment').slice(0, 160),
+          url: String(item.url || item.download_url || '').slice(0, 2000),
+          content_type: String(item.content_type || item.type || '').slice(0, 120),
+        }
+      })
+      .filter((item) => item && item.url)
+      .slice(0, 10)
+  }
+
+  const buildSupportTicketPatch = (body = {}, now = new Date().toISOString()) => ({
+    category: normalizeSupportCategory(body.category),
+    subject: String(body.subject || '')
+      .trim()
+      .slice(0, 180),
+    description: String(body.description || '')
+      .trim()
+      .slice(0, 5000),
+    attachments: normalizeSupportAttachments(body.attachments),
+    priority: normalizeSupportPriority(body.priority),
+    related_entity_type:
+      String(body.related_entity_type || '')
+        .trim()
+        .slice(0, 80) || null,
+    related_entity_id:
+      String(body.related_entity_id || '')
+        .trim()
+        .slice(0, 160) || null,
+    status: 'open',
+    assigned_to: null,
+    admin_notes: '',
+    created_at: now,
+    updated_at: now,
+    resolved_at: null,
+    closed_at: null,
+    last_response_at: null,
+    needs_billing_review: Boolean(body.needs_billing_review),
+    needs_backend_fix: Boolean(body.needs_backend_fix),
+    needs_frontend_fix: Boolean(body.needs_frontend_fix),
+    needs_ios_fix: Boolean(body.needs_ios_fix),
+  })
+
+  const listSupportTicketComments = async (ticketId, limit = 100) => {
+    try {
+      const snap = await getDb()
+        .collection(SUPPORT_TICKET_COMMENTS_COLLECTION)
+        .where('ticket_id', '==', ticketId)
+        .get()
+      return snap.docs
+        .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+        .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+        .slice(0, Math.max(1, Math.min(Number(limit) || 100, 300)))
+    } catch {
+      return []
+    }
+  }
+
+  const appendSupportComment = async ({
+    ticketId,
+    authorType,
+    authorId,
+    body,
+    attachments = [],
+    internal = false,
+  }) => {
+    const now = new Date().toISOString()
+    const id = `support-comment-${randomUUID()}`
+    const row = {
+      id,
+      ticket_id: ticketId,
+      author_type: authorType,
+      author_id: authorId,
+      body: String(body || '')
+        .trim()
+        .slice(0, 5000),
+      attachments: normalizeSupportAttachments(attachments),
+      internal: Boolean(internal),
+      created_at: now,
+    }
+    await getDb().collection(SUPPORT_TICKET_COMMENTS_COLLECTION).doc(id).set(row, { merge: true })
+    return row
+  }
+
   const listFirestoreRows = async (collectionName) => {
     try {
       const db = getDb()
@@ -2161,12 +2767,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const aggregateAdSlotStats = async ({ fromDate, toDate, slotId = '', serviceType = '' }) => {
-    const [persistedPosts, persistedDeliveries, persistedImpressions, persistedClicks] = await Promise.all([
-      listFirestoreAdPosts(),
-      listFirestoreRows(AD_DELIVERIES_COLLECTION),
-      listFirestoreRows(AD_IMPRESSIONS_COLLECTION),
-      listFirestoreRows(AD_CLICKS_COLLECTION),
-    ])
+    const [persistedPosts, persistedDeliveries, persistedImpressions, persistedClicks] =
+      await Promise.all([
+        listFirestoreAdPosts(),
+        listFirestoreRows(AD_DELIVERIES_COLLECTION),
+        listFirestoreRows(AD_IMPRESSIONS_COLLECTION),
+        listFirestoreRows(AD_CLICKS_COLLECTION),
+      ])
 
     const memoryPosts = [...(store.adPosts?.values?.() || [])]
     const memoryDeliveries = [...(store.adDeliveryLogs?.values?.() || [])]
@@ -2213,8 +2820,12 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
     }
 
-    const normalizedSlot = String(slotId || '').trim().toLowerCase()
-    const normalizedService = String(serviceType || '').trim().toLowerCase()
+    const normalizedSlot = String(slotId || '')
+      .trim()
+      .toLowerCase()
+    const normalizedService = String(serviceType || '')
+      .trim()
+      .toLowerCase()
 
     const deliveryRows = [...deliveryByToken.values()].filter((row) => {
       if (!betweenRange(row.served_at, fromDate, toDate)) return false
@@ -2230,24 +2841,24 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     })
 
     const deliveryTokenSet = new Set(
-      deliveryRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean)
+      deliveryRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean),
     )
     const impressionRows = [...uniqueImpressions.values()].filter(
       (row) =>
         deliveryTokenSet.has(String(row.impression_token || '').trim()) &&
-        betweenRange(row.event_time, fromDate, toDate)
+        betweenRange(row.event_time, fromDate, toDate),
     )
     const clickRows = [...uniqueClicks.values()].filter(
       (row) =>
         deliveryTokenSet.has(String(row.impression_token || '').trim()) &&
-        betweenRange(row.event_time, fromDate, toDate)
+        betweenRange(row.event_time, fromDate, toDate),
     )
 
     const impressionsByToken = new Set(
-      impressionRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean)
+      impressionRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean),
     )
     const clicksByToken = new Set(
-      clickRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean)
+      clickRows.map((row) => String(row.impression_token || '').trim()).filter(Boolean),
     )
 
     const slotMap = new Map()
@@ -2266,7 +2877,12 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       slotAgg.clicks += hasClick
       slotMap.set(slot, slotAgg)
 
-      const typeAgg = typeMap.get(type) || { service_type: type, served: 0, impressions: 0, clicks: 0 }
+      const typeAgg = typeMap.get(type) || {
+        service_type: type,
+        served: 0,
+        impressions: 0,
+        clicks: 0,
+      }
       typeAgg.served += 1
       typeAgg.impressions += hasImpression
       typeAgg.clicks += hasClick
@@ -2324,7 +2940,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   const nowIso = () => new Date().toISOString()
 
-  const toUpper = (value) => String(value || '').trim().toUpperCase()
+  const toUpper = (value) =>
+    String(value || '')
+      .trim()
+      .toUpperCase()
 
   const ensureAdStore = () => {
     if (!store.spSources) store.spSources = new Map()
@@ -2364,7 +2983,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const normalizeRegionLevel = (level) => {
-    const next = String(level || '').trim().toLowerCase()
+    const next = String(level || '')
+      .trim()
+      .toLowerCase()
     if (next === 'country' || next === 'state' || next === 'city') return next
     return null
   }
@@ -2439,15 +3060,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!normalizedTargets.length) return null
     const candidates = deriveRegionCandidates(userRegion)
     const hasCity = normalizedTargets.some(
-      (row) => row.region_level === 'city' && candidates.city.includes(row.region_code)
+      (row) => row.region_level === 'city' && candidates.city.includes(row.region_code),
     )
     if (hasCity) return 'city'
     const hasState = normalizedTargets.some(
-      (row) => row.region_level === 'state' && candidates.state.includes(row.region_code)
+      (row) => row.region_level === 'state' && candidates.state.includes(row.region_code),
     )
     if (hasState) return 'state'
     const hasCountry = normalizedTargets.some(
-      (row) => row.region_level === 'country' && candidates.country.includes(row.region_code)
+      (row) => row.region_level === 'country' && candidates.country.includes(row.region_code),
     )
     if (hasCountry) return 'country'
     return null
@@ -2502,9 +3123,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .replaceAll('{impression_token}', encodeURIComponent(impressionToken || ''))
   }
 
-  const sponsoredEnabled = String(
-    config.adsSponsoredEnabled || process.env.ADS_SPONSORED_ENABLED || 'false'
-  ).toLowerCase() === 'true'
+  const sponsoredEnabled =
+    String(
+      config.adsSponsoredEnabled || process.env.ADS_SPONSORED_ENABLED || 'false',
+    ).toLowerCase() === 'true'
 
   const buildFeedCacheKey = ({ actor, slotId, userRegion, limit }) =>
     [
@@ -2546,10 +3168,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const computeFeedEtag = (payload) => {
-    const digest = createHash('sha1')
-      .update(JSON.stringify(payload))
-      .digest('hex')
-      .slice(0, 16)
+    const digest = createHash('sha1').update(JSON.stringify(payload)).digest('hex').slice(0, 16)
     return `W/"${digest}"`
   }
 
@@ -2564,7 +3183,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return task
   }
 
-  const hashValue = (value) => createHash('sha1').update(String(value || '')).digest('hex')
+  const hashValue = (value) =>
+    createHash('sha1')
+      .update(String(value || ''))
+      .digest('hex')
 
   const buildDeterministicPostId = (sourceCode, sourcePostId) =>
     `adp-${hashValue(`${String(sourceCode || '').toLowerCase()}::${String(sourcePostId || '')}`).slice(0, 24)}`
@@ -2574,14 +3196,17 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const saveFirestoreAdPost = async (post, targetRegions = []) => {
     try {
       const db = getDb()
-      await db.collection(AD_POSTS_COLLECTION).doc(String(post.post_id)).set(
-        {
-          ...post,
-          target_regions: normalizeTargetRegions(targetRegions),
-          updated_server_at: nowIso(),
-        },
-        { merge: true }
-      )
+      await db
+        .collection(AD_POSTS_COLLECTION)
+        .doc(String(post.post_id))
+        .set(
+          {
+            ...post,
+            target_regions: normalizeTargetRegions(targetRegions),
+            updated_server_at: nowIso(),
+          },
+          { merge: true },
+        )
     } catch {
       // keep memory write when Firestore is unavailable
     }
@@ -2630,13 +3255,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   const saveFirestoreAdDelivery = async (row) => {
     try {
       const db = getDb()
-      await db.collection(AD_DELIVERIES_COLLECTION).doc(String(row.impression_token)).set(
-        {
-          ...row,
-          updated_server_at: nowIso(),
-        },
-        { merge: true }
-      )
+      await db
+        .collection(AD_DELIVERIES_COLLECTION)
+        .doc(String(row.impression_token))
+        .set(
+          {
+            ...row,
+            updated_server_at: nowIso(),
+          },
+          { merge: true },
+        )
     } catch {
       // keep memory write when Firestore is unavailable
     }
@@ -2736,7 +3364,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             expires_at: new Date(expiresAtMs).toISOString(),
             updated_at: nowIso(),
           },
-          { merge: true }
+          { merge: true },
         )
     } catch {
       // keep memory write when Firestore is unavailable
@@ -2776,14 +3404,14 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const latest = target || {}
     const totalRoleCount = Object.values(latest.role_active_counts || {}).reduce(
       (sum, value) => sum + toNumber(value, 0),
-      0
+      0,
     )
     const roleShare = totalRoleCount
       ? Object.fromEntries(
           Object.entries(latest.role_active_counts || {}).map(([key, value]) => [
             key,
             Number(((toNumber(value, 0) / totalRoleCount) * 100).toFixed(2)),
-          ])
+          ]),
         )
       : {}
     const alertCards = {
@@ -2794,7 +3422,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           ? 'warning'
           : 'ok',
       negative_credit_balance: [...(store.spCreditAccounts?.values?.() || [])].some(
-        (row) => toNumber(row.balance, 0) < 0
+        (row) => toNumber(row.balance, 0) < 0,
       )
         ? 'critical'
         : 'ok',
@@ -2840,8 +3468,12 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('GET', '/admin/users', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
-    const role = String(query.get('role') || '').trim().toLowerCase()
-    const status = String(query.get('status') || '').trim().toLowerCase()
+    const role = String(query.get('role') || '')
+      .trim()
+      .toLowerCase()
+    const status = String(query.get('status') || '')
+      .trim()
+      .toLowerCase()
     const paid = query.get('paid')
     const { fromDate, toDate } = buildRange(query)
     const rows = [...store.users.values()]
@@ -2858,7 +3490,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .filter((row) => {
         if (role && String(row.role || '').toLowerCase() !== role) return false
         if (status && String(row.status || '').toLowerCase() !== status) return false
-        if (paid !== null && paid !== '' && String(row.is_paid) !== String(paid === 'true')) return false
+        if (paid !== null && paid !== '' && String(row.is_paid) !== String(paid === 'true'))
+          return false
         if ((fromDate || toDate) && !inRange(row.last_active_at, fromDate, toDate)) return false
         return true
       })
@@ -2964,18 +3597,24 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       acc[plan] = (acc[plan] || 0) + 1
       return acc
     }, {})
-    const paidCount = users.filter((user) => String(user.billing?.plan_name || 'free') !== 'free').length
+    const paidCount = users.filter(
+      (user) => String(user.billing?.plan_name || 'free') !== 'free',
+    ).length
     const conversionRate = users.length ? Number(((paidCount / users.length) * 100).toFixed(2)) : 0
     const orders = [...(store.spCreditOrders?.values?.() || [])].filter((row) =>
-      fromDate || toDate ? inRange(row.created_at, fromDate, toDate) : true
+      fromDate || toDate ? inRange(row.created_at, fromDate, toDate) : true,
     )
     const ledger = [...(store.spCreditLedger?.values?.() || [])].filter((row) =>
-      fromDate || toDate ? inRange(row.created_at, fromDate, toDate) : true
+      fromDate || toDate ? inRange(row.created_at, fromDate, toDate) : true,
     )
     const accounts = [...(store.spCreditAccounts?.values?.() || [])]
-    const totalPurchased = orders.reduce((sum, row) => sum + toNumber(row.credits, 0), 0)
+    const totalPurchased = orders
+      .filter((row) => ['paid', 'credited'].includes(normalizeCreditOrderStatus(row.status)))
+      .reduce((sum, row) => sum + toNumber(row.credits, 0), 0)
     const totalUsed = ledger
-      .filter((row) => ['bid_use', 'consume', 'usage'].includes(String(row.entry_type || '').toLowerCase()))
+      .filter((row) =>
+        ['bid_use', 'consume', 'usage'].includes(String(row.entry_type || '').toLowerCase()),
+      )
       .reduce((sum, row) => sum + Math.abs(toNumber(row.delta, 0)), 0)
     const totalBalance = accounts.reduce((sum, row) => sum + toNumber(row.balance, 0), 0)
     const sourceDistribution = ledger.reduce((acc, row) => {
@@ -3016,6 +3655,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         balance: toNumber(row.balance, 0),
         lifetime_purchased: toNumber(row.lifetime_purchased, 0),
         lifetime_used: toNumber(row.lifetime_used, 0),
+        lifetime_refunded: toNumber(row.lifetime_refunded, 0),
         updated_at: row.updated_at || row.created_at || null,
       }))
       .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
@@ -3025,7 +3665,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('GET', '/admin/credits/orders', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
     const spId = String(query.get('sp_id') || '').trim()
-    const status = String(query.get('status') || '').trim().toLowerCase()
+    const status = String(query.get('status') || '')
+      .trim()
+      .toLowerCase()
     const { fromDate, toDate } = buildRange(query)
     const rows = [...(store.spCreditOrders?.values?.() || [])]
       .filter((row) => {
@@ -3041,7 +3683,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('GET', '/admin/credits/ledger', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
     const spId = String(query.get('sp_id') || '').trim()
-    const entryType = String(query.get('entry_type') || '').trim().toLowerCase()
+    const entryType = String(query.get('entry_type') || '')
+      .trim()
+      .toLowerCase()
     const { fromDate, toDate } = buildRange(query)
     const rows = [...(store.spCreditLedger?.values?.() || [])]
       .filter((row) => {
@@ -3089,13 +3733,22 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         requestId,
         400,
         'SECOND_CONFIRM_REQUIRED',
-        'confirm_token must be CONFIRM for manual credit adjustment'
+        'confirm_token must be CONFIRM for manual credit adjustment',
       )
     }
 
     const account = ensureSpCreditAccountMemory(spId)
     const now = new Date().toISOString()
     const balanceAfter = toNumber(account.balance, 0) + delta
+    if (balanceAfter < 0) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'NEGATIVE_CREDIT_BALANCE',
+        'Credit balance cannot be negative',
+      )
+    }
     account.balance = balanceAfter
     if (delta > 0) {
       account.lifetime_purchased = toNumber(account.lifetime_purchased, 0) + delta
@@ -3107,12 +3760,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const ledgerRow = appendSpCreditLedgerMemory({
       id: `credit-ledger-${randomUUID()}`,
       sp_id: spId,
-      entry_type: delta > 0 ? 'manual_add' : 'manual_deduct',
+      entry_type: 'adjustment',
       delta,
       balance_after: balanceAfter,
       source_type: 'admin_adjustment',
       source_id: requestId,
+      provider: null,
+      provider_ref: null,
       created_at: now,
+      created_by: actor.id,
+      note: reason,
       meta: {
         reason,
         actor_id: actor.id,
@@ -3137,7 +3794,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('GET', '/admin/logs/events', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
-    const eventType = String(query.get('event_type') || '').trim().toLowerCase()
+    const eventType = String(query.get('event_type') || '')
+      .trim()
+      .toLowerCase()
     const userId = String(query.get('user_id') || '').trim()
     const requestFilter = String(query.get('request_id') || '').trim()
     const entityFilters = {
@@ -3150,9 +3809,12 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       if (eventType && String(row.event_type || '').toLowerCase() !== eventType) return false
       if (userId && String(row.user_id || '') !== userId) return false
       if (requestFilter && String(row.request_id || '') !== requestFilter) return false
-      if (entityFilters.task_id && String(row.entity_id || '') !== entityFilters.task_id) return false
-      if (entityFilters.lead_id && String(row.entity_id || '') !== entityFilters.lead_id) return false
-      if (entityFilters.order_id && String(row.entity_id || '') !== entityFilters.order_id) return false
+      if (entityFilters.task_id && String(row.entity_id || '') !== entityFilters.task_id)
+        return false
+      if (entityFilters.lead_id && String(row.entity_id || '') !== entityFilters.lead_id)
+        return false
+      if (entityFilters.order_id && String(row.entity_id || '') !== entityFilters.order_id)
+        return false
       if ((fromDate || toDate) && !inRange(row.created_at, fromDate, toDate)) return false
       return true
     })
@@ -3161,19 +3823,324 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('GET', '/admin/logs/errors', async ({ actor, query, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
-    const errorCode = String(query.get('error_code') || '').trim().toLowerCase()
-    const routeFilter = String(query.get('route') || '').trim().toLowerCase()
+    const errorCode = String(query.get('error_code') || '')
+      .trim()
+      .toLowerCase()
+    const routeFilter = String(query.get('route') || '')
+      .trim()
+      .toLowerCase()
     const requestFilter = String(query.get('request_id') || '').trim()
     const { fromDate, toDate } = buildRange(query)
     const rows = (await getAdminErrorRows()).filter((row) => {
       if (errorCode && String(row.error_code || '').toLowerCase() !== errorCode) return false
-      if (routeFilter && !String(row.route || '').toLowerCase().includes(routeFilter)) return false
+      if (
+        routeFilter &&
+        !String(row.route || '')
+          .toLowerCase()
+          .includes(routeFilter)
+      )
+        return false
       if (requestFilter && String(row.request_id || '') !== requestFilter) return false
       if ((fromDate || toDate) && !inRange(row.created_at, fromDate, toDate)) return false
       return true
     })
     return ok(res, requestId, { items: rows.slice(0, 500) })
   })
+
+  route('POST', '/support/tickets', async ({ actor, body, res, requestId }) => {
+    const now = new Date().toISOString()
+    const ticketPatch = buildSupportTicketPatch(body, now)
+    if (!ticketPatch.subject || !ticketPatch.description) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'MISSING_FIELDS',
+        'subject and description are required',
+      )
+    }
+    try {
+      const id = `support-ticket-${randomUUID()}`
+      const userId = String(body?.user_id || actor.id || '').trim()
+      const ticket = {
+        id,
+        user_id: userId,
+        user_role: normalizeRole(body?.user_role) || actor.role || null,
+        ...ticketPatch,
+      }
+      await getDb().collection(SUPPORT_TICKETS_COLLECTION).doc(id).set(ticket, { merge: true })
+      await appendSupportComment({
+        ticketId: id,
+        authorType: 'user',
+        authorId: userId,
+        body: ticket.description,
+        attachments: ticket.attachments,
+      })
+      return ok(res, requestId, { ticket })
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SUPPORT_TICKET_CREATE_FAILED',
+        'Unable to create support ticket',
+        true,
+      )
+    }
+  })
+
+  route('GET', '/support/tickets/:id', async ({ actor, params, res, requestId }) => {
+    try {
+      const snap = await getDb().collection(SUPPORT_TICKETS_COLLECTION).doc(params.id).get()
+      if (!snap.exists)
+        return sendError(res, requestId, 404, 'TICKET_NOT_FOUND', 'Support ticket not found')
+      const ticket = { id: snap.id, ...(snap.data() || {}) }
+      if (actor.role !== 'admin' && String(ticket.user_id || '') !== String(actor.id || '')) {
+        return sendError(
+          res,
+          requestId,
+          403,
+          'PERMISSION_DENIED',
+          'Ticket is not visible to this user',
+        )
+      }
+      const comments = (await listSupportTicketComments(ticket.id)).filter(
+        (row) => actor.role === 'admin' || !row.internal,
+      )
+      return ok(res, requestId, { ticket, comments })
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SUPPORT_TICKET_READ_FAILED',
+        'Unable to read support ticket',
+        true,
+      )
+    }
+  })
+
+  route('GET', '/admin/support/tickets', async ({ actor, query, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    const status = String(query.get('status') || '')
+      .trim()
+      .toLowerCase()
+    const category = String(query.get('category') || '')
+      .trim()
+      .toLowerCase()
+    const priority = String(query.get('priority') || '')
+      .trim()
+      .toLowerCase()
+    const assignedTo = String(query.get('assigned_to') || '').trim()
+    const search = String(query.get('q') || '')
+      .trim()
+      .toLowerCase()
+    const limit = Math.max(1, Math.min(Number(query.get('limit') || 100), 300))
+    try {
+      const snap = await getDb().collection(SUPPORT_TICKETS_COLLECTION).get()
+      const items = snap.docs
+        .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+        .filter((row) => {
+          if (status && String(row.status || '') !== status) return false
+          if (category && String(row.category || '') !== category) return false
+          if (priority && String(row.priority || '') !== priority) return false
+          if (assignedTo && String(row.assigned_to || '') !== assignedTo) return false
+          if (search) {
+            const haystack =
+              `${row.id || ''} ${row.subject || ''} ${row.description || ''} ${row.user_id || ''}`.toLowerCase()
+            if (!haystack.includes(search)) return false
+          }
+          return true
+        })
+        .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .slice(0, limit)
+
+      const counters = items.reduce((acc, row) => {
+        const key = normalizeSupportStatus(row.status)
+        acc[key] = (acc[key] || 0) + 1
+        return acc
+      }, {})
+
+      return ok(res, requestId, { items, counters })
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SUPPORT_TICKET_LIST_FAILED',
+        'Unable to list support tickets',
+        true,
+      )
+    }
+  })
+
+  route('GET', '/admin/support/tickets/:id', async ({ actor, params, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    try {
+      const snap = await getDb().collection(SUPPORT_TICKETS_COLLECTION).doc(params.id).get()
+      if (!snap.exists)
+        return sendError(res, requestId, 404, 'TICKET_NOT_FOUND', 'Support ticket not found')
+      const ticket = { id: snap.id, ...(snap.data() || {}) }
+      const comments = await listSupportTicketComments(ticket.id)
+      await appendAdminEvent({
+        eventType: 'admin_support_ticket_viewed',
+        actor,
+        requestId,
+        entityType: 'support_ticket',
+        entityId: ticket.id,
+      })
+      return ok(res, requestId, { ticket, comments })
+    } catch {
+      return sendError(
+        res,
+        requestId,
+        500,
+        'SUPPORT_TICKET_READ_FAILED',
+        'Unable to read support ticket',
+        true,
+      )
+    }
+  })
+
+  route(
+    'POST',
+    '/admin/support/tickets/:id/update',
+    async ({ actor, params, body, res, requestId }) => {
+      if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+      try {
+        const db = getDb()
+        const ref = db.collection(SUPPORT_TICKETS_COLLECTION).doc(params.id)
+        const snap = await ref.get()
+        if (!snap.exists)
+          return sendError(res, requestId, 404, 'TICKET_NOT_FOUND', 'Support ticket not found')
+
+        const before = { id: snap.id, ...(snap.data() || {}) }
+        const now = new Date().toISOString()
+        const status =
+          body?.status === undefined
+            ? before.status
+            : normalizeSupportStatus(body.status, before.status)
+        const patch = {
+          status,
+          category:
+            body?.category === undefined
+              ? before.category
+              : normalizeSupportCategory(body.category, before.category),
+          priority:
+            body?.priority === undefined
+              ? before.priority
+              : normalizeSupportPriority(body.priority, before.priority),
+          assigned_to:
+            body?.assigned_to === undefined
+              ? before.assigned_to || null
+              : String(body.assigned_to || '').trim() || null,
+          related_entity_type:
+            body?.related_entity_type === undefined
+              ? before.related_entity_type || null
+              : String(body.related_entity_type || '').trim() || null,
+          related_entity_id:
+            body?.related_entity_id === undefined
+              ? before.related_entity_id || null
+              : String(body.related_entity_id || '').trim() || null,
+          needs_billing_review:
+            body?.needs_billing_review === undefined
+              ? Boolean(before.needs_billing_review)
+              : Boolean(body.needs_billing_review),
+          needs_backend_fix:
+            body?.needs_backend_fix === undefined
+              ? Boolean(before.needs_backend_fix)
+              : Boolean(body.needs_backend_fix),
+          needs_frontend_fix:
+            body?.needs_frontend_fix === undefined
+              ? Boolean(before.needs_frontend_fix)
+              : Boolean(body.needs_frontend_fix),
+          needs_ios_fix:
+            body?.needs_ios_fix === undefined
+              ? Boolean(before.needs_ios_fix)
+              : Boolean(body.needs_ios_fix),
+          updated_at: now,
+          resolved_at:
+            status === 'resolved' ? before.resolved_at || now : before.resolved_at || null,
+          closed_at: status === 'closed' ? before.closed_at || now : before.closed_at || null,
+        }
+        await ref.set(patch, { merge: true })
+        const afterSnap = await ref.get()
+        const ticket = { id: afterSnap.id, ...(afterSnap.data() || {}) }
+        await appendAdminEvent({
+          eventType: 'admin_support_ticket_updated',
+          actor,
+          requestId,
+          entityType: 'support_ticket',
+          entityId: ticket.id,
+          metadata: { before_status: before.status, status: ticket.status },
+        })
+        return ok(res, requestId, { ticket })
+      } catch {
+        return sendError(
+          res,
+          requestId,
+          500,
+          'SUPPORT_TICKET_UPDATE_FAILED',
+          'Unable to update support ticket',
+          true,
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/admin/support/tickets/:id/comment',
+    async ({ actor, params, body, res, requestId }) => {
+      if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
+      const commentBody = String(body?.body || '').trim()
+      if (!commentBody)
+        return sendError(res, requestId, 400, 'EMPTY_COMMENT', 'comment body is required')
+      try {
+        const db = getDb()
+        const ref = db.collection(SUPPORT_TICKETS_COLLECTION).doc(params.id)
+        const snap = await ref.get()
+        if (!snap.exists)
+          return sendError(res, requestId, 404, 'TICKET_NOT_FOUND', 'Support ticket not found')
+        const now = new Date().toISOString()
+        const internal = Boolean(body?.internal)
+        const comment = await appendSupportComment({
+          ticketId: params.id,
+          authorType: internal ? 'admin_internal' : 'admin',
+          authorId: actor.id,
+          body: commentBody,
+          attachments: body?.attachments,
+          internal,
+        })
+        await ref.set(
+          {
+            updated_at: now,
+            last_response_at: internal ? snap.data()?.last_response_at || null : now,
+            status: body?.request_more_info ? 'waiting_on_user' : snap.data()?.status || 'open',
+          },
+          { merge: true },
+        )
+        await appendAdminEvent({
+          eventType: internal ? 'admin_support_internal_note_added' : 'admin_support_reply_sent',
+          actor,
+          requestId,
+          entityType: 'support_ticket',
+          entityId: params.id,
+          metadata: { comment_id: comment.id, request_more_info: Boolean(body?.request_more_info) },
+        })
+        return ok(res, requestId, { comment })
+      } catch {
+        return sendError(
+          res,
+          requestId,
+          500,
+          'SUPPORT_COMMENT_FAILED',
+          'Unable to add support comment',
+          true,
+        )
+      }
+    },
+  )
 
   route('GET', '/admin/data/collections', async ({ actor, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
@@ -3189,7 +4156,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 400, 'MISSING_COLLECTION', 'collection is required')
     }
     if (!assertAdminDataCollectionAllowed(collectionName)) {
-      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'COLLECTION_NOT_ALLOWED',
+        'collection is not allowed for admin edit',
+      )
     }
     try {
       const db = getDb()
@@ -3202,7 +4175,14 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const items = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
       return ok(res, requestId, { items })
     } catch {
-      return sendError(res, requestId, 500, 'DATA_READ_FAILED', 'Unable to read collection data', true)
+      return sendError(
+        res,
+        requestId,
+        500,
+        'DATA_READ_FAILED',
+        'Unable to read collection data',
+        true,
+      )
     }
   })
 
@@ -3227,18 +4207,26 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         requestId,
         400,
         'INVALID_INPUT',
-        'collection, doc_id, patch(object), reason are required'
+        'collection, doc_id, patch(object), reason are required',
       )
     }
     if (!reason) return sendError(res, requestId, 400, 'MISSING_REASON', 'reason is required')
     if (!assertAdminDataCollectionAllowed(collectionName)) {
-      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'COLLECTION_NOT_ALLOWED',
+        'collection is not allowed for admin edit',
+      )
     }
     try {
       const db = getDb()
       const ref = db.collection(collectionName).doc(docId)
       const beforeSnap = await ref.get()
-      const beforeData = beforeSnap.exists ? { id: beforeSnap.id, ...(beforeSnap.data() || {}) } : null
+      const beforeData = beforeSnap.exists
+        ? { id: beforeSnap.id, ...(beforeSnap.data() || {}) }
+        : null
       await ref.set(patch, { merge: true })
       const afterSnap = await ref.get()
       const afterData = afterSnap.exists ? { id: afterSnap.id, ...(afterSnap.data() || {}) } : null
@@ -3264,10 +4252,22 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const docId = String(body?.doc_id || '').trim()
     const reason = String(body?.reason || '').trim()
     if (!collectionName || !docId || !reason) {
-      return sendError(res, requestId, 400, 'INVALID_INPUT', 'collection, doc_id, reason are required')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_INPUT',
+        'collection, doc_id, reason are required',
+      )
     }
     if (!assertAdminDataCollectionAllowed(collectionName)) {
-      return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for admin edit')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'COLLECTION_NOT_ALLOWED',
+        'collection is not allowed for admin edit',
+      )
     }
     try {
       const db = getDb()
@@ -3311,11 +4311,19 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const collectionName = normalizeAdminDataCollection(change.collection)
       const docId = String(change.doc_id || '').trim()
       if (!assertAdminDataCollectionAllowed(collectionName)) {
-        return sendError(res, requestId, 403, 'COLLECTION_NOT_ALLOWED', 'collection is not allowed for rollback')
+        return sendError(
+          res,
+          requestId,
+          403,
+          'COLLECTION_NOT_ALLOWED',
+          'collection is not allowed for rollback',
+        )
       }
       const ref = db.collection(collectionName).doc(docId)
       const currentSnap = await ref.get()
-      const currentData = currentSnap.exists ? { id: currentSnap.id, ...(currentSnap.data() || {}) } : null
+      const currentData = currentSnap.exists
+        ? { id: currentSnap.id, ...(currentSnap.data() || {}) }
+        : null
       const restore = change.before_data || null
       if (restore && typeof restore === 'object') {
         const payload = { ...restore }
@@ -3371,7 +4379,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       body?.backfill_token || body?.token || body?.maintenance_token || '',
     ).trim()
     const allowMaintenanceOverride = backfillToken === TASK_ADDRESS_BACKFILL_TOKEN
-    if (!allowMaintenanceOverride && !assertRole({ actor, allowed: ['admin'], res, requestId })) return
+    if (!allowMaintenanceOverride && !assertRole({ actor, allowed: ['admin'], res, requestId }))
+      return
 
     const taskIdFilter = String(body?.task_id || '').trim()
     const dryRun = body?.dry_run === true || String(body?.dry_run || '').toLowerCase() === 'true'
@@ -3392,64 +4401,66 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       summary.properties_scanned += 1
       const mxRecords = taskIdFilter
         ? (await listFirestoreMxRecordsForProperty(propertyId)).filter(
-            (record) => String(record.id || '') === taskIdFilter || String(record.mx_id || '') === taskIdFilter,
+            (record) =>
+              String(record.id || '') === taskIdFilter ||
+              String(record.mx_id || '') === taskIdFilter,
           )
         : await listFirestoreMxRecordsForProperty(propertyId)
 
       for (const mxRecord of mxRecords) {
         summary.mxrecords_scanned += 1
         const patch = getTaskAddressPatch(mxRecord, property)
-      const hasPatch = Object.values(patch).some((value) => String(value || '').trim().length > 0)
-      if (!hasPatch) continue
+        const hasPatch = Object.values(patch).some((value) => String(value || '').trim().length > 0)
+        if (!hasPatch) continue
 
-      if (!dryRun) {
-        try {
-          const db = getDb()
-          await db
-            .collection('properties')
-            .doc(propertyId)
-            .collection('mxrecords')
-            .doc(String(mxRecord.id))
-            .set(
-              {
+        if (!dryRun) {
+          try {
+            const db = getDb()
+            await db
+              .collection('properties')
+              .doc(propertyId)
+              .collection('mxrecords')
+              .doc(String(mxRecord.id))
+              .set(
+                {
+                  ...patch,
+                  updatedAt: new Date().toISOString(),
+                },
+                { merge: true },
+              )
+            summary.mxrecords_updated += 1
+          } catch {
+            // keep going through the batch
+          }
+
+          try {
+            const lead =
+              (await getFirestoreLeadByTaskRef(mxRecord.id)) ||
+              (await getFirestoreLeadByTaskRef(mxRecord.mx_id)) ||
+              (await getFirestoreLeadByTaskRef(mxRecord.task_id))
+            if (lead) {
+              const updatedLead = normalizeLead({
+                ...lead,
                 ...patch,
-                updatedAt: new Date().toISOString(),
-              },
-              { merge: true }
-            )
+                updated_at: new Date().toISOString(),
+              })
+              await saveFirestoreLead(updatedLead)
+              store.leads.set(updatedLead.id, updatedLead)
+              summary.leads_updated += 1
+            }
+          } catch {
+            // keep going through the batch
+          }
+        } else {
           summary.mxrecords_updated += 1
-        } catch {
-          // keep going through the batch
-        }
-
-        try {
-          const lead =
+          if (
             (await getFirestoreLeadByTaskRef(mxRecord.id)) ||
             (await getFirestoreLeadByTaskRef(mxRecord.mx_id)) ||
             (await getFirestoreLeadByTaskRef(mxRecord.task_id))
-          if (lead) {
-            const updatedLead = normalizeLead({
-              ...lead,
-              ...patch,
-              updated_at: new Date().toISOString(),
-            })
-            await saveFirestoreLead(updatedLead)
-            store.leads.set(updatedLead.id, updatedLead)
+          ) {
             summary.leads_updated += 1
           }
-        } catch {
-          // keep going through the batch
         }
-      } else {
-        summary.mxrecords_updated += 1
-        if (
-          (await getFirestoreLeadByTaskRef(mxRecord.id)) ||
-          (await getFirestoreLeadByTaskRef(mxRecord.mx_id)) ||
-          (await getFirestoreLeadByTaskRef(mxRecord.task_id))
-        ) {
-          summary.leads_updated += 1
-        }
-      }
       }
     }
 
@@ -3466,9 +4477,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   })
 
   route('POST', '/lease-applications', async ({ body, actor, verified, res, requestId }) => {
-    const application = body?.application && typeof body.application === 'object' ? body.application : null
+    const application =
+      body?.application && typeof body.application === 'object' ? body.application : null
     if (!application) {
-      return sendError(res, requestId, 400, 'INVALID_APPLICATION', 'Application payload is required.')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_APPLICATION',
+        'Application payload is required.',
+      )
     }
 
     const applicant = application?.applicant || {}
@@ -3476,10 +4494,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const leaseId = String(application?.lease_id || '').trim()
     const firstName = String(applicant.first_name || '').trim()
     const lastName = String(applicant.last_name || '').trim()
-    const applicantEmail = String(applicant.email || '').trim().toLowerCase()
+    const applicantEmail = String(applicant.email || '')
+      .trim()
+      .toLowerCase()
 
     if (!propertyId && !leaseId) {
-      return sendError(res, requestId, 400, 'PROPERTY_OR_LEASE_REQUIRED', 'Property or lease is required.')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'PROPERTY_OR_LEASE_REQUIRED',
+        'Property or lease is required.',
+      )
     }
     if (!firstName || !lastName || !/.+@.+\..+/.test(applicantEmail)) {
       return sendError(
@@ -3537,7 +4563,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
 
       await applicationRef.set(summary)
-      await applicationRef.collection('private').doc(LEASE_APPLICATION_PRIVATE_DOC_ID).set(privatePayload)
+      await applicationRef
+        .collection('private')
+        .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+        .set(privatePayload)
 
       return ok(res, requestId, {
         application_id: applicationId,
@@ -3556,195 +4585,240 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   })
 
-  route('GET', '/lease-applications/:id', async ({ actor, verified, params, query, res, requestId }) => {
-    try {
-      const accessToken = String(query.get('access') || '').trim()
-      const { summary, privateData } = await assertLeaseApplicationAccess({
-        actor,
-        verified,
-        applicationId: params.id,
-        accessToken,
-      })
-      return ok(res, requestId, {
-        application: buildLeaseApplicationResponse({ summary, privateData }),
-      })
-    } catch (error) {
-      return sendError(
-        res,
-        requestId,
-        error?.status || 500,
-        error?.code || 'APPLICATION_READ_FAILED',
-        error?.message || 'Failed to load application.',
-      )
-    }
-  })
-
-  route('GET', '/leases/:leaseId/applications', async ({ actor, verified, params, res, requestId }) => {
-    if (!verified) {
-      return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Authentication is required.')
-    }
-
-    try {
-      const leaseId = String(params.leaseId || '').trim()
-      const leaseSnap = await getDb().collection('leases').doc(leaseId).get()
-      if (!leaseSnap.exists) {
-        return sendError(res, requestId, 404, 'LEASE_NOT_FOUND', 'Lease not found.')
-      }
-      const leaseData = leaseSnap.data() || {}
-      const propertyId = extractPropertyId(leaseData.property_id)
-      if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
-        return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'You do not have access to this lease.')
-      }
-
-      const snap = await getDb().collection('lease_applications').where('lease_id', '==', leaseId).get()
-      const rows = []
-      for (const row of snap.docs) {
-        const summary = { id: row.id, ...(row.data() || {}) }
-        const privateSnap = await row.ref.collection('private').doc(LEASE_APPLICATION_PRIVATE_DOC_ID).get()
-        const privateData = privateSnap.exists ? privateSnap.data() || {} : null
-        const merged = buildLeaseApplicationResponse({ summary, privateData })
-        rows.push({
-          id: summary.id,
-          lease_id: summary.lease_id || null,
-          property_id: summary.property_id || null,
-          status: summary.status || 'pending',
-          submitted_at: summary.submitted_at || null,
-          desired_move_in_date: summary.desired_move_in_date || null,
-          number_of_occupants: summary.number_of_occupants || 0,
-          applicant_display_name: summary.applicant_display_name || '',
-          applicant_email_masked: summary.applicant_email_masked || '',
-          applicant_phone_masked: summary.applicant_phone_masked || '',
-          document_count: summary.document_count || 0,
-          has_documents: Boolean(summary.has_documents),
-          applicant: merged?.applicant
-            ? {
-                first_name: merged.applicant.first_name || '',
-                last_name: merged.applicant.last_name || '',
-                email: merged.applicant.email || '',
-                phone: merged.applicant.phone || '',
-              }
-            : null,
+  route(
+    'GET',
+    '/lease-applications/:id',
+    async ({ actor, verified, params, query, res, requestId }) => {
+      try {
+        const accessToken = String(query.get('access') || '').trim()
+        const { summary, privateData } = await assertLeaseApplicationAccess({
+          actor,
+          verified,
+          applicationId: params.id,
+          accessToken,
         })
-      }
-      rows.sort((a, b) => String(b.submitted_at || '').localeCompare(String(a.submitted_at || '')))
-      return ok(res, requestId, { rows })
-    } catch (error) {
-      return sendError(
-        res,
-        requestId,
-        error?.status || 500,
-        error?.code || 'APPLICATION_LIST_FAILED',
-        error?.message || 'Failed to load applications.',
-      )
-    }
-  })
-
-  route('POST', '/lease-applications/:id/documents', async ({ actor, verified, params, body, res, requestId }) => {
-    try {
-      const accessToken = String(body?.access_token || '').trim()
-      const { summary, privateData } = await assertLeaseApplicationAccess({
-        actor,
-        verified,
-        applicationId: params.id,
-        accessToken,
-      })
-      const documentName = String(body?.name || '').trim()
-      if (!documentName || !body?.file) {
-        return sendError(res, requestId, 400, 'INVALID_DOCUMENT', 'Document name and file are required.')
-      }
-
-      const uploaded = await uploadLeaseApplicationDocumentFile({
-        applicationId: params.id,
-        filePayload: body.file,
-        documentName,
-        description: body?.description || '',
-        uploadedByUid: verified ? actor?.id || null : null,
-      })
-
-      const existingDocuments = Array.isArray(privateData?.documents)
-        ? privateData.documents
-        : Array.isArray(summary?.documents)
-          ? summary.documents
-          : []
-      const nextDocuments = [...existingDocuments, uploaded]
-      const nextUpdatedAt = new Date().toISOString()
-
-      await getDb().collection('lease_applications').doc(params.id).set(
-        {
-          document_count: nextDocuments.length,
-          has_documents: nextDocuments.length > 0,
-          updated_at: nextUpdatedAt,
-        },
-        { merge: true },
-      )
-      await getDb()
-        .collection('lease_applications')
-        .doc(params.id)
-        .collection('private')
-        .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
-        .set(
-          {
-            documents: nextDocuments,
-            updated_at: nextUpdatedAt,
-          },
-          { merge: true },
+        return ok(res, requestId, {
+          application: buildLeaseApplicationResponse({ summary, privateData }),
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'APPLICATION_READ_FAILED',
+          error?.message || 'Failed to load application.',
         )
+      }
+    },
+  )
 
-      return ok(res, requestId, { document: uploaded })
-    } catch (error) {
-      return sendError(
-        res,
-        requestId,
-        error?.status || 500,
-        error?.code || 'DOCUMENT_UPLOAD_FAILED',
-        error?.message || 'Failed to upload document.',
-      )
-    }
-  })
-
-  route('POST', '/lease-applications/:id/documents/:documentId/access', async ({ actor, verified, params, body, req, res, requestId }) => {
-    try {
-      const accessToken = String(body?.access_token || '').trim()
-      const { summary, privateData, mode } = await assertLeaseApplicationAccess({
-        actor,
-        verified,
-        applicationId: params.id,
-        accessToken,
-      })
-      const documents = Array.isArray(privateData?.documents)
-        ? privateData.documents
-        : Array.isArray(summary?.documents)
-          ? summary.documents
-          : []
-      const target = documents.find((doc) => String(doc.id || '') === String(params.documentId || ''))
-      if (!target?.storage_path) {
-        return sendError(res, requestId, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.')
+  route(
+    'GET',
+    '/leases/:leaseId/applications',
+    async ({ actor, verified, params, res, requestId }) => {
+      if (!verified) {
+        return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Authentication is required.')
       }
 
-      const url = await createLeaseApplicationSignedReadUrl(target.storage_path)
-      await getDb().collection(LEASE_APPLICATION_ACCESS_LOGS_COLLECTION).add({
-        application_id: params.id,
-        document_id: target.id || params.documentId,
-        storage_path: target.storage_path,
-        access_mode: mode,
-        actor_id: verified ? actor?.id || null : null,
-        actor_role: verified ? actor?.role || null : null,
-        ip_address: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').trim(),
-        user_agent: String(req.headers['user-agent'] || '').trim(),
-        created_at: new Date().toISOString(),
-      })
+      try {
+        const leaseId = String(params.leaseId || '').trim()
+        const leaseSnap = await getDb().collection('leases').doc(leaseId).get()
+        if (!leaseSnap.exists) {
+          return sendError(res, requestId, 404, 'LEASE_NOT_FOUND', 'Lease not found.')
+        }
+        const leaseData = leaseSnap.data() || {}
+        const propertyId = extractPropertyId(leaseData.property_id)
+        if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+          return sendError(
+            res,
+            requestId,
+            403,
+            'PERMISSION_DENIED',
+            'You do not have access to this lease.',
+          )
+        }
 
-      return ok(res, requestId, { url, expires_in_seconds: 300 })
-    } catch (error) {
-      return sendError(
-        res,
-        requestId,
-        error?.status || 500,
-        error?.code || 'DOCUMENT_ACCESS_FAILED',
-        error?.message || 'Failed to prepare document access.',
-      )
-    }
-  })
+        const snap = await getDb()
+          .collection('lease_applications')
+          .where('lease_id', '==', leaseId)
+          .get()
+        const rows = []
+        for (const row of snap.docs) {
+          const summary = { id: row.id, ...(row.data() || {}) }
+          const privateSnap = await row.ref
+            .collection('private')
+            .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+            .get()
+          const privateData = privateSnap.exists ? privateSnap.data() || {} : null
+          const merged = buildLeaseApplicationResponse({ summary, privateData })
+          rows.push({
+            id: summary.id,
+            lease_id: summary.lease_id || null,
+            property_id: summary.property_id || null,
+            status: summary.status || 'pending',
+            submitted_at: summary.submitted_at || null,
+            desired_move_in_date: summary.desired_move_in_date || null,
+            number_of_occupants: summary.number_of_occupants || 0,
+            applicant_display_name: summary.applicant_display_name || '',
+            applicant_email_masked: summary.applicant_email_masked || '',
+            applicant_phone_masked: summary.applicant_phone_masked || '',
+            document_count: summary.document_count || 0,
+            has_documents: Boolean(summary.has_documents),
+            applicant: merged?.applicant
+              ? {
+                  first_name: merged.applicant.first_name || '',
+                  last_name: merged.applicant.last_name || '',
+                  email: merged.applicant.email || '',
+                  phone: merged.applicant.phone || '',
+                }
+              : null,
+          })
+        }
+        rows.sort((a, b) =>
+          String(b.submitted_at || '').localeCompare(String(a.submitted_at || '')),
+        )
+        return ok(res, requestId, { rows })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'APPLICATION_LIST_FAILED',
+          error?.message || 'Failed to load applications.',
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/lease-applications/:id/documents',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        const accessToken = String(body?.access_token || '').trim()
+        const { summary, privateData } = await assertLeaseApplicationAccess({
+          actor,
+          verified,
+          applicationId: params.id,
+          accessToken,
+        })
+        const documentName = String(body?.name || '').trim()
+        if (!documentName || !body?.file) {
+          return sendError(
+            res,
+            requestId,
+            400,
+            'INVALID_DOCUMENT',
+            'Document name and file are required.',
+          )
+        }
+
+        const uploaded = await uploadLeaseApplicationDocumentFile({
+          applicationId: params.id,
+          filePayload: body.file,
+          documentName,
+          description: body?.description || '',
+          uploadedByUid: verified ? actor?.id || null : null,
+        })
+
+        const existingDocuments = Array.isArray(privateData?.documents)
+          ? privateData.documents
+          : Array.isArray(summary?.documents)
+            ? summary.documents
+            : []
+        const nextDocuments = [...existingDocuments, uploaded]
+        const nextUpdatedAt = new Date().toISOString()
+
+        await getDb()
+          .collection('lease_applications')
+          .doc(params.id)
+          .set(
+            {
+              document_count: nextDocuments.length,
+              has_documents: nextDocuments.length > 0,
+              updated_at: nextUpdatedAt,
+            },
+            { merge: true },
+          )
+        await getDb()
+          .collection('lease_applications')
+          .doc(params.id)
+          .collection('private')
+          .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+          .set(
+            {
+              documents: nextDocuments,
+              updated_at: nextUpdatedAt,
+            },
+            { merge: true },
+          )
+
+        return ok(res, requestId, { document: uploaded })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'DOCUMENT_UPLOAD_FAILED',
+          error?.message || 'Failed to upload document.',
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/lease-applications/:id/documents/:documentId/access',
+    async ({ actor, verified, params, body, req, res, requestId }) => {
+      try {
+        const accessToken = String(body?.access_token || '').trim()
+        const { summary, privateData, mode } = await assertLeaseApplicationAccess({
+          actor,
+          verified,
+          applicationId: params.id,
+          accessToken,
+        })
+        const documents = Array.isArray(privateData?.documents)
+          ? privateData.documents
+          : Array.isArray(summary?.documents)
+            ? summary.documents
+            : []
+        const target = documents.find(
+          (doc) => String(doc.id || '') === String(params.documentId || ''),
+        )
+        if (!target?.storage_path) {
+          return sendError(res, requestId, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.')
+        }
+
+        const url = await createLeaseApplicationSignedReadUrl(target.storage_path)
+        await getDb()
+          .collection(LEASE_APPLICATION_ACCESS_LOGS_COLLECTION)
+          .add({
+            application_id: params.id,
+            document_id: target.id || params.documentId,
+            storage_path: target.storage_path,
+            access_mode: mode,
+            actor_id: verified ? actor?.id || null : null,
+            actor_role: verified ? actor?.role || null : null,
+            ip_address: String(
+              req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '',
+            ).trim(),
+            user_agent: String(req.headers['user-agent'] || '').trim(),
+            created_at: new Date().toISOString(),
+          })
+
+        return ok(res, requestId, { url, expires_in_seconds: 300 })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'DOCUMENT_ACCESS_FAILED',
+          error?.message || 'Failed to prepare document access.',
+        )
+      }
+    },
+  )
 
   route('GET', '/auth/me', async ({ actor, res, requestId }) => {
     ok(res, requestId, {
@@ -3756,35 +4830,45 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, { role: actor.role, permissions: getPermissions(actor.role) })
   })
 
-  route('POST', '/account-deletion-requests', async ({ actor, verified, claims, body, res, requestId }) => {
-    if (!verified) {
-      return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Firebase authentication is required')
-    }
-    try {
-      const request = await saveAccountDeletionRequest({
-        actor,
-        claims,
-        body,
-        source: String(body?.source || 'api').trim() || 'api',
-      })
-      return ok(res, requestId, {
-        request: {
-          id: request.id,
-          status: request.status,
-          requested_at: request.requested_at,
-        },
-      })
-    } catch (error) {
-      return sendError(
-        res,
-        requestId,
-        error.status || 500,
-        error.code || 'ACCOUNT_DELETION_REQUEST_FAILED',
-        error.message || 'Unable to submit account deletion request',
-        error.status >= 500,
-      )
-    }
-  })
+  route(
+    'POST',
+    '/account-deletion-requests',
+    async ({ actor, verified, claims, body, res, requestId }) => {
+      if (!verified) {
+        return sendError(
+          res,
+          requestId,
+          401,
+          'UNAUTHENTICATED',
+          'Firebase authentication is required',
+        )
+      }
+      try {
+        const request = await saveAccountDeletionRequest({
+          actor,
+          claims,
+          body,
+          source: String(body?.source || 'api').trim() || 'api',
+        })
+        return ok(res, requestId, {
+          request: {
+            id: request.id,
+            status: request.status,
+            requested_at: request.requested_at,
+          },
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'ACCOUNT_DELETION_REQUEST_FAILED',
+          error.message || 'Unable to submit account deletion request',
+          error.status >= 500,
+        )
+      }
+    },
+  )
 
   route('POST', '/content-reports', async ({ actor, verified, body, req, res, requestId }) => {
     try {
@@ -3855,7 +4939,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 400, 'PROPERTY_ID_REQUIRED', 'property_id is required.')
     }
     if (!/.+@.+\..+/.test(ownerEmail)) {
-      return sendError(res, requestId, 400, 'INVALID_OWNER_EMAIL', 'A valid owner_email is required.')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_OWNER_EMAIL',
+        'A valid owner_email is required.',
+      )
     }
     if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
       return sendError(
@@ -3872,18 +4962,26 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 404, 'PROPERTY_NOT_FOUND', 'Property not found.')
     }
 
-    const invitesSnap = await getDb().collection('owner_invites').where('property_id', '==', propertyId).get()
+    const invitesSnap = await getDb()
+      .collection('owner_invites')
+      .where('property_id', '==', propertyId)
+      .get()
     const existingInvite = invitesSnap.docs
       .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
-      .find((entry) =>
-        normalizeEmail(entry.owner_email) === ownerEmail &&
-        [OWNER_INVITE_PENDING, OWNER_INVITE_ACCEPTED].includes(
-          String(entry.status || '').trim().toLowerCase(),
-        ),
+      .find(
+        (entry) =>
+          normalizeEmail(entry.owner_email) === ownerEmail &&
+          [OWNER_INVITE_PENDING, OWNER_INVITE_ACCEPTED].includes(
+            String(entry.status || '')
+              .trim()
+              .toLowerCase(),
+          ),
       )
 
     if (existingInvite) {
-      const existingStatus = String(existingInvite.status || '').trim().toLowerCase()
+      const existingStatus = String(existingInvite.status || '')
+        .trim()
+        .toLowerCase()
       if (existingStatus === OWNER_INVITE_ACCEPTED) {
         return sendError(
           res,
@@ -3929,9 +5027,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       origin: String(req.headers.origin || '').trim(),
       token,
     })
-    const propertyName = String(property.nickname || property.address || body?.property_name || 'Property').trim()
+    const propertyName = String(
+      property.nickname || property.address || body?.property_name || 'Property',
+    ).trim()
     const propertyAddress = String(property.address || body?.property_address || '').trim()
-    const inviterName = String(body?.inviter_name || actor?.name || actor?.email || 'A property manager').trim()
+    const inviterName = String(
+      body?.inviter_name || actor?.name || actor?.email || 'A property manager',
+    ).trim()
 
     const emailResult = await sendOwnerInviteEmail({
       to: ownerEmail,
@@ -3968,7 +5070,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 400, 'MISSING_TITLE', 'title is required')
     }
     if (!landingUrlTemplate) {
-      return sendError(res, requestId, 400, 'MISSING_LANDING_URL', 'landing_url_template is required')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'MISSING_LANDING_URL',
+        'landing_url_template is required',
+      )
     }
 
     const targetRegions = normalizeTargetRegions(body?.target_regions)
@@ -3978,7 +5086,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         requestId,
         400,
         'MISSING_TARGET_REGIONS',
-        'target_regions with valid region_level and region_code is required'
+        'target_regions with valid region_level and region_code is required',
       )
     }
 
@@ -4093,7 +5201,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           ETag: cachedFresh.etag,
           'X-Feed-Cache': 'HIT',
           'X-Feed-Rate-Remaining': String(pressure.remaining),
-        }
+        },
       )
     }
 
@@ -4104,7 +5212,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         etag: persistedFresh.etag,
         expiresAt: persistedFresh.expiresAt,
       })
-      if (clientEtag && clientEtag === persistedFresh.etag) return notModified(res, persistedFresh.etag)
+      if (clientEtag && clientEtag === persistedFresh.etag)
+        return notModified(res, persistedFresh.etag)
       return json(
         res,
         200,
@@ -4113,7 +5222,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           ETag: persistedFresh.etag,
           'X-Feed-Cache': 'HIT_PERSISTED',
           'X-Feed-Rate-Remaining': String(pressure.remaining),
-        }
+        },
       )
     }
 
@@ -4129,7 +5238,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             ETag: cachedStale.etag,
             'X-Feed-Cache': 'STALE',
             'X-Feed-Rate-Remaining': String(pressure.remaining),
-          }
+          },
         )
       }
       const persistedStale = await getFirestoreFeedCache(cacheKey, true)
@@ -4139,7 +5248,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           etag: persistedStale.etag,
           expiresAt: persistedStale.expiresAt,
         })
-        if (clientEtag && clientEtag === persistedStale.etag) return notModified(res, persistedStale.etag)
+        if (clientEtag && clientEtag === persistedStale.etag)
+          return notModified(res, persistedStale.etag)
         return json(
           res,
           200,
@@ -4148,7 +5258,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             ETag: persistedStale.etag,
             'X-Feed-Cache': 'STALE_PERSISTED',
             'X-Feed-Rate-Remaining': String(pressure.remaining),
-          }
+          },
         )
       }
       return sendError(
@@ -4157,7 +5267,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         429,
         'FEED_RATE_LIMITED',
         'Too many feed requests in a short time window',
-        true
+        true,
       )
     }
 
@@ -4167,7 +5277,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         const nowDate = new Date()
         await hydrateAdPostsFromFirestore()
         const sponsoredNumerator = Math.max(0, Number(slotConfig.sponsored_ratio_numerator || 0))
-        const sponsoredDenominator = Math.max(1, Number(slotConfig.sponsored_ratio_denominator || 1))
+        const sponsoredDenominator = Math.max(
+          1,
+          Number(slotConfig.sponsored_ratio_denominator || 1),
+        )
         const sponsoredCap = sponsoredEnabled
           ? Math.max(0, Math.ceil((maxItems * sponsoredNumerator) / sponsoredDenominator))
           : 0
@@ -4265,7 +5378,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
               width_px: Number(row.post.card_width_px || slotConfig.card_width_px || 320),
               height_px: Number(row.post.card_height_px || slotConfig.card_height_px || 180),
               image_aspect_ratio: String(
-                row.post.image_aspect_ratio || slotConfig.image_aspect_ratio || '16:9'
+                row.post.image_aspect_ratio || slotConfig.image_aspect_ratio || '16:9',
               ),
             },
             tracking: {
@@ -4305,7 +5418,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         ETag: etag,
         'X-Feed-Cache': 'MISS',
         'X-Feed-Rate-Remaining': String(pressure.remaining),
-      }
+      },
     )
   })
 
@@ -4313,7 +5426,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ensureAdStore()
     const impressionToken = String(body?.impression_token || '').trim()
     if (!impressionToken) {
-      return sendError(res, requestId, 400, 'MISSING_IMPRESSION_TOKEN', 'impression_token is required')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'MISSING_IMPRESSION_TOKEN',
+        'impression_token is required',
+      )
     }
 
     let deliveryId = store.adDeliveryByToken.get(impressionToken)
@@ -4328,7 +5447,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       }
     }
     if (!deliveryId || !delivery) {
-      return sendError(res, requestId, 404, 'INVALID_IMPRESSION_TOKEN', 'Impression token not found')
+      return sendError(
+        res,
+        requestId,
+        404,
+        'INVALID_IMPRESSION_TOKEN',
+        'Impression token not found',
+      )
     }
 
     const existingMemory = store.adImpressionEvents.get(impressionToken)
@@ -4359,70 +5484,89 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return ok(res, requestId, { recorded: true, impression_id: row.impression_id })
   })
 
-  route('GET', '/ad-events/click/:impression_token', async ({ actor, req, params, res, requestId }) => {
-    ensureAdStore()
-    const impressionToken = String(params.impression_token || '').trim()
-    if (!impressionToken) {
-      return sendError(res, requestId, 400, 'MISSING_IMPRESSION_TOKEN', 'impression_token is required')
-    }
-
-    let deliveryId = store.adDeliveryByToken.get(impressionToken)
-    let delivery = deliveryId ? store.adDeliveryLogs.get(deliveryId) : null
-    if (!delivery) {
-      const persistedDelivery = await getFirestoreAdDeliveryByToken(impressionToken)
-      if (persistedDelivery) {
-        delivery = persistedDelivery
-        deliveryId = persistedDelivery.delivery_id
-        if (deliveryId) store.adDeliveryLogs.set(deliveryId, persistedDelivery)
-        if (deliveryId) store.adDeliveryByToken.set(impressionToken, deliveryId)
+  route(
+    'GET',
+    '/ad-events/click/:impression_token',
+    async ({ actor, req, params, res, requestId }) => {
+      ensureAdStore()
+      const impressionToken = String(params.impression_token || '').trim()
+      if (!impressionToken) {
+        return sendError(
+          res,
+          requestId,
+          400,
+          'MISSING_IMPRESSION_TOKEN',
+          'impression_token is required',
+        )
       }
-    }
-    if (!deliveryId || !delivery) {
-      return sendError(res, requestId, 404, 'INVALID_IMPRESSION_TOKEN', 'Impression token not found')
-    }
 
-    let post = store.adPosts.get(delivery.post_id)
-    if (!post) {
-      const persistedPost = await getFirestoreAdPostById(delivery.post_id)
-      if (persistedPost) {
-        post = persistedPost
-        store.adPosts.set(post.post_id, post)
-        store.adPostTargetRegions.set(post.post_id, normalizeTargetRegions(post.target_regions || []))
+      let deliveryId = store.adDeliveryByToken.get(impressionToken)
+      let delivery = deliveryId ? store.adDeliveryLogs.get(deliveryId) : null
+      if (!delivery) {
+        const persistedDelivery = await getFirestoreAdDeliveryByToken(impressionToken)
+        if (persistedDelivery) {
+          delivery = persistedDelivery
+          deliveryId = persistedDelivery.delivery_id
+          if (deliveryId) store.adDeliveryLogs.set(deliveryId, persistedDelivery)
+          if (deliveryId) store.adDeliveryByToken.set(impressionToken, deliveryId)
+        }
       }
-    }
-    if (!post) {
-      return sendError(res, requestId, 404, 'POST_NOT_FOUND', 'Post not found for click token')
-    }
-
-    let clickRow = store.adClickEvents.get(impressionToken)
-    if (!clickRow) {
-      const persistedClick = await getFirestoreAdClickByToken(impressionToken)
-      if (persistedClick) {
-        clickRow = persistedClick
-        store.adClickEvents.set(impressionToken, persistedClick)
+      if (!deliveryId || !delivery) {
+        return sendError(
+          res,
+          requestId,
+          404,
+          'INVALID_IMPRESSION_TOKEN',
+          'Impression token not found',
+        )
       }
-    }
 
-    if (!clickRow) {
-      clickRow = {
-        click_id: `ad-click-${randomUUID()}`,
-        impression_token: impressionToken,
-        delivery_id: delivery.delivery_id,
-        user_id: delivery.user_id || actor.id,
-        post_id: delivery.post_id,
-        slot_id: delivery.slot_id,
-        event_time: nowIso(),
-        referer: String(req.headers.referer || req.headers.referrer || ''),
-        user_agent: String(req.headers['user-agent'] || ''),
-        ip_hash: null,
+      let post = store.adPosts.get(delivery.post_id)
+      if (!post) {
+        const persistedPost = await getFirestoreAdPostById(delivery.post_id)
+        if (persistedPost) {
+          post = persistedPost
+          store.adPosts.set(post.post_id, post)
+          store.adPostTargetRegions.set(
+            post.post_id,
+            normalizeTargetRegions(post.target_regions || []),
+          )
+        }
       }
-      store.adClickEvents.set(impressionToken, clickRow)
-      await saveFirestoreAdClick(clickRow)
-    }
+      if (!post) {
+        return sendError(res, requestId, 404, 'POST_NOT_FOUND', 'Post not found for click token')
+      }
 
-    const location = resolveLandingUrl({ post, impressionToken })
-    return redirect(res, location)
-  })
+      let clickRow = store.adClickEvents.get(impressionToken)
+      if (!clickRow) {
+        const persistedClick = await getFirestoreAdClickByToken(impressionToken)
+        if (persistedClick) {
+          clickRow = persistedClick
+          store.adClickEvents.set(impressionToken, persistedClick)
+        }
+      }
+
+      if (!clickRow) {
+        clickRow = {
+          click_id: `ad-click-${randomUUID()}`,
+          impression_token: impressionToken,
+          delivery_id: delivery.delivery_id,
+          user_id: delivery.user_id || actor.id,
+          post_id: delivery.post_id,
+          slot_id: delivery.slot_id,
+          event_time: nowIso(),
+          referer: String(req.headers.referer || req.headers.referrer || ''),
+          user_agent: String(req.headers['user-agent'] || ''),
+          ip_hash: null,
+        }
+        store.adClickEvents.set(impressionToken, clickRow)
+        await saveFirestoreAdClick(clickRow)
+      }
+
+      const location = resolveLandingUrl({ post, impressionToken })
+      return redirect(res, location)
+    },
+  )
 
   route('POST', '/internal/promo-campaigns', async ({ actor, body, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['admin'], res, requestId })) return
@@ -4432,14 +5576,20 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         requestId,
         403,
         'SPONSORED_DISABLED',
-        'Sponsored promotion is disabled by feature flag'
+        'Sponsored promotion is disabled by feature flag',
       )
     }
     ensureAdStore()
     const advertiserSpId = String(body?.advertiser_sp_id || '').trim()
     const campaignName = String(body?.campaign_name || '').trim()
     if (!advertiserSpId) {
-      return sendError(res, requestId, 400, 'MISSING_ADVERTISER_SP_ID', 'advertiser_sp_id is required')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'MISSING_ADVERTISER_SP_ID',
+        'advertiser_sp_id is required',
+      )
     }
     if (!campaignName) {
       return sendError(res, requestId, 400, 'MISSING_CAMPAIGN_NAME', 'campaign_name is required')
@@ -4480,7 +5630,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!isMaintenanceRelated(rawTextInput)) {
       return ok(res, requestId, {
         capability: 'out_of_scope',
-        message: 'I can help with maintenance issue understanding, task creation, transaction entry, reminder setup, and finding service providers.',
+        message:
+          'I can help with maintenance issue understanding, task creation, transaction entry, reminder setup, and finding service providers.',
       })
     }
 
@@ -4494,7 +5645,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           const context = body?.context || {}
           return { rawText, context }
         },
-      })
+      }),
     )
 
     const output = await runFormIntakeSkill({
@@ -4540,7 +5691,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!isMaintenanceRelated(description)) {
       return ok(res, requestId, {
         capability: 'out_of_scope',
-        message: 'I can help explain maintenance tasks and suggest whether contacting a service provider makes sense.',
+        message:
+          'I can help explain maintenance tasks and suggest whether contacting a service provider makes sense.',
       })
     }
 
@@ -4572,7 +5724,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         model_parsed: modelResult?.parsed || null,
         fallback_reason: normalized.fallback_reason,
         final_output: output,
-      })
+      }),
     )
 
     await appendAgentEvent({
@@ -4666,7 +5818,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         'TASK_STATUS_LOCKED',
         'Only task creator can update status.',
         false,
-        { gate_status: 'blocked', plan_required: null, upgrade_hint: null }
+        { gate_status: 'blocked', plan_required: null, upgrade_hint: null },
       )
     }
     task.status = String(body?.status || task.status)
@@ -4724,23 +5876,35 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, comment)
   })
 
-  route('POST', '/leases/:lease_id/inventories', async ({ actor, params, body, res, requestId }) => {
-    if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
-    const record = store.createInventory({ actor, leaseId: params.lease_id, body })
-    ok(res, requestId, record)
-  })
+  route(
+    'POST',
+    '/leases/:lease_id/inventories',
+    async ({ actor, params, body, res, requestId }) => {
+      if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
+      const record = store.createInventory({ actor, leaseId: params.lease_id, body })
+      ok(res, requestId, record)
+    },
+  )
 
   route('GET', '/inventories/:id', async ({ params, res, requestId }) => {
     const inventory = store.inventories.get(params.id)
-    if (!inventory) return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
+    if (!inventory)
+      return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
     ok(res, requestId, inventory)
   })
 
   route('PATCH', '/inventories/:id/draft', async ({ actor, params, body, res, requestId }) => {
     const inventory = store.inventories.get(params.id)
-    if (!inventory) return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
+    if (!inventory)
+      return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
     if (actor.role !== 'tt' || inventory.assigned_tt_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned TT can update draft.')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only assigned TT can update draft.',
+      )
     }
     inventory.draft = { ...(inventory.draft || {}), ...(body?.draft || {}) }
     inventory.updated_at = new Date().toISOString()
@@ -4749,9 +5913,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('POST', '/inventories/:id/submit', async ({ actor, params, res, requestId }) => {
     const inventory = store.inventories.get(params.id)
-    if (!inventory) return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
+    if (!inventory)
+      return sendError(res, requestId, 404, 'INVENTORY_NOT_FOUND', 'Inventory not found')
     if (actor.role !== 'tt' || inventory.assigned_tt_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned TT can submit draft.')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only assigned TT can submit draft.',
+      )
     }
     inventory.status = 'submitted'
     inventory.submitted_at = new Date().toISOString()
@@ -4772,19 +5943,23 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     })
   })
 
-  route('POST', '/tasks/:id/sp-actions/contact', async ({ actor, params, body, res, requestId }) => {
-    const task = (await getFirestoreTaskById(params.id)) || store.tasks.get(params.id)
-    if (!task) {
-      return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task not found')
-    }
-    ok(res, requestId, {
-      task_id: params.id,
-      action: 'contact',
-      by: actor.id,
-      sp_id: body?.sp_id || null,
-      result: 'queued',
-    })
-  })
+  route(
+    'POST',
+    '/tasks/:id/sp-actions/contact',
+    async ({ actor, params, body, res, requestId }) => {
+      const task = (await getFirestoreTaskById(params.id)) || store.tasks.get(params.id)
+      if (!task) {
+        return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task not found')
+      }
+      ok(res, requestId, {
+        task_id: params.id,
+        action: 'contact',
+        by: actor.id,
+        sp_id: body?.sp_id || null,
+        result: 'queued',
+      })
+    },
+  )
 
   route('POST', '/tasks/:id/sp-actions/quote', async ({ actor, params, body, res, requestId }) => {
     const task = (await getFirestoreTaskById(params.id)) || store.tasks.get(params.id)
@@ -4823,14 +5998,25 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const leadId = String(body?.lead_id || '').trim()
 
     if (!taskId) return sendError(res, requestId, 400, 'TASK_ID_REQUIRED', 'task id is required')
-    if (!propertyId) return sendError(res, requestId, 400, 'PROPERTY_ID_REQUIRED', 'property_id is required')
+    if (!propertyId)
+      return sendError(res, requestId, 400, 'PROPERTY_ID_REQUIRED', 'property_id is required')
     if (!bidId) return sendError(res, requestId, 400, 'BID_ID_REQUIRED', 'bid_id is required')
     if (!(await hasPmAccessToProperty({ actor, propertyId }))) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'You do not have permission to manage this property')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'You do not have permission to manage this property',
+      )
     }
 
     const db = getDb()
-    const mxRecordRef = db.collection('properties').doc(propertyId).collection('mxrecords').doc(taskId)
+    const mxRecordRef = db
+      .collection('properties')
+      .doc(propertyId)
+      .collection('mxrecords')
+      .doc(taskId)
     const mxRecordSnap = await mxRecordRef.get()
     if (!mxRecordSnap.exists) {
       return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task record not found')
@@ -4859,10 +6045,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       sp_id: String(selectedBid.sp_id || ''),
       sp_name: String(
         selectedBid.sp_name ||
-        selectedBid.sp_business_name ||
-        selectedBid.provider_name ||
-        body?.sp_name ||
-        ''
+          selectedBid.sp_business_name ||
+          selectedBid.provider_name ||
+          body?.sp_name ||
+          '',
       ).trim(),
       sp_contact: selectedBid.sp_contact || body?.sp_contact || null,
       sp_rating: selectedBid.sp_rating || selectedBid.sp_rating_avg || body?.sp_rating || null,
@@ -4926,7 +6112,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           assigned_bid_id: selectedBid.bid_id,
           updated_at: acceptedAt,
         },
-        { merge: true }
+        { merge: true },
       ),
       mxRecordRef.set(
         {
@@ -4936,7 +6122,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           selected_bid_at: acceptedAt,
           updatedAt: acceptedAt,
         },
-        { merge: true }
+        { merge: true },
       ),
       saveFirestoreSpProject(projectPayload),
     ])
@@ -4992,9 +6178,14 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const taskDocId = String(body?.task_doc_id || body?.system_task_id || '').trim()
     if (!mxId) return sendError(res, requestId, 400, 'MISSING_MX_ID', 'mx_id is required')
 
-    const existing = (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
+    const existing =
+      (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
     if (existing) {
-      const comments = Array.isArray(body?.comments) ? body.comments : Array.isArray(existing.comments) ? existing.comments : []
+      const comments = Array.isArray(body?.comments)
+        ? body.comments
+        : Array.isArray(existing.comments)
+          ? existing.comments
+          : []
       const imageUrls = Array.isArray(body?.image_urls)
         ? body.image_urls
         : Array.isArray(existing.image_urls)
@@ -5007,11 +6198,20 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const updated = normalizeLead({
         ...existing,
         property_id: body?.property_id || existing.property_id || null,
-        property_name: body?.property_name || body?.property_address_line1 || existing.property_name || existing.property_address_line1 || '',
-        property_address_line1: body?.property_address_line1 || existing.property_address_line1 || '',
-        property_address_line2: body?.property_address_line2 || existing.property_address_line2 || '',
-        property_city: body?.property_city || body?.city || existing.property_city || existing.city || '',
-        property_state: body?.property_state || body?.state || existing.property_state || existing.state || '',
+        property_name:
+          body?.property_name ||
+          body?.property_address_line1 ||
+          existing.property_name ||
+          existing.property_address_line1 ||
+          '',
+        property_address_line1:
+          body?.property_address_line1 || existing.property_address_line1 || '',
+        property_address_line2:
+          body?.property_address_line2 || existing.property_address_line2 || '',
+        property_city:
+          body?.property_city || body?.city || existing.property_city || existing.city || '',
+        property_state:
+          body?.property_state || body?.state || existing.property_state || existing.state || '',
         property_zip:
           body?.property_zip ||
           body?.zip_code ||
@@ -5023,7 +6223,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           existing.zip ||
           '',
         city: body?.city || body?.property_city || existing.city || existing.property_city || '',
-        state: body?.state || body?.property_state || existing.state || existing.property_state || '',
+        state:
+          body?.state || body?.property_state || existing.state || existing.property_state || '',
         zip_code:
           body?.zip_code ||
           body?.property_zip ||
@@ -5055,11 +6256,17 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         budget_range: String(body?.budget_range || existing.budget_range || ''),
         urgency: String(body?.urgency || existing.urgency || 'normal'),
         due_date: body?.due_date || existing.due_date || null,
-        semantic_tags: Array.isArray(body?.semantic_tags) && body.semantic_tags.length
-          ? body.semantic_tags
-          : existing.semantic_tags || extractSemanticTags(`${body?.title || existing.title || ''} ${body?.description || existing.description || ''} ${body?.scope || existing.scope || ''}`),
+        semantic_tags:
+          Array.isArray(body?.semantic_tags) && body.semantic_tags.length
+            ? body.semantic_tags
+            : existing.semantic_tags ||
+              extractSemanticTags(
+                `${body?.title || existing.title || ''} ${body?.description || existing.description || ''} ${body?.scope || existing.scope || ''}`,
+              ),
         comments,
-        comment_count: Number(body?.comment_count ?? comments.length ?? existing.comment_count ?? 0),
+        comment_count: Number(
+          body?.comment_count ?? comments.length ?? existing.comment_count ?? 0,
+        ),
         visibility_mode: body?.visibility_mode || existing.visibility_mode || 'public',
         sp_published: true,
         sp_publish_status: 'published',
@@ -5116,7 +6323,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       urgency: String(body?.urgency || 'normal'),
       due_date: body?.due_date || null,
       semantic_tags: extractSemanticTags(
-        `${body?.title || ''} ${body?.description || ''} ${body?.scope || ''}`
+        `${body?.title || ''} ${body?.description || ''} ${body?.scope || ''}`,
       ),
       comments,
       comment_count: Number(body?.comment_count ?? comments.length ?? 0),
@@ -5161,7 +6368,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const taskUpdatedAt = body?.task_updated_at || now
     const directLeadStatus = mapTaskStatusToLeadStatus(taskStatus)
 
-    const firestoreLead = (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
+    const firestoreLead =
+      (await getFirestoreLeadByTaskRef(mxId)) || (await getFirestoreLeadByTaskRef(taskDocId))
     if (firestoreLead) {
       const nextStatus = directLeadStatus || firestoreLead.status || 'open'
       const updated = normalizeLead({
@@ -5185,7 +6393,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       (lead) =>
         String(lead.mx_id || '') === mxId ||
         String(lead.task_id || '') === mxId ||
-        (taskDocId && String(lead.task_doc_id || '') === taskDocId)
+        (taskDocId && String(lead.task_doc_id || '') === taskDocId),
     )
     if (!memoryLead) {
       return ok(res, requestId, { updated: false, reason: 'LEAD_NOT_FOUND', mx_id: mxId })
@@ -5206,13 +6414,27 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const task = (await getFirestoreTaskById(taskId)) || store.tasks.get(taskId)
     if (!task) return sendError(res, requestId, 404, 'TASK_NOT_FOUND', 'Task not found')
     if (task.creator_user_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only task creator can publish a lead')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only task creator can publish a lead',
+      )
     }
     if (task.lead_id) {
-      return sendError(res, requestId, 409, 'LEAD_ALREADY_EXISTS', 'Task already has a lead published')
+      return sendError(
+        res,
+        requestId,
+        409,
+        'LEAD_ALREADY_EXISTS',
+        'Task already has a lead published',
+      )
     }
 
-    const semanticTags = extractSemanticTags(`${task.title} ${task.description} ${body?.scope || ''}`)
+    const semanticTags = extractSemanticTags(
+      `${task.title} ${task.description} ${body?.scope || ''}`,
+    )
     const comments = Array.isArray(body?.comments) ? body.comments : []
     const leadBody = {
       ...body,
@@ -5253,7 +6475,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
     if (actor.role === 'sp') {
       const spProfile = store.spProfiles.get(actor.id)
-      if (!spProfile) return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
+      if (!spProfile)
+        return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
       for (const lead of store.leads.values()) {
         if (isSpEligibleForLead(lead, spProfile)) {
           items.push(lead)
@@ -5280,7 +6503,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (actor.role === 'sp') {
       const spProfile = store.spProfiles.get(actor.id)
       if (!spProfile || !isSpEligibleForLead(lead, spProfile)) {
-        return sendError(res, requestId, 403, 'LEAD_NOT_VISIBLE', 'This lead is not available to you')
+        return sendError(
+          res,
+          requestId,
+          403,
+          'LEAD_NOT_VISIBLE',
+          'This lead is not available to you',
+        )
       }
     }
 
@@ -5292,7 +6521,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const lead = store.leads.get(params.id)
     if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
     if (lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can change status')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only lead creator can change status',
+      )
     }
     const nextStatus = String(body?.status || '')
     const result = transitionLead(lead, nextStatus, actor.id)
@@ -5337,7 +6572,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const lead = found.lead
     if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
     if (lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can view all bids')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only lead creator can view all bids',
+      )
     }
 
     let items = []
@@ -5378,7 +6619,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
     const enriched = await applyAcceptedProjectStateToBids(
       spId,
-      items.map((row) => normalizeBid(row))
+      items.map((row) => normalizeBid(row)),
     )
     ok(res, requestId, { items: enriched })
   })
@@ -5400,7 +6641,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
     const enriched = await applyAcceptedProjectStateToBids(
       spId,
-      items.map((row) => normalizeBid(row))
+      items.map((row) => normalizeBid(row)),
     )
     ok(res, requestId, { items: enriched })
   })
@@ -5462,7 +6703,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!bid) return sendError(res, requestId, 404, 'BID_NOT_FOUND', 'Bid not found')
     const lead = store.leads.get(bid.lead_id)
     if (!lead || lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can shortlist bids')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only lead creator can shortlist bids',
+      )
     }
     const result = transitionBid(bid, 'shortlisted', actor.id)
     if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
@@ -5476,7 +6723,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const lead = store.leads.get(bid.lead_id)
     if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
     if (lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can select a bid')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only lead creator can select a bid',
+      )
     }
 
     const result = selectBidAndAssign({ store, lead, winningBid: bid, actorId: actor.id })
@@ -5503,12 +6756,18 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const lead = store.leads.get(leadId)
     if (!lead) return sendError(res, requestId, 404, 'LEAD_NOT_FOUND', 'Lead not found')
     if (lead.creator_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only lead creator can start conversations')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only lead creator can start conversations',
+      )
     }
 
     const existing = findFirst(
       store.conversations,
-      (c) => c.lead_id === leadId && c.pm_id === actor.id && c.sp_id === spId
+      (c) => c.lead_id === leadId && c.pm_id === actor.id && c.sp_id === spId,
     )
     if (existing) {
       return ok(res, requestId, { conversation: existing, created: false })
@@ -5525,7 +6784,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       if (leadId && c.lead_id !== leadId) return false
       return true
     })
-    items.sort((a, b) => (b.last_message_at || b.created_at).localeCompare(a.last_message_at || a.created_at))
+    items.sort((a, b) =>
+      (b.last_message_at || b.created_at).localeCompare(a.last_message_at || a.created_at),
+    )
 
     const enriched = items.map((conv) => {
       const sp = store.spProfiles.get(conv.sp_id)
@@ -5542,9 +6803,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('POST', '/conversations/:id/messages', async ({ actor, params, body, res, requestId }) => {
     const conversation = store.conversations.get(params.id)
-    if (!conversation) return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
+    if (!conversation)
+      return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
     if (!conversation.participants.includes(actor.id)) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Not a participant in this conversation')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Not a participant in this conversation',
+      )
     }
     if (conversation.status !== 'active') {
       return sendError(res, requestId, 400, 'CONVERSATION_ARCHIVED', 'Conversation is archived')
@@ -5559,9 +6827,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   route('GET', '/conversations/:id/messages', async ({ actor, params, res, requestId }) => {
     const conversation = store.conversations.get(params.id)
-    if (!conversation) return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
+    if (!conversation)
+      return sendError(res, requestId, 404, 'CONVERSATION_NOT_FOUND', 'Conversation not found')
     if (!conversation.participants.includes(actor.id)) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Not a participant in this conversation')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Not a participant in this conversation',
+      )
     }
 
     const allMessages = store.messages.get(conversation.id) || []
@@ -5593,7 +6868,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/assignments/:id/accept', async ({ actor, params, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
     const assignment = store.assignments.get(params.id)
-    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (!assignment)
+      return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
     if (assignment.sp_id !== actor.id) {
       return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can accept')
     }
@@ -5605,7 +6881,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/assignments/:id/decline', async ({ actor, params, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
     const assignment = store.assignments.get(params.id)
-    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (!assignment)
+      return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
     if (assignment.sp_id !== actor.id) {
       return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only assigned SP can decline')
     }
@@ -5627,9 +6904,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/assignments/:id/revoke', async ({ actor, params, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
     const assignment = store.assignments.get(params.id)
-    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (!assignment)
+      return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
     if (assignment.pm_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only the PM/PO who created this lead can revoke')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only the PM/PO who created this lead can revoke',
+      )
     }
     const result = transitionAssignment(assignment, 'revoked')
     if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
@@ -5648,9 +6932,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/assignments/:id/complete', async ({ actor, params, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['pm_po'], res, requestId })) return
     const assignment = store.assignments.get(params.id)
-    if (!assignment) return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
+    if (!assignment)
+      return sendError(res, requestId, 404, 'ASSIGNMENT_NOT_FOUND', 'Assignment not found')
     if (assignment.pm_id !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only the lead PM/PO can mark complete')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only the lead PM/PO can mark complete',
+      )
     }
     const result = transitionAssignment(assignment, 'completed')
     if (!result.ok) return sendError(res, requestId, 400, result.code, result.message)
@@ -5671,13 +6962,19 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 400, 'MISSING_SP_ID', 'sp_id is required')
     }
     if (actor.role === 'sp' && actor.id !== requestedSpId) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only read your own service profile')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Can only read your own service profile',
+      )
     }
 
     try {
       const db = getDb()
       const doc = await db.collection('users').doc(requestedSpId).get()
-      const userData = doc.exists ? (doc.data() || {}) : {}
+      const userData = doc.exists ? doc.data() || {} : {}
       const nested = userData?.sp_service_profile || null
       if (!nested) {
         return ok(res, requestId, {
@@ -5698,7 +6995,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         500,
         'SP_SERVICE_PROFILE_READ_FAILED',
         'Failed to read service profile from Firestore.',
-        true
+        true,
       )
     }
   })
@@ -5709,18 +7006,28 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return sendError(res, requestId, 400, 'MISSING_SP_ID', 'sp_id is required')
     }
     if (actor.role === 'sp' && actor.id !== requestedSpId) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Can only update your own service profile')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Can only update your own service profile',
+      )
     }
 
     const descriptions = Array.isArray(body?.service_descriptions)
       ? body.service_descriptions
-          .map((item) => String(item || '').trim().replace(/\s+/g, ' '))
+          .map((item) =>
+            String(item || '')
+              .trim()
+              .replace(/\s+/g, ' '),
+          )
           .filter((item) => item.length > 0)
       : []
 
     const zipCodes = Array.isArray(body?.service_zip_codes)
       ? [...new Set(body.service_zip_codes.map((zip) => String(zip || '').trim()))].filter((zip) =>
-          /^\d{5}$/.test(zip)
+          /^\d{5}$/.test(zip),
         )
       : []
 
@@ -5748,7 +7055,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         500,
         'SP_SERVICE_PROFILE_WRITE_FAILED',
         'Failed to write service profile to Firestore.',
-        true
+        true,
       )
     }
   })
@@ -5756,7 +7063,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('GET', '/sp/profile', async ({ actor, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
     const profile = store.spProfiles.get(actor.id)
-    if (!profile) return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
+    if (!profile)
+      return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found')
     ok(res, requestId, { profile })
   })
 
@@ -5764,12 +7072,22 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
     let profile = store.spProfiles.get(actor.id)
     if (!profile) {
-      return sendError(res, requestId, 404, 'SP_PROFILE_NOT_FOUND', 'SP profile not found. Complete signup first.')
+      return sendError(
+        res,
+        requestId,
+        404,
+        'SP_PROFILE_NOT_FOUND',
+        'SP profile not found. Complete signup first.',
+      )
     }
 
     const updatableFields = [
-      'business_name', 'service_categories', 'service_area',
-      'service_area_radius_km', 'license_number', 'budget_band',
+      'business_name',
+      'service_categories',
+      'service_area',
+      'service_area_radius_km',
+      'license_number',
+      'budget_band',
       'urgency_capability',
     ]
     for (const field of updatableFields) {
@@ -5807,7 +7125,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const invoice = store.invoices.get(params.id)
     if (!invoice) return sendError(res, requestId, 404, 'INVOICE_NOT_FOUND', 'Invoice not found')
     if (invoice.created_by !== actor.id) {
-      return sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Only owner SP can submit invoice.')
+      return sendError(
+        res,
+        requestId,
+        403,
+        'PERMISSION_DENIED',
+        'Only owner SP can submit invoice.',
+      )
     }
     invoice.status = 'submitted'
     invoice.updated_at = new Date().toISOString()
@@ -5820,7 +7144,13 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!invoice) return sendError(res, requestId, 404, 'INVOICE_NOT_FOUND', 'Invoice not found')
     const nextStatus = String(body?.status || '')
     if (!['changes_requested', 'approved', 'rejected'].includes(nextStatus)) {
-      return sendError(res, requestId, 400, 'INVALID_REVIEW_STATUS', 'Invalid invoice review status.')
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_REVIEW_STATUS',
+        'Invalid invoice review status.',
+      )
     }
     invoice.status = nextStatus
     invoice.review_note = body?.note || null
@@ -5892,6 +7222,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, { items: actor.billing.history })
   })
 
+  route('GET', '/sp/credits/skus', async ({ actor, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    return ok(res, requestId, { items: listSpBidCreditSkus() })
+  })
+
   route('GET', '/sp/credits/summary', async ({ actor, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
 
@@ -5902,7 +7237,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         balance: toNumber(firestoreAccount.balance, 0),
         lifetime_purchased: toNumber(firestoreAccount.lifetime_purchased, 0),
         lifetime_used: toNumber(firestoreAccount.lifetime_used, 0),
+        lifetime_refunded: toNumber(firestoreAccount.lifetime_refunded, 0),
         lifetime_granted: toNumber(firestoreAccount.lifetime_granted, 0),
+        skus: listSpBidCreditSkus(),
         storage: 'firestore',
       })
     }
@@ -5913,7 +7250,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       balance: toNumber(account.balance, 0),
       lifetime_purchased: toNumber(account.lifetime_purchased, 0),
       lifetime_used: toNumber(account.lifetime_used, 0),
+      lifetime_refunded: toNumber(account.lifetime_refunded, 0),
       lifetime_granted: toNumber(account.lifetime_granted, 0),
+      skus: listSpBidCreditSkus(),
       storage: 'memory',
     })
   })
@@ -5949,26 +7288,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/sp/credits/orders', async ({ actor, body, req, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
     const idempotencyKey = String(req.headers['idempotency-key'] || '')
-    const credits = Math.max(1, Number(body?.credits || 1))
-    const amount = Math.max(0, Number(body?.amount || 0))
     const now = new Date().toISOString()
 
     const createOrder = async () => {
-      const order = {
-        id: `credit-order-${randomUUID()}`,
-        sp_id: actor.id,
-        package_id: body?.package_id || null,
-        credits,
-        amount,
-        currency: body?.currency || 'USD',
-        status: 'pending',
-        provider: body?.provider || 'manual_placeholder',
-        provider_order_id: null,
-        provider_txn_id: null,
-        created_at: now,
-        updated_at: now,
-        paid_at: null,
-      }
+      const order = buildSpCreditOrderFromSku({ actor, body, now })
 
       try {
         const db = getDb()
@@ -5986,13 +7309,144 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         store,
         key: idempotencyKey,
         resolver: () => createOrder(),
-      })
+      }),
     )
 
     return ok(res, requestId, {
       order: result,
-      checkout_hint: 'Use payment provider callback to confirm and credit the account.',
+      skus: listSpBidCreditSkus(),
+      checkout_hint:
+        'Create a Checkout Session for this order before redirecting the SP to Stripe.',
     })
+  })
+
+  route(
+    'POST',
+    '/sp/credits/orders/:orderId/checkout-session',
+    async ({ actor, params, body, res, requestId }) => {
+      if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+      const orderId = String(params.orderId || '').trim()
+      const now = new Date().toISOString()
+
+      try {
+        const db = getDb()
+        const orderRef = db.collection(SP_CREDIT_ORDERS_COLLECTION).doc(orderId)
+        const orderSnap = await orderRef.get()
+        if (!orderSnap.exists) {
+          return sendError(res, requestId, 404, 'ORDER_NOT_FOUND', 'Credit order not found')
+        }
+        const order = { id: orderSnap.id, ...(orderSnap.data() || {}) }
+        if (String(order.sp_id || '') !== actor.id) {
+          return sendError(
+            res,
+            requestId,
+            403,
+            'ORDER_FORBIDDEN',
+            'Credit order does not belong to this SP',
+          )
+        }
+        const status = normalizeCreditOrderStatus(order.status)
+        if (!['created', 'checkout_created'].includes(status)) {
+          return sendError(
+            res,
+            requestId,
+            409,
+            'ORDER_NOT_CHECKOUTABLE',
+            'Order is not eligible for checkout',
+          )
+        }
+        const session = await createStripeCheckoutSession({ order, body, now })
+        await orderRef.set(
+          {
+            status: 'checkout_created',
+            provider: 'stripe',
+            provider_checkout_session_id: order.provider_checkout_session_id || session.id,
+            updated_at: now,
+          },
+          { merge: true },
+        )
+        return ok(res, requestId, {
+          order_id: order.id,
+          checkout_session: session,
+          storage: 'firestore',
+        })
+      } catch (error) {
+        if (error?.code && error?.status) {
+          return sendError(res, requestId, error.status, error.code, error.message)
+        }
+        if (!store.spCreditOrders) store.spCreditOrders = new Map()
+        const order = store.spCreditOrders.get(orderId)
+        if (!order)
+          return sendError(res, requestId, 404, 'ORDER_NOT_FOUND', 'Credit order not found')
+        if (String(order.sp_id || '') !== actor.id) {
+          return sendError(
+            res,
+            requestId,
+            403,
+            'ORDER_FORBIDDEN',
+            'Credit order does not belong to this SP',
+          )
+        }
+        const status = normalizeCreditOrderStatus(order.status)
+        if (!['created', 'checkout_created'].includes(status)) {
+          return sendError(
+            res,
+            requestId,
+            409,
+            'ORDER_NOT_CHECKOUTABLE',
+            'Order is not eligible for checkout',
+          )
+        }
+        const session = await createStripeCheckoutSession({ order, body, now })
+        order.status = 'checkout_created'
+        order.provider = 'stripe'
+        order.provider_checkout_session_id = order.provider_checkout_session_id || session.id
+        order.updated_at = now
+        return ok(res, requestId, {
+          order_id: order.id,
+          checkout_session: session,
+          storage: 'memory',
+        })
+      }
+    },
+  )
+
+  route('POST', '/billing/stripe/checkout-session', async ({ actor, body, res, requestId }) => {
+    if (!assertRole({ actor, allowed: ['sp'], res, requestId })) return
+    const orderId = String(body?.order_id || '').trim()
+    if (orderId) {
+      return routes
+        .find(
+          (row) =>
+            row.method === 'POST' && row.pattern === '/sp/credits/orders/:orderId/checkout-session',
+        )
+        ?.handler({
+          actor,
+          body,
+          res,
+          requestId,
+          params: { orderId },
+          query: new URLSearchParams(),
+        })
+    }
+
+    const now = new Date().toISOString()
+    const order = buildSpCreditOrderFromSku({ actor, body, now })
+    const session = await createStripeCheckoutSession({ order, body, now })
+    order.status = 'checkout_created'
+    order.provider = 'stripe'
+    order.provider_checkout_session_id = session.id
+    order.updated_at = now
+
+    try {
+      const db = getDb()
+      await db.collection(SP_CREDIT_ORDERS_COLLECTION).doc(order.id).set(order, { merge: true })
+      return ok(res, requestId, { order, checkout_session: session, storage: 'firestore' })
+    } catch {
+      if (!store.spCreditOrders) store.spCreditOrders = new Map()
+      store.spCreditOrders.set(order.id, order)
+      return ok(res, requestId, { order, checkout_session: session, storage: 'memory' })
+    }
   })
 
   route('POST', '/sp/credits/payments/callback', async ({ body, res, requestId }) => {
@@ -6000,9 +7454,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!orderId) {
       return sendError(res, requestId, 400, 'MISSING_ORDER_ID', 'order_id is required')
     }
-    const status = String(body?.status || '').trim().toLowerCase()
-    if (!['paid', 'failed', 'cancelled'].includes(status)) {
-      return sendError(res, requestId, 400, 'INVALID_STATUS', 'status must be paid, failed, or cancelled')
+    const status = normalizeCreditOrderStatus(body?.status)
+    if (!['paid', 'failed', 'canceled', 'refunded'].includes(status)) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'INVALID_STATUS',
+        'status must be paid, failed, canceled, or refunded',
+      )
     }
 
     const now = new Date().toISOString()
@@ -6011,35 +7471,36 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const result = await db.runTransaction(async (tx) => {
         const orderRef = db.collection(SP_CREDIT_ORDERS_COLLECTION).doc(orderId)
         const orderSnap = await tx.get(orderRef)
-        if (!orderSnap.exists) throw createApiError(404, 'ORDER_NOT_FOUND', 'Credit order not found')
+        if (!orderSnap.exists)
+          throw createApiError(404, 'ORDER_NOT_FOUND', 'Credit order not found')
         const order = { id: orderSnap.id, ...(orderSnap.data() || {}) }
 
-        const alreadyPaid = String(order.status || '').toLowerCase() === 'paid'
+        const previousStatus = normalizeCreditOrderStatus(order.status)
+        const alreadyCredited = previousStatus === 'credited' || Boolean(order.fulfilled_at)
+        const alreadyRefunded = previousStatus === 'refunded'
         const patch = {
           status,
           provider_txn_id: body?.provider_txn_id || order.provider_txn_id || null,
+          provider_payment_intent_id:
+            body?.provider_payment_intent_id || order.provider_payment_intent_id || null,
+          provider_customer_id: body?.provider_customer_id || order.provider_customer_id || null,
           updated_at: now,
-          paid_at: status === 'paid' ? (body?.paid_at || now) : order.paid_at || null,
+          paid_at: status === 'paid' ? body?.paid_at || now : order.paid_at || null,
+          failed_at: status === 'failed' ? body?.failed_at || now : order.failed_at || null,
+          canceled_at: status === 'canceled' ? body?.canceled_at || now : order.canceled_at || null,
+          refunded_at: status === 'refunded' ? body?.refunded_at || now : order.refunded_at || null,
         }
         tx.set(orderRef, patch, { merge: true })
 
         let credited = 0
+        let refunded = 0
         let balanceAfter = null
-        if (status === 'paid' && !alreadyPaid) {
+        if (status === 'paid' && !alreadyCredited) {
           const credits = Math.max(1, Number(order.credits || 1))
           const accountRef = db.collection(SP_CREDIT_ACCOUNTS_COLLECTION).doc(order.sp_id)
           const accountSnap = await tx.get(accountRef)
           const account = accountSnap.exists
-            ? {
-                ...buildDefaultSpCreditAccount(order.sp_id, accountSnap.data()?.created_at || now),
-                ...(accountSnap.data() || {}),
-                sp_id: order.sp_id,
-                balance: toNumber(accountSnap.data()?.balance, 0),
-                lifetime_purchased: toNumber(accountSnap.data()?.lifetime_purchased, 0),
-                lifetime_used: toNumber(accountSnap.data()?.lifetime_used, 0),
-                lifetime_granted: toNumber(accountSnap.data()?.lifetime_granted, 0),
-                last_free_credit_at: accountSnap.data()?.last_free_credit_at || null,
-              }
+            ? buildSpCreditAccountSnapshot(order.sp_id, accountSnap.data() || {}, now)
             : buildDefaultSpCreditAccount(order.sp_id, now)
           const granted = applySpFreeCreditPolicy(account, now)
           if (granted.granted > 0 || !accountSnap.exists) {
@@ -6051,7 +7512,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
                 created_at: account.created_at || now,
                 updated_at: granted.account.updated_at || now,
               },
-              { merge: true }
+              { merge: true },
             )
           }
           if (granted.granted > 0) {
@@ -6059,12 +7520,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(grantLedgerId), {
               id: grantLedgerId,
               sp_id: order.sp_id,
-              entry_type: 'grant',
+              entry_type: 'adjustment',
               delta: granted.granted,
               balance_after: granted.account.balance,
               source_type: 'free_credit',
               source_id: granted.grantType || 'starter',
+              provider: null,
+              provider_ref: null,
               created_at: now,
+              created_by: 'system',
+              note: `Automatic ${granted.grantType || 'starter'} bid credit grant`,
               meta: {
                 grant_type: granted.grantType || 'starter',
               },
@@ -6082,7 +7547,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
               updated_at: now,
               created_at: granted.account.created_at || now,
             },
-            { merge: true }
+            { merge: true },
           )
           const ledgerId = `credit-ledger-${randomUUID()}`
           tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(ledgerId), {
@@ -6093,17 +7558,81 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             balance_after: balanceAfter,
             source_type: 'credit_order',
             source_id: order.id,
+            provider: order.provider || 'stripe',
+            provider_ref: body?.provider_txn_id || order.provider_txn_id || null,
             created_at: now,
+            created_by: 'provider_callback',
+            note: 'Credit order paid and fulfilled',
             meta: {
               amount: Number(order.amount || 0),
+              amount_cents: Number(order.amount_cents || 0),
               currency: order.currency || 'USD',
-              provider: order.provider || 'manual_placeholder',
+              provider: order.provider || 'stripe',
             },
           })
+          tx.set(
+            orderRef,
+            {
+              status: 'paid',
+              fulfilled_at: now,
+              updated_at: now,
+            },
+            { merge: true },
+          )
           credited = credits
+        } else if (status === 'refunded' && !alreadyRefunded) {
+          const credits = Math.max(1, Number(order.credits || 1))
+          const accountRef = db.collection(SP_CREDIT_ACCOUNTS_COLLECTION).doc(order.sp_id)
+          const accountSnap = await tx.get(accountRef)
+          const account = accountSnap.exists
+            ? buildSpCreditAccountSnapshot(order.sp_id, accountSnap.data() || {}, now)
+            : buildDefaultSpCreditAccount(order.sp_id, now)
+          const balanceBefore = toNumber(account.balance, 0)
+          balanceAfter = Math.max(0, balanceBefore - credits)
+          const actualRefundCredits = balanceBefore - balanceAfter
+          tx.set(
+            accountRef,
+            {
+              ...account,
+              sp_id: order.sp_id,
+              balance: balanceAfter,
+              lifetime_refunded: toNumber(account.lifetime_refunded, 0) + credits,
+              updated_at: now,
+              created_at: account.created_at || now,
+            },
+            { merge: true },
+          )
+          const ledgerId = `credit-ledger-${randomUUID()}`
+          tx.set(db.collection(SP_CREDIT_LEDGER_COLLECTION).doc(ledgerId), {
+            id: ledgerId,
+            sp_id: order.sp_id,
+            entry_type: 'refund',
+            delta: -actualRefundCredits,
+            balance_after: balanceAfter,
+            source_type: 'credit_order',
+            source_id: order.id,
+            provider: order.provider || 'stripe',
+            provider_ref: body?.provider_txn_id || order.provider_txn_id || null,
+            created_at: now,
+            created_by: 'provider_callback',
+            note: 'Credit order refunded',
+            meta: {
+              credits,
+              amount_cents: Number(order.amount_cents || 0),
+              currency: order.currency || 'USD',
+            },
+          })
+          refunded = credits
         }
 
-        return { order_id: order.id, sp_id: order.sp_id, status, credited, balance_after: balanceAfter }
+        return {
+          order_id: order.id,
+          sp_id: order.sp_id,
+          status: status === 'paid' && credited > 0 ? 'paid' : status,
+          credited,
+          refunded,
+          balance_after: balanceAfter,
+        }
       })
       return ok(res, requestId, { ...result, storage: 'firestore' })
     } catch (error) {
@@ -6115,21 +7644,31 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const order = store.spCreditOrders.get(orderId)
       if (!order) return sendError(res, requestId, 404, 'ORDER_NOT_FOUND', 'Credit order not found')
 
-      const wasPaid = String(order.status || '').toLowerCase() === 'paid'
+      const wasCredited = normalizeCreditOrderStatus(order.status) === 'credited' || Boolean(order.fulfilled_at)
+      const wasRefunded = normalizeCreditOrderStatus(order.status) === 'refunded'
       order.status = status
       order.provider_txn_id = body?.provider_txn_id || order.provider_txn_id || null
+      order.provider_payment_intent_id =
+        body?.provider_payment_intent_id || order.provider_payment_intent_id || null
+      order.provider_customer_id = body?.provider_customer_id || order.provider_customer_id || null
       order.updated_at = now
       if (status === 'paid') order.paid_at = body?.paid_at || now
+      if (status === 'failed') order.failed_at = body?.failed_at || now
+      if (status === 'canceled') order.canceled_at = body?.canceled_at || now
+      if (status === 'refunded') order.refunded_at = body?.refunded_at || now
 
       let credited = 0
+      let refunded = 0
       let balanceAfter = null
-      if (status === 'paid' && !wasPaid) {
+      if (status === 'paid' && !wasCredited) {
         const credits = Math.max(1, Number(order.credits || 1))
         const account = ensureSpCreditAccountMemory(order.sp_id)
         balanceAfter = toNumber(account.balance, 0) + credits
         account.balance = balanceAfter
         account.lifetime_purchased = toNumber(account.lifetime_purchased, 0) + credits
         account.updated_at = now
+        order.status = 'paid'
+        order.fulfilled_at = now
         appendSpCreditLedgerMemory({
           id: `credit-ledger-${randomUUID()}`,
           sp_id: order.sp_id,
@@ -6138,25 +7677,138 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           balance_after: balanceAfter,
           source_type: 'credit_order',
           source_id: order.id,
+          provider: order.provider || 'stripe',
+          provider_ref: body?.provider_txn_id || order.provider_txn_id || null,
           created_at: now,
+          created_by: 'provider_callback',
+          note: 'Credit order paid and fulfilled',
           meta: {
             amount: Number(order.amount || 0),
+            amount_cents: Number(order.amount_cents || 0),
             currency: order.currency || 'USD',
-            provider: order.provider || 'manual_placeholder',
+            provider: order.provider || 'stripe',
           },
         })
         credited = credits
+      } else if (status === 'refunded' && !wasRefunded) {
+        const credits = Math.max(1, Number(order.credits || 1))
+        const account = ensureSpCreditAccountMemory(order.sp_id)
+        const balanceBefore = toNumber(account.balance, 0)
+        balanceAfter = Math.max(0, balanceBefore - credits)
+        const actualRefundCredits = balanceBefore - balanceAfter
+        account.balance = balanceAfter
+        account.lifetime_refunded = toNumber(account.lifetime_refunded, 0) + credits
+        account.updated_at = now
+        appendSpCreditLedgerMemory({
+          id: `credit-ledger-${randomUUID()}`,
+          sp_id: order.sp_id,
+          entry_type: 'refund',
+          delta: -actualRefundCredits,
+          balance_after: balanceAfter,
+          source_type: 'credit_order',
+          source_id: order.id,
+          provider: order.provider || 'stripe',
+          provider_ref: body?.provider_txn_id || order.provider_txn_id || null,
+          created_at: now,
+          created_by: 'provider_callback',
+          note: 'Credit order refunded',
+          meta: {
+            credits,
+            amount_cents: Number(order.amount_cents || 0),
+            currency: order.currency || 'USD',
+          },
+        })
+        refunded = credits
       }
 
       return ok(res, requestId, {
         order_id: order.id,
         sp_id: order.sp_id,
-        status,
+        status: order.status,
         credited,
+        refunded,
         balance_after: balanceAfter,
         storage: 'memory',
       })
     }
+  })
+
+  route('POST', '/billing/stripe/webhook', async ({ body, req, res, requestId }) => {
+    const eventType = String(body?.type || body?.event_type || '').trim()
+    const eventId = String(body?.id || body?.event_id || '').trim()
+    const dataObject =
+      body?.data?.object && typeof body.data.object === 'object' ? body.data.object : body
+    const orderId = String(
+      dataObject?.metadata?.order_id || dataObject?.client_reference_id || body?.order_id || '',
+    ).trim()
+
+    if (!stripeWebhookSecret) {
+      // Keep this endpoint non-destructive until Stripe signature verification is configured.
+      return sendError(
+        res,
+        requestId,
+        503,
+        'STRIPE_WEBHOOK_NOT_CONFIGURED',
+        'Stripe webhook secret is not configured; refusing to fulfill credits from unsigned webhook payload.',
+      )
+    }
+    if (!orderId) {
+      return sendError(
+        res,
+        requestId,
+        400,
+        'MISSING_ORDER_ID',
+        'Stripe event must include order_id metadata',
+      )
+    }
+
+    const rawPayload =
+      req?.rawBody && Buffer.isBuffer(req.rawBody)
+        ? req.rawBody.toString('utf-8')
+        : typeof req?.body === 'string'
+          ? req.body
+          : JSON.stringify(body || {})
+    verifyStripeWebhookSignature({ req, rawPayload, webhookSecret: stripeWebhookSecret })
+
+    const statusByEvent = {
+      'checkout.session.completed': 'paid',
+      'checkout.session.expired': 'canceled',
+      'payment_intent.payment_failed': 'failed',
+      'charge.refunded': 'refunded',
+    }
+    const mappedStatus = statusByEvent[eventType]
+    if (!mappedStatus) {
+      return ok(res, requestId, {
+        ignored: true,
+        event_id: eventId || null,
+        event_type: eventType || null,
+      })
+    }
+
+    return routes
+      .find((row) => row.method === 'POST' && row.pattern === '/sp/credits/payments/callback')
+      ?.handler({
+        body: {
+          order_id: orderId,
+          status: mappedStatus,
+          provider_txn_id: dataObject?.id || null,
+          provider_checkout_session_id: eventType.startsWith('checkout.')
+            ? dataObject?.id || null
+            : null,
+          provider_payment_intent_id: dataObject?.payment_intent || dataObject?.id || null,
+          provider_customer_id: dataObject?.customer || null,
+          paid_at:
+            mappedStatus === 'paid' && dataObject?.created
+              ? new Date(Number(dataObject.created) * 1000).toISOString()
+              : undefined,
+          refunded_at:
+            mappedStatus === 'refunded' && dataObject?.created
+              ? new Date(Number(dataObject.created) * 1000).toISOString()
+              : undefined,
+        },
+        res,
+        requestId,
+      })
   })
 
   route('GET', '/reports/task-status', async ({ res, requestId }) => {
@@ -6189,7 +7841,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         'PLAN_NOT_ELIGIBLE',
         'Current plan cannot access this report.',
         false,
-        gate.response
+        gate.response,
       )
     }
     ok(res, requestId, {
@@ -6208,7 +7860,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         'PLAN_NOT_ELIGIBLE',
         'Current plan cannot access annual tax finance report.',
         false,
-        gate.response
+        gate.response,
       )
     }
     const year = Number(query.get('year') || new Date().getFullYear())
@@ -6227,8 +7879,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     try {
       const rawUrl = (req.url || '/').replace(/^\/api/, '') || '/'
       const url = new URL(rawUrl, 'http://localhost')
-      const requestBodyForAuthBypass =
-        ['POST', 'PUT', 'PATCH'].includes(req.method || '') ? await readBody(req) : {}
+      const requestBodyForAuthBypass = ['POST', 'PUT', 'PATCH'].includes(req.method || '')
+        ? await readBody(req)
+        : {}
       const authContext = await resolveActorFromRequest(req)
       const isAdminPath = url.pathname.startsWith('/admin/')
       const hasAdminClaim =
@@ -6238,9 +7891,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         requestBodyForAuthBypass?.backfill_token || requestBodyForAuthBypass?.token || '',
       ).trim()
       const allowBackfillBypass =
-        url.pathname === '/admin/backfill/task-addresses' && backfillToken === TASK_ADDRESS_BACKFILL_TOKEN
+        url.pathname === '/admin/backfill/task-addresses' &&
+        backfillToken === TASK_ADDRESS_BACKFILL_TOKEN
       if (isAdminPath && !allowBackfillBypass && (!authContext.verified || !hasAdminClaim)) {
-        return sendError(res, requestId, 401, 'UNAUTHENTICATED', 'Admin Firebase authentication is required')
+        return sendError(
+          res,
+          requestId,
+          401,
+          'UNAUTHENTICATED',
+          'Admin Firebase authentication is required',
+        )
       }
       const actor = authContext.actor
       const body = requestBodyForAuthBypass

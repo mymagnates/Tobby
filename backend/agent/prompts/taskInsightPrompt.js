@@ -22,6 +22,7 @@ export const buildTaskInsightSystemInstruction = () =>
     'Keep each array concise. Prefer 1-2 strong, relevant items over broad generic lists.',
     'The recommended trade and scope must match the maintenance problem actually described by the user.',
     'Keep answers short, product-oriented, and cautious.',
+    'PM-only launch constraint: recommended_next_step must not mention publishing, requesting quotes, or sending the task to a service provider.',
     'For construction, renovation, finish, flooring, painting, trim, cabinet, door, window, roofing, landscaping, gardening, and similar project descriptions, identify the actual project scope rather than falling back to generic maintenance language.',
     'Use these rules:',
     '- likely_causes: 1-2 plain statements of what this project or issue actually is.',
@@ -119,7 +120,7 @@ export const buildTaskInsightFewShotContents = () => {
     regional_price_range:
       'For ZIP 75201 / Dallas, TX, a 1500 sqft SPC flooring project with baseboard and quarter round often prices around $4-$10 per sqft for labor and common install scope, or roughly $6,000-$15,000 before unusual demolition, subfloor repair, premium materials, or access constraints.',
     recommended_next_step:
-      'Confirm whether demolition, subfloor prep, and trim replacement are included, then publish to a flooring or finish carpentry service provider for quoting.',
+      'Confirm whether demolition, subfloor prep, and trim replacement are included, then document the desired scope and budget range.',
     suggest_sp: true,
     suggested_service_type: 'flooring',
     confidence: 0.9,
@@ -156,7 +157,7 @@ export const buildTaskInsightFewShotContents = () => {
     regional_price_range:
       'For ZIP 60614 / Chicago, IL, an under-sink leak repair commonly starts around $175-$450 for a basic service call and minor repair, with higher totals if parts, cabinet access, or water damage work is needed.',
     recommended_next_step:
-      'Confirm whether the leak is active now and publish to a plumbing service provider if immediate repair is needed.',
+      'Confirm whether the leak is active now, document the affected area, and prioritize the task if immediate repair is needed.',
     suggest_sp: true,
     suggested_service_type: 'plumbing',
     confidence: 0.88,

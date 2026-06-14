@@ -3,6 +3,7 @@ import { useFirebase } from '../../../src/composables/useFirebase'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { auth as mockedAuth } from '../../../src/boot/firebase'
 
 // Mock Firebase modules
 vi.mock('firebase/auth', () => ({
@@ -69,6 +70,7 @@ describe('useFirebase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedAuth.currentUser = null
     firebase = useFirebase()
   })
 
@@ -245,8 +247,13 @@ describe('useFirebase', () => {
   describe('uploadFile', () => {
     it('should upload file successfully', async () => {
       const mockFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      const mockUser = {
+        uid: 'user123',
+        getIdToken: vi.fn().mockResolvedValue('token-123'),
+      }
       const mockRef = {}
       const mockSnapshot = { ref: {} }
+      mockedAuth.currentUser = mockUser
       storageRef.mockReturnValue(mockRef)
       uploadBytes.mockResolvedValue(mockSnapshot)
       getDownloadURL.mockResolvedValue('https://example.com/file.jpg')

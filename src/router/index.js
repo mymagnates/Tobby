@@ -46,6 +46,42 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     return `/landing?redirect=${encodedRedirect}`
   }
 
+  const isNativePmOnlyLaunch = () => {
+    if (typeof window === 'undefined') return false
+    const capacitor = window.Capacitor
+    return Boolean(
+      capacitor &&
+        typeof capacitor.isNativePlatform === 'function' &&
+        capacitor.isNativePlatform(),
+    )
+  }
+
+  const nativeBlockedRoutePrefixes = [
+    '/po-dashboard',
+    '/tenant-home',
+    '/tenants',
+    '/create-tenant',
+    '/sp-dashboard',
+    '/sp-cards',
+    '/sp-leads',
+    '/sp-bids',
+    '/sp-invoices',
+    '/sp-services',
+    '/sp-credits',
+    '/sp-payment-method',
+    '/sp-profile',
+    '/sp-handout-builder',
+    '/public/owner-invite',
+    '/public/tenant-signup',
+    '/public/sp-signup',
+    '/public/handout',
+    '/public/posts',
+    '/public/sp',
+  ]
+
+  const isNativeBlockedRoute = (path = '') =>
+    nativeBlockedRoutePrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+
   // Navigation guard for authentication and role-based access control
   Router.beforeEach(async (to, from, next) => {
     const userDataStore = useUserDataStore()
@@ -62,6 +98,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     console.log('Router Guard - From:', from.path)
     console.log('Router Guard - User category:', userCategory)
     console.log('Router Guard - Authenticated:', isAuthenticated)
+
+    if (isNativePmOnlyLaunch() && isNativeBlockedRoute(to.path)) {
+      console.log('Router Guard - Native PM-only launch route blocked:', to.path)
+      next(isAuthenticated ? '/' : '/public/login')
+      return
+    }
 
     // ============================================
     // 0. STANDALONE ROUTES (Always Allow)
@@ -195,12 +237,8 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       '/',
       '/sp-dashboard',
       '/sp-credits',
-      '/sp-payment-method',
       '/sp-leads',
       '/sp-bids',
-      '/sp-documents',
-      '/sp-messages',
-      '/sp-projects',
       '/sp-invoices',
       '/sp-services',
       '/sp-profile',

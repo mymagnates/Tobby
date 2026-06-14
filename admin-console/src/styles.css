@@ -156,6 +156,90 @@ th, td {
 .badge.warning { background: #fef9c3; color: #854d0e; }
 .badge.critical { background: #fee2e2; color: #991b1b; }
 
+.support-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ticket-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metric-caption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.billing-note {
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section-header h3,
+.panel h3 {
+  margin: 0;
+}
+
+.inline-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+}
+
+.delta-positive {
+  color: var(--success);
+}
+
+.delta-negative {
+  color: var(--danger);
+}
+
+.thread {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 320px;
+  overflow: auto;
+  margin-bottom: 10px;
+}
+
+.comment {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comment:last-child { border-bottom: 0; }
+.comment span { color: var(--muted); font-size: 12px; margin-left: 8px; }
+.comment p { margin: 6px 0 0; white-space: pre-wrap; }
+.comment.internal { background: #fff7ed; }
+
 .login-page {
   min-height: 100vh;
   display: grid;

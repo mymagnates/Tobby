@@ -5,8 +5,8 @@
         <p class="public-auth-card-label">Get Started</p>
         <h1>Choose your workspace</h1>
         <p class="register-subtitle">
-          Choose how you will use Handout. Property owners access shared records through an
-          invitation from their property manager.
+          Handout is launching first for property managers. Property owners access shared records
+          through an invitation from their property manager.
         </p>
       </div>
 
@@ -23,24 +23,10 @@
               <q-icon name="apartment" size="27px" color="white" />
             </div>
             <div class="role-copy">
-              <div class="role-label">Manage Properties</div>
+              <div class="role-label">Start Property Manager Workspace</div>
               <div class="role-desc">
-                Create a Property Manager workspace for records, tasks, leases, and owner access.
-              </div>
-            </div>
-            <q-icon class="role-arrow" name="arrow_forward" size="20px" />
-          </q-card-section>
-        </q-card>
-
-        <q-card flat bordered class="role-card" clickable @click="router.push('/public/sp-signup')">
-          <q-card-section class="role-card-body">
-            <div class="role-icon-wrap role-icon-sp">
-              <q-icon name="construction" size="27px" color="white" />
-            </div>
-            <div class="role-copy">
-              <div class="role-label">Provide Services</div>
-              <div class="role-desc">
-                Discover leads, submit bids, manage projects, and invoice.
+                Create a PM/PO workspace for records, tasks, leases, reminders, transactions, and
+                owner access.
               </div>
             </div>
             <q-icon class="role-arrow" name="arrow_forward" size="20px" />
@@ -105,8 +91,10 @@ const router = useRouter()
 
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .role-card {
@@ -141,9 +129,6 @@ const router = useRouter()
 
 .role-icon-pmpo {
   background: linear-gradient(135deg, #1a8c7a, #2db5a0);
-}
-.role-icon-sp {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
 }
 .role-copy {
   flex: 1;

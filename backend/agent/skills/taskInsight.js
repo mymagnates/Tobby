@@ -31,12 +31,21 @@ const buildTaskInsightFallback = (task = {}) => {
     safety_flags: safetyFlags,
     regional_price_range: `Typical ${[city, state].filter(Boolean).join(', ') || 'the local market'} pricing depends on the final trade, quantity, material, access, and prep scope. A reliable range requires the correct project type first.`,
     recommended_next_step: safetyFlags.length
-      ? 'Review the task promptly and consider contacting a service provider due to the reported safety risk.'
-      : 'Review the task details, confirm the project type, and then decide whether to publish to the appropriate service provider.',
+      ? 'Review the task promptly, document the risk, and decide whether outside help is needed.'
+      : 'Review the task details, confirm the project type, and define the next owner or manager action.',
     suggest_sp: suggestSp,
     suggested_service_type: '',
     confidence: 0.35,
   }
+}
+
+const sanitizePmOnlyNextStep = (value, fallback) => {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  if (/\bpublish\b|\bservice provider\b|\bprovider\b|\bSP\b/i.test(text)) {
+    return fallback
+  }
+  return text
 }
 
 export const normalizeTaskInsightOutput = ({ task = {}, modelOutput = null }) => {
@@ -66,7 +75,7 @@ export const normalizeTaskInsightOutput = ({ task = {}, modelOutput = null }) =>
         ? String(modelOutput.regional_price_range).trim()
         : fallback.regional_price_range,
     recommended_next_step: isNonEmptyString(modelOutput?.recommended_next_step, 8)
-      ? String(modelOutput.recommended_next_step).trim()
+      ? sanitizePmOnlyNextStep(modelOutput.recommended_next_step, fallback.recommended_next_step)
       : fallback.recommended_next_step,
     suggest_sp:
       typeof modelOutput?.suggest_sp === 'boolean'

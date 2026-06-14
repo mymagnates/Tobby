@@ -8,8 +8,9 @@ const isUnsafeLocalApiBase =
   !['localhost', '127.0.0.1'].includes(window.location.hostname)
 const API_BASE_URL = (isUnsafeLocalApiBase ? '/api' : RAW_API_BASE_URL).replace(/\/$/, '')
 const RECOMMENDED_SPS_API_ENABLED =
-  String(import.meta.env.VITE_ENABLE_RECOMMENDED_SPS_API || 'false').trim().toLowerCase() ===
-  'true'
+  String(import.meta.env.VITE_ENABLE_RECOMMENDED_SPS_API || 'false')
+    .trim()
+    .toLowerCase() === 'true'
 
 const STORAGE_KEYS = {
   SP_CARDS: 'web_sp_cards_snapshot_v1',
@@ -26,6 +27,24 @@ const STORAGE_KEYS = {
 const SP_INITIAL_FREE_CREDITS = 3
 const SP_WEEKLY_FREE_CREDITS = 1
 const SP_FREE_CREDIT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+const SP_BID_CREDIT_SKUS = [
+  {
+    sku_code: 'sp_bid_single',
+    sku_name: 'Single bid credit',
+    credits: 1,
+    amount_cents: 499,
+    currency: 'USD',
+    always_on: true,
+  },
+  {
+    sku_code: 'sp_bid_starter_10',
+    sku_name: 'Starter bid credit pack',
+    credits: 10,
+    amount_cents: 2999,
+    currency: 'USD',
+    always_on: true,
+  },
+]
 
 const toUrl = (path) => `${API_BASE_URL}${path}`
 
@@ -142,15 +161,20 @@ const normalizeBidRow = (row = {}, defaults = {}) => {
   const bidId = String(row?.bid_id || row?.id || defaults?.bid_id || `bid-${Date.now()}`)
   const leadDocId = String(row?.lead_doc_id || row?.lead_id || fallbackLeadDocId || '').trim()
   const leadId = String(row?.lead_id || leadDocId || '').trim()
-  const createdAt = toIsoDateString(row?.created_at, toIsoDateString(defaults?.created_at, nowIso()))
+  const createdAt = toIsoDateString(
+    row?.created_at,
+    toIsoDateString(defaults?.created_at, nowIso()),
+  )
   const updatedAt = toIsoDateString(row?.updated_at, createdAt)
   const amountRaw = Number(row?.amount ?? defaults?.amount)
   const validUntil = toIsoDateString(row?.valid_until, toIsoDateString(defaults?.valid_until, ''))
-  const rawStatus = String(row?.status ?? defaults?.status ?? 'submitted').trim().toLowerCase()
+  const rawStatus = String(row?.status ?? defaults?.status ?? 'submitted')
+    .trim()
+    .toLowerCase()
   const expired = Boolean(
     validUntil &&
-    ['submitted', 'shortlisted'].includes(rawStatus) &&
-    toBidTimestamp(validUntil) < Date.now()
+      ['submitted', 'shortlisted'].includes(rawStatus) &&
+      toBidTimestamp(validUntil) < Date.now(),
   )
   const normalizedStatus = rawStatus === 'selected' ? 'accepted' : expired ? 'expired' : rawStatus
 
@@ -167,24 +191,39 @@ const normalizeBidRow = (row = {}, defaults = {}) => {
     pricing_type: row?.pricing_type ?? defaults?.pricing_type ?? 'one_time',
     included_scope: row?.included_scope ?? defaults?.included_scope ?? '',
     exclusions: row?.exclusions ?? defaults?.exclusions ?? '',
-    estimated_start_date: row?.estimated_start_date ?? defaults?.estimated_start_date ?? row?.availability_date ?? defaults?.availability_date ?? '',
+    estimated_start_date:
+      row?.estimated_start_date ??
+      defaults?.estimated_start_date ??
+      row?.availability_date ??
+      defaults?.availability_date ??
+      '',
     estimated_duration: row?.estimated_duration ?? defaults?.estimated_duration ?? '',
     materials_included: row?.materials_included ?? defaults?.materials_included ?? '',
     materials_note: row?.materials_note ?? defaults?.materials_note ?? '',
     valid_until: validUntil,
     warranty: row?.warranty ?? defaults?.warranty ?? '',
-    message_to_pm: row?.message_to_pm ?? defaults?.message_to_pm ?? row?.note ?? defaults?.note ?? '',
-    upfront_payment_expected: row?.upfront_payment_expected ?? defaults?.upfront_payment_expected ?? 'no',
+    message_to_pm:
+      row?.message_to_pm ?? defaults?.message_to_pm ?? row?.note ?? defaults?.note ?? '',
+    upfront_payment_expected:
+      row?.upfront_payment_expected ?? defaults?.upfront_payment_expected ?? 'no',
     upfront_payment_amount: row?.upfront_payment_amount ?? defaults?.upfront_payment_amount ?? null,
     upfront_payment_timing: row?.upfront_payment_timing ?? defaults?.upfront_payment_timing ?? '',
-    upfront_payment_timing_note: row?.upfront_payment_timing_note ?? defaults?.upfront_payment_timing_note ?? '',
-    remaining_payment_expectation: row?.remaining_payment_expectation ?? defaults?.remaining_payment_expectation ?? '',
+    upfront_payment_timing_note:
+      row?.upfront_payment_timing_note ?? defaults?.upfront_payment_timing_note ?? '',
+    remaining_payment_expectation:
+      row?.remaining_payment_expectation ?? defaults?.remaining_payment_expectation ?? '',
     payment_note: row?.payment_note ?? defaults?.payment_note ?? '',
-    attachments: Array.isArray(row?.attachments) ? row.attachments : Array.isArray(defaults?.attachments) ? defaults.attachments : [],
+    attachments: Array.isArray(row?.attachments)
+      ? row.attachments
+      : Array.isArray(defaults?.attachments)
+        ? defaults.attachments
+        : [],
     version_number: Number(row?.version_number ?? defaults?.version_number ?? 1) || 1,
     bid_thread_id: row?.bid_thread_id ?? defaults?.bid_thread_id ?? '',
     previous_bid_id: row?.previous_bid_id ?? defaults?.previous_bid_id ?? '',
-    disclaimer_acknowledged: Boolean(row?.disclaimer_acknowledged ?? defaults?.disclaimer_acknowledged),
+    disclaimer_acknowledged: Boolean(
+      row?.disclaimer_acknowledged ?? defaults?.disclaimer_acknowledged,
+    ),
     disclaimer_text: row?.disclaimer_text ?? defaults?.disclaimer_text ?? '',
     status: normalizedStatus,
     created_at: createdAt,
@@ -211,10 +250,16 @@ const normalizeProjectRow = (row = {}, defaults = {}) => {
   const projectId = String(row?.project_id || row?.id || defaults?.project_id || defaults?.id || '')
   const acceptedAt = toIsoDateString(
     row?.accepted_at,
-    toIsoDateString(row?.selected_bid_at, toIsoDateString(defaults?.accepted_at, nowIso()))
+    toIsoDateString(row?.selected_bid_at, toIsoDateString(defaults?.accepted_at, nowIso())),
   )
-  const createdAt = toIsoDateString(row?.created_at, toIsoDateString(defaults?.created_at, acceptedAt))
-  const updatedAt = toIsoDateString(row?.updated_at, toIsoDateString(defaults?.updated_at, createdAt))
+  const createdAt = toIsoDateString(
+    row?.created_at,
+    toIsoDateString(defaults?.created_at, acceptedAt),
+  )
+  const updatedAt = toIsoDateString(
+    row?.updated_at,
+    toIsoDateString(defaults?.updated_at, createdAt),
+  )
 
   return {
     ...defaults,
@@ -228,40 +273,51 @@ const normalizeProjectRow = (row = {}, defaults = {}) => {
     sp_id: String(row?.sp_id || defaults?.sp_id || row?.assigned_sp?.sp_id || ''),
     task_title: String(
       row?.task_title ||
-      row?.title ||
-      row?.name ||
-      defaults?.task_title ||
-      defaults?.title ||
-      'Untitled Project'
+        row?.title ||
+        row?.name ||
+        defaults?.task_title ||
+        defaults?.title ||
+        'Untitled Project',
     ).trim(),
     title: String(
       row?.title ||
-      row?.task_title ||
-      row?.name ||
-      defaults?.title ||
-      defaults?.task_title ||
-      'Untitled Project'
+        row?.task_title ||
+        row?.name ||
+        defaults?.title ||
+        defaults?.task_title ||
+        'Untitled Project',
     ).trim(),
     address: String(
       row?.address ||
-      row?.property_address ||
-      row?.property_id?.address ||
-      defaults?.address ||
-      defaults?.property_address ||
-      ''
+        row?.property_address ||
+        row?.property_id?.address ||
+        defaults?.address ||
+        defaults?.property_address ||
+        '',
     ).trim(),
     location: String(
       row?.location ||
-      row?.address ||
-      row?.property_address ||
-      row?.property_id?.address ||
-      defaults?.location ||
-      defaults?.address ||
-      ''
+        row?.address ||
+        row?.property_address ||
+        row?.property_id?.address ||
+        defaults?.location ||
+        defaults?.address ||
+        '',
     ).trim(),
-    status: String(row?.status || defaults?.status || 'active').trim().toLowerCase(),
-    comments: Array.isArray(row?.comments) ? row.comments : Array.isArray(defaults?.comments) ? defaults.comments : [],
-    phases: row?.phases && typeof row.phases === 'object' ? row.phases : defaults?.phases && typeof defaults.phases === 'object' ? defaults.phases : {},
+    status: String(row?.status || defaults?.status || 'active')
+      .trim()
+      .toLowerCase(),
+    comments: Array.isArray(row?.comments)
+      ? row.comments
+      : Array.isArray(defaults?.comments)
+        ? defaults.comments
+        : [],
+    phases:
+      row?.phases && typeof row.phases === 'object'
+        ? row.phases
+        : defaults?.phases && typeof defaults.phases === 'object'
+          ? defaults.phases
+          : {},
     accepted_at: acceptedAt,
     created_at: createdAt,
     updated_at: updatedAt,
@@ -282,7 +338,9 @@ const mergeProjectRows = (...groups) => {
     })
 
   return Array.from(merged.values()).sort(
-    (a, b) => toBidTimestamp(b?.accepted_at || b?.created_at) - toBidTimestamp(a?.accepted_at || a?.created_at)
+    (a, b) =>
+      toBidTimestamp(b?.accepted_at || b?.created_at) -
+      toBidTimestamp(a?.accepted_at || a?.created_at),
   )
 }
 
@@ -308,7 +366,12 @@ const listAssignedProjectsFromMxRecords = async (spId) => {
             property_id: propertyId,
             selected_bid_id: data?.selected_bid_id || data?.assigned_sp?.bid_id || '',
             sp_id: assignedSpId,
-            accepted_at: data?.selected_bid_at || data?.assigned_sp?.assigned_at || data?.updatedAt || data?.updated_at || data?.created_at,
+            accepted_at:
+              data?.selected_bid_at ||
+              data?.assigned_sp?.assigned_at ||
+              data?.updatedAt ||
+              data?.updated_at ||
+              data?.created_at,
             address: data?.property_address || data?.property_id?.address || '',
             location: data?.property_address || data?.property_id?.address || '',
             task_title: data?.title || data?.task_title || data?.name || '',
@@ -316,7 +379,7 @@ const listAssignedProjectsFromMxRecords = async (spId) => {
           },
           {
             status: data?.status || 'active',
-          }
+          },
         )
       })
       .filter(Boolean)
@@ -324,14 +387,20 @@ const listAssignedProjectsFromMxRecords = async (spId) => {
   const rows = []
 
   try {
-    const primaryQuery = query(collectionGroup(db, 'mxrecords'), where('assigned_sp_id', '==', normalizedSpId))
+    const primaryQuery = query(
+      collectionGroup(db, 'mxrecords'),
+      where('assigned_sp_id', '==', normalizedSpId),
+    )
     rows.push(...mapRows(await getDocs(primaryQuery)))
   } catch (error) {
     console.warn('Failed reading assigned projects via assigned_sp_id collectionGroup:', error)
   }
 
   try {
-    const nestedQuery = query(collectionGroup(db, 'mxrecords'), where('assigned_sp.sp_id', '==', normalizedSpId))
+    const nestedQuery = query(
+      collectionGroup(db, 'mxrecords'),
+      where('assigned_sp.sp_id', '==', normalizedSpId),
+    )
     rows.push(...mapRows(await getDocs(nestedQuery)))
   } catch (error) {
     console.warn('Failed reading assigned projects via assigned_sp.sp_id collectionGroup:', error)
@@ -387,15 +456,16 @@ const listSpBidsFromLeadSubcollections = async (spId) => {
         const parentCollectionId = String(docSnap.ref?.parent?.parent?.parent?.id || '').trim()
         if (parentCollectionId !== 'marketplace_leads') return null
         const data = docSnap.data() || {}
-        const leadDocId =
-          String(docSnap.ref?.parent?.parent?.id || data?.lead_doc_id || data?.lead_id || '').trim()
+        const leadDocId = String(
+          docSnap.ref?.parent?.parent?.id || data?.lead_doc_id || data?.lead_id || '',
+        ).trim()
         return normalizeBidRow(
           { ...data, id: docSnap.id, bid_id: data?.bid_id || docSnap.id },
           {
             lead_doc_id: leadDocId,
             lead_id: data?.lead_id || leadDocId,
             sp_id: normalizedSpId,
-          }
+          },
         )
       })
       .filter((row) => row && (row?.lead_doc_id || row?.lead_id))
@@ -418,14 +488,14 @@ const listSpBidsFromLeadSubcollections = async (spId) => {
               lead_doc_id: leadDoc.id,
               lead_id: data?.lead_id || leadDoc.id,
               sp_id: normalizedSpId,
-            }
+            },
           )
         })
-      })
+      }),
     )
 
     return mergeBidRows(
-      bidGroups.flat().filter((row) => String(row?.sp_id || '') === normalizedSpId)
+      bidGroups.flat().filter((row) => String(row?.sp_id || '') === normalizedSpId),
     )
   } catch (error) {
     console.warn('Failed reading bids from marketplace lead subcollections:', error)
@@ -590,12 +660,14 @@ const applySpFreeCreditPolicyFallback = (spId) => {
     appendSpCreditLedgerFallback({
       id: `credit-ledger-${Date.now()}`,
       sp_id: spId,
-      entry_type: 'grant',
+      entry_type: 'adjustment',
       delta: granted,
       balance_after: updated.balance,
       source_type: 'free_credit',
       source_id: grantType || 'starter',
       created_at: now,
+      created_by: 'system',
+      note: `Automatic ${grantType || 'starter'} bid credit grant`,
       meta: {
         grant_type: grantType || 'starter',
       },
@@ -610,6 +682,19 @@ const applySpFreeCreditPolicyFallback = (spId) => {
 }
 
 export const spCreditApi = {
+  async getSkus(spId) {
+    try {
+      return await request('/sp/credits/skus', {
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+      })
+    } catch {
+      return { items: SP_BID_CREDIT_SKUS, storage: 'local' }
+    }
+  },
+
   async getSummary(spId) {
     try {
       return await request('/sp/credits/summary', {
@@ -620,7 +705,7 @@ export const spCreditApi = {
       })
     } catch {
       const { account } = applySpFreeCreditPolicyFallback(String(spId || 'unknown'))
-      return { ...account, storage: 'local' }
+      return { ...account, skus: SP_BID_CREDIT_SKUS, storage: 'local' }
     }
   },
 
@@ -640,17 +725,28 @@ export const spCreditApi = {
       const orderRows = loadJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS)
         .filter((row) => row.sp_id === spId)
         .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
-      return { items: ledgerRows.slice(0, limit), orders: orderRows.slice(0, limit), storage: 'local' }
+      return {
+        items: ledgerRows.slice(0, limit),
+        orders: orderRows.slice(0, limit),
+        storage: 'local',
+      }
     }
   },
 
   async createOrder(spId, payload) {
+    const sku =
+      SP_BID_CREDIT_SKUS.find((row) => row.sku_code === payload?.sku_code) || SP_BID_CREDIT_SKUS[0]
+    const amountCents = Number(payload?.amount_cents ?? payload?.amountCents ?? sku.amount_cents)
+    const amount = Number(payload?.amount ?? (amountCents ? amountCents / 100 : 0))
     const body = {
-      credits: Number(payload?.credits || 1),
-      amount: Number(payload?.amount || 0),
-      currency: payload?.currency || 'USD',
-      package_id: payload?.package_id || null,
-      provider: payload?.provider || 'manual_placeholder',
+      credits: Number(payload?.credits || sku.credits),
+      amount,
+      amount_cents: amountCents || Math.round(amount * 100),
+      currency: payload?.currency || sku.currency,
+      sku_code: payload?.sku_code || sku.sku_code,
+      sku_name: payload?.sku_name || sku.sku_name,
+      package_id: payload?.package_id || sku.sku_code,
+      provider: payload?.provider || 'stripe',
     }
     try {
       return await request('/sp/credits/orders', {
@@ -666,15 +762,54 @@ export const spCreditApi = {
         id: `credit-order-${Date.now()}`,
         sp_id: spId,
         ...body,
-        status: 'pending',
+        status: 'created',
+        provider_checkout_session_id: null,
+        provider_payment_intent_id: null,
+        provider_customer_id: null,
         created_at: nowIso(),
         updated_at: nowIso(),
         paid_at: null,
+        failed_at: null,
+        canceled_at: null,
+        refunded_at: null,
+        fulfilled_at: null,
       }
       const rows = loadJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS)
       rows.unshift(order)
       saveJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS, rows)
       return { order, checkout_hint: 'local-fallback' }
+    }
+  },
+
+  async createCheckoutSession(spId, payload = {}) {
+    const body = {
+      order_id: payload?.order_id || null,
+      sku_code: payload?.sku_code || null,
+      success_url: payload?.success_url || null,
+      cancel_url: payload?.cancel_url || null,
+    }
+    try {
+      return await request('/billing/stripe/checkout-session', {
+        method: 'POST',
+        headers: {
+          ...(spId ? { 'X-User-Id': String(spId) } : {}),
+          'X-User-Role': 'sp',
+        },
+        body,
+      })
+    } catch {
+      const orderResponse = await this.createOrder(spId, body)
+      return {
+        order: orderResponse.order,
+        checkout_session: {
+          id: `checkout-session-${Date.now()}`,
+          order_id: orderResponse.order?.id || null,
+          stripe_configured: false,
+          checkout_url: null,
+          message: 'local-fallback',
+        },
+        storage: 'local',
+      }
     }
   },
 
@@ -710,13 +845,22 @@ export const spCreditApi = {
           balance_after: nextBalance,
           source_type: 'credit_order',
           source_id: order.id,
+          provider: order.provider || 'stripe',
+          provider_ref: body.provider_txn_id || null,
           created_at: nowIso(),
+          created_by: 'provider_callback',
+          note: 'Credit order paid and fulfilled',
           meta: {
             amount: Number(order.amount || 0),
+            amount_cents: Number(order.amount_cents || 0),
             currency: order.currency || 'USD',
-            provider: order.provider || 'manual_placeholder',
+            provider: order.provider || 'stripe',
           },
         })
+        order.status = 'credited'
+        order.fulfilled_at = nowIso()
+        orders[index] = order
+        saveJsonArray(STORAGE_KEYS.SP_CREDIT_ORDERS, orders)
       }
       return { order_id: order.id, sp_id: order.sp_id, status: order.status, storage: 'local' }
     }
@@ -857,7 +1001,7 @@ export const marketplaceApi = {
       (row) =>
         String(row.mx_id || '') === String(next.mx_id || '') ||
         String(row.task_id || '') === String(next.task_id || '') ||
-        (next.task_doc_id && String(row.task_doc_id || '') === String(next.task_doc_id))
+        (next.task_doc_id && String(row.task_doc_id || '') === String(next.task_doc_id)),
     )
     if (!exists) {
       rows.unshift(next)
@@ -953,17 +1097,13 @@ export const marketplaceApi = {
 }
 
 export const adSlotApi = {
-  async getFeed({
-    userId,
-    slotId = 'pm_feed_top',
-    limit = 1,
-    role = 'pm_po',
-    region = {},
-  } = {}) {
+  async getFeed({ userId, slotId = 'pm_feed_top', limit = 1, role = 'pm_po', region = {} } = {}) {
     const key = `${String(userId || '')}|${String(slotId)}|${String(limit)}`
     const knownEtag = adSlotEtagCache.get(key) || null
     const response = await fetch(
-      toUrl(`/ad-slots/${encodeURIComponent(String(slotId))}/feed?limit=${encodeURIComponent(String(limit))}`),
+      toUrl(
+        `/ad-slots/${encodeURIComponent(String(slotId))}/feed?limit=${encodeURIComponent(String(limit))}`,
+      ),
       {
         method: 'GET',
         headers: {
@@ -974,7 +1114,7 @@ export const adSlotApi = {
           ...(region?.city ? { 'X-User-City': String(region.city) } : {}),
           ...(knownEtag ? { 'If-None-Match': knownEtag } : {}),
         },
-      }
+      },
     )
 
     if (response.status === 304) {
@@ -1048,7 +1188,7 @@ export const spCardsApi = {
       const rows = loadJsonArray(STORAGE_KEYS.SP_CARDS)
       const now = new Date().toISOString()
       const existingIndex = rows.findIndex(
-        (row) => row.owner_id === payload.owner_id && row.sp_id === payload.sp_id
+        (row) => row.owner_id === payload.owner_id && row.sp_id === payload.sp_id,
       )
       const next = {
         id: existingIndex >= 0 ? rows[existingIndex].id : `${payload.owner_id}-${payload.sp_id}`,
@@ -1134,7 +1274,7 @@ export const spPortalApi = {
     }
 
     const localRows = loadJsonArray(STORAGE_KEYS.SP_BIDS).filter(
-      (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+      (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId,
     )
     return mergeBidRows(markAccepted(firestoreRows), markAccepted(localRows))
   },
@@ -1195,11 +1335,16 @@ export const spPortalApi = {
       const sameLeadRows = rows.filter(
         (row) =>
           String(row?.sp_id || '') === spId &&
-          String(row?.lead_doc_id || row?.lead_id || '') === String(normalizedPayload.lead_doc_id || normalizedPayload.lead_id || '')
+          String(row?.lead_doc_id || row?.lead_id || '') ===
+            String(normalizedPayload.lead_doc_id || normalizedPayload.lead_id || ''),
       )
-      const latestVersion = sameLeadRows.reduce((max, row) => Math.max(max, Number(row?.version_number || 0)), 0)
-      const previousBid = sameLeadRows
-        .sort((a, b) => toBidTimestamp(b?.created_at) - toBidTimestamp(a?.created_at))[0]
+      const latestVersion = sameLeadRows.reduce(
+        (max, row) => Math.max(max, Number(row?.version_number || 0)),
+        0,
+      )
+      const previousBid = sameLeadRows.sort(
+        (a, b) => toBidTimestamp(b?.created_at) - toBidTimestamp(a?.created_at),
+      )[0]
       const next = normalizeBidRow({
         bid_id: `bid-${Date.now()}`,
         status: 'submitted',
@@ -1220,13 +1365,17 @@ export const spPortalApi = {
       appendSpCreditLedgerFallback({
         id: `credit-ledger-${Date.now()}`,
         sp_id: spId,
-        entry_type: 'bid_use',
+        entry_type: 'consume',
         delta: -1,
         balance_after: nextBalance,
         source_type: 'bid',
         source_id: next.bid_id,
         lead_id: normalizedPayload.lead_id,
+        provider: null,
+        provider_ref: null,
         created_at: nowIso(),
+        created_by: spId,
+        note: 'Bid submitted successfully',
       })
       return { bid: next, credits_balance: nextBalance, credit_cost: 1, storage: 'local' }
     }
@@ -1244,12 +1393,12 @@ export const spPortalApi = {
       })
       const apiRows = Array.isArray(res.items) ? res.items : []
       const localRows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS).filter(
-        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId,
       )
       return mergeProjectRows(firestoreRows, apiRows, localRows)
     } catch {
       const localRows = loadJsonArray(STORAGE_KEYS.SP_PROJECTS).filter(
-        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId
+        (row) => !normalizedSpId || String(row?.sp_id || '') === normalizedSpId,
       )
       return mergeProjectRows(firestoreRows, localRows)
     }
@@ -1339,5 +1488,4 @@ export const spPortalApi = {
       return next
     }
   },
-
 }

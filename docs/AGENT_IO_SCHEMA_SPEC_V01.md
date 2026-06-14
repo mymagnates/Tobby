@@ -10,7 +10,7 @@ field mismatch across Web, iOS, and backend APIs.
 The schema is aligned to:
 - `docs/API_INTERFACE_BOUNDARY_CONTRACT_V01.md` (core API routes)
 - `docs/MVP_PAGE_FIELD_SPEC.md` (mobile/web field naming)
-- `ios/Handout/Sources/Core/Firebase/FirestoreSchema.swift` (field aliases)
+- shared client field aliases used by the current Web and mobile app clients
 - `backend/apiServer.js` (current task payload fields)
 
 ## 3) Canonical Task Fields (Supported Now)
