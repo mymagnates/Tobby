@@ -60,7 +60,22 @@ export default defineConfig((ctx) => {
       // polyfillModulePreload: true,
       // distDir
 
-      // extendViteConf (viteConf) {},
+      extendViteConf(viteConf) {
+        viteConf.build ??= {}
+        viteConf.build.rollupOptions ??= {}
+        viteConf.build.rollupOptions.output ??= {}
+        viteConf.build.rollupOptions.output.manualChunks = (id) => {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/firebase/')) return 'firebase-vendor'
+          if (id.includes('/chart.js/')) return 'chart-vendor'
+          if (id.includes('/vue-i18n/')) return 'i18n-vendor'
+          if (id.includes('/vue-router/')) return 'vue-router-vendor'
+          if (id.includes('/quasar/')) return 'quasar-vendor'
+          if (id.includes('/axios/')) return 'axios-vendor'
+          return 'vendor'
+        }
+        viteConf.build.chunkSizeWarningLimit = 800
+      },
       // viteVuePluginOptions: {},
 
       vitePlugins: [

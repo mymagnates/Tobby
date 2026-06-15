@@ -347,6 +347,23 @@
                   />
                   <span v-else class="detail-value">{{ selectedProperty?.status || 'N/A' }}</span>
                 </div>
+
+                <div class="detail-item detail-item--wide">
+                  <label class="detail-label">Notes:</label>
+                  <q-input
+                    v-if="isEditMode"
+                    v-model="selectedProperty.notes"
+                    type="textarea"
+                    autogrow
+                    outlined
+                    dense
+                    class="detail-input"
+                    hint="Internal notes for non-standard property information."
+                  />
+                  <span v-else class="detail-value detail-value--notes">
+                    {{ selectedProperty?.notes || 'No notes yet.' }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1268,6 +1285,7 @@ const savePropertyChanges = async () => {
       nickname: selectedProperty.value.nickname || '',
       type: selectedProperty.value.type || '',
       status: selectedProperty.value.status || '',
+      notes: String(selectedProperty.value.notes || '').trim(),
       spec: {
         ...(selectedProperty.value.spec || {}),
       },
@@ -1604,6 +1622,10 @@ const cancelEdit = () => {
   gap: 8px;
 }
 
+.detail-item--wide {
+  grid-column: 1 / -1;
+}
+
 .detail-label {
   font-size: 0.9rem;
   font-weight: 600;
@@ -1616,6 +1638,10 @@ const cancelEdit = () => {
   color: #1a1a1a;
   font-weight: 500;
   padding: 8px 0;
+}
+
+.detail-value--notes {
+  white-space: pre-line;
 }
 
 .detail-input {

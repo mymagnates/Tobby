@@ -224,6 +224,13 @@ Use it to track current priorities, assigned work, execution results, and blocke
 - Files changed: `src/pages/IndexPage.vue`.
 - Verification: `npm run build` passed successfully after the PM quota UI addition; only the pre-existing build warnings remain.
 
+### 2026-06-15 - Frontend Agent Startup Boot De-blocking
+
+- Removed the startup-level boot wait from `src/boot/auth-init.js` so the app can mount immediately and hydrate auth in the background instead of blocking first paint.
+- Kept auth sync behavior intact by leaving the auth state listener active after mount.
+- Files changed: `src/boot/auth-init.js`.
+- Verification: `npm run build` passed successfully after the boot change; only the existing Firebase dynamic import warning remains.
+
 ### 2026-06-10 - Frontend Agent PM-only Public Landing
 
 - Applied `docs/WEB_LANDING_PM_ONLY_SCOPE_V01.md` to the public landing/register surface.

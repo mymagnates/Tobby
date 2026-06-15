@@ -916,19 +916,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter, isNavigationFailure, NavigationFailureType } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import { marketplaceApi } from '../services/webApiClient'
-import CreateMxRecord from '../components/CreateMxRecord.vue'
-import CreateTransaction from '../components/CreateTransaction.vue'
-import CreateLease from '../components/CreateLease.vue'
-import CreateAsset from '../components/CreateAsset.vue'
-import CreateDocument from '../components/CreateDocument.vue'
-import CreateReminder from '../components/CreateReminder.vue'
-import DetailShell from '../components/details/DetailShell.vue'
+const CreateMxRecord = defineAsyncComponent(() => import('../components/CreateMxRecord.vue'))
+const CreateTransaction = defineAsyncComponent(() => import('../components/CreateTransaction.vue'))
+const CreateLease = defineAsyncComponent(() => import('../components/CreateLease.vue'))
+const CreateAsset = defineAsyncComponent(() => import('../components/CreateAsset.vue'))
+const CreateDocument = defineAsyncComponent(() => import('../components/CreateDocument.vue'))
+const CreateReminder = defineAsyncComponent(() => import('../components/CreateReminder.vue'))
+const DetailShell = defineAsyncComponent(() => import('../components/details/DetailShell.vue'))
 
 const router = useRouter()
 const route = useRoute()

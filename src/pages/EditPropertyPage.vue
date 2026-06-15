@@ -88,6 +88,19 @@
                 </div>
               </div>
 
+              <div class="row q-gutter-md">
+                <div class="col-12">
+                  <q-input
+                    v-model="propertyData.notes"
+                    type="textarea"
+                    autogrow
+                    outlined
+                    label="Notes"
+                    hint="Internal notes for non-standard property information."
+                  />
+                </div>
+              </div>
+
               <q-card class="q-mt-md" flat bordered>
                 <q-card-section>
                   <div class="text-h6 q-mb-sm">Your Role</div>
@@ -324,6 +337,7 @@ const propertyData = ref({
   nickname: '',
   type: 'Residential',
   status: 'Active',
+  notes: '',
   currentRoles: ['pm'],
   spec: {
     type: 'Single Family',
@@ -452,6 +466,7 @@ onMounted(async () => {
       nickname: property.nickname || '',
       type: property.type || property.spec?.type || 'Single Family',
       status: property.status || 'Active',
+      notes: property.notes || '',
       currentRoles: (() => {
         const roles = Array.from(new Set(
           userRoles
@@ -539,6 +554,7 @@ const onSubmit = async () => {
       nickname: String(propertyData.value.nickname || '').trim(),
       type: propertyData.value.type,
       status: propertyData.value.status,
+      notes: String(propertyData.value.notes || '').trim(),
       spec: {
         ...propertyData.value.spec,
         type: propertyData.value.type,

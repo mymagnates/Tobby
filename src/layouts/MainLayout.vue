@@ -2125,6 +2125,7 @@ watch(
 
 .header-center-title {
   flex: 1;
+  min-width: 0;
   text-align: center;
   font-size: 1.04rem;
   font-weight: 700;
@@ -2137,6 +2138,7 @@ watch(
 .header-handout-logo {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   cursor: pointer;
   padding: 8px 16px;
   border-radius: 8px;
@@ -2180,6 +2182,7 @@ watch(
 .header-actions {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
   margin-left: 12px;
 }
@@ -2548,6 +2551,7 @@ watch(
   .dashboard-header .header-toolbar {
     padding-left: 2px;
     padding-right: 16px;
+    gap: 4px;
   }
 
   .page-container {
@@ -2584,11 +2588,23 @@ watch(
   }
 
   .header-app-title {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
+  }
+
+  .header-handout-logo {
+    padding: 6px 8px;
+  }
+
+  .header-center-title {
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .header-actions {
     gap: 4px;
+    margin-left: 4px;
   }
 
   .action-btn {

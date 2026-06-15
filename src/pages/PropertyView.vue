@@ -125,6 +125,10 @@
                     </q-chip>
                   </div>
                 </div>
+                <div v-if="selectedProperty.notes" class="info-item info-item--wide">
+                  <div class="info-label">Notes</div>
+                  <div class="info-value info-value--notes">{{ selectedProperty.notes }}</div>
+                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -1026,6 +1030,25 @@
                         >
                           {{ getRoleLabel(selectedProperty.userRole) }}
                         </q-chip>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <q-input
+                      v-if="isEditMode"
+                      v-model="selectedProperty.notes"
+                      type="textarea"
+                      autogrow
+                      label="Notes"
+                      outlined
+                      dense
+                      bg-color="grey-1"
+                      hint="Internal notes for non-standard property information."
+                    />
+                    <div v-else class="detail-display-card detail-display-card--notes">
+                      <div class="detail-display-label">Notes</div>
+                      <div class="detail-display-value detail-display-value--notes">
+                        {{ selectedProperty.notes || 'No notes yet.' }}
                       </div>
                     </div>
                   </div>
@@ -3469,6 +3492,7 @@ const saveProperty = async () => {
       nickname: selectedProperty.value.nickname || '',
       type: selectedProperty.value.type || '',
       status: selectedProperty.value.status || '',
+      notes: String(selectedProperty.value.notes || '').trim(),
       spec: {
         ...(selectedProperty.value.spec || {}),
       },
@@ -3825,6 +3849,10 @@ const cancelEdit = () => {
   justify-content: center;
 }
 
+.info-item--wide {
+  grid-column: 1 / -1;
+}
+
 .info-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -3842,6 +3870,14 @@ const cancelEdit = () => {
   line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.info-value--notes {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
 }
 
 .history-card-header {
@@ -4176,6 +4212,10 @@ const cancelEdit = () => {
   padding: 12px 14px;
 }
 
+.detail-display-card--notes {
+  min-height: 96px;
+}
+
 .detail-display-label {
   font-size: 0.76rem;
   font-weight: 700;
@@ -4189,6 +4229,10 @@ const cancelEdit = () => {
   color: var(--neutral-800);
   font-weight: 500;
   line-height: 1.35;
+}
+
+.detail-display-value--notes {
+  white-space: pre-line;
 }
 
 .property-detail-bottom-space {

@@ -131,6 +131,20 @@
                 </template>
               </q-select>
             </div>
+            <div class="col-12">
+              <q-input
+                v-model="propertyData.notes"
+                type="textarea"
+                autogrow
+                outlined
+                label="Notes"
+                hint="Optional internal notes for non-standard property information."
+              >
+                <template v-slot:prepend>
+                  <q-icon name="notes" />
+                </template>
+              </q-input>
+            </div>
           </div>
         </q-card-section>
       </q-card>
@@ -394,6 +408,7 @@ const propertyData = reactive({
   nickname: '',
   type: '',
   status: 'Active',
+  notes: '',
   spec: {
     type: 'Single Family',
     story: 1,
@@ -500,6 +515,7 @@ const onSubmit = async () => {
       nickname: String(propertyData.nickname || '').trim(),
       type: propertyData.type,
       status: propertyData.status,
+      notes: String(propertyData.notes || '').trim(),
       spec: {
         ...propertyData.spec,
         type: propertyData.type,

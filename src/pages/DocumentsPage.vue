@@ -571,7 +571,7 @@ watch(
 
 .documents-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 6px;
@@ -582,6 +582,7 @@ watch(
 }
 
 .documents-search {
+  min-width: 0;
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid rgba(20, 28, 45, 0.08);
@@ -609,6 +610,8 @@ watch(
 }
 
 .documents-add-btn {
+  justify-self: end;
+  flex-shrink: 0;
   min-width: 76px;
   min-height: 36px;
   border-radius: var(--border-radius-btn);
@@ -932,11 +935,16 @@ watch(
   }
 
   .documents-toolbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
   }
 
   .documents-search {
     min-width: 0;
+  }
+
+  .documents-add-btn {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .source-stat-tiles {
