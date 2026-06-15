@@ -96,6 +96,47 @@
       </q-card-section>
     </q-card>
 
+    <q-card flat bordered class="sp-profile-card q-mb-sm">
+      <q-card-section class="q-px-md q-py-sm">
+        <div class="text-subtitle1 text-weight-medium">Usage Quotas</div>
+        <div class="text-caption text-grey-7 q-mb-sm">AI and storage usage for this account</div>
+
+        <div class="quota-card q-mb-sm" :class="`quota-card--${aiTokensStatus}`">
+          <div class="quota-card-head q-mb-xs">
+            <div>
+              <div class="text-subtitle2">AI Tokens</div>
+              <div class="quota-status-copy">{{ aiTokensStatusLabel }}</div>
+            </div>
+            <div class="quota-usage-copy">{{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}</div>
+          </div>
+          <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="quotaColor(aiTokensStatus)" />
+          <div class="quota-card-foot q-mt-xs">
+            <span>{{ aiTokensRemainingDisplay }} left this month</span>
+          </div>
+          <div v-if="aiTokensMessage" class="quota-message" :class="`text-${quotaColor(aiTokensStatus)}`">
+            {{ aiTokensMessage }}
+          </div>
+        </div>
+
+        <div class="quota-card" :class="`quota-card--${storageStatus}`">
+          <div class="quota-card-head q-mb-xs">
+            <div>
+              <div class="text-subtitle2">Storage</div>
+              <div class="quota-status-copy">{{ storageStatusLabel }}</div>
+            </div>
+            <div class="quota-usage-copy">{{ storageUsedDisplay }} / {{ storageLimitDisplay }}</div>
+          </div>
+          <q-linear-progress rounded size="8px" :value="storageRatio" :color="quotaColor(storageStatus)" />
+          <div class="quota-card-foot q-mt-xs">
+            <span>{{ storageRemainingDisplay }} remaining</span>
+          </div>
+          <div v-if="storageMessage" class="quota-message" :class="`text-${quotaColor(storageStatus)}`">
+            {{ storageMessage }}
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <q-dialog v-model="showContactEditDialog">
       <q-card class="profile-contact-dialog">
         <q-card-section class="dialog-header profile-contact-dialog__header">
@@ -194,12 +235,13 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { resolveSpSlug } from 'src/utils/spPosts'
 import { requestAccountDeletion } from 'src/services/accountPrivacy'
+import { billingApi } from 'src/services/webApiClient'
 
 const userStore = useUserDataStore()
 const router = useRouter()
@@ -226,12 +268,64 @@ const showDeleteAccountDialog = ref(false)
 const deletingAccount = ref(false)
 const deleteAccountConfirmText = ref('')
 const deleteAccountReason = ref('')
+const billingUsage = ref({})
 const contactForm = ref({
   contact: '',
   email: '',
   phone: '',
   address: '',
 })
+
+const numberFormatter = new Intl.NumberFormat('en-US')
+const formatStorage = (mb) => {
+  const value = Number(mb || 0)
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`
+  return `${Math.round(value)} MB`
+}
+
+const aiTokensUsed = computed(() => Number(billingUsage.value.ai_tokens_used || 0))
+const aiTokensLimit = computed(() => Math.max(1, Number(billingUsage.value.ai_tokens_limit || 0)))
+const aiTokensRatio = computed(() => Math.min(1, aiTokensUsed.value / aiTokensLimit.value))
+const aiTokensRemaining = computed(() => Math.max(0, aiTokensLimit.value - aiTokensUsed.value))
+const aiTokensStatus = computed(() => {
+  if (aiTokensRatio.value >= 1) return 'blocked'
+  if (aiTokensRatio.value >= 0.8) return 'warning'
+  return 'normal'
+})
+const aiTokensStatusLabel = computed(() => {
+  if (aiTokensStatus.value === 'blocked') return 'limit reached'
+  if (aiTokensStatus.value === 'warning') return 'nearing limit'
+  return 'normal'
+})
+const aiTokensUsedDisplay = computed(() => numberFormatter.format(aiTokensUsed.value))
+const aiTokensLimitDisplay = computed(() => numberFormatter.format(aiTokensLimit.value))
+const aiTokensRemainingDisplay = computed(() => numberFormatter.format(aiTokensRemaining.value))
+const aiTokensMessage = computed(() => String(billingUsage.value.ai_tokens_message || '').trim())
+
+const storageUsedMb = computed(() => Number(billingUsage.value.storage_used_mb || 0))
+const storageLimitMb = computed(() => Math.max(1, Number(billingUsage.value.storage_limit_mb || 0)))
+const storageRatio = computed(() => Math.min(1, storageUsedMb.value / storageLimitMb.value))
+const storageRemainingMb = computed(() => Math.max(0, storageLimitMb.value - storageUsedMb.value))
+const storageStatus = computed(() => {
+  if (storageRatio.value >= 1) return 'blocked'
+  if (storageRatio.value >= 0.8) return 'warning'
+  return 'normal'
+})
+const storageStatusLabel = computed(() => {
+  if (storageStatus.value === 'blocked') return 'limit reached'
+  if (storageStatus.value === 'warning') return 'nearing limit'
+  return 'normal'
+})
+const storageUsedDisplay = computed(() => formatStorage(storageUsedMb.value))
+const storageLimitDisplay = computed(() => formatStorage(storageLimitMb.value))
+const storageRemainingDisplay = computed(() => formatStorage(storageRemainingMb.value))
+const storageMessage = computed(() => String(billingUsage.value.storage_message || '').trim())
+
+const quotaColor = (status) => {
+  if (status === 'blocked') return 'negative'
+  if (status === 'warning') return 'warning'
+  return 'primary'
+}
 
 const hydrateForm = () => {
   const profile = userStore.userProfile || {}
@@ -254,6 +348,15 @@ const hydrateForm = () => {
     : profile.services || ''
   form.address = profile.address || ''
   form.bio = profile.bio || ''
+}
+
+const loadBillingUsage = async () => {
+  try {
+    billingUsage.value = await billingApi.getUsage()
+  } catch (error) {
+    console.warn('Failed to load billing usage for SP profile:', error)
+    billingUsage.value = {}
+  }
 }
 
 const openContactEditDialog = (focusField) => {
@@ -359,6 +462,7 @@ const goBack = () => {
 
 onMounted(() => {
   hydrateForm()
+  loadBillingUsage()
 })
 </script>
 
@@ -399,5 +503,55 @@ onMounted(() => {
 .delete-account-dialog {
   width: min(560px, 92vw);
   border-radius: var(--border-radius-card);
+}
+
+.quota-card {
+  padding: 12px 14px;
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-sm);
+  background: #fff;
+}
+
+.quota-card + .quota-card {
+  margin-top: 12px;
+}
+
+.quota-card--warning {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.quota-card--blocked {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.quota-card-head,
+.quota-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quota-status-copy {
+  font-size: 12px;
+  color: var(--neutral-500);
+  text-transform: capitalize;
+}
+
+.quota-usage-copy {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--neutral-700);
+}
+
+.quota-card-foot {
+  font-size: 12px;
+  color: var(--neutral-500);
+}
+
+.quota-message {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 </style>

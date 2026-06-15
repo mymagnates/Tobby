@@ -1,4 +1,5 @@
 import { auth } from 'src/boot/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 
 const RAW_API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
 const isUnsafeLocalApiBase =
@@ -28,7 +29,7 @@ const normalizeError = (payload, fallbackMessage) => {
 }
 
 const buildAuthHeaders = async () => {
-  const currentUser = auth.currentUser
+  const currentUser = await waitForAuthenticatedUser()
   const token = currentUser?.getIdToken ? await currentUser.getIdToken() : null
   if (!token) {
     throw new Error('Please sign in again before submitting this request.')
@@ -39,6 +40,30 @@ const buildAuthHeaders = async () => {
     Authorization: `Bearer ${token}`,
     'X-User-Id': currentUser.uid,
   }
+}
+
+const waitForAuthenticatedUser = async () => {
+  if (auth.currentUser) return auth.currentUser
+
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady()
+    if (auth.currentUser) return auth.currentUser
+  }
+
+  return await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      if (unsubscribe) unsubscribe()
+      reject(new Error('Please sign in again before submitting this request.'))
+    }, 3500)
+
+    let unsubscribe = null
+    unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      if (!nextUser) return
+      clearTimeout(timeout)
+      if (unsubscribe) unsubscribe()
+      resolve(nextUser)
+    })
+  })
 }
 
 const request = async (path, { method = 'POST', body } = {}) => {

@@ -26,7 +26,7 @@ describe('API boundary contract v0.1', () => {
 
   it('includes request_id on success responses', async () => {
     const { response, payload } = await call('/auth/me', {
-      headers: { 'X-User-Id': 'u-pm-1' },
+      headers: { 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po' },
     })
     expect(response.status).toBe(200)
     expect(typeof payload.request_id).toBe('string')
@@ -55,6 +55,24 @@ describe('API boundary contract v0.1', () => {
     expect(typeof payload.upgrade_hint).toBe('string')
   })
 
+  it('returns backend-owned AI and storage usage fields', async () => {
+    const { response, payload } = await call('/billing/usage', {
+      headers: { 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po' },
+    })
+    expect(response.status).toBe(200)
+    expect(payload).toMatchObject({
+      ai_tokens_used: expect.any(Number),
+      ai_tokens_limit: expect.any(Number),
+      ai_tokens_status: expect.any(String),
+      ai_tokens_message: expect.any(String),
+      storage_used_mb: expect.any(Number),
+      storage_limit_mb: expect.any(Number),
+      storage_status: expect.any(String),
+      storage_message: expect.any(String),
+      gate_status: expect.any(String),
+    })
+  })
+
   it('returns seeded task when store is pre-seeded', async () => {
     const { response, payload } = await call('/tasks/task-1', {
       headers: { 'X-User-Id': 'u-tt-1' },
@@ -75,7 +93,7 @@ describe('API boundary contract v0.1', () => {
 
     const allowed = await call('/leases/lease-1/inventories', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-User-Id': 'u-pm-1' },
+      headers: { 'Content-Type': 'application/json', 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po' },
       body: JSON.stringify({ assigned_tt_id: 'u-tt-1' }),
     })
     expect(allowed.response.status).toBe(200)

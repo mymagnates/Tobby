@@ -176,6 +176,22 @@ const checkPlanGate = ({ actor, action }) => {
   return { blocked: false, response: { gate_status: 'ok' } }
 }
 
+const getQuotaStatus = (used, limit) => {
+  const safeUsed = Math.max(0, Number(used || 0))
+  const safeLimit = Math.max(0, Number(limit || 0))
+  if (safeLimit <= 0) return safeUsed > 0 ? 'blocked' : 'normal'
+  const ratio = safeUsed / safeLimit
+  if (ratio >= 1) return 'blocked'
+  if (ratio >= 0.8) return 'warning'
+  return 'normal'
+}
+
+const getQuotaGateMessage = (status, label) => {
+  if (status === 'blocked') return `${label} limit reached. Upgrade required.`
+  if (status === 'warning') return `${label} usage is nearing the limit.`
+  return ''
+}
+
 const findFirst = (collection, predicate) => {
   for (const row of collection.values()) {
     if (predicate(row)) return row
@@ -1408,6 +1424,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const getFirestoreTaskById = async (id) => {
+    const seededTask = store.tasks.get(id)
+    if (seededTask) return seededTask
     try {
       const db = getDb()
       const doc = await db.collection(TASKS_COLLECTION).doc(id).get()
@@ -7168,22 +7186,37 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   })
 
   route('GET', '/billing/profile-summary', async ({ actor, res, requestId }) => {
+    const aiStatus = getQuotaStatus(actor.billing.ai_tokens_used, actor.billing.ai_tokens_limit)
+    const storageStatus = getQuotaStatus(actor.billing.storage_used_mb, actor.billing.storage_limit_mb)
     ok(res, requestId, {
       plan_name: actor.billing.plan_name,
       subscription_status: actor.billing.subscription_status,
       next_renewal_date: actor.billing.next_renewal_date,
-      gate_status: 'ok',
+      gate_status: [aiStatus, storageStatus].includes('blocked') ? 'blocked' : 'ok',
     })
   })
 
   route('GET', '/billing/usage', async ({ actor, res, requestId }) => {
+    const aiTokensUsed = Number(actor.billing.ai_tokens_used || 0)
+    const aiTokensLimit = Number(actor.billing.ai_tokens_limit || 0)
+    const storageUsedMb = Number(actor.billing.storage_used_mb || 0)
+    const storageLimitMb = Number(actor.billing.storage_limit_mb || 0)
+    const aiStatus = getQuotaStatus(aiTokensUsed, aiTokensLimit)
+    const storageStatus = getQuotaStatus(storageUsedMb, storageLimitMb)
     ok(res, requestId, {
       properties_used: actor.billing.properties_used,
       properties_limit: actor.billing.properties_limit,
+      ai_tokens_used: aiTokensUsed,
+      ai_tokens_limit: aiTokensLimit,
+      ai_tokens_status: aiStatus,
+      ai_tokens_message: getQuotaGateMessage(aiStatus, 'AI token'),
       voice_used: actor.billing.voice_used,
       voice_limit: actor.billing.voice_limit,
-      storage_used_mb: actor.billing.storage_used_mb,
-      storage_limit_mb: actor.billing.storage_limit_mb,
+      storage_used_mb: storageUsedMb,
+      storage_limit_mb: storageLimitMb,
+      storage_status: storageStatus,
+      storage_message: getQuotaGateMessage(storageStatus, 'Storage'),
+      gate_status: [aiStatus, storageStatus].includes('blocked') ? 'blocked' : 'ok',
     })
   })
 
@@ -7194,6 +7227,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   route('POST', '/billing/upgrade', async ({ actor, body, res, requestId }) => {
     actor.billing.plan_name = body?.plan_name || 'pro'
     actor.billing.properties_limit = actor.billing.plan_name === 'pro' ? 50 : 3
+    actor.billing.ai_tokens_limit = actor.billing.plan_name === 'pro' ? 5000 : 500
     actor.billing.voice_limit = actor.billing.plan_name === 'pro' ? 500 : 0
     actor.billing.storage_limit_mb = actor.billing.plan_name === 'pro' ? 5120 : 512
     actor.billing.history.push({

@@ -152,22 +152,43 @@
           </div>
 
           <div class="row q-gutter-sm">
-            <q-select
-              v-model="form.repeat_by"
-              :options="repeatOptions"
-              option-label="label"
-              option-value="value"
-              label="Repeat By"
+            <q-input
+              v-model.number="form.repeat_every"
+              label="Repeat Every"
+              type="number"
+              min="1"
+              step="1"
               outlined
               dense
-              emit-value
-              map-options
-              clearable
-              class="col-12 col-md-6"
+              :disable="form.repeat_unit === 'one-time'"
+              :rules="[
+                (val) =>
+                  form.repeat_unit === 'one-time' ||
+                  (Number(val) >= 1 && Number.isInteger(Number(val))) ||
+                  'Repeat count must be a whole number greater than 0',
+              ]"
+              class="col-12 col-md-3"
               bg-color="grey-1"
             >
               <template #prepend>
                 <q-icon name="repeat" color="primary" />
+              </template>
+            </q-input>
+            <q-select
+              v-model="form.repeat_unit"
+              :options="repeatUnitOptions"
+              option-label="label"
+              option-value="value"
+              label="Repeat Unit"
+              outlined
+              dense
+              emit-value
+              map-options
+              class="col-12 col-md-3"
+              bg-color="grey-1"
+            >
+              <template #prepend>
+                <q-icon name="calendar_month" color="primary" />
               </template>
             </q-select>
             <q-input
@@ -248,13 +269,29 @@ const categoryOptions = [
   { label: 'Other', value: 'other' },
 ]
 
-const repeatOptions = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Yearly', value: 'yearly' },
+const repeatUnitOptions = [
+  { label: 'Days', value: 'days' },
+  { label: 'Weeks', value: 'weeks' },
+  { label: 'Months', value: 'months' },
+  { label: 'Years', value: 'years' },
   { label: 'One-time', value: 'one-time' },
 ]
+
+const repeatUnitToLegacyRepeatBy = {
+  days: 'daily',
+  weeks: 'weekly',
+  months: 'monthly',
+  years: 'yearly',
+  'one-time': 'one-time',
+}
+
+const legacyRepeatByToUnit = {
+  daily: 'days',
+  weekly: 'weeks',
+  monthly: 'months',
+  yearly: 'years',
+  'one-time': 'one-time',
+}
 
 const statusOptions = [
   { label: 'Active', value: true },
@@ -267,6 +304,8 @@ const createEmptyForm = () => ({
   start_date: new Date().toISOString().split('T')[0],
   due_date: new Date().toISOString().split('T')[0],
   repeat_by: '',
+  repeat_every: 1,
+  repeat_unit: 'one-time',
   amount: null,
   note: '',
   status: true,
@@ -288,6 +327,11 @@ watch(
       start_date: value.start_date || new Date().toISOString().split('T')[0],
       due_date: value.due_date || value.start_date || new Date().toISOString().split('T')[0],
       repeat_by: value.repeat_by || '',
+      repeat_every: Number(value.repeat_every || value.repeat_interval || 1),
+      repeat_unit:
+        value.repeat_unit ||
+        legacyRepeatByToUnit[String(value.repeat_by || 'one-time').trim().toLowerCase()] ||
+        'one-time',
       amount: value.amount ?? null,
       note: value.note || '',
       status: value.status !== false,
@@ -314,6 +358,17 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => form.value.repeat_unit,
+  (unit) => {
+    if (unit === 'one-time') {
+      form.value.repeat_every = 1
+    } else if (!form.value.repeat_every || Number(form.value.repeat_every) < 1) {
+      form.value.repeat_every = 1
+    }
+  },
 )
 
 const onSubmit = async () => {
@@ -350,7 +405,20 @@ const onSubmit = async () => {
       return
     }
 
-    const normalizedRepeat = String(form.value.repeat_by?.value || form.value.repeat_by || '').trim().toLowerCase()
+    const normalizedRepeatUnit = String(
+      form.value.repeat_unit?.value || form.value.repeat_unit || 'one-time',
+    )
+      .trim()
+      .toLowerCase()
+    const normalizedRepeatEvery =
+      normalizedRepeatUnit === 'one-time'
+        ? null
+        : Math.max(1, Math.floor(Number(form.value.repeat_every || 1)))
+    const normalizedRepeat = repeatUnitToLegacyRepeatBy[normalizedRepeatUnit] || 'one-time'
+    if (normalizedRepeatUnit !== 'one-time' && !normalizedRepeatEvery) {
+      Notify.create({ type: 'negative', message: 'Please enter a valid repeat count', position: 'top' })
+      return
+    }
     const amountValue = form.value.amount
     const normalizedAmount = amountValue === null || amountValue === '' || Number.isNaN(Number(amountValue))
       ? null
@@ -361,6 +429,8 @@ const onSubmit = async () => {
       start_date: form.value.start_date,
       due_date: form.value.due_date || form.value.start_date,
       repeat_by: normalizedRepeat || 'one-time',
+      repeat_every: normalizedRepeatEvery,
+      repeat_unit: normalizedRepeatUnit,
       amount: normalizedAmount,
       note: String(form.value.note || '').trim(),
       status: !!form.value.status,

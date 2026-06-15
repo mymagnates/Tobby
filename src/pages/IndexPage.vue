@@ -289,7 +289,6 @@
                   <div class="feed-card-content">
                     <div class="feed-card-header">
                       <div class="post-title">{{ post.title }}</div>
-                      <div class="post-time">{{ formatEventTime(post) }}</div>
                     </div>
                     <div class="post-body">{{ post.brief }}</div>
                     <div
@@ -301,8 +300,11 @@
                     <div class="feed-card-footer">
                       <span v-if="post.amount" class="post-amount">{{ post.amount }}</span>
                       <span v-else></span>
-                      <div class="post-property">
-                        <q-icon name="home" size="12px" class="q-mr-xs" />{{ post.property }}
+                      <div class="feed-card-meta">
+                        <div class="post-time post-time--compact">{{ formatCompactEventTime(post) }}</div>
+                        <div class="post-property">
+                          <q-icon name="home" size="12px" class="q-mr-xs" />{{ post.property }}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -346,7 +348,7 @@
                     <span class="feed-tile-type" :class="`feed-tile-type--${post.type}`">{{
                       formatFeedType(post.type)
                     }}</span>
-                    <div class="post-time">{{ formatEventTime(post) }}</div>
+                    <div class="post-time post-time--compact">{{ formatCompactEventTime(post) }}</div>
                   </div>
                   <div class="feed-tile-title">{{ post.title }}</div>
                   <div class="feed-tile-brief">{{ post.brief }}</div>
@@ -530,7 +532,7 @@
           </div>
           <div class="detail-block">
             <div class="detail-label">Repeat</div>
-            <div class="detail-value">{{ selectedReminder.repeat_by || 'One-time' }}</div>
+            <div class="detail-value">{{ formatReminderRepeat(selectedReminder) }}</div>
           </div>
           <div class="detail-block">
             <div class="detail-label">Amount</div>
@@ -770,7 +772,7 @@
               {{ selectedReminderForHistory.title }}
             </div>
             <div class="text-caption text-grey-6">
-              Current Due Date: {{ formatReminderDate(selectedReminderForHistory.due_date) }}
+              Current Due Date: {{ formatReminderDate(getReminderEffectiveDueDate(selectedReminderForHistory)) }}
             </div>
           </div>
 
@@ -883,7 +885,7 @@
                 <q-item-label class="text-weight-medium">{{ reminder.title }}</q-item-label>
                 <q-item-label caption>
                   {{ reminder.property_name || 'Unknown Property' }} •
-                  {{ formatReminderDate(reminder.due_date) }}
+                  {{ formatReminderDate(getReminderEffectiveDueDate(reminder)) }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -1183,6 +1185,21 @@ const formatEventTime = (item) => {
   if (diffDays === 1) relativeLabel = '1 day ago'
   if (diffDays > 1) relativeLabel = `${diffDays} days ago`
   return `Created: ${eventDate.toLocaleDateString()} • ${relativeLabel}`
+}
+const formatCompactEventTime = (item) => {
+  const eventDate = getEventDate(item)
+  if (!eventDate) return 'N/A'
+  const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
+  const today = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+  const diffDays = Math.floor((today - eventDay) / MS_PER_DAY)
+  if (diffDays <= 0) return 'Today'
+  if (diffDays < 7) return `${diffDays}d`
+  const sameYear = eventDate.getFullYear() === today.getFullYear()
+  return eventDate.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: '2-digit' }),
+  })
 }
 
 const MEDIA_OBJECT_KEYS = [
@@ -1630,20 +1647,90 @@ const normalizeReminderRepeat = (value) =>
   String(value || 'one-time')
     .trim()
     .toLowerCase()
+const legacyRepeatByToUnit = {
+  daily: 'days',
+  weekly: 'weeks',
+  monthly: 'months',
+  yearly: 'years',
+  'one-time': 'one-time',
+}
+const normalizeReminderRepeatUnit = (reminder = {}) => {
+  const explicitUnit = String(reminder?.repeat_unit || '').trim().toLowerCase()
+  if (['day', 'days'].includes(explicitUnit)) return 'days'
+  if (['week', 'weeks'].includes(explicitUnit)) return 'weeks'
+  if (['month', 'months'].includes(explicitUnit)) return 'months'
+  if (['year', 'years'].includes(explicitUnit)) return 'years'
+  if (explicitUnit === 'one-time') return 'one-time'
+  return legacyRepeatByToUnit[normalizeReminderRepeat(reminder?.repeat_by)] || 'one-time'
+}
+const getReminderRepeatEvery = (reminder = {}) => {
+  const num = Number(reminder?.repeat_every || reminder?.repeat_interval || 1)
+  return Number.isFinite(num) ? Math.max(1, Math.floor(num)) : 1
+}
+const isOneTimeReminder = (reminder = {}) => normalizeReminderRepeatUnit(reminder) === 'one-time'
+const formatReminderRepeat = (reminder = {}) => {
+  const unit = normalizeReminderRepeatUnit(reminder)
+  if (unit === 'one-time') return 'One-time'
+  const every = getReminderRepeatEvery(reminder)
+  const singularUnit = unit.replace(/s$/, '')
+  return `Every ${every} ${every === 1 ? singularUnit : unit}`
+}
 const getReminderDueDateValue = (reminder) => reminder?.due_date || reminder?.start_date
-const calculateReminderNextDueDate = (baseDateValue, repeatBy) => {
-  const repeatValue = normalizeReminderRepeat(repeatBy)
-  const base = toValidMidnight(baseDateValue) || toValidMidnight(new Date())
-  const next = new Date(base)
-  if (repeatValue === 'daily') next.setDate(next.getDate() + 1)
-  else if (repeatValue === 'weekly') next.setDate(next.getDate() + 7)
-  else if (repeatValue === 'monthly') next.setMonth(next.getMonth() + 1)
-  else if (repeatValue === 'yearly') next.setFullYear(next.getFullYear() + 1)
+const addReminderRepeatPeriod = (dateValue, reminderOrRepeatBy) => {
+  const reminder =
+    typeof reminderOrRepeatBy === 'object' && reminderOrRepeatBy !== null
+      ? reminderOrRepeatBy
+      : { repeat_by: reminderOrRepeatBy }
+  const repeatUnit = normalizeReminderRepeatUnit(reminder)
+  const repeatEvery = getReminderRepeatEvery(reminder)
+  const next = new Date(dateValue)
+  if (repeatUnit === 'days') next.setDate(next.getDate() + repeatEvery)
+  else if (repeatUnit === 'weeks') next.setDate(next.getDate() + 7 * repeatEvery)
+  else if (repeatUnit === 'months') next.setMonth(next.getMonth() + repeatEvery)
+  else if (repeatUnit === 'years') next.setFullYear(next.getFullYear() + repeatEvery)
   else next.setDate(next.getDate() + 30)
+  return toValidMidnight(next)
+}
+
+const getNextReminderRepeatOccurrence = (baseDateValue, reminder) => {
+  const base = toValidMidnight(baseDateValue)
+  if (!base) return null
+  const today = toValidMidnight(new Date())
+  let next = new Date(base)
+  let guard = 0
+  while (next < today && guard < 1000) {
+    next = addReminderRepeatPeriod(next, reminder)
+    guard += 1
+  }
+  return next
+}
+
+const getReminderEffectiveDueDate = (reminder) => {
+  const dueDate = toValidMidnight(reminder?.due_date)
+  const startDate = toValidMidnight(reminder?.start_date)
+  if (isOneTimeReminder(reminder)) return dueDate || startDate || null
+  const today = toValidMidnight(new Date())
+  const candidates = [
+    dueDate && dueDate >= today ? dueDate : null,
+    getNextReminderRepeatOccurrence(startDate, reminder),
+    getNextReminderRepeatOccurrence(dueDate, reminder),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime())
+  return candidates[0] || dueDate || startDate || null
+}
+const calculateReminderNextDueDate = (baseDateValue, repeatBy) => {
+  const base = toValidMidnight(baseDateValue) || toValidMidnight(new Date())
+  const next = addReminderRepeatPeriod(base, repeatBy)
   return toIsoDate(next)
 }
+const calculateReminderRenewalDueDate = (reminder) => {
+  const effectiveDueDate = getReminderEffectiveDueDate(reminder)
+  if (!effectiveDueDate) return calculateReminderNextDueDate(new Date(), reminder)
+  return calculateReminderNextDueDate(effectiveDueDate, reminder)
+}
 const getReminderDueStatusLabel = (reminder) => {
-  const dueDate = toValidMidnight(getReminderDueDateValue(reminder))
+  const dueDate = getReminderEffectiveDueDate(reminder)
   if (!dueDate) return 'Due: N/A'
   const today = toValidMidnight(new Date())
   const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / MS_PER_DAY)
@@ -1659,7 +1746,7 @@ const propertyReminderItems = computed(() =>
     const today = toMidnight(new Date())
     let daysDue = null
     let dueLabel = ''
-    const dueDate = toValidMidnight(getReminderDueDateValue(reminder))
+    const dueDate = getReminderEffectiveDueDate(reminder)
     if (dueDate) {
       daysDue = Math.floor((dueDate.getTime() - today.getTime()) / MS_PER_DAY)
       if (daysDue < 0) dueLabel = `${Math.abs(daysDue)}d overdue`
@@ -1679,7 +1766,7 @@ const propertyReminderItems = computed(() =>
       detailPath: '/reminders',
       dataType: 'reminder',
       dataId: normalizeId(reminder.id, reminder.reminder_id),
-      eventDate: reminder.created_date || reminder.due_date || reminder.start_date,
+      eventDate: dueDate || reminder.created_date || reminder.due_date || reminder.start_date,
     }
   }),
 )
@@ -1992,6 +2079,8 @@ const openReminderDetail = (item) => {
     note: source?.note || source?.brief || item?.brief || '',
     status: source?.status ?? true,
     repeat_by: source?.repeat_by || 'One-time',
+    repeat_every: source?.repeat_every || source?.repeat_interval || null,
+    repeat_unit: source?.repeat_unit || '',
     due_date: source?.due_date || source?.start_date || item?.due_date || item?.start_date || '',
     renewals: Array.isArray(source?.renewals) ? source.renewals : [],
   }
@@ -2036,8 +2125,8 @@ const renewReminderFromDetail = async () => {
 
     const todayIso = toIsoDate(new Date())
     const previousStartDate = current.start_date || todayIso
-    const previousDueDate = getReminderDueDateValue(current) || previousStartDate
-    const newDueDate = calculateReminderNextDueDate(previousDueDate, current.repeat_by)
+    const previousDueDate = toIsoDate(getReminderEffectiveDueDate(current)) || getReminderDueDateValue(current) || previousStartDate
+    const newDueDate = calculateReminderRenewalDueDate(current)
     const renewals = Array.isArray(current.renewals) ? [...current.renewals] : []
     renewals.push({
       renewed_at: new Date().toISOString(),
@@ -2130,10 +2219,8 @@ const dueSoonReminders = computed(() => {
   now.setHours(0, 0, 0, 0)
 
   return reminders.value.filter((reminder) => {
-    if (!reminder?.due_date) return false
-    const dueDate = new Date(reminder.due_date)
-    if (Number.isNaN(dueDate.getTime())) return false
-    dueDate.setHours(0, 0, 0, 0)
+    const dueDate = getReminderEffectiveDueDate(reminder)
+    if (!dueDate) return false
     const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     return diffDays >= 0 && diffDays <= 7
   })
@@ -2146,11 +2233,10 @@ const closeRenewalHistoryDialog = () => {
 }
 
 const getDueReminderChipLabel = (reminder) => {
-  if (!reminder?.due_date) return 'Unknown'
+  const dueDate = getReminderEffectiveDueDate(reminder)
+  if (!dueDate) return 'Unknown'
   const now = new Date()
   now.setHours(0, 0, 0, 0)
-  const dueDate = new Date(reminder.due_date)
-  dueDate.setHours(0, 0, 0, 0)
   const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return '1 Day'
@@ -2722,9 +2808,10 @@ watch(feedViewMode, (nextValue) => {
 
 .feed-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   grid-auto-flow: dense;
   gap: 8px;
+  align-items: start;
 }
 
 .feed-grid-empty {
@@ -2793,9 +2880,7 @@ watch(feedViewMode, (nextValue) => {
   line-height: 1.3;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .post-time {
@@ -2806,11 +2891,36 @@ watch(feedViewMode, (nextValue) => {
   line-height: 1.6;
 }
 
+.post-time--compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 72px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.95);
+  color: var(--neutral-600);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .feed-card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   margin-top: 4px;
+}
+
+.feed-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
 }
 
 .post-property {
@@ -2818,17 +2928,18 @@ watch(feedViewMode, (nextValue) => {
   color: var(--neutral-500);
   display: flex;
   align-items: center;
-  white-space: nowrap;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 180px;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .post-body {
   font-size: 0.8rem;
   color: var(--neutral-800);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .post-amount {
@@ -2860,16 +2971,19 @@ watch(feedViewMode, (nextValue) => {
 }
 
 .feed-tile-card {
+  align-self: start;
   overflow: hidden;
 }
 
 .feed-tile-section {
+  display: flex;
+  flex-direction: column;
   padding: 0 !important;
 }
 
 .feed-tile-thumb {
   width: 100%;
-  height: 104px;
+  height: 96px;
   background: linear-gradient(180deg, rgba(238, 242, 248, 0.95), rgba(225, 233, 244, 0.95));
 }
 
@@ -2877,7 +2991,8 @@ watch(feedViewMode, (nextValue) => {
   padding: 9px 10px 10px;
   display: flex;
   flex-direction: column;
-  min-height: 96px;
+  gap: 4px;
+  min-height: 0;
 }
 
 .feed-tile-top {
@@ -2928,28 +3043,20 @@ watch(feedViewMode, (nextValue) => {
   font-weight: 700;
   color: var(--neutral-900);
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .feed-tile-brief {
-  margin-top: 3px;
   font-size: 0.75rem;
   color: var(--neutral-800);
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .feed-tile-meta {
-  margin-top: auto;
-  padding-top: 6px;
+  padding-top: 4px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 6px;
 }
@@ -2969,10 +3076,8 @@ watch(feedViewMode, (nextValue) => {
 }
 
 .feed-tile--task .feed-tile-brief {
-  margin-top: 2px;
   font-size: 0.73rem;
   line-height: 1.24;
-  -webkit-line-clamp: 2;
 }
 
 .feed-tile--task .feed-tile-meta {
@@ -2982,61 +3087,22 @@ watch(feedViewMode, (nextValue) => {
 
 .feed-tile--wide {
   grid-column: span 2;
-  min-height: 202px;
-}
-
-.feed-tile--medium {
-  min-height: 164px;
-}
-
-.feed-tile--compact {
-  min-height: 122px;
-}
-
-.feed-tile--tall {
-  grid-row: span 2;
 }
 
 .feed-tile--feature {
   grid-column: span 2;
-  grid-row: span 2;
-  min-height: 292px;
-}
-
-.feed-tile--task.feed-tile--wide {
-  min-height: 190px;
-}
-
-.feed-tile--task.feed-tile--feature {
-  min-height: 272px;
 }
 
 .feed-tile--with-image.feed-tile--tall .feed-tile-thumb {
-  height: 142px;
+  height: 112px;
 }
 
 .feed-tile--with-image.feed-tile--feature .feed-tile-thumb {
-  height: 172px;
+  height: 128px;
 }
 
 .feed-tile--task.feed-tile--with-image.feed-tile--feature .feed-tile-thumb {
-  height: 156px;
-}
-
-.feed-tile--feature .feed-tile-body {
-  min-height: 118px;
-}
-
-.feed-tile--task.feed-tile--feature .feed-tile-body {
-  min-height: 108px;
-}
-
-.feed-tile--compact .feed-tile-body {
-  min-height: 84px;
-}
-
-.feed-tile--compact .feed-tile-brief {
-  -webkit-line-clamp: 2;
+  height: 120px;
 }
 
 .feed-empty-card {

@@ -17,6 +17,8 @@ const createUser = (id, role, plan = 'free') => ({
     next_renewal_date: null,
     properties_used: 0,
     properties_limit: plan === 'pro' ? 50 : 3,
+    ai_tokens_used: 0,
+    ai_tokens_limit: plan === 'pro' ? 5000 : 500,
     voice_used: 0,
     voice_limit: plan === 'pro' ? 500 : 0,
     storage_used_mb: 0,

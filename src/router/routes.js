@@ -21,6 +21,11 @@ const routes = [
         meta: { isPublic: true },
       },
       {
+        path: 'privacy',
+        component: () => import('pages/PrivacyPolicyPage.vue'),
+        meta: { isPublic: true },
+      },
+      {
         path: 'application-detail/:applicationId',
         component: () => import('pages/ApplicationDetailPage.vue'),
         meta: { isPublic: true },
@@ -181,6 +186,10 @@ const routes = [
   {
     path: '/login',
     redirect: '/public/login',
+  },
+  {
+    path: '/privacy',
+    redirect: '/public/privacy',
   },
   {
     path: '/lease-application/:leaseId?',

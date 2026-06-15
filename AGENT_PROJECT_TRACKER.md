@@ -209,6 +209,21 @@ Use it to track current priorities, assigned work, execution results, and blocke
 
 ## Execution Log
 
+### 2026-06-14 - Frontend Agent Privacy, Deletion, and Mobile Quota Fixes
+
+- Added a real `/privacy` SPA page and redirected `/public/privacy` to it so the web privacy policy link no longer falls into 404.
+- Updated the account deletion request flow to wait for auth readiness before building headers, which removes the silent no-op path on mobile when auth is still hydrating.
+- Added storage and AI usage quota visibility to the SP mobile profile so launch users can see credit/storage limits in-app.
+- Files changed: `src/pages/PrivacyPolicyPage.vue`, `src/router/routes.js`, `src/pages/UserProfilePage.vue`, `src/services/accountPrivacy.js`, `src/pages/SpProfilePage.vue`.
+- Verification: `npm run build` passed successfully after the route and UI changes; remaining output is limited to the existing Browserslist, Firebase dynamic import, and chunk-size warnings.
+
+### 2026-06-14 - Frontend Agent PM Mobile Quota Visibility
+
+- Added a quota tracker block to the PM mobile home/feed page so the PM workspace also shows AI token and storage usage at launch.
+- Reused the billing usage API on `IndexPage` and kept the display compact enough for the mobile feed layout.
+- Files changed: `src/pages/IndexPage.vue`.
+- Verification: `npm run build` passed successfully after the PM quota UI addition; only the pre-existing build warnings remain.
+
 ### 2026-06-10 - Frontend Agent PM-only Public Landing
 
 - Applied `docs/WEB_LANDING_PM_ONLY_SCOPE_V01.md` to the public landing/register surface.
@@ -346,6 +361,15 @@ Use it to track current priorities, assigned work, execution results, and blocke
 - Capacitor iOS build observation: native `index` chunk dropped from about 724 KB to about 64 KB; `npx quasar build -m capacitor -T ios --skip-pkg` synced iOS successfully.
 - Verification passed: `npm run build` and `npx quasar build -m capacitor -T ios --skip-pkg`.
 - Remaining warnings are existing Browserslist staleness, the Firebase dynamic/static import warning, and large vendor cache chunks for `vendor-quasar` and `vendor-firebase`.
+
+### 2026-06-14 - PM Mobile Quota Tracking
+
+- Added read-only PM quota tracking to the actual Capacitor mobile Account page rather than the desktop profile surface.
+- Mobile Account now calls the existing backend billing APIs for plan summary, usage, and credit balance through `billingApi`; it does not write Firestore and does not expose mobile purchase actions.
+- The quota card shows credit balance, AI token usage, storage usage, and property usage with lightweight mobile progress rows aligned to the current app styling.
+- Files changed: `src/pages/mobile/MobileAccountPage.vue`, `src/css/mobile.scss`.
+- Verification passed under Node 22: `npm run build` and `npx quasar build -m capacitor -T ios --skip-pkg`.
+- Remaining warnings are existing Browserslist staleness, Firebase dynamic/static import warning, and large vendor cache chunks.
 
 ## Blockers
 

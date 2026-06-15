@@ -131,16 +131,23 @@
             <q-card-section class="q-pa-sm">
               <div class="section-title q-mb-sm">Usage Quotas</div>
 
-              <div class="quota-card q-mb-sm">
-                <div class="row items-center justify-between q-mb-xs">
-                  <div class="text-subtitle2">AI Tokens</div>
-                  <div class="text-caption text-grey-7">{{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}</div>
+              <div
+                class="quota-card q-mb-sm"
+                :class="`quota-card--${aiTokensStatus}`"
+              >
+                <div class="quota-card-head q-mb-xs">
+                  <div>
+                    <div class="text-subtitle2">AI Tokens</div>
+                    <div class="text-caption text-grey-7">{{ aiTokensStatusLabel }}</div>
+                  </div>
+                  <div class="quota-usage-copy">{{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}</div>
                 </div>
-                <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="ratioColor(aiTokensRatio)" />
-                <div class="row items-center justify-between q-mt-xs">
+                <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="quotaColor(aiTokensStatus)" />
+                <div class="quota-card-foot q-mt-xs">
                   <div class="text-caption text-grey-7">{{ aiTokensRemainingDisplay }} left this month</div>
+                  <div class="text-caption text-grey-7">{{ aiTokensPercentDisplay }} used</div>
                   <q-btn
-                    v-if="showProfileBillingActions"
+                    v-if="showAiTokenAction"
                     outline
                     color="primary"
                     size="sm"
@@ -148,24 +155,37 @@
                     @click="buyAddon('ai_tokens_pack')"
                   />
                 </div>
+                <div v-if="aiTokensMessage" class="quota-message" :class="`text-${quotaColor(aiTokensStatus)}`">
+                  {{ aiTokensMessage }}
+                </div>
               </div>
 
-              <div class="quota-card">
-                <div class="row items-center justify-between q-mb-xs">
-                  <div class="text-subtitle2">Storage</div>
-                  <div class="text-caption text-grey-7">{{ storageUsedGb }} / {{ storageLimitGb }} GB</div>
+              <div
+                class="quota-card"
+                :class="`quota-card--${storageStatus}`"
+              >
+                <div class="quota-card-head q-mb-xs">
+                  <div>
+                    <div class="text-subtitle2">Storage</div>
+                    <div class="text-caption text-grey-7">{{ storageStatusLabel }}</div>
+                  </div>
+                  <div class="quota-usage-copy">{{ storageUsedDisplay }} / {{ storageLimitDisplay }}</div>
                 </div>
-                <q-linear-progress rounded size="8px" :value="storageRatio" :color="ratioColor(storageRatio)" />
-                <div class="row items-center justify-between q-mt-xs">
-                  <div class="text-caption text-grey-7">{{ Math.round(storageRatio * 100) }}% used</div>
+                <q-linear-progress rounded size="8px" :value="storageRatio" :color="quotaColor(storageStatus)" />
+                <div class="quota-card-foot q-mt-xs">
+                  <div class="text-caption text-grey-7">{{ storageRemainingDisplay }} left this month</div>
+                  <div class="text-caption text-grey-7">{{ storagePercentDisplay }} used</div>
                   <q-btn
-                    v-if="showProfileBillingActions"
+                    v-if="showStorageAction"
                     outline
                     color="primary"
                     size="sm"
                     label="Buy +20GB"
                     @click="buyAddon('storage_20gb')"
                   />
+                </div>
+                <div v-if="storageMessage" class="quota-message" :class="`text-${quotaColor(storageStatus)}`">
+                  {{ storageMessage }}
                 </div>
               </div>
             </q-card-section>
@@ -358,6 +378,8 @@ const router = useRouter()
 const userDataStore = useUserDataStore()
 const $q = useQuasar()
 const showProfileBillingActions = false
+const showAiTokenAction = computed(() => Boolean(showProfileBillingActions))
+const showStorageAction = computed(() => Boolean(showProfileBillingActions))
 
 const userProfile = computed(() => userDataStore.userProfile || {})
 const userRoles = computed(() => userDataStore.userRoles || [])
@@ -474,24 +496,58 @@ const pickUsageNumber = (keys = []) => {
 
 const numberFormatter = new Intl.NumberFormat('en-US')
 
-const aiTokensUsed = computed(() =>
-  pickUsageNumber(['ai_tokens_used', 'ai_token_used', 'tokens_used', 'token_used', 'voice_used'])
-)
-const aiTokensLimitRaw = computed(() =>
-  pickUsageNumber(['ai_tokens_limit', 'ai_token_limit', 'tokens_limit', 'token_limit', 'voice_limit'])
-)
+const aiTokensUsed = computed(() => pickUsageNumber(['ai_tokens_used']))
+const aiTokensLimitRaw = computed(() => pickUsageNumber(['ai_tokens_limit']))
 const aiTokensLimit = computed(() => Math.max(1, aiTokensLimitRaw.value))
 const aiTokensRatio = computed(() => Math.min(1, aiTokensUsed.value / aiTokensLimit.value))
 const aiTokensRemaining = computed(() => Math.max(0, aiTokensLimitRaw.value - aiTokensUsed.value))
 const aiTokensUsedDisplay = computed(() => numberFormatter.format(aiTokensUsed.value))
 const aiTokensLimitDisplay = computed(() => numberFormatter.format(aiTokensLimitRaw.value))
 const aiTokensRemainingDisplay = computed(() => numberFormatter.format(aiTokensRemaining.value))
+const aiTokensPercentDisplay = computed(() => `${Math.round(aiTokensRatio.value * 100)}%`)
 
 const storageUsedMb = computed(() => Number(billingUsage.value.storage_used_mb || 0))
-const storageLimitMb = computed(() => Math.max(1, Number(billingUsage.value.storage_limit_mb || 0)))
+const storageLimitRawMb = computed(() => Math.max(0, Number(billingUsage.value.storage_limit_mb || 0)))
+const storageLimitMb = computed(() => Math.max(1, storageLimitRawMb.value))
 const storageRatio = computed(() => Math.min(1, storageUsedMb.value / storageLimitMb.value))
-const storageUsedGb = computed(() => (storageUsedMb.value / 1024).toFixed(1))
-const storageLimitGb = computed(() => (storageLimitMb.value / 1024).toFixed(1))
+const storageRemainingMb = computed(() => Math.max(0, storageLimitRawMb.value - storageUsedMb.value))
+const storagePercentDisplay = computed(() => `${Math.round(storageRatio.value * 100)}%`)
+
+const formatStorage = (mb) => {
+  const value = Number(mb || 0)
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`
+  return `${Math.round(value)} MB`
+}
+
+const storageUsedDisplay = computed(() => formatStorage(storageUsedMb.value))
+const storageLimitDisplay = computed(() => formatStorage(storageLimitRawMb.value))
+const storageRemainingDisplay = computed(() => formatStorage(storageRemainingMb.value))
+
+const normalizeQuotaStatus = (status, ratio) => {
+  const normalized = String(status || '').toLowerCase()
+  if (['normal', 'warning', 'blocked'].includes(normalized)) return normalized
+  if (ratio >= 1) return 'blocked'
+  if (ratio >= 0.8) return 'warning'
+  return 'normal'
+}
+
+const aiTokensStatus = computed(() =>
+  normalizeQuotaStatus(billingUsage.value.ai_tokens_status, aiTokensRatio.value),
+)
+const storageStatus = computed(() =>
+  normalizeQuotaStatus(billingUsage.value.storage_status, storageRatio.value),
+)
+
+const quotaStatusLabel = (status) => {
+  if (status === 'blocked') return 'limit reached'
+  if (status === 'warning') return 'nearing limit'
+  return 'normal'
+}
+
+const aiTokensStatusLabel = computed(() => quotaStatusLabel(aiTokensStatus.value))
+const storageStatusLabel = computed(() => quotaStatusLabel(storageStatus.value))
+const aiTokensMessage = computed(() => String(billingUsage.value.ai_tokens_message || '').trim())
+const storageMessage = computed(() => String(billingUsage.value.storage_message || '').trim())
 
 const billingHistoryRows = computed(() =>
   (billingHistory.value || []).map((item, index) => {
@@ -521,9 +577,9 @@ const contactForm = ref({
   address: '',
 })
 
-const ratioColor = (ratio) => {
-  if (ratio >= 1) return 'negative'
-  if (ratio >= 0.8) return 'warning'
+const quotaColor = (status) => {
+  if (status === 'blocked') return 'negative'
+  if (status === 'warning') return 'warning'
   return 'primary'
 }
 
@@ -582,7 +638,7 @@ const openSupport = () => {
 }
 
 const openDataRequest = () => {
-  window.location.assign('/privacy')
+  router.push('/privacy')
 }
 
 const openDeleteAccountDialog = () => {
@@ -812,8 +868,42 @@ onMounted(async () => {
 .quota-card {
   border: 1px solid var(--neutral-200);
   border-radius: var(--border-radius-sm);
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--bg-secondary);
+}
+
+.quota-card--warning {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.quota-card--blocked {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.quota-card-head,
+.quota-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quota-card-foot {
+  flex-wrap: wrap;
+}
+
+.quota-usage-copy {
+  color: var(--neutral-800);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.quota-message {
+  margin-top: 6px;
+  font-size: 0.74rem;
+  line-height: 1.3;
 }
 
 .quota-card :deep(.q-btn) {

@@ -131,7 +131,7 @@
           </div>
 
           <div class="entity-tile-foot">
-            <span>{{ reminder.repeat_by || 'One-time' }}</span>
+            <span>{{ formatReminderRepeat(reminder) }}</span>
             <span v-if="reminder.amount">${{ formatCurrency(reminder.amount) }}</span>
             <span v-else>{{ formatDate(reminder.start_date) }}</span>
           </div>
@@ -248,7 +248,7 @@
           </div>
           <div class="detail-block">
             <div class="detail-label">Repeat</div>
-            <div class="detail-value">{{ selectedReminder.repeat_by || 'One-time' }}</div>
+            <div class="detail-value">{{ formatReminderRepeat(selectedReminder) }}</div>
           </div>
           <div class="detail-block">
             <div class="detail-label">Amount</div>
@@ -307,7 +307,7 @@
               </span>
             </div>
             <div class="text-caption text-grey-6">
-              Current Due Date: {{ formatDate(selectedReminderForHistory.due_date) }}
+              Current Due Date: {{ formatDate(getReminderDueDate(selectedReminderForHistory)) }}
             </div>
           </div>
 
@@ -485,11 +485,11 @@ const reminderStatusFilterLabel = computed(() => {
 const activeReminders = computed(() => reminders.value.filter((r) => r.status).length)
 
 const recurringReminders = computed(
-  () => reminders.value.filter((r) => r.repeat_by && r.repeat_by !== 'one-time').length,
+  () => reminders.value.filter((r) => !isOneTimeReminder(r)).length,
 )
 
 const oneTimeReminders = computed(
-  () => reminders.value.filter((r) => !r.repeat_by || r.repeat_by === 'one-time').length,
+  () => reminders.value.filter((r) => isOneTimeReminder(r)).length,
 )
 
 const filteredReminders = computed(() => {
@@ -517,7 +517,11 @@ const filteredReminders = computed(() => {
     )
   }
 
-  return filtered
+  return [...filtered].sort((a, b) => {
+    const aDue = getReminderDueDate(a)?.getTime() || Number.MAX_SAFE_INTEGER
+    const bDue = getReminderDueDate(b)?.getTime() || Number.MAX_SAFE_INTEGER
+    return aDue - bDue
+  })
 })
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -535,20 +539,94 @@ const toIsoDate = (value) => {
 }
 
 const normalizeRepeatValue = (value) => String(value || 'one-time').trim().toLowerCase()
+const legacyRepeatByToUnit = {
+  daily: 'days',
+  weekly: 'weeks',
+  monthly: 'months',
+  yearly: 'years',
+  'one-time': 'one-time',
+}
+
+const normalizeRepeatUnit = (reminder = {}) => {
+  const explicitUnit = String(reminder?.repeat_unit || '').trim().toLowerCase()
+  if (['day', 'days'].includes(explicitUnit)) return 'days'
+  if (['week', 'weeks'].includes(explicitUnit)) return 'weeks'
+  if (['month', 'months'].includes(explicitUnit)) return 'months'
+  if (['year', 'years'].includes(explicitUnit)) return 'years'
+  if (explicitUnit === 'one-time') return 'one-time'
+  return legacyRepeatByToUnit[normalizeRepeatValue(reminder?.repeat_by)] || 'one-time'
+}
+
+const getRepeatEvery = (reminder = {}) => {
+  const num = Number(reminder?.repeat_every || reminder?.repeat_interval || 1)
+  return Number.isFinite(num) ? Math.max(1, Math.floor(num)) : 1
+}
+
+const isOneTimeReminder = (reminder = {}) => normalizeRepeatUnit(reminder) === 'one-time'
+
+const formatReminderRepeat = (reminder = {}) => {
+  const unit = normalizeRepeatUnit(reminder)
+  if (unit === 'one-time') return 'One-time'
+  const every = getRepeatEvery(reminder)
+  const singularUnit = unit.replace(/s$/, '')
+  return `Every ${every} ${every === 1 ? singularUnit : unit}`
+}
+
+const addRepeatPeriod = (dateValue, reminderOrRepeatBy) => {
+  const reminder =
+    typeof reminderOrRepeatBy === 'object' && reminderOrRepeatBy !== null
+      ? reminderOrRepeatBy
+      : { repeat_by: reminderOrRepeatBy }
+  const repeatUnit = normalizeRepeatUnit(reminder)
+  const repeatEvery = getRepeatEvery(reminder)
+  const next = new Date(dateValue)
+  if (repeatUnit === 'days') next.setDate(next.getDate() + repeatEvery)
+  else if (repeatUnit === 'weeks') next.setDate(next.getDate() + 7 * repeatEvery)
+  else if (repeatUnit === 'months') next.setMonth(next.getMonth() + repeatEvery)
+  else if (repeatUnit === 'years') next.setFullYear(next.getFullYear() + repeatEvery)
+  else next.setDate(next.getDate() + 30)
+  return toMidnightDate(next)
+}
+
+const getNextRepeatOccurrence = (baseDateValue, reminder) => {
+  const base = toMidnightDate(baseDateValue)
+  if (!base) return null
+  const today = toMidnightDate(new Date())
+  let next = new Date(base)
+  let guard = 0
+  while (next < today && guard < 1000) {
+    next = addRepeatPeriod(next, reminder)
+    guard += 1
+  }
+  return next
+}
+
+const getReminderDueDate = (reminder) => {
+  const dueDate = toMidnightDate(reminder?.due_date)
+  const startDate = toMidnightDate(reminder?.start_date)
+  if (isOneTimeReminder(reminder)) return dueDate || startDate || null
+  const today = toMidnightDate(new Date())
+  const candidates = [
+    dueDate && dueDate >= today ? dueDate : null,
+    getNextRepeatOccurrence(startDate, reminder),
+    getNextRepeatOccurrence(dueDate, reminder),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime())
+  return candidates[0] || dueDate || startDate || null
+}
 
 const calculateNextDueDate = (baseDateValue, repeatBy) => {
-  const repeatValue = normalizeRepeatValue(repeatBy)
   const base = toMidnightDate(baseDateValue) || toMidnightDate(new Date())
-  const next = new Date(base)
-  if (repeatValue === 'daily') next.setDate(next.getDate() + 1)
-  else if (repeatValue === 'weekly') next.setDate(next.getDate() + 7)
-  else if (repeatValue === 'monthly') next.setMonth(next.getMonth() + 1)
-  else if (repeatValue === 'yearly') next.setFullYear(next.getFullYear() + 1)
-  else next.setDate(next.getDate() + 30)
+  const next = addRepeatPeriod(base, repeatBy)
   return toIsoDate(next)
 }
 
-const getReminderDueDate = (reminder) => toMidnightDate(reminder?.due_date || reminder?.start_date)
+const calculateReminderRenewalDueDate = (reminder) => {
+  const effectiveDueDate = getReminderDueDate(reminder)
+  if (!effectiveDueDate) return calculateNextDueDate(new Date(), reminder)
+  return calculateNextDueDate(effectiveDueDate, reminder)
+}
 
 const getReminderDueLabel = (reminder) => {
   const dueDate = getReminderDueDate(reminder)
@@ -711,18 +789,17 @@ const closeReminderDetail = () => {
 
 const completeReminder = async (reminder) => {
   try {
-    const isRecurring =
-      reminder.repeat_by && String(reminder.repeat_by).toLowerCase() !== 'one-time'
+    const isRecurring = !isOneTimeReminder(reminder)
 
     if (isRecurring) {
       // For recurring reminders: Auto-defer
       console.log('Completing recurring reminder - auto-deferring...')
 
       const previousStartDate = reminder.start_date
-      const previousDueDate = reminder.due_date || reminder.start_date
+      const previousDueDate = toIsoDate(getReminderDueDate(reminder)) || reminder.due_date || reminder.start_date
       const today = new Date()
       const newStartDate = today.toISOString().split('T')[0]
-      const newDueDate = calculateNextDueDate(previousDueDate, reminder.repeat_by)
+      const newDueDate = calculateReminderRenewalDueDate(reminder)
 
       // Create renewal record
       const renewalRecord = {
@@ -829,12 +906,12 @@ const renewReminder = async (reminder) => {
   try {
     // Store current schedule dates before renewal
     const previousStartDate = reminder.start_date
-    const previousDueDate = reminder.due_date || reminder.start_date
+    const previousDueDate = toIsoDate(getReminderDueDate(reminder)) || reminder.due_date || reminder.start_date
 
     // Start new cycle today and set next due date
     const today = new Date()
     const newStartDate = today.toISOString().split('T')[0]
-    const newDueDate = calculateNextDueDate(previousDueDate, reminder.repeat_by)
+    const newDueDate = calculateReminderRenewalDueDate(reminder)
 
     // Create renewal record
     const renewalRecord = {

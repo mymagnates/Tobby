@@ -526,10 +526,15 @@ export const billingApi = {
         properties_limit: 0,
         ai_tokens_used: 0,
         ai_tokens_limit: 0,
+        ai_tokens_status: 'normal',
+        ai_tokens_message: '',
         voice_used: 0,
         voice_limit: 0,
         storage_used_mb: 0,
         storage_limit_mb: 0,
+        storage_status: 'normal',
+        storage_message: '',
+        gate_status: 'ok',
       }
     }
   },
