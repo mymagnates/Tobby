@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="create-property animate-fade-in"
-    :class="{ 'create-property--dialog': inDialog }"
-  >
+  <div class="create-property animate-fade-in" :class="{ 'create-property--dialog': inDialog }">
     <div class="page-header q-mb-lg">
       <div class="row items-center justify-between">
         <div>
@@ -35,7 +32,12 @@
       </div>
     </div>
 
-    <q-form id="create-property-form" @submit="onSubmit" class="q-gutter-md">
+    <q-form
+      id="create-property-form"
+      data-testid="create-property-form"
+      @submit="onSubmit"
+      class="q-gutter-md"
+    >
       <q-card class="q-mb-lg">
         <q-card-section class="bg-primary text-white">
           <div class="text-h6">
@@ -48,6 +50,7 @@
             <div class="col-12 col-md-6">
               <q-input
                 v-model="propertyData.address"
+                data-testid="property-address-input"
                 label="Address *"
                 outlined
                 :rules="[(val) => !!val || 'Address is required']"
@@ -60,6 +63,7 @@
             <div class="col-12 col-md-6">
               <q-input
                 v-model="propertyData.nickname"
+                data-testid="property-nickname-input"
                 label="Nickname *"
                 outlined
                 :rules="[(val) => !!val || 'Nickname is required']"
@@ -72,6 +76,7 @@
             <div class="col-12 col-md-4">
               <q-input
                 v-model="propertyData.city"
+                data-testid="property-city-input"
                 label="City *"
                 outlined
                 :rules="[(val) => !!String(val || '').trim() || 'City is required']"
@@ -84,6 +89,7 @@
             <div class="col-12 col-md-4">
               <q-input
                 v-model="propertyData.state"
+                data-testid="property-state-input"
                 label="State *"
                 outlined
                 :rules="[(val) => !!String(val || '').trim() || 'State is required']"
@@ -96,6 +102,7 @@
             <div class="col-12 col-md-4">
               <q-input
                 v-model="propertyData.zip"
+                data-testid="property-zip-input"
                 label="ZIP *"
                 outlined
                 :rules="[(val) => !!String(val || '').trim() || 'ZIP is required']"
@@ -108,6 +115,7 @@
             <div class="col-12 col-md-6">
               <q-select
                 v-model="propertyData.type"
+                data-testid="property-type-select"
                 :options="propertyTypes"
                 label="Property Type *"
                 outlined
@@ -121,6 +129,7 @@
             <div class="col-12 col-md-6">
               <q-select
                 v-model="propertyData.status"
+                data-testid="property-status-select"
                 :options="propertyStatuses"
                 label="Status *"
                 outlined
@@ -161,6 +170,7 @@
             <div class="col-12 col-md-8">
               <q-select
                 v-model="propertyData.ownershipMode"
+                data-testid="property-ownership-mode-select"
                 :options="ownershipModes"
                 label="Ownership Setup *"
                 outlined
@@ -336,22 +346,14 @@
               </q-input>
             </div>
             <div v-if="showSpecField('hoa')" class="col-12 col-md-6">
-              <q-input
-                v-model="propertyData.spec.hoa_name"
-                label="HOA Name"
-                outlined
-              >
+              <q-input v-model="propertyData.spec.hoa_name" label="HOA Name" outlined>
                 <template v-slot:prepend>
                   <q-icon name="apartment" />
                 </template>
               </q-input>
             </div>
             <div v-if="showSpecField('hoa')" class="col-12 col-md-6">
-              <q-input
-                v-model="propertyData.spec.hoa_contact"
-                label="HOA Contact"
-                outlined
-              >
+              <q-input v-model="propertyData.spec.hoa_contact" label="HOA Contact" outlined>
                 <template v-slot:prepend>
                   <q-icon name="contact_phone" />
                 </template>
@@ -361,11 +363,7 @@
         </q-card-section>
       </q-card>
 
-      <q-banner
-        v-if="gateBlockMessage"
-        class="bg-orange-1 text-orange-10 q-mt-md"
-        rounded
-      >
+      <q-banner v-if="gateBlockMessage" class="bg-orange-1 text-orange-10 q-mt-md" rounded>
         <q-icon name="lock" class="q-mr-xs" />
         {{ gateBlockMessage }}
       </q-banner>
@@ -380,7 +378,6 @@ import { useQuasar } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
 import { billingApi } from '../services/webApiClient'
-import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
 
 const props = defineProps({
   autoNavigate: {
@@ -442,7 +439,6 @@ const propertyTypes = [
 
 const propertyStatuses = ['Active', 'Inactive']
 
-
 const ownershipModes = [
   { label: 'This is my property', value: 'self_owned' },
   { label: 'I manage this for another owner', value: 'managed_for_owner' },
@@ -456,7 +452,11 @@ const showSpecField = (field) => {
   const isCommercial = ['office building', 'retail space', 'warehouse'].includes(type)
   const isLand = type === 'land'
 
-  if (['bedroom', 'full_bathroom', 'half_bathroom', 'living_room', 'dinning_area', 'garage'].includes(field)) {
+  if (
+    ['bedroom', 'full_bathroom', 'half_bathroom', 'living_room', 'dinning_area', 'garage'].includes(
+      field,
+    )
+  ) {
     return isResidential
   }
   if (field === 'restroom') return !isLand
@@ -474,7 +474,7 @@ const refreshPropertyGate = async () => {
     const usage = await billingApi.getUsage()
     const used = Math.max(
       Number(usage.properties_used || 0),
-      Number(userDataStore.userAccessibleProperties.length || 0)
+      Number(userDataStore.userAccessibleProperties.length || 0),
     )
     const limit = Number(usage.properties_limit || 0)
     if (limit > 0 && used >= limit) {
@@ -524,8 +524,8 @@ const onSubmit = async () => {
       ownership_mode: ownershipMode,
       owner_user_ids: ownershipMode === 'self_owned' && userId.value ? [userId.value] : [],
       manager_user_ids: userId.value ? [userId.value] : [],
-      primary_owner_user_id:
-        ownershipMode === 'self_owned' && userId.value ? userId.value : null,
+      viewer_user_ids: [],
+      primary_owner_user_id: ownershipMode === 'self_owned' && userId.value ? userId.value : null,
       created_by_user_id: userId.value || null,
       updated_by_user_id: userId.value || null,
       createdAt: new Date(),
@@ -602,24 +602,6 @@ const onSubmit = async () => {
       ownershipMode === 'managed_for_owner'
         ? {
             canInviteOwner: true,
-            createInviteLink: () => {
-              const token = generateOwnerInviteToken()
-              const inviteId = token.slice(0, 20)
-              const now = new Date()
-              return createDocument('owner_invites', {
-                invite_id: inviteId,
-                property_id: propertyId,
-                pm_user_id: userId.value,
-                owner_email: '',
-                status: 'pending',
-                token,
-                expires_at: createOwnerInviteExpiry(),
-                accepted_at: null,
-                accepted_by_user_id: null,
-                created_at: now,
-                updated_at: now,
-              }, inviteId).then(() => buildOwnerInviteUrl(token))
-            },
           }
         : { canInviteOwner: false }
 
@@ -671,14 +653,16 @@ const onSubmit = async () => {
 }
 
 :global(body.body--dark) .create-property .q-card,
-:global(body.body--dark) .create-property .q-card__section:not(.bg-primary):not(.bg-secondary):not(.bg-info) {
+:global(body.body--dark)
+  .create-property
+  .q-card__section:not(.bg-primary):not(.bg-secondary):not(.bg-info) {
   background: #15202b !important;
   border-color: #2d3f52;
   color: #e6edf3;
 }
 
 :global(body.body--dark) .create-property .bg-grey-1,
- :global(body.body--dark) .create-property .q-field__control {
+:global(body.body--dark) .create-property .q-field__control {
   background: #223041 !important;
 }
 

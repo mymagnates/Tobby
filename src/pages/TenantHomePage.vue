@@ -135,7 +135,8 @@
                 v-for="tenant in leaseTenantsList"
                 :key="tenant.id"
                 class="doc-item"
-                @click="openLeaseTenantDialog(tenant)"
+                :class="{ 'cursor-pointer': tenant.isCurrent }"
+                @click="tenant.isCurrent && openLeaseTenantDialog(tenant)"
               >
                 <q-icon name="person" size="16px" color="grey-7" class="q-mr-xs" />
                 <div class="doc-item-info">
@@ -528,20 +529,11 @@
         </q-card-section>
         <q-card-section v-else class="tenant-detail-content q-gutter-md">
           <q-card flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Personal Information</q-card-section>
+            <q-card-section class="text-subtitle2 text-weight-medium">My Contact Information</q-card-section>
             <q-separator />
             <q-card-section class="row q-col-gutter-md">
               <div class="col-12 col-sm-6">
                 <q-input :model-value="selectedLeaseTenantName" label="Name" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input
-                  :model-value="displayTenantValue(selectedLeaseTenantData.personal_info?.marital_status)"
-                  label="Marital Status"
-                  outlined
-                  dense
-                  readonly
-                />
               </div>
               <div class="col-12 col-sm-6">
                 <q-input v-model="leaseTenantForm.email" label="Email" outlined dense />
@@ -549,118 +541,7 @@
               <div class="col-12 col-sm-6">
                 <q-input v-model="leaseTenantForm.phone" label="Phone" outlined dense />
               </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="formatDate(selectedLeaseTenantData.personal_info?.date_of_birth)" label="Date of Birth" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.personal_info?.gender)" label="Gender" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="maskSensitiveSsn(selectedLeaseTenantData.personal_info?.ssn)" label="SSN" outlined dense readonly />
-              </div>
             </q-card-section>
-          </q-card>
-
-          <q-card flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Address</q-card-section>
-            <q-separator />
-            <q-card-section class="row q-col-gutter-md">
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.street)" label="Street" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.city)" label="City" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.state)" label="State" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.current_address?.zipCode)" label="ZIP" outlined dense readonly />
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.employment" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Employment</q-card-section>
-            <q-separator />
-            <q-card-section class="row q-col-gutter-md">
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.employer_name)" label="Employer" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.position)" label="Position" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.monthly_income)" label="Monthly Income" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.years_employed)" label="Years Employed" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-6">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.employment?.employer_phone)" label="Employer Phone" outlined dense readonly />
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.emergency_contact" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Emergency Contact</q-card-section>
-            <q-separator />
-            <q-card-section class="row q-col-gutter-md">
-              <div class="col-12 col-sm-4">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.name)" label="Name" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-4">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.relationship)" label="Relationship" outlined dense readonly />
-              </div>
-              <div class="col-12 col-sm-4">
-                <q-input :model-value="displayTenantValue(selectedLeaseTenantData.emergency_contact?.phone)" label="Phone" outlined dense readonly />
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.vehicles?.length" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Vehicles ({{ selectedLeaseTenantData.vehicles.length }})</q-card-section>
-            <q-separator />
-            <q-list dense>
-              <q-item v-for="(vehicle, idx) in selectedLeaseTenantData.vehicles" :key="`vehicle-${idx}`">
-                <q-item-section>
-                  <q-item-label>{{ [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'Vehicle' }}</q-item-label>
-                  <q-item-label caption>{{ displayTenantValue(vehicle.license_plate || vehicle.plate || vehicle.color) }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.pets?.length" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Pets ({{ selectedLeaseTenantData.pets.length }})</q-card-section>
-            <q-separator />
-            <q-list dense>
-              <q-item v-for="(pet, idx) in selectedLeaseTenantData.pets" :key="`pet-${idx}`">
-                <q-item-section>
-                  <q-item-label>{{ pet.type || pet.name || 'Pet' }}</q-item-label>
-                  <q-item-label caption>{{ displayTenantValue([pet.breed, pet.weight].filter(Boolean).join(' · ')) }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.co_applicants?.length" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Additional Occupants ({{ selectedLeaseTenantData.co_applicants.length }})</q-card-section>
-            <q-separator />
-            <q-list dense>
-              <q-item v-for="(occupant, idx) in selectedLeaseTenantData.co_applicants" :key="`occupant-${idx}`">
-                <q-item-section>
-                  <q-item-label>{{ occupant.name || [occupant.first_name, occupant.last_name].filter(Boolean).join(' ') || 'Occupant' }}</q-item-label>
-                  <q-item-label caption>{{ displayTenantValue(occupant.relationship || occupant.email || occupant.phone) }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card>
-
-          <q-card v-if="selectedLeaseTenantData.notes" flat bordered>
-            <q-card-section class="text-subtitle2 text-weight-medium">Notes</q-card-section>
-            <q-separator />
-            <q-card-section class="text-body2">{{ selectedLeaseTenantData.notes }}</q-card-section>
           </q-card>
         </q-card-section>
         <q-card-actions align="right" class="q-px-md q-pb-md">
@@ -683,25 +564,18 @@ import { useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db } from '../boot/firebase'
-import { storage } from '../boot/firebase'
+  createTenantTaskRequest,
+  getTenantDocumentAccessRequest,
+  getTenantDashboardRequest,
+  updateTenantContactRequest,
+  uploadTenantDocumentsRequest,
+} from '../services/tenantAccessApi'
 
 const router = useRouter()
 const userDataStore = useUserDataStore()
 
 const currentLease = ref(null)
+const tenantDashboard = ref(null)
 const transactions = ref([])
 const tasks = ref([])
 const pastLeases = ref([])
@@ -744,7 +618,6 @@ const leaseLoading = ref(true)
 const transactionsLoading = ref(true)
 const tasksLoading = ref(true)
 const pastLeasesLoading = ref(true)
-const leaseLinkRepairing = ref(false)
 
 const loadingStep = computed(() => {
   if (!userDataStore.isAuthenticated) return 0
@@ -858,21 +731,14 @@ const docIcon = (contentType) => {
   return 'insert_drive_file'
 }
 
-const maskSensitiveSsn = (ssn) => {
-  const raw = String(ssn || '').trim()
-  if (!raw) return 'N/A'
-  const digits = raw.replace(/\D/g, '')
-  if (digits.length < 4) return '***'
-  return `***-**-${digits.slice(-4)}`
-}
-
-const displayTenantValue = (value) => {
-  const text = pickFirstNonEmpty(value)
-  return text || 'N/A'
-}
-
-const openDocument = (doc) => {
-  if (doc.url) window.open(doc.url, '_blank')
+const openDocument = async (doc) => {
+  if (!doc?.id) return
+  try {
+    const { url } = await getTenantDocumentAccessRequest({ documentId: doc.id })
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.message || 'Unable to open document.', position: 'top' })
+  }
 }
 
 // Expanded feed item
@@ -1012,248 +878,46 @@ const sortIcon = (field) => {
 }
 
 // Data fetching
-const fetchCurrentLease = async () => {
+const loadTenantDashboard = async () => {
   try {
-    const userId = userDataStore.userId
-    if (!userId) return
-
-    // Primary lookup: lease linked by tenant_id
-    const leasesRef = collection(db, 'leases')
-    const q = query(leasesRef, where('tenant_id', '==', userId))
-    const snap = await getDocs(q)
-    if (!snap.empty) {
-      const leases = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      const rentedLease =
-        leases.find((lease) => String(lease.status || '').toLowerCase() === 'rented') || leases[0]
-      currentLease.value = rentedLease
-      return
-    }
-
-    // Fallback lookup: lease_id stored on tenant profile
-    const fallbackLeaseId = userDataStore.userProfile?.lease_id
-    if (fallbackLeaseId) {
-      const leaseDoc = await getDoc(doc(db, 'leases', String(fallbackLeaseId)))
-      if (leaseDoc.exists()) {
-        currentLease.value = { id: leaseDoc.id, ...leaseDoc.data() }
+    const payload = await getTenantDashboardRequest()
+    tenantDashboard.value = payload
+    currentLease.value = payload.lease || null
+    pastLeases.value = Array.isArray(payload.past_leases) ? payload.past_leases : []
+    transactions.value = Array.isArray(payload.transactions) ? payload.transactions : []
+    tasks.value = (Array.isArray(payload.tasks) ? payload.tasks : []).map((task) => ({
+      ...task,
+      note: task.note || task.description || '',
+      category: task.category || 'Task',
+      due_date: task.due_date || task.report_date || null,
+      start_date: task.start_date || task.report_date || null,
+    }))
+    documents.value = Array.isArray(payload.documents) ? payload.documents : []
+    leaseTenantsList.value = (Array.isArray(payload.tenants) ? payload.tenants : []).map((tenant) => {
+      return {
+        id: tenant.id,
+        name: String(tenant.name || tenant.email || 'Tenant').trim(),
+        email: tenant.email || 'N/A',
+        phone: tenant.phone || 'N/A',
+        isCurrent: Boolean(tenant.is_current),
+        raw: tenant,
       }
-    }
+    })
   } catch (error) {
-    console.error('Error fetching current lease:', error)
+    console.error('Error loading tenant dashboard:', error)
+    currentLease.value = null
   } finally {
     leaseLoading.value = false
-  }
-}
-
-const syncTenantLeaseLink = async () => {
-  if (leaseLinkRepairing.value) return
-  if (currentLease.value) return
-
-  const userId = userDataStore.userId
-  if (!userId) return
-
-  const profile = userDataStore.userProfile || {}
-  const profileEmail = String(profile.email || userDataStore.user?.email || '').trim().toLowerCase()
-
-  leaseLinkRepairing.value = true
-  try {
-    let matchedLease = null
-
-    const leaseIdFromProfile = String(profile.lease_id || '').trim()
-    if (leaseIdFromProfile) {
-      const leaseDoc = await getDoc(doc(db, 'leases', leaseIdFromProfile))
-      if (leaseDoc.exists()) {
-        matchedLease = { id: leaseDoc.id, ...leaseDoc.data() }
-      }
-    }
-
-    if (!matchedLease && profileEmail) {
-      const leasesRef = collection(db, 'leases')
-      const leaseByEmailQuery = query(leasesRef, where('tenant_email', '==', profileEmail))
-      const leaseByEmailSnap = await getDocs(leaseByEmailQuery)
-      if (!leaseByEmailSnap.empty) {
-        matchedLease = { id: leaseByEmailSnap.docs[0].id, ...leaseByEmailSnap.docs[0].data() }
-      }
-    }
-
-    if (!matchedLease && profileEmail) {
-      const tenantsRef = collection(db, 'tenants')
-      const tenantByEmailQuery = query(tenantsRef, where('personal_info.email', '==', profileEmail))
-      const tenantByEmailSnap = await getDocs(tenantByEmailQuery)
-      if (!tenantByEmailSnap.empty) {
-        const tenantDocData = tenantByEmailSnap.docs[0].data()
-        const candidateLeaseId = String(tenantDocData.lease_id || '').trim()
-        if (candidateLeaseId) {
-          const leaseDoc = await getDoc(doc(db, 'leases', candidateLeaseId))
-          if (leaseDoc.exists()) {
-            matchedLease = { id: leaseDoc.id, ...leaseDoc.data() }
-          }
-        }
-      }
-    }
-
-    if (!matchedLease) return
-
-    const propertyId = matchedLease.property_id?.id || matchedLease.property_id || null
-    const leaseSnapshot = {
-      lease_id: matchedLease.id,
-      status: matchedLease.status || null,
-      rate_amount: matchedLease.rate_amount || null,
-      rate_type: matchedLease.rate_type || null,
-      lease_term: matchedLease.lease_term || null,
-      lease_start_date: matchedLease.lease_start_date || null,
-      lease_end_date: matchedLease.lease_end_date || null,
-      property_id: propertyId,
-    }
-
-    await setDoc(
-      doc(db, 'users', userId),
-      {
-        lease_id: matchedLease.id,
-        property_id: propertyId,
-        lease_snapshot: leaseSnapshot,
-        updated_at: new Date(),
-      },
-      { merge: true },
-    )
-
-    await setDoc(
-      doc(db, 'tenants', userId),
-      {
-        lease_id: matchedLease.id,
-        property_id: propertyId,
-        status: 'active',
-        updated_at: new Date().toISOString(),
-      },
-      { merge: true },
-    )
-
-    await updateDoc(doc(db, 'leases', matchedLease.id), {
-      tenant_id: userId,
-      tenant_email: profileEmail || null,
-      updated_at: new Date(),
-    })
-
-    currentLease.value = matchedLease
-  } catch (error) {
-    console.error('Tenant lease auto-link failed:', error)
-  } finally {
-    leaseLinkRepairing.value = false
-  }
-}
-
-const fetchPastLeases = async () => {
-  try {
-    const userId = userDataStore.userId
-    if (!userId) return
-    const leasesRef = collection(db, 'leases')
-    const q = query(leasesRef, where('tenant_id', '==', userId), where('status', 'in', ['Terminated', 'Expired']))
-    const snap = await getDocs(q)
-    pastLeases.value = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-  } catch (error) {
-    console.error('Error fetching past leases:', error)
-  } finally {
-    pastLeasesLoading.value = false
-  }
-}
-
-const fetchTransactions = async () => {
-  try {
-    if (!currentLease.value) { transactionsLoading.value = false; return }
-    const userId = userDataStore.userId
-    const propertyId = currentLease.value.property_string_id || currentLease.value.property_id?.id
-    if (!propertyId || !userId) return
-
-    const txnRef = collection(db, 'transactions')
-    const q = query(txnRef, where('property_id', '==', propertyId))
-    const snap = await getDocs(q)
-    const txns = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((txn) => {
-        const fromId = typeof txn.from === 'string' ? txn.from : txn.from?.id || txn.from_id
-        const toId = typeof txn.to === 'string' ? txn.to : txn.to?.id || txn.to_id
-        return fromId === userId || toId === userId || txn.tenant_id === userId
-      })
-    txns.sort((a, b) => getTimestamp(b.date) - getTimestamp(a.date))
-    transactions.value = txns
-  } catch (error) {
-    console.error('Error fetching transactions:', error)
-  } finally {
     transactionsLoading.value = false
-  }
-}
-
-const fetchTasks = async () => {
-  try {
-    if (!currentLease.value) { tasksLoading.value = false; return }
-    const propertyId = currentLease.value.property_string_id || currentLease.value.property_id?.id
-    const userId = userDataStore.userId
-    if (!propertyId || !userId) { tasksLoading.value = false; return }
-    const mxRecordsRef = collection(db, 'properties', propertyId, 'mxrecords')
-    const snap = await getDocs(mxRecordsRef)
-    const list = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((t) => {
-        const createdBy = String(t.created_by || '').trim()
-        const tenantId = String(t.tenant_id || '').trim()
-        return createdBy === userId || tenantId === userId
-      })
-      .filter((t) => !['closed', 'cancel'].includes(String(t.status || '').toLowerCase()))
-      .map((t) => ({
-        ...t,
-        // Keep compatibility with tenant feed/reminder UI fields
-        note: t.note || t.description || '',
-        category: t.category || 'Task',
-        due_date: t.due_date || t.report_date || null,
-        start_date: t.start_date || t.report_date || null,
-      }))
-    list.sort((a, b) => getTimestamp(a.due_date || a.report_date) - getTimestamp(b.due_date || b.report_date))
-    tasks.value = list
-  } catch (error) {
-    console.error('Error fetching tasks:', error)
-  } finally {
     tasksLoading.value = false
-  }
-}
-
-const fetchLeaseTenants = async () => {
-  try {
-    if (!currentLease.value?.id) {
-      leaseTenantsList.value = []
-      return
-    }
-
-    leaseTenantsLoading.value = true
-    const tenantsRef = collection(db, 'tenants')
-    const tenantsQuery = query(tenantsRef, where('lease_id', '==', currentLease.value.id))
-    const snap = await getDocs(tenantsQuery)
-
-    leaseTenantsList.value = snap.docs.map((tenantDoc) => {
-      const data = tenantDoc.data()
-      const personalInfo = data.personal_info || {}
-      const name = String(
-        personalInfo.full_name ||
-        [personalInfo.first_name, personalInfo.last_name].filter(Boolean).join(' ') ||
-        data.full_name ||
-        data.user_name ||
-        data.email ||
-        'Tenant'
-      ).trim()
-
-      return {
-        id: tenantDoc.id,
-        name,
-        email: personalInfo.email || data.email || 'N/A',
-        phone: personalInfo.phone || data.phone || data.phone_number || 'N/A',
-        raw: data,
-      }
-    })
-  } catch (error) {
-    console.error('Error fetching lease tenants:', error)
-    leaseTenantsList.value = []
-  } finally {
+    documentsLoading.value = false
+    pastLeasesLoading.value = false
     leaseTenantsLoading.value = false
   }
 }
+
+const fetchTasks = loadTenantDashboard
+const fetchLeaseTenants = loadTenantDashboard
 
 const openLeaseTenantDialog = async (tenant) => {
   selectedLeaseTenant.value = tenant
@@ -1262,57 +926,31 @@ const openLeaseTenantDialog = async (tenant) => {
   leaseTenantForm.value.phone = tenant?.phone === 'N/A' ? '' : (tenant?.phone || '')
   showLeaseTenantDialog.value = true
   leaseTenantDialogLoading.value = true
-  try {
-    if (!tenant?.id) return
-    const tenantDoc = await getDoc(doc(db, 'tenants', tenant.id))
-    if (tenantDoc.exists()) {
-      const fullData = tenantDoc.data()
-      selectedLeaseTenantDetails.value = fullData
-      const personalInfo = fullData.personal_info || {}
-      leaseTenantForm.value.email = pickFirstNonEmpty(personalInfo.email, fullData.email)
-      leaseTenantForm.value.phone = pickFirstNonEmpty(personalInfo.phone, fullData.phone, fullData.phone_number)
-    }
-  } catch (error) {
-    console.error('Error loading tenant detail:', error)
-  } finally {
-    leaseTenantDialogLoading.value = false
-  }
+  leaseTenantDialogLoading.value = false
 }
 
 const saveLeaseTenantContact = async () => {
   if (!selectedLeaseTenant.value?.id) return
   savingLeaseTenant.value = true
   try {
-    const tenantId = selectedLeaseTenant.value.id
     const email = String(leaseTenantForm.value.email || '').trim()
     const phone = String(leaseTenantForm.value.phone || '').trim()
     const prevPersonal = selectedLeaseTenantData.value?.personal_info || {}
 
-    await setDoc(
-      doc(db, 'tenants', tenantId),
-      {
-        email: email || '',
-        phone: phone || '',
-        personal_info: {
-          ...prevPersonal,
-          email: email || '',
-          phone: phone || '',
-        },
-        updated_at: new Date().toISOString(),
-      },
-      { merge: true },
-    )
+    const response = await updateTenantContactRequest({ email, phone })
+    const updatedTenant = response.tenant || {}
 
     Notify.create({ type: 'positive', message: 'Tenant contact updated.', position: 'top' })
     if (selectedLeaseTenantDetails.value) {
       selectedLeaseTenantDetails.value = {
         ...selectedLeaseTenantDetails.value,
-        email,
-        phone,
+        email: updatedTenant.email || email,
+        phone: updatedTenant.phone || phone,
         personal_info: {
           ...prevPersonal,
-          email,
-          phone,
+          ...(updatedTenant.personal_info || {}),
+          email: updatedTenant.personal_info?.email || email,
+          phone: updatedTenant.personal_info?.phone || phone,
         },
       }
     }
@@ -1330,33 +968,11 @@ const handleUpload = async () => {
   if (!uploadFiles.value || uploadFiles.value.length === 0) return
   uploading.value = true
   try {
-    const userId = userDataStore.userId
-    const propertyId = currentLease.value?.property_string_id || currentLease.value?.property_id?.id || 'general'
-
-    for (const file of uploadFiles.value) {
-      // Use the same storage namespace pattern as other in-app uploads to match existing rules.
-      const filePath = `images/tenants/${propertyId}/${userId}/${Date.now()}_${file.name}`
-      const fileRef = storageRef(storage, filePath)
-      await uploadBytes(fileRef, file)
-      const downloadURL = await getDownloadURL(fileRef)
-
-      await addDoc(collection(db, 'properties', propertyId, 'documents'), {
-        name: file.name,
-        category: uploadCategory.value,
-        note: uploadNote.value || '',
-        url: downloadURL,
-        storage_path: filePath,
-        uploaded_by: userId,
-        uploaded_by_role: 'tt',
-        tenant_id: userId,
-        lease_id: currentLease.value?.id || null,
-        source_type: 'tenant_upload',
-        source_page: 'tenant_home',
-        content_type: file.type,
-        size: file.size,
-        created_at: serverTimestamp(),
-      })
-    }
+    await uploadTenantDocumentsRequest({
+      files: uploadFiles.value,
+      category: uploadCategory.value,
+      note: uploadNote.value,
+    })
 
     Notify.create({ type: 'positive', message: `${uploadFiles.value.length} file(s) uploaded successfully.`, position: 'top' })
     showUploadDialog.value = false
@@ -1372,63 +988,18 @@ const handleUpload = async () => {
   }
 }
 
-const fetchDocuments = async () => {
-  try {
-    if (!currentLease.value) return
-    const propertyId = currentLease.value.property_string_id || currentLease.value.property_id?.id
-    if (!propertyId) return
-    const userId = userDataStore.userId
-    const leaseId = currentLease.value.id
-
-    const docsRef = collection(db, 'properties', propertyId, 'documents')
-    const snap = await getDocs(docsRef)
-    documents.value = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((d) => d.uploaded_by === userId || d.lease_id === leaseId || d.tenant_id === userId || d.visibility === 'tenant')
-      .sort((a, b) => getTimestamp(b.created_at) - getTimestamp(a.created_at))
-  } catch (error) {
-    console.error('Error fetching documents:', error)
-  } finally {
-    documentsLoading.value = false
-  }
-}
+const fetchDocuments = loadTenantDashboard
 
 const handleCreateTask = async () => {
   if (!newTaskTitle.value) return
   creatingTask.value = true
   try {
-    const propertyId = currentLease.value?.property_string_id || currentLease.value?.property_id?.id
-    const reporterId = userDataStore.userId
-    const reporterName =
-      userDataStore.userProfile?.full_name ||
-      userDataStore.userProfile?.user_name ||
-      userDataStore.user?.displayName ||
-      userDataStore.user?.email ||
-      'Tenant'
-    if (!propertyId) throw new Error('No active lease to create task for')
-
-    const mxId = `mx_${Date.now()}`
-
-    await addDoc(collection(db, 'properties', propertyId, 'mxrecords'), {
-      mx_id: mxId,
-      task_title: newTaskTitle.value,
-      description: newTaskDescription.value || '',
+    await createTenantTaskRequest({
+      title: newTaskTitle.value,
+      description: newTaskDescription.value,
       category: newTaskCategory.value,
       priority: newTaskPriority.value,
-      due_date: newTaskDueDate.value ? new Date(newTaskDueDate.value) : null,
-      report_date: newTaskDueDate.value || new Date().toISOString().split('T')[0],
-      status: 'open',
-      created_by: reporterId,
-      created_by_name: reporterName,
-      created_by_role: 'tt',
-      reported_by: reporterName,
-      reported_by_id: reporterId,
-      reported_role: 'tt',
-      lease_id: currentLease.value.id,
-      property_id: propertyId,
-      createAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      created_date: serverTimestamp(),
+      dueDate: newTaskDueDate.value,
     })
 
     Notify.create({ type: 'positive', message: 'Task created successfully.', position: 'top' })
@@ -1448,21 +1019,14 @@ const handleCreateTask = async () => {
 }
 
 onMounted(async () => {
-  await fetchCurrentLease()
-  if (!currentLease.value) {
-    await syncTenantLeaseLink()
-  }
-  await Promise.all([fetchPastLeases(), fetchTransactions(), fetchTasks(), fetchDocuments(), fetchLeaseTenants()])
+  await loadTenantDashboard()
 })
 
 watch(
   () => [userDataStore.userId, userDataStore.userProfile?.lease_id],
   async () => {
     if (!currentLease.value && userDataStore.userId) {
-      await fetchCurrentLease()
-      if (!currentLease.value) {
-        await syncTenantLeaseLink()
-      }
+      await loadTenantDashboard()
     }
   },
   { immediate: false }
@@ -1470,9 +1034,7 @@ watch(
 
 watch(
   () => currentLease.value?.id,
-  async () => {
-    await fetchLeaseTenants()
-  },
+  () => {},
 )
 </script>
 

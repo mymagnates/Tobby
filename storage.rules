@@ -5,27 +5,65 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
+    function propertyPath(propertyId) {
+      return /databases/(default)/documents/properties/$(propertyId);
     }
 
-    // Posts media: signed-in users can view, only owner can modify.
-    match /media/posts/{uid}/{allPaths=**} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(uid);
+    function isPropertyReadMember(propertyId) {
+      return isSignedIn()
+        && firestore.exists(propertyPath(propertyId))
+        && (
+          (firestore.get(propertyPath(propertyId)).data.owner_user_ids is list
+            && request.auth.uid in firestore.get(propertyPath(propertyId)).data.owner_user_ids)
+          || (firestore.get(propertyPath(propertyId)).data.manager_user_ids is list
+            && request.auth.uid in firestore.get(propertyPath(propertyId)).data.manager_user_ids)
+          || (firestore.get(propertyPath(propertyId)).data.viewer_user_ids is list
+            && request.auth.uid in firestore.get(propertyPath(propertyId)).data.viewer_user_ids)
+        );
     }
 
-    // App uploads used by PM/PO/SP flows.
-    match /images/{allPaths=**} {
-      allow read, write: if isSignedIn();
+    function isPropertyWriteMember(propertyId) {
+      return isSignedIn()
+        && firestore.exists(propertyPath(propertyId))
+        && (
+          (firestore.get(propertyPath(propertyId)).data.owner_user_ids is list
+            && request.auth.uid in firestore.get(propertyPath(propertyId)).data.owner_user_ids)
+          || (firestore.get(propertyPath(propertyId)).data.manager_user_ids is list
+            && request.auth.uid in firestore.get(propertyPath(propertyId)).data.manager_user_ids)
+        );
     }
 
-    match /properties/{allPaths=**} {
-      allow read, write: if isSignedIn();
+    function leasePropertyId(leaseId) {
+      return firestore.get(/databases/(default)/documents/leases/$(leaseId)).data.property_string_id;
     }
 
-    match /leases/{allPaths=**} {
-      allow read, write: if isSignedIn();
+    function isLeasePropertyMember(leaseId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/leases/$(leaseId))
+        && isPropertyReadMember(leasePropertyId(leaseId));
+    }
+
+    function isLeasePropertyWriteMember(leaseId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/leases/$(leaseId))
+        && isPropertyWriteMember(leasePropertyId(leaseId));
+    }
+
+    match /properties/{propertyId}/{allPaths=**} {
+      allow read: if isPropertyReadMember(propertyId);
+      allow delete: if isPropertyWriteMember(propertyId);
+    }
+
+    match /images/{context}/{propertyId}/{allPaths=**} {
+      allow read: if isPropertyReadMember(propertyId);
+      allow delete: if isPropertyWriteMember(propertyId);
+    }
+
+    // This path remains conditional on the existing lease document and will be
+    // disabled when lease documents move behind the Lease Domain API.
+    match /images/leases/{leaseId}/{allPaths=**} {
+      allow read: if isLeasePropertyMember(leaseId);
+      allow delete: if isLeasePropertyWriteMember(leaseId);
     }
 
     // Sensitive lease application documents are only accessed through backend-issued
@@ -34,7 +72,7 @@ service firebase.storage {
       allow read, write: if false;
     }
 
-    // Keep everything else private unless explicitly added later.
+    // Keep marketplace and user media private until their API migration lands.
     match /{allPaths=**} {
       allow read, write: if false;
     }

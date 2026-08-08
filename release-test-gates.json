@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "firebase_rules_required": true,
+  "browser_e2e_required": false,
+  "notes": "Firebase rules are enabled after committed emulator fixtures and local validation. Browser E2E remains disabled until isolated credentials and fixtures are available. When enabled, a skipped or failed job blocks the release gate."
+}

@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function propertyPath(propertyId) {
+      return /databases/$(database)/documents/properties/$(propertyId);
+    }
+
+    function hasPropertyReadAccess(property) {
+      return property.data.keys().hasAny(['owner_user_ids', 'manager_user_ids', 'viewer_user_ids'])
+        && (
+          (property.data.owner_user_ids is list && request.auth.uid in property.data.owner_user_ids)
+          || (property.data.manager_user_ids is list && request.auth.uid in property.data.manager_user_ids)
+          || (property.data.viewer_user_ids is list && request.auth.uid in property.data.viewer_user_ids)
+        );
+    }
+
+    function hasPropertyWriteAccess(property) {
+      return property.data.keys().hasAny(['owner_user_ids', 'manager_user_ids'])
+        && (
+          (property.data.owner_user_ids is list && request.auth.uid in property.data.owner_user_ids)
+          || (property.data.manager_user_ids is list && request.auth.uid in property.data.manager_user_ids)
+        );
+    }
+
+    function isPropertyMember(propertyId) {
+      return isSignedIn()
+        && exists(propertyPath(propertyId))
+        && hasPropertyReadAccess(get(propertyPath(propertyId)));
+    }
+
+    function canWriteProperty(propertyId) {
+      return isSignedIn()
+        && exists(propertyPath(propertyId))
+        && hasPropertyWriteAccess(get(propertyPath(propertyId)));
+    }
+
+    function isValidNewProperty() {
+      return request.resource.data.created_by_user_id == request.auth.uid
+        && request.resource.data.manager_user_ids is list
+        && request.resource.data.manager_user_ids.size() == 1
+        && request.resource.data.manager_user_ids[0] == request.auth.uid
+        && (
+          (
+            request.resource.data.ownership_mode == 'self_owned'
+            && request.resource.data.owner_user_ids is list
+            && request.resource.data.owner_user_ids.size() == 1
+            && request.resource.data.owner_user_ids[0] == request.auth.uid
+            && request.resource.data.primary_owner_user_id == request.auth.uid
+          )
+          || (
+            request.resource.data.ownership_mode == 'managed_for_owner'
+            && request.resource.data.owner_user_ids is list
+            && request.resource.data.owner_user_ids.size() == 0
+            && request.resource.data.primary_owner_user_id == null
+          )
+        );
+    }
+
+    // Owner/manager relationship changes are server-authoritative. The API writes
+    // them atomically with invite state and audit history using the Admin SDK.
+    function keepsPropertyRelationships() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'created_by_user_id',
+        'manager_user_ids',
+        'owner_user_ids',
+        'viewer_user_ids',
+        'primary_owner_user_id',
+        'ownership_mode'
+      ]);
+    }
+
+    function isOwnProfile(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidSelfRole(userId) {
+      return request.resource.data.user_id == userId
+        && request.resource.data.property_id is string
+        && isPropertyMember(request.resource.data.property_id)
+        && (
+          (
+            request.resource.data.role == 'pm'
+            && request.auth.uid in get(propertyPath(request.resource.data.property_id)).data.manager_user_ids
+          )
+          || (
+            request.resource.data.role == 'po'
+            && request.auth.uid in get(propertyPath(request.resource.data.property_id)).data.owner_user_ids
+          )
+          || (
+            request.resource.data.role == 'viewer'
+            && request.auth.uid in get(propertyPath(request.resource.data.property_id)).data.viewer_user_ids
+          )
+        );
+    }
+
+    match /properties/{propertyId} {
+      allow create: if isSignedIn() && isValidNewProperty();
+      allow read: if isPropertyMember(propertyId);
+      allow update: if canWriteProperty(propertyId) && keepsPropertyRelationships();
+      allow delete: if false;
+    }
+
+    // View-only members can inspect the Property Account but cannot change any
+    // operational record. Owner and manager writes remain compatible with the
+    // existing PM/PO workflow.
+    match /properties/{propertyId}/{collectionId}/{document=**} {
+      allow read: if isPropertyMember(propertyId);
+      allow write: if canWriteProperty(propertyId);
+    }
+
+    match /users/{userId} {
+      allow create: if isOwnProfile(userId) && request.resource.data.user_id == userId;
+      allow read, update, delete: if isOwnProfile(userId);
+    }
+
+    // A role index mirrors a previously-established property relationship. It
+    // cannot be used to create or mutate membership from the client.
+    match /users/{userId}/roles/{roleId} {
+      allow read: if isOwnProfile(userId);
+      allow create: if isOwnProfile(userId) && isValidSelfRole(userId);
+      allow update: if isOwnProfile(userId)
+        && isValidSelfRole(userId)
+        && request.resource.data.property_id == resource.data.property_id
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isOwnProfile(userId);
+    }
+
+    // Any top-level collection needs an explicit review before it becomes client
+    // accessible. Lease, tenant, application, marketplace, and finance paths are
+    // intentionally excluded until their API migrations are complete.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

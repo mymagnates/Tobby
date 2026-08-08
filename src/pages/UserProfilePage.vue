@@ -132,6 +132,7 @@
               <div class="section-title q-mb-sm">Usage Quotas</div>
 
               <div
+                data-testid="quota-ai-tokens"
                 class="quota-card q-mb-sm"
                 :class="`quota-card--${aiTokensStatus}`"
               >
@@ -161,6 +162,7 @@
               </div>
 
               <div
+                data-testid="quota-storage"
                 class="quota-card"
                 :class="`quota-card--${storageStatus}`"
               >
@@ -222,7 +224,7 @@
                     <q-icon name="open_in_new" size="16px" />
                   </q-item-section>
                 </q-item>
-                <q-item clickable @click="openDeleteAccountDialog">
+                <q-item data-testid="request-account-deletion" clickable @click="openDeleteAccountDialog">
                   <q-item-section>
                     <q-item-label class="text-negative">Request Account Deletion</q-item-label>
                     <q-item-label caption>Submit an account closure and deletion request.</q-item-label>
@@ -345,6 +347,7 @@
           />
           <q-input
             v-model="deleteAccountConfirmText"
+            data-testid="account-deletion-confirm"
             outlined
             label="Type DELETE to confirm"
             :rules="[(val) => String(val || '').trim().toUpperCase() === 'DELETE' || 'Type DELETE to confirm']"
@@ -353,6 +356,7 @@
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat color="grey-7" label="Cancel" :disable="deletingAccount" v-close-popup />
           <q-btn
+            data-testid="account-deletion-submit"
             color="negative"
             label="Submit Request"
             :loading="deletingAccount"
@@ -634,7 +638,7 @@ const openPaymentMethod = () => {
 }
 
 const openSupport = () => {
-  window.location.assign('/contact-support')
+  window.location.assign('/contact-support.html')
 }
 
 const openDataRequest = () => {

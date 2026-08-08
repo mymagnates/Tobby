@@ -274,7 +274,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useUserDataStore } from 'src/stores/userDataStore'
-import { useFirebase } from 'src/composables/useFirebase'
+import { createPropertyLeaseRequest } from 'src/services/leaseApi'
 
 const props = defineProps({
   propertyId: {
@@ -292,11 +292,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['lease-created', 'cancel'])
-const PRIMARY_INVENTORY_DOC_ID = 'primary'
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
-const { createDocument } = useFirebase()
 
 const selectedPropertyId = ref('')
 const submitting = ref(false)
@@ -471,21 +469,11 @@ const onSubmit = async () => {
       updated_at: now.toISOString(),
     }
 
-    const leaseCreateResult = await createDocument('leases', leaseDataToSave)
-    const leaseDocId = normalizeDocId(leaseCreateResult)
+    const createdLease = await createPropertyLeaseRequest({ propertyId, lease: leaseDataToSave })
+    const leaseDocId = normalizeDocId(createdLease?.id)
     if (!leaseDocId) {
       throw new Error('Lease created but lease document ID is missing.')
     }
-
-    const inventorySeedData = {
-      property_id: propertyId,
-      property_address: property.address || '',
-      lease_doc_id: leaseDocId,
-      lease_lsid: LSID,
-      created_datetime: now.toISOString(),
-      updated_datetime: now.toISOString(),
-    }
-    await createDocument(`leases/${leaseDocId}/inventories`, inventorySeedData, PRIMARY_INVENTORY_DOC_ID)
 
     if (typeof userDataStore.refreshLeases === 'function') {
       await userDataStore.refreshLeases()
@@ -497,7 +485,7 @@ const onSubmit = async () => {
       position: 'top',
     })
 
-    emit('lease-created', { id: leaseDocId, ...leaseDataToSave })
+    emit('lease-created', createdLease)
 
     if (String(route.path || '').startsWith('/create-lease')) {
       router.push('/leases')

@@ -11,7 +11,7 @@ const allowByRole = (allowedRoles, actorRole) => allowedRoles.includes(actorRole
 const transitionResult = (allowed, reason = null) => ({ allowed, reason })
 
 const buildMachine = (transitions) => Object.freeze(transitions)
-const PM_PO_ROLES = [ROLES.PM, ROLES.PO]
+const PM_PO_ROLES = [ROLES.PM, ROLES.PO, ROLES.PM_PO]
 
 export const opportunityTransitions = buildMachine({
   [`${OPPORTUNITY_STATUS.OPEN}->${OPPORTUNITY_STATUS.PAUSED}`]: PM_PO_ROLES,

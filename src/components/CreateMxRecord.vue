@@ -19,6 +19,7 @@
               @click="handleCancel"
             />
             <q-btn
+              data-testid="maintenance-record-save"
               type="submit"
               form="create-mxrecord-form"
               class="top-action-btn"
@@ -70,7 +71,7 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <q-form id="create-mxrecord-form" @submit="onSubmit" class="q-gutter-sm">
+        <q-form id="create-mxrecord-form" data-testid="maintenance-record-form" @submit="onSubmit" class="q-gutter-sm">
           <div class="section-label q-mb-xs">Task Details</div>
 
 
@@ -122,6 +123,7 @@
           <div class="row q-gutter-sm">
             <q-input
               v-model="mxRecordData.description"
+              data-testid="maintenance-record-description"
               label="Task Description"
               outlined
               autogrow
@@ -142,6 +144,7 @@
 
             <q-file
               v-model="selectedFiles"
+              data-testid="maintenance-record-file-upload"
               accept="image/*"
               outlined
               dense

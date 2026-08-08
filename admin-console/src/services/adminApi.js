@@ -20,7 +20,7 @@ const getAccessToken = async () => {
 }
 
 const request = async (path, options = {}) => {
-  const token = await getAccessToken()
+  const token = options.token || (await getAccessToken())
   const response = await fetch(`${API_BASE}${path}`, {
     method: options.method || 'GET',
     headers: {
@@ -38,20 +38,19 @@ const request = async (path, options = {}) => {
 }
 
 export const loginWithFirebase = async (email, password) => {
-  await signInWithEmailAndPassword(auth, email, password)
-  return validateAdminSession()
+  const credential = await signInWithEmailAndPassword(auth, email, password)
+  return validateAdminSession(credential.user)
 }
 
 export const logoutFirebase = async () => {
   await signOut(auth)
 }
 
-export const validateAdminSession = async () => {
-  const user = auth.currentUser
+export const validateAdminSession = async (candidateUser = null) => {
+  const user = candidateUser || auth.currentUser
   if (!user) return false
-  const tokenResult = await user.getIdTokenResult(true)
-  if (tokenResult?.claims?.admin !== true) return false
-  const me = await request('/auth/me')
+  const token = await user.getIdToken(true)
+  const me = await request('/auth/me', { token })
   return String(me?.user?.role || '').toLowerCase() === 'admin'
 }
 

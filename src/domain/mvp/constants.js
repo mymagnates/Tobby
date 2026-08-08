@@ -2,6 +2,7 @@ export const ROLES = Object.freeze({
   TT: 'tt',
   PM: 'pm',
   PO: 'po',
+  PM_PO: 'pm_po',
   SP: 'sp',
   ADMIN: 'admin',
   SYSTEM: 'system',

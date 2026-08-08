@@ -402,6 +402,7 @@
 import { computed, ref, watch } from 'vue'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
+import { saveLeaseInventoryRequest } from '../services/leaseApi'
 
 // Props
 const props = defineProps({
@@ -413,10 +414,8 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(['saved', 'cancel'])
-const PRIMARY_INVENTORY_DOC_ID = 'primary'
-
 // Composables
-const { createDocument, updateDocument, uploadFile } = useFirebase()
+const { uploadFile } = useFirebase()
 
 // Reactive data
 const saving = ref(false)
@@ -614,8 +613,6 @@ const toggleCustomItem = (index) => {
   targetItem.collapsed = !targetItem.collapsed
 }
 
-const getLeaseInventoriesPath = (leaseDocId) => `leases/${leaseDocId}/inventories`
-
 const showImageFullscreen = (imageUrl, title) => {
   currentImageUrl.value = imageUrl
   currentImageTitle.value = title
@@ -742,31 +739,11 @@ const saveInventory = async () => {
       updated_datetime: inventoryData.value.updated_datetime,
     }
 
-    let result
-    let inventoryId
-
-    if (inventoryData.value.id) {
-      // Update existing inventory
-      inventoryId = inventoryData.value.id
-      await updateDocument(
-        getLeaseInventoriesPath(activeLeaseDocId),
-        inventoryId,
-        mainInventoryData,
-      )
-    } else {
-      // Legacy fallback: if the primary inventory doc is missing, recreate it under the fixed id.
-      result = await createDocument(
-        getLeaseInventoriesPath(activeLeaseDocId),
-        mainInventoryData,
-        PRIMARY_INVENTORY_DOC_ID,
-      )
-      inventoryId = String(result?.id || result || '').trim()
-      inventoryData.value.id = inventoryId
-    }
-
-    if (!inventoryId) {
-      throw new Error('Failed to resolve inventory ID while saving inventory record.')
-    }
+    const savedInventory = await saveLeaseInventoryRequest({
+      leaseId: activeLeaseDocId,
+      inventory: mainInventoryData,
+    })
+    inventoryData.value.id = savedInventory?.id || 'primary'
 
     inventoryData.value.custom_items = normalizedCustomItems.map((item) => ({
       ...item,

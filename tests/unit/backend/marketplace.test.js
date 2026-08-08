@@ -5,11 +5,35 @@ import { createInMemoryStore } from '../../../backend/store.js'
 let server
 let baseUrl
 
-const pm = { 'X-User-Id': 'u-pm-1', 'Content-Type': 'application/json' }
-const sp1 = { 'X-User-Id': 'u-sp-1', 'Content-Type': 'application/json' }
-const sp2 = { 'X-User-Id': 'u-sp-2', 'Content-Type': 'application/json' }
-const sp3 = { 'X-User-Id': 'u-sp-3', 'Content-Type': 'application/json' }
-const tenant = { 'X-User-Id': 'u-tt-1', 'Content-Type': 'application/json' }
+// Marketplace lifecycle contracts exercise the in-memory fallback, not a live Firebase project.
+const unavailableFirestore = {
+  collection: () => {
+    throw new Error('Firestore is intentionally unavailable in this contract test')
+  },
+}
+
+const seedTestSpProfiles = (store) => {
+  store.ensureUser('u-sp-1', 'sp')
+  store.ensureUser('u-sp-2', 'sp')
+  store.ensureUser('u-sp-3', 'sp')
+}
+
+const createBidPayload = (overrides = {}) => ({
+  amount: 400,
+  note: 'Can complete this service promptly.',
+  included_scope: 'Labor, materials, and final functional test.',
+  estimated_start_date: '2026-08-12',
+  estimated_duration: '1 day',
+  valid_until: '2026-08-20',
+  disclaimer_acknowledged: true,
+  ...overrides,
+})
+
+const pm = { 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po', 'Content-Type': 'application/json' }
+const sp1 = { 'X-User-Id': 'u-sp-1', 'X-User-Role': 'sp', 'Content-Type': 'application/json' }
+const sp2 = { 'X-User-Id': 'u-sp-2', 'X-User-Role': 'sp', 'Content-Type': 'application/json' }
+const sp3 = { 'X-User-Id': 'u-sp-3', 'X-User-Role': 'sp', 'Content-Type': 'application/json' }
+const tenant = { 'X-User-Id': 'u-tt-1', 'X-User-Role': 'tt', 'Content-Type': 'application/json' }
 
 const call = async (path, options = {}) => {
   const response = await fetch(`${baseUrl}${path}`, options)
@@ -30,7 +54,8 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
 
   beforeAll(async () => {
     store = createInMemoryStore()
-    const runtime = createApiServer({ store })
+    seedTestSpProfiles(store)
+    const runtime = createApiServer({ store, config: { firestoreDb: unavailableFirestore } })
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
@@ -71,7 +96,7 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
         service_area: 'San Jose, CA',
         budget_range: '$250–$600',
         urgency: 'urgent',
-        due_date: '2026-03-01',
+        due_date: '2026-09-01',
         visibility_mode: 'public',
       }),
     })
@@ -182,11 +207,11 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
     const { status, payload } = await call(`/leads/${leadId}/bids`, {
       method: 'POST',
       headers: sp1,
-      body: JSON.stringify({
+      body: JSON.stringify(createBidPayload({
         amount: 450,
         note: 'Can start tomorrow. Includes parts.',
         estimated_duration: '2 hours',
-      }),
+      })),
     })
     expect(status).toBe(200)
     expect(payload.bid.id).toBeTruthy()
@@ -195,21 +220,21 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
     bidId1 = payload.bid.id
   })
 
-  it('SP-1 cannot submit a duplicate bid', async () => {
+  it('SP-1 can submit a revised bid version', async () => {
     const { status, payload } = await call(`/leads/${leadId}/bids`, {
       method: 'POST',
       headers: sp1,
-      body: JSON.stringify({ amount: 500, note: 'Revised' }),
+      body: JSON.stringify(createBidPayload({ amount: 500, note: 'Revised' })),
     })
-    expect(status).toBe(409)
-    expect(payload.error_code).toBe('DUPLICATE_BID')
+    expect(status).toBe(200)
+    expect(payload.bid.version_number).toBe(2)
   })
 
   it('SP-3 submits a bid', async () => {
     const { status, payload } = await call(`/leads/${leadId}/bids`, {
       method: 'POST',
       headers: sp3,
-      body: JSON.stringify({ amount: 380, note: 'Available immediately' }),
+      body: JSON.stringify(createBidPayload({ amount: 380, note: 'Available immediately' })),
     })
     expect(status).toBe(200)
     bidId2 = payload.bid.id
@@ -228,14 +253,14 @@ describe('Marketplace: full PM/PO <-> SP lifecycle', () => {
   it('SP can view own bids', async () => {
     const { status, payload } = await call('/bids', { headers: sp1 })
     expect(status).toBe(200)
-    expect(payload.items.length).toBe(1)
-    expect(payload.items[0].id).toBe(bidId1)
+    expect(payload.items.length).toBe(2)
+    expect(payload.items.map((bid) => bid.id)).toContain(bidId1)
   })
 
   it('PM/PO can view all bids for a lead (with SP enrichment)', async () => {
     const { status, payload } = await call(`/leads/${leadId}/bids`, { headers: pm })
     expect(status).toBe(200)
-    expect(payload.items.length).toBe(2)
+    expect(payload.items.length).toBe(3)
     expect(payload.items[0]).toHaveProperty('sp_business_name')
   })
 
@@ -424,7 +449,8 @@ describe('Marketplace: state machine guards', () => {
 
   beforeAll(async () => {
     store = createInMemoryStore()
-    const runtime = createApiServer({ store })
+    seedTestSpProfiles(store)
+    const runtime = createApiServer({ store, config: { firestoreDb: unavailableFirestore } })
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
@@ -453,7 +479,7 @@ describe('Marketplace: state machine guards', () => {
     res = await call(`/leads/${leadId}/bids`, {
       method: 'POST',
       headers: sp1,
-      body: JSON.stringify({ amount: 200, note: 'Same day' }),
+      body: JSON.stringify(createBidPayload({ amount: 200, note: 'Same day' })),
     })
     bidId = res.payload.bid.id
   })
@@ -529,7 +555,8 @@ describe('Marketplace: assignment decline and revoke', () => {
 
   beforeAll(async () => {
     store = createInMemoryStore()
-    const runtime = createApiServer({ store })
+    seedTestSpProfiles(store)
+    const runtime = createApiServer({ store, config: { firestoreDb: unavailableFirestore } })
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
@@ -552,7 +579,7 @@ describe('Marketplace: assignment decline and revoke', () => {
     res = await call(`/leads/${leadId}/bids`, {
       method: 'POST',
       headers: sp3,
-      body: JSON.stringify({ amount: 3200, note: 'Full crew' }),
+      body: JSON.stringify(createBidPayload({ amount: 3200, note: 'Full crew' })),
     })
     bidId = res.payload.bid.id
 
@@ -584,7 +611,12 @@ describe('Marketplace: assignment decline and revoke', () => {
 
 describe('Marketplace: SP profile', () => {
   beforeAll(async () => {
-    const runtime = createApiServer({ store: createInMemoryStore() })
+    const store = createInMemoryStore()
+    seedTestSpProfiles(store)
+    const runtime = createApiServer({
+      store,
+      config: { firestoreDb: unavailableFirestore },
+    })
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
@@ -598,7 +630,7 @@ describe('Marketplace: SP profile', () => {
   it('SP reads own profile', async () => {
     const { status, payload } = await call('/sp/profile', { headers: sp1 })
     expect(status).toBe(200)
-    expect(payload.profile.business_name).toBe('FixFast Plumbing')
+    expect(payload.profile.user_id).toBe('u-sp-1')
     expect(payload.profile.match_preferences).toBeTruthy()
   })
 

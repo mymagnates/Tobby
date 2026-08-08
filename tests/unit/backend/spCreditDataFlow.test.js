@@ -5,6 +5,12 @@ import { createInMemoryStore } from '../../../backend/store.js'
 let server
 let baseUrl
 
+const unavailableFirestore = {
+  collection: () => {
+    throw new Error('Firestore is intentionally unavailable in this contract test')
+  },
+}
+
 const pm = {
   'Content-Type': 'application/json',
   'X-User-Id': 'u-pm-flow-1',
@@ -30,7 +36,10 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
   let orderId
 
   beforeAll(async () => {
-    const runtime = createApiServer({ store: createInMemoryStore() })
+    const runtime = createApiServer({
+      store: createInMemoryStore(),
+      config: { firestoreDb: unavailableFirestore },
+    })
     store = runtime.store
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -147,9 +156,9 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
         amount: 320,
         note: 'Can complete in one visit.',
         included_scope: 'Inspect and repair the water heater.',
-        estimated_start_date: '2026-06-12',
+        estimated_start_date: '2026-08-12',
         estimated_duration: '1 day',
-        valid_until: '2026-06-20',
+        valid_until: '2026-08-20',
         disclaimer_acknowledged: true,
       }),
     })

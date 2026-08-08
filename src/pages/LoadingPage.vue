@@ -3,7 +3,7 @@
     <div class="loading-container">
       <!-- Logo Section -->
       <div class="logo-section">
-        <h1 class="app-title">Handout</h1>
+        <h1 class="app-title"><span class="loading-brand-mark">H</span> Handout</h1>
         <p class="app-subtitle">{{ hasError ? 'Unable to load data' : loadingMessage }}</p>
         <p v-if="hasError && errorMessage" class="error-message">{{ errorMessage }}</p>
       </div>
@@ -34,6 +34,7 @@ import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { normalizeAccountType } from '../utils/roleUtils'
+import { auth, authStateReady } from '../boot/firebase'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,8 +47,17 @@ const isLoading = ref(false)
 const hasRedirected = ref(false) // Prevent multiple redirects
 let unauthRedirectTimer = null
 
-// Get redirect URL from query params
-const redirectUrl = route.query.redirect
+// Only retain in-app paths. This preserves the original destination without
+// allowing an arbitrary external target into the post-login redirect flow.
+const redirectUrl = computed(() => {
+  const target = String(route.query.redirect || '').trim()
+  return target.startsWith('/') && !target.startsWith('//') ? target : ''
+})
+
+const goToLogin = () => {
+  const query = redirectUrl.value ? { redirect: redirectUrl.value } : undefined
+  router.replace({ path: '/public/login', query })
+}
 
 /**
  * Computed loading message based on current state
@@ -105,15 +115,15 @@ const isOwnerWorkspaceOnly = computed(() => {
  */
 const performRedirect = () => {
   if (hasRedirected.value) return
-  
+
   hasRedirected.value = true
-  
+
   try {
     if (needsAccountTypeSelection.value) {
       router.replace('/account-type-setup')
       return
     }
-    if (isSpAccount.value && !redirectUrl) {
+    if (isSpAccount.value && !redirectUrl.value) {
       if (!spHasServiceArea.value) {
         router.replace('/sp-services')
         return
@@ -121,16 +131,16 @@ const performRedirect = () => {
       router.replace('/sp-dashboard')
       return
     }
-    if (isTenantAccount.value && !redirectUrl) {
+    if (isTenantAccount.value && !redirectUrl.value) {
       router.replace('/tenant-home')
       return
     }
-    if (isOwnerWorkspaceOnly.value && !redirectUrl) {
+    if (isOwnerWorkspaceOnly.value && !redirectUrl.value) {
       router.replace('/po-dashboard')
       return
     }
-    if (redirectUrl) {
-      router.replace(String(redirectUrl))
+    if (redirectUrl.value) {
+      router.replace(redirectUrl.value)
     } else {
       router.replace('/')
     }
@@ -144,11 +154,23 @@ const performRedirect = () => {
 
 const scheduleUnauthRedirect = () => {
   if (unauthRedirectTimer) clearTimeout(unauthRedirectTimer)
-  unauthRedirectTimer = setTimeout(() => {
-    if (!userDataStore.isAuthenticated && !hasRedirected.value) {
-      router.replace('/public/login')
+  unauthRedirectTimer = setTimeout(async () => {
+    await authStateReady
+    const firebaseUser = auth.currentUser
+    if (firebaseUser && !userDataStore.isAuthenticated) {
+      await userDataStore.setUser(firebaseUser)
+      return
     }
-  }, 700)
+    if (
+      !firebaseUser &&
+      !userDataStore.isAuthenticated &&
+      !userDataStore.loading &&
+      !userDataStore.profileLoading &&
+      !hasRedirected.value
+    ) {
+      goToLogin()
+    }
+  }, 0)
 }
 
 /**
@@ -161,17 +183,17 @@ const retryLoading = async () => {
   isLoading.value = true
 
   if (!userDataStore.isAuthenticated) {
-    router.replace('/public/login')
+    goToLogin()
     return
   }
 
   try {
     // Re-initialize the store
     await userDataStore.initialize(userDataStore.user)
-    
+
     // Wait a bit for data to load
     await new Promise((resolve) => setTimeout(resolve, 500))
-    
+
     // Do not block on property count; route-level pages handle empty-state.
     performRedirect()
   } catch (error) {
@@ -229,6 +251,11 @@ watch(
  * Component mount handling
  */
 onMounted(async () => {
+  await authStateReady
+  if (!userDataStore.isAuthenticated && auth.currentUser) {
+    await userDataStore.setUser(auth.currentUser)
+  }
+
   // Check authentication first
   if (!userDataStore.isAuthenticated) {
     scheduleUnauthRedirect()
@@ -246,10 +273,10 @@ onMounted(async () => {
     try {
       isLoading.value = true
       await userDataStore.initialize(userDataStore.user)
-      
+
       // Wait a moment for computed properties to update
       await new Promise((resolve) => setTimeout(resolve, 300))
-      
+
       performRedirect()
     } catch (error) {
       console.error('LoadingPage - Error initializing:', error)
@@ -270,13 +297,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
-
 .loading-page {
   background:
-    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
-    radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
-    linear-gradient(180deg, #faf8f3 0%, #faf8f3 42%, #f2ede4 100%);
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.12), transparent 26%),
+    linear-gradient(180deg, #eef3f5 0%, #e6edf1 100%);
   height: 100vh;
   display: flex;
   align-items: center;
@@ -285,10 +309,11 @@ onBeforeUnmount(() => {
 }
 
 .loading-container {
-  background: white;
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(36, 59, 83, 0.12);
+  border-radius: 18px;
   padding: 48px 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 24px 56px rgba(21, 54, 74, 0.1);
   max-width: 500px;
   width: 100%;
   text-align: center;
@@ -299,12 +324,27 @@ onBeforeUnmount(() => {
 }
 
 .app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 2.5rem;
-  font-weight: 400;
-  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-family: var(--font-title);
+  font-size: 2rem;
+  font-weight: 750;
+  color: #243b53;
   margin: 0 0 12px 0;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.045em;
+}
+
+.loading-brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #15364a;
+  background: #27c2a4;
+  font-size: 0.95rem;
+  font-weight: 800;
 }
 
 .app-subtitle {

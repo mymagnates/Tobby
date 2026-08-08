@@ -137,3 +137,13 @@ export const listLeaseApplicationsForLeaseRequest = async ({ leaseId }) =>
     method: 'GET',
     includeAuth: true,
   })
+
+export const reviewLeaseApplicationRequest = ({ applicationId, decision, leaseStartDate = '' }) =>
+  request(`/lease-applications/${encodeURIComponent(applicationId)}/review`, {
+    method: 'PATCH',
+    includeAuth: true,
+    body: {
+      decision,
+      lease_start_date: leaseStartDate || undefined,
+    },
+  })

@@ -690,7 +690,6 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
 import { formatOwnerInviteFallbackReason } from '../utils/ownerInviteEmailFeedback'
-import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
 import { sendOwnerInviteEmailRequest } from '../services/ownerInviteApi'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
@@ -699,7 +698,7 @@ import CreateLease from '../components/CreateLease.vue'
 const router = useRouter()
 const route = useRoute()
 const userDataStore = useUserDataStore()
-const { createDocument, updateDocument, getAllDocuments } = useFirebase()
+const { updateDocument } = useFirebase()
 
 // Dialog state
 const showPropertyDialog = ref(false)
@@ -800,64 +799,6 @@ const canInviteOwner = (property) => {
 
 const normalizeInviteEmail = (value) => String(value || '').trim().toLowerCase()
 
-const getExistingOwnerInviteConflict = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
-  if (!property?.id || !normalizedOwnerEmail) return null
-
-  const existingInvites = await getAllDocuments('owner_invites')
-  const matchedInvite = existingInvites.find((entry) => {
-    const sameProperty = String(entry?.property_id || '') === String(property.id || '')
-    const sameOwnerEmail = normalizeInviteEmail(entry?.owner_email) === normalizedOwnerEmail
-    const status = String(entry?.status || '').trim().toLowerCase()
-    return sameProperty && sameOwnerEmail && (status === 'pending' || status === 'accepted')
-  })
-
-  if (!matchedInvite) return null
-
-  const status = String(matchedInvite.status || '').trim().toLowerCase()
-  if (status === 'accepted') {
-    return {
-      type: 'invite_accepted',
-      message: 'This email has already accepted access to this property.',
-    }
-  }
-
-  return {
-    type: 'invite_pending',
-    message: 'A pending invite already exists for this email on this property.',
-  }
-}
-
-const createOwnerInvite = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
-  const conflict = await getExistingOwnerInviteConflict(property, normalizedOwnerEmail)
-  if (conflict) {
-    throw new Error(conflict.message)
-  }
-
-  const token = generateOwnerInviteToken()
-  const now = new Date()
-  const expiresAt = createOwnerInviteExpiry()
-
-  const inviteId = token.slice(0, 20)
-
-  await createDocument('owner_invites', {
-    invite_id: inviteId,
-    property_id: property.id,
-    pm_user_id: userDataStore.userId,
-    owner_email: normalizedOwnerEmail,
-    status: 'pending',
-    token,
-    expires_at: expiresAt,
-    accepted_at: null,
-    accepted_by_user_id: null,
-    created_at: now,
-    updated_at: now,
-  }, inviteId)
-
-  return buildOwnerInviteUrl(token)
-}
-
 const promptOwnerInvite = (property) => {
   const input = window.prompt(
     'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
@@ -876,17 +817,6 @@ const promptOwnerInvite = (property) => {
 
   ;(async () => {
     try {
-      const conflict = await getExistingOwnerInviteConflict(property, email)
-      if (conflict) {
-        Notify.create({
-          type: 'warning',
-          message: conflict.message,
-          position: 'top',
-          timeout: 5000,
-        })
-        return
-      }
-
       const confirmed = window.confirm(
         `Send an owner access invite to ${email} for ${property?.nickname || property?.address || 'this property'}?`,
       )
@@ -926,26 +856,11 @@ const promptOwnerInvite = (property) => {
         timeout: 6000,
       })
     } catch (error) {
-      try {
-        const inviteLink = await createOwnerInvite(property, email)
-        const reasonMessage = formatOwnerInviteFallbackReason(
-          error?.payload?.message || error?.message || 'resend_request_failed',
-        )
-        openInviteLinkDialog(inviteLink, reasonMessage)
-        Notify.create({
-          type: 'warning',
-          message: 'Email service unavailable. Invite link is shown for manual copy.',
-          caption: reasonMessage,
-          position: 'top',
-          timeout: 6000,
-        })
-      } catch (fallbackError) {
-        Notify.create({
-          type: 'negative',
-          message: fallbackError?.message || error?.message || 'Failed to create owner access link.',
-          position: 'top',
-        })
-      }
+      Notify.create({
+        type: 'negative',
+        message: error?.message || 'Failed to create owner access link.',
+        position: 'top',
+      })
     }
   })()
 }

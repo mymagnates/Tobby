@@ -737,15 +737,15 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../boot/firebase'
-import { useFirebase } from '../composables/useFirebase'
+import {
+  listPropertyTenantsRequest,
+  updatePropertyTenantRequest,
+} from '../services/tenantApi'
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
-const { updateDocument } = useFirebase()
 
 // Data
 const tenants = ref([])
@@ -821,15 +821,13 @@ const fetchTenants = async () => {
       return
     }
 
-    // Fetch tenants for all accessible properties
-    const tenantsRef = collection(db, 'tenants')
-    const q = query(tenantsRef, where('property_id', 'in', propertyIds))
-    const querySnapshot = await getDocs(q)
-
-    tenants.value = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    const results = await Promise.all(
+      propertyIds.map(async (propertyId) => {
+        const response = await listPropertyTenantsRequest({ propertyId })
+        return Array.isArray(response?.rows) ? response.rows : []
+      }),
+    )
+    tenants.value = results.flat()
 
     loading.value = false
   } catch (err) {
@@ -965,11 +963,14 @@ const saveTenant = async () => {
       updated_at: new Date().toISOString(),
     }
     
-    // Update tenant in Firestore
-    await updateDocument('tenants', selectedTenant.value.id, updateData)
+    const response = await updatePropertyTenantRequest({
+      propertyId: selectedTenant.value.property_id,
+      tenantId: selectedTenant.value.id,
+      tenant: updateData,
+    })
     
     // Update local state
-    Object.assign(selectedTenant.value, updateData)
+    Object.assign(selectedTenant.value, response?.tenant || updateData)
     
     // Refresh tenants list
     await fetchTenants()

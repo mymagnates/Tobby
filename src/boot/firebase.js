@@ -45,9 +45,10 @@ try {
 // Initialize Firebase services
 let auth, db, storage
 let authPersistenceReady = Promise.resolve()
+let authStateReady = Promise.resolve(null)
 try {
   auth = getAuth(app)
-  
+
   // Keep users signed in using LOCAL persistence
   authPersistenceReady = setPersistence(auth, browserLocalPersistence)
     .then(() => {
@@ -56,7 +57,24 @@ try {
     .catch((error) => {
       console.error('Error setting persistence:', error)
     })
-  
+
+  // `setPersistence` only configures where Auth stores a session. It does not
+  // guarantee that a previously stored user has been restored yet. Route guards
+  // must wait for this promise before treating `auth.currentUser` as definitive.
+  authStateReady = authPersistenceReady
+    .then(async () => {
+      if (typeof auth.authStateReady === 'function') {
+        await auth.authStateReady()
+      }
+      return auth.currentUser
+    })
+    .catch((error) => {
+      // Do not leave startup callers hanging if the browser blocks an Auth
+      // storage API. `auth.currentUser` remains the best available settled state.
+      console.error('Error restoring Firebase Auth state:', error)
+      return auth.currentUser
+    })
+
   // Improve compatibility for networks/browsers that block Firestore streaming channel.
   db = initializeFirestore(app, {
     // Force long-polling to avoid flaky streaming transport errors on some networks/proxies.
@@ -74,7 +92,11 @@ try {
 let analytics = null
 if (
   typeof window !== 'undefined' &&
-  !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())
+  !(
+    window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === 'function' &&
+    window.Capacitor.isNativePlatform()
+  )
 ) {
   void import('firebase/analytics')
     .then(({ getAnalytics }) => {
@@ -151,5 +173,5 @@ export const sessionManager = {
   },
 }
 
-export { app, auth, authPersistenceReady, db, storage, analytics }
+export { app, auth, authPersistenceReady, authStateReady, db, storage, analytics }
 export default app

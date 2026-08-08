@@ -18,6 +18,7 @@ import {
   debugPropertyIdComparison,
 } from '../utils/propertyIdUtils'
 import { normalizeAccountType, normalizeRoleValue } from '../utils/roleUtils'
+import { listPropertyLeasesRequest } from '../services/leaseApi'
 
 // LocalStorage keys for data persistence
 const STORAGE_KEYS = {
@@ -38,6 +39,7 @@ const buildSafeProfileCache = (profile = {}) => ({
   user_category: profile.user_category || '',
   role: profile.role || '',
   roles: Array.isArray(profile.roles) ? profile.roles : [],
+  manage_scope: Array.isArray(profile.manage_scope) ? profile.manage_scope : [],
   owner_workspace_only: Boolean(profile.owner_workspace_only),
   account_type_locked: Boolean(profile.account_type_locked),
   account_deletion_requested: Boolean(profile.account_deletion_requested),
@@ -83,10 +85,13 @@ export const useUserDataStore = defineStore('userData', () => {
   const userId = computed(() => user.value?.uid)
   const isAuthenticated = computed(() => !!user.value)
   const userCategory = computed(() =>
-    normalizeAccountType(userProfile.value?.user_category || userProfile.value?.account_type || null),
+    normalizeAccountType(
+      userProfile.value?.user_category || userProfile.value?.account_type || null,
+    ),
   )
   const accountType = computed(() => normalizeAccountType(userProfile.value?.account_type || null))
   const ownerWorkspaceOnlyFlag = computed(() => Boolean(userProfile.value?.owner_workspace_only))
+  const sharedAccessOnlyFlag = computed(() => Boolean(userProfile.value?.shared_access_only))
   // Migration-only compatibility for legacy PO accounts created before PO moved to
   // property-level membership. New owner access should come from active PO roles.
   const hasLegacyPoAccount = computed(() => {
@@ -95,44 +100,74 @@ export const useUserDataStore = defineStore('userData', () => {
     )
     return normalizedCategory === 'po'
   })
-  const hasPoMembership = computed(() =>
-    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'po' && (role?.status || 'active') === 'active'),
+  const activeMemberships = computed(() =>
+    userRoles.value.filter(
+      (role) =>
+        String(role?.status || 'active')
+          .trim()
+          .toLowerCase() === 'active',
+    ),
   )
-  const hasPmMembership = computed(() =>
-    userRoles.value.some((role) => normalizeRoleValue(role?.role) === 'pm' && (role?.status || 'active') === 'active'),
+  const pmMemberships = computed(() =>
+    activeMemberships.value.filter((role) => normalizeRoleValue(role?.role) === 'pm'),
   )
+  const poMemberships = computed(() =>
+    activeMemberships.value.filter((role) => normalizeRoleValue(role?.role) === 'po'),
+  )
+  const hasPoMembership = computed(() => poMemberships.value.length > 0)
+  const hasPmMembership = computed(() => pmMemberships.value.length > 0)
   // Owner workspace access should be driven by PO membership; the legacy PO
   // account fallback stays only to preserve pre-restructure users during migration.
   const hasOwnerWorkspaceAccess = computed(() => hasPoMembership.value || hasLegacyPoAccount.value)
   const isOwnerOnlyUser = computed(() => {
     const normalizedAccountType = accountType.value || userCategory.value
-    return hasOwnerWorkspaceAccess.value && (
-      ownerWorkspaceOnlyFlag.value ||
-      hasLegacyPoAccount.value ||
-      !hasPmMembership.value ||
-      normalizedAccountType === 'po'
+    return (
+      hasOwnerWorkspaceAccess.value &&
+      (ownerWorkspaceOnlyFlag.value ||
+        hasLegacyPoAccount.value ||
+        !hasPmMembership.value ||
+        normalizedAccountType === 'po')
     )
   })
   const isManagerCapableUser = computed(() => {
     const normalizedAccountType = accountType.value || userCategory.value
     if (normalizedAccountType === 'admin') return true
     if (normalizedAccountType !== 'pm') return false
+    if (sharedAccessOnlyFlag.value && !hasPmMembership.value) return false
     return !ownerWorkspaceOnlyFlag.value || hasPmMembership.value
   })
 
   const userAccessibleProperties = computed(() => {
-    if (!user.value || userRoles.value.length === 0) {
+    if (!user.value || activeMemberships.value.length === 0) {
       return []
     }
 
-    const accessiblePropertyIds = userRoles.value.map((role) =>
-      normalizePropertyId(role.property_id),
-    )
+    const accessiblePropertyIds = [
+      ...new Set(activeMemberships.value.map((role) => normalizePropertyId(role.property_id))),
+    ]
 
     return properties.value.filter((property) => {
       const normalizedPropertyId = normalizePropertyId(property.id)
       return accessiblePropertyIds.includes(normalizedPropertyId)
     })
+  })
+
+  const managerAccessibleProperties = computed(() => {
+    const managerPropertyIds = [
+      ...new Set(pmMemberships.value.map((role) => normalizePropertyId(role.property_id))),
+    ]
+    return properties.value.filter((property) =>
+      managerPropertyIds.includes(normalizePropertyId(property.id)),
+    )
+  })
+
+  const ownerAccessibleProperties = computed(() => {
+    const ownerPropertyIds = [
+      ...new Set(poMemberships.value.map((role) => normalizePropertyId(role.property_id))),
+    ]
+    return properties.value.filter((property) =>
+      ownerPropertyIds.includes(normalizePropertyId(property.id)),
+    )
   })
 
   const userAccessibleMxRecords = computed(() => {
@@ -275,7 +310,10 @@ export const useUserDataStore = defineStore('userData', () => {
     const normalizedSearchId = normalizePropertyId(propertyId)
     if (!normalizedSearchId) return false
     return userRoles.value.some((role) => {
-      const active = String(role?.status || 'active').trim().toLowerCase() === 'active'
+      const active =
+        String(role?.status || 'active')
+          .trim()
+          .toLowerCase() === 'active'
       const sameProperty = comparePropertyIds(role?.property_id, normalizedSearchId)
       const normalizedRole = normalizeRoleValue(role?.role)
       return active && sameProperty && ['pm', 'po'].includes(normalizedRole)
@@ -287,13 +325,16 @@ export const useUserDataStore = defineStore('userData', () => {
    */
   const saveToStorage = () => {
     if (typeof window === 'undefined') return
-    
+
     try {
       if (user.value?.uid) {
         localStorage.setItem(STORAGE_KEYS.USER_ID, user.value.uid)
       }
       if (userProfile.value) {
-        localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(buildSafeProfileCache(userProfile.value)))
+        localStorage.setItem(
+          STORAGE_KEYS.USER_PROFILE,
+          JSON.stringify(buildSafeProfileCache(userProfile.value)),
+        )
       }
       if (userRoles.value.length > 0) {
         localStorage.setItem(STORAGE_KEYS.USER_ROLES, JSON.stringify(userRoles.value))
@@ -310,7 +351,7 @@ export const useUserDataStore = defineStore('userData', () => {
    */
   const loadFromStorage = (userId) => {
     if (typeof window === 'undefined') return false
-    
+
     try {
       const storedUserId = localStorage.getItem(STORAGE_KEYS.USER_ID)
       if (storedUserId !== userId) {
@@ -391,7 +432,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
     // Try to load from cache first
     const cacheLoaded = !forceFresh && loadFromStorage(newUser.uid)
-    
+
     if (cacheLoaded && userRoles.value.length > 0) {
       // Cache is valid, but refresh dependent data sequentially so new roles/properties
       // added in another flow (for example, accepting another property invite) are not missed.
@@ -413,9 +454,11 @@ export const useUserDataStore = defineStore('userData', () => {
 
   // Methods
   const setUser = (newUser) => {
-    // Use the new initialize method
-    initialize(newUser).catch((error) => {
+    // Return the initialization promise so route transitions can wait until
+    // the authenticated user is visible to navigation guards.
+    return initialize(newUser).catch((error) => {
       console.error('UserDataStore - Error initializing:', error)
+      return false
     })
   }
 
@@ -489,10 +532,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       debugLog('UserDataStore - Step 2: Loading user roles...')
       await loadUserRoles() // Load user roles first
-      debugLog(
-        'UserDataStore - Step 2 complete: User roles loaded. Count:',
-        userRoles.value.length,
-      )
+      debugLog('UserDataStore - Step 2 complete: User roles loaded. Count:', userRoles.value.length)
 
       debugLog('UserDataStore - Step 3: Loading properties...')
       await loadProperties() // Then load properties that depend on roles
@@ -565,11 +605,7 @@ export const useUserDataStore = defineStore('userData', () => {
         orderBy('role_date', 'desc'),
       )
       const snapshot = await getDocs(userRolesQuery)
-      debugLog(
-        'UserDataStore - User roles snapshot received with',
-        snapshot.docs.length,
-        'roles',
-      )
+      debugLog('UserDataStore - User roles snapshot received with', snapshot.docs.length, 'roles')
       userRoles.value = snapshot.docs.map((doc) => {
         const data = doc.data()
         return {
@@ -601,7 +637,13 @@ export const useUserDataStore = defineStore('userData', () => {
       propertiesLoading.value = true
       debugLog('UserDataStore - Loading properties...')
 
-      const accessiblePropertyIds = userRoles.value.map((role) => role.property_id)
+      const accessiblePropertyIds = [
+        ...new Set(
+          activeMemberships.value
+            .map((role) => normalizePropertyId(role.property_id))
+            .filter(Boolean),
+        ),
+      ]
       debugLog('UserDataStore - Accessible property IDs:', accessiblePropertyIds)
 
       if (accessiblePropertyIds.length === 0) {
@@ -625,7 +667,7 @@ export const useUserDataStore = defineStore('userData', () => {
             console.error(`UserDataStore - Error loading property ${propertyId}:`, error)
             return null
           }
-        })
+        }),
       )
 
       properties.value = propertyDocs.filter(Boolean)
@@ -674,9 +716,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       const mxGroups = await Promise.all(
         accessiblePropertyIds.map(async (propertyId) => {
-          debugLog(
-            `UserDataStore - Loading property ${propertyId} mxrecords subcollection`,
-          )
+          debugLog(`UserDataStore - Loading property ${propertyId} mxrecords subcollection`)
           debugLog(`UserDataStore - Full collection path: properties/${propertyId}/mxrecords`)
           try {
             const mxRecordsQuery = collection(db, 'properties', propertyId, 'mxrecords')
@@ -698,7 +738,7 @@ export const useUserDataStore = defineStore('userData', () => {
             console.error(`UserDataStore - Error loading tasks for property ${propertyId}:`, error)
             return []
           }
-        })
+        }),
       )
 
       mxRecords.value = mxGroups.flat()
@@ -729,10 +769,7 @@ export const useUserDataStore = defineStore('userData', () => {
       }
 
       const accessiblePropertyIds = userAccessibleProperties.value.map((property) => property.id)
-      debugLog(
-        'UserDataStore - Accessible property IDs for transactions:',
-        accessiblePropertyIds,
-      )
+      debugLog('UserDataStore - Accessible property IDs for transactions:', accessiblePropertyIds)
 
       if (accessiblePropertyIds.length === 0) {
         debugLog('UserDataStore - No accessible properties, setting empty transactions')
@@ -745,9 +782,7 @@ export const useUserDataStore = defineStore('userData', () => {
 
       const transactionGroups = await Promise.all(
         accessiblePropertyIds.map(async (propertyId) => {
-          debugLog(
-            `UserDataStore - Loading property ${propertyId} transactions subcollection`,
-          )
+          debugLog(`UserDataStore - Loading property ${propertyId} transactions subcollection`)
           try {
             const transactionsQuery = query(
               collection(db, 'properties', propertyId, 'transactions'),
@@ -774,7 +809,7 @@ export const useUserDataStore = defineStore('userData', () => {
             )
             return []
           }
-        })
+        }),
       )
 
       transactions.value = transactionGroups.flat()
@@ -806,34 +841,16 @@ export const useUserDataStore = defineStore('userData', () => {
         return
       }
 
-      // Clear existing leases
-      leases.value = []
-
-      // Load main leases collection
-      const leasesQuery = query(collection(db, 'leases'), orderBy('created_datetime', 'desc'))
-      debugLog('UserDataStore - Loading leases collection: leases')
-      const snapshot = await getDocs(leasesQuery)
-      debugLog('=== UserDataStore - Leases snapshot received ===')
-      debugLog('UserDataStore - Total leases in snapshot:', snapshot.docs.length)
-
-      snapshot.docs.forEach((doc, index) => {
-        const data = doc.data()
-        const leasePropertyId = data.property?.id || data.property_id?.id || data.property_id
-        debugLog(`Lease ${index}:`, {
-          id: doc.id,
-          property: data.property,
-          property_id: data.property_id,
-          property_id_extracted: leasePropertyId,
-          status: data.status,
-          rate_amount: data.rate_amount,
-          created_datetime: data.created_datetime,
-        })
-      })
-
-      const allLeases = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
+      // Top-level leases are server-authoritative. Fetch each property scope through
+      // the membership-checked API instead of relying on a broad Firestore query.
+      const propertyIds = userAccessibleProperties.value
+        .map((property) => property.id)
+        .filter(Boolean)
+      const allLeases = (
+        await Promise.all(
+          propertyIds.map((propertyId) => listPropertyLeasesRequest({ propertyId })),
+        )
+      ).flat()
 
       debugLog('UserDataStore - All leases loaded:', allLeases.length)
       debugLog('UserDataStore - Sample lease data:', allLeases[0] || 'No leases')
@@ -963,6 +980,10 @@ export const useUserDataStore = defineStore('userData', () => {
 
     // Search through all user roles to find matching property_id
     const matchingRoles = userRoles.value.filter((role) => {
+      const active =
+        String(role?.status || 'active')
+          .trim()
+          .toLowerCase() === 'active'
       const rolePropertyId = extractPropertyId(role.property_id)
       const isMatch = comparePropertyIds(rolePropertyId, propertyId) // Use original propertyId, not normalized
 
@@ -975,12 +996,15 @@ export const useUserDataStore = defineStore('userData', () => {
         is_match: isMatch,
       })
 
-      return isMatch
+      return active && isMatch
     })
 
     debugLog('Step 3: Return matching roles')
     if (matchingRoles.length) {
-      debugLog('✅ Found matching roles:', matchingRoles.map((role) => role.role))
+      debugLog(
+        '✅ Found matching roles:',
+        matchingRoles.map((role) => role.role),
+      )
       return matchingRoles
     } else {
       debugLog('❌ No matching role found for property ID:', propertyId)
@@ -1021,14 +1045,20 @@ export const useUserDataStore = defineStore('userData', () => {
     return userRoles.value[0] || null
   })
 
-  const activePropertyRoleName = computed(() =>
-    normalizeRoleValue(activePropertyRole.value?.role) || null,
+  const activePropertyRoleName = computed(
+    () => normalizeRoleValue(activePropertyRole.value?.role) || null,
   )
   const isActiveRolePo = computed(() => activePropertyRoleName.value === 'po')
   const isActiveRolePm = computed(() => activePropertyRoleName.value === 'pm')
 
   const canManageProperty = (propertyId) =>
-    (getUserRolesForProperty(propertyId) || []).some((role) => normalizeRoleValue(role?.role) === 'pm')
+    (getUserRolesForProperty(propertyId) || []).some((role) => {
+      const active =
+        String(role?.status || 'active')
+          .trim()
+          .toLowerCase() === 'active'
+      return active && normalizeRoleValue(role?.role) === 'pm'
+    })
 
   const canCreateTransactionsForProperty = (propertyId) => {
     const role = normalizeRoleValue(getUserRoleForProperty(propertyId)?.role)
@@ -1057,37 +1087,6 @@ export const useUserDataStore = defineStore('userData', () => {
     debugLog('UserDataStore - Total tasks after adding test record:', mxRecords.value.length)
   }
 
-  const checkLeasesCollection = async () => {
-    try {
-      debugLog('=== UserDataStore - Checking leases collection manually ===')
-
-      // Get a snapshot of the leases collection
-      const leasesSnapshot = await getDocs(collection(db, 'leases'))
-      debugLog('UserDataStore - Manual leases snapshot count:', leasesSnapshot.docs.length)
-
-      // Log each lease document
-      leasesSnapshot.docs.forEach((doc, index) => {
-        const data = doc.data()
-        // Handle nested property_id.id structure from Firebase
-        const leasePropertyId = data.property_id?.id || data.property_id
-        debugLog(`Manual Lease ${index}:`, {
-          id: doc.id,
-          property_id: data.property_id,
-          property_id_extracted: leasePropertyId,
-          lease_id: data.lease_id,
-          status: data.status,
-          created_datetime: data.created_datetime,
-          fullData: data,
-        })
-      })
-
-      return leasesSnapshot.docs.length
-    } catch (error) {
-      console.error('UserDataStore - Error checking leases collection:', error)
-      return 0
-    }
-  }
-
   return {
     // State
     user,
@@ -1112,6 +1111,8 @@ export const useUserDataStore = defineStore('userData', () => {
     userCategory,
     accountType,
     userAccessibleProperties,
+    managerAccessibleProperties,
+    ownerAccessibleProperties,
     userAccessibleMxRecords,
     userAccessibleTransactions,
     userAccessibleLeases,
@@ -1145,6 +1146,10 @@ export const useUserDataStore = defineStore('userData', () => {
     isActiveRolePo,
     isActiveRolePm,
     ownerWorkspaceOnlyFlag,
+    sharedAccessOnlyFlag,
+    activeMemberships,
+    pmMemberships,
+    poMemberships,
     hasLegacyPoAccount,
     hasPoMembership,
     hasPmMembership,
@@ -1154,6 +1159,5 @@ export const useUserDataStore = defineStore('userData', () => {
     canManageProperty,
     canCreateTransactionsForProperty,
     addMxRecord,
-    checkLeasesCollection,
   }
 })

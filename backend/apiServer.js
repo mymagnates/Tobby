@@ -31,7 +31,7 @@ const json = (res, statusCode, payload, extraHeaders = {}) => {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers':
       'Content-Type, Authorization, X-User-Id, X-User-Role, X-User-Country, X-User-State, X-User-City, Idempotency-Key',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     ...extraHeaders,
   })
   res.end(JSON.stringify(payload))
@@ -205,6 +205,7 @@ const LEAD_BIDS_SUBCOLLECTION = 'bids'
 const SP_CREDIT_ACCOUNTS_COLLECTION = 'sp_credit_accounts'
 const SP_CREDIT_LEDGER_COLLECTION = 'sp_credit_ledger'
 const SP_CREDIT_ORDERS_COLLECTION = 'sp_credit_orders'
+const STORAGE_UPLOAD_RESERVATIONS_COLLECTION = 'storage_upload_reservations'
 const ACCOUNT_DELETION_REQUESTS_COLLECTION = 'account_deletion_requests'
 const CONTENT_REPORTS_COLLECTION = 'content_reports'
 const ADMIN_METRICS_DAILY_COLLECTION = 'admin_metrics_daily'
@@ -283,10 +284,63 @@ const ADMIN_DATA_COLLECTION_ALLOWLIST = new Set([
 let firestoreDb = null
 let firebaseAuth = null
 let storageBucket = null
+const firebaseAdapterScopes = []
+let firebaseAdapterBaseline = null
+
+const installFirebaseAdapterScope = ({
+  firestoreDb: injectedFirestoreDb,
+  firebaseAuth: injectedFirebaseAuth,
+  storageBucket: injectedStorageBucket,
+}) => {
+  if (!injectedFirestoreDb && !injectedFirebaseAuth && !injectedStorageBucket) return () => {}
+
+  if (!firebaseAdapterScopes.length) {
+    firebaseAdapterBaseline = { firestoreDb, firebaseAuth, storageBucket }
+  }
+
+  const scope = { injectedFirestoreDb, injectedFirebaseAuth, injectedStorageBucket }
+  firebaseAdapterScopes.push(scope)
+
+  const applyActiveScope = () => {
+    const activeFirestore = [...firebaseAdapterScopes]
+      .reverse()
+      .find((entry) => entry.injectedFirestoreDb)
+    const activeAuth = [...firebaseAdapterScopes]
+      .reverse()
+      .find((entry) => entry.injectedFirebaseAuth)
+    const activeStorage = [...firebaseAdapterScopes]
+      .reverse()
+      .find((entry) => entry.injectedStorageBucket)
+    firestoreDb =
+      activeFirestore?.injectedFirestoreDb || firebaseAdapterBaseline?.firestoreDb || null
+    firebaseAuth = activeAuth?.injectedFirebaseAuth || firebaseAdapterBaseline?.firebaseAuth || null
+    storageBucket =
+      activeStorage?.injectedStorageBucket || firebaseAdapterBaseline?.storageBucket || null
+  }
+
+  applyActiveScope()
+
+  let disposed = false
+  return () => {
+    if (disposed) return
+    disposed = true
+    const index = firebaseAdapterScopes.indexOf(scope)
+    if (index !== -1) firebaseAdapterScopes.splice(index, 1)
+    applyActiveScope()
+    if (!firebaseAdapterScopes.length) firebaseAdapterBaseline = null
+  }
+}
 
 const DEFAULT_INVITE_EMAIL_FROM = 'onboarding@resend.dev'
 const OWNER_INVITE_PENDING = 'pending'
 const OWNER_INVITE_ACCEPTED = 'accepted'
+const OWNER_INVITE_REVOKED = 'revoked'
+const OWNER_INVITE_EXPIRED = 'expired'
+const PROPERTY_ACCESS_INVITE_PENDING = 'pending'
+const PROPERTY_ACCESS_INVITE_ACCEPTED = 'accepted'
+const PROPERTY_ACCESS_INVITE_REVOKED = 'revoked'
+const PROPERTY_ACCESS_INVITE_EXPIRED = 'expired'
+const PROPERTY_ACCESS_ROLES = new Set(['owner', 'manager', 'viewer'])
 
 const randomHex = () => randomUUID().replace(/-/g, '')
 const generateOwnerInviteToken = () => `${randomHex()}${randomHex()}`
@@ -299,6 +353,36 @@ const normalizeEmail = (value) =>
   String(value || '')
     .trim()
     .toLowerCase()
+const normalizePropertyAccessRole = (value) => {
+  const role = String(value || '')
+    .trim()
+    .toLowerCase()
+  return PROPERTY_ACCESS_ROLES.has(role) ? role : null
+}
+const propertyAccessRoleLabel = (role) =>
+  ({
+    owner: 'Owner',
+    manager: 'Property manager',
+    viewer: 'View only',
+  })[normalizePropertyAccessRole(role)] || 'Property access'
+const propertyAccessMembershipRole = (role) =>
+  ({
+    owner: 'po',
+    manager: 'pm',
+    viewer: 'viewer',
+  })[normalizePropertyAccessRole(role)] || null
+const propertyAccessUserIdsField = (role) =>
+  ({
+    owner: 'owner_user_ids',
+    manager: 'manager_user_ids',
+    viewer: 'viewer_user_ids',
+  })[normalizePropertyAccessRole(role)] || null
+const asDate = (value) => {
+  if (!value) return null
+  if (typeof value?.toDate === 'function') return value.toDate()
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
 const escapeHtml = (value) =>
   String(value || '')
     .replace(/&/g, '&amp;')
@@ -421,6 +505,8 @@ const withIdempotency = ({ store, key, resolver }) => {
 }
 
 export const createApiServer = ({ store = createInMemoryStore(), config = {} } = {}) => {
+  // Local contract tests can inject isolated Firebase adapters without credentials.
+  const disposeFirebaseAdapters = installFirebaseAdapterScope(config)
   const routes = []
   const route = (method, pattern, handler) => routes.push({ method, pattern, handler })
   const rateLimits = new Map()
@@ -905,6 +991,193 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   }
 
+  // Only operational managers and owners can change who has access. A viewer can
+  // read the Property Account but must never be able to extend its access list.
+  const hasPropertyAccessManagementRights = async ({ actor, propertyId }) =>
+    hasShareAccessToProperty({ actor, propertyId })
+
+  const getLeaseById = async (leaseId) => {
+    const normalizedLeaseId = String(leaseId || '').trim()
+    if (!normalizedLeaseId) return null
+    const snapshot = await getDb().collection('leases').doc(normalizedLeaseId).get()
+    return snapshot.exists ? { id: snapshot.id, ...(snapshot.data() || {}) } : null
+  }
+
+  const requirePropertyManager = async ({ actor, verified, propertyId }) => {
+    requireVerifiedActor({ verified, actor })
+    if (!(await hasPmAccessToProperty({ actor, propertyId }))) {
+      throw createApiError(403, 'PERMISSION_DENIED', 'PM access to this property is required.')
+    }
+  }
+
+  const LEASE_STATUSES = new Set([
+    'Available',
+    'Rented',
+    'Pending',
+    'Expired',
+    'Terminated',
+    'Archived',
+  ])
+  const LEASE_MUTABLE_FIELDS = new Set([
+    'status',
+    'lease_term',
+    'lease_create_date',
+    'lease_start_date',
+    'lease_end_date',
+    'start_date',
+    'move_in_date',
+    'rate_type',
+    'rate_amount',
+    'deposit',
+    'pet_fee',
+    'application_fee_per_person',
+    'utilities_included',
+    'furnished',
+    'special_terms',
+    'additional_notes',
+    'archived',
+    'archived_at',
+  ])
+
+  const sanitizeLeaseChanges = (input = {}) => {
+    const changes = {}
+    for (const [key, value] of Object.entries(input || {})) {
+      if (!LEASE_MUTABLE_FIELDS.has(key)) continue
+      if (key === 'status' && !LEASE_STATUSES.has(String(value || '').trim())) {
+        throw createApiError(400, 'INVALID_LEASE_STATUS', 'The requested lease status is invalid.')
+      }
+      changes[key] = value
+    }
+    return changes
+  }
+
+  const requireVerifiedActor = ({ verified, actor }) => {
+    if (!verified || !String(actor?.id || '').trim()) {
+      throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
+    }
+  }
+
+  const hasAiQuotaAvailable = (actor) => {
+    const billing = actor?.billing || {}
+    return getQuotaStatus(billing.ai_tokens_used, billing.ai_tokens_limit) !== 'blocked'
+  }
+
+  const recordAiUsage = ({ actor, input, output }) => {
+    if (!actor?.billing) return 0
+    const text = `${String(input || '')}${JSON.stringify(output || {})}`
+    // Provider token usage is not available for every fallback path; use a consistent character estimate.
+    const tokens = Math.max(1, Math.ceil(text.length / 4))
+    actor.billing.ai_tokens_used = Math.max(0, Number(actor.billing.ai_tokens_used || 0)) + tokens
+    actor.billing.history.push({
+      id: `hist-${randomUUID()}`,
+      type: 'ai_usage',
+      tokens,
+      created_at: new Date().toISOString(),
+    })
+    return tokens
+  }
+
+  const getPmUploadPropertyId = async (storagePath) => {
+    const path = String(storagePath || '').replace(/^\/+/, '')
+    const propertyMatch = path.match(/^(?:images\/(?!leases\/)[^/]+|properties)\/([^/]+)\//)
+    if (propertyMatch) return extractPropertyId(propertyMatch[1])
+    const leaseMatch = path.match(/^images\/leases\/([^/]+)\//)
+    if (!leaseMatch) return null
+    const lease = await getLeaseById(leaseMatch[1])
+    return extractPropertyId(lease?.property_string_id || lease?.property_id)
+  }
+
+  const getPersistentStorageUrl = ({ bucketName, storagePath, downloadToken }) =>
+    `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(storagePath)}?alt=media&token=${encodeURIComponent(downloadToken)}`
+
+  const isExpiredOwnerInvite = (invite, now = Date.now()) => {
+    const expiresAt = asDate(invite?.expires_at)
+    return !expiresAt || expiresAt.getTime() <= now
+  }
+
+  const isExpiredPropertyAccessInvite = (invite, now = Date.now()) => {
+    const expiresAt = asDate(invite?.expires_at)
+    return !expiresAt || expiresAt.getTime() <= now
+  }
+
+  const sanitizeOwnerInvite = ({ invite, property }) => ({
+    invite: {
+      invite_id: invite.invite_id || invite.id,
+      status: OWNER_INVITE_PENDING,
+      expires_at: invite.expires_at,
+      owner_email_masked: String(invite.owner_email || '').replace(/^(.{1,2}).*(@.*)$/, '$1***$2'),
+    },
+    property: {
+      id: property.id,
+      nickname: property.nickname || null,
+      address: property.address || null,
+      city: property.city || null,
+      state: property.state || null,
+    },
+  })
+
+  const sanitizeOwnerInviteForPropertyMember = (invite) => ({
+    invite_id: invite.invite_id || invite.id,
+    property_id: invite.property_id,
+    owner_email: invite.owner_email || null,
+    owner_name: invite.owner_name || null,
+    status: invite.status || null,
+    expires_at: invite.expires_at || null,
+    accepted_at: invite.accepted_at || null,
+    accepted_by_user_id: invite.accepted_by_user_id || null,
+    revoked_at: invite.revoked_at || null,
+    revoked_by_user_id: invite.revoked_by_user_id || null,
+    created_at: invite.created_at || null,
+    updated_at: invite.updated_at || null,
+  })
+
+  const sanitizePropertyAccessInvite = ({ invite, property }) => ({
+    invite: {
+      invite_id: invite.invite_id || invite.id,
+      status: PROPERTY_ACCESS_INVITE_PENDING,
+      access_role: normalizePropertyAccessRole(invite.access_role),
+      access_label: propertyAccessRoleLabel(invite.access_role),
+      expires_at: invite.expires_at,
+      invited_email_masked: String(invite.invited_email || '').replace(
+        /^(.{1,2}).*(@.*)$/,
+        '$1***$2',
+      ),
+    },
+    property: {
+      id: property.id,
+      nickname: property.nickname || null,
+      address: property.address || null,
+      city: property.city || null,
+      state: property.state || null,
+    },
+  })
+
+  const sanitizePropertyAccessInviteForManager = (invite) => ({
+    invite_id: invite.invite_id || invite.id,
+    property_id: invite.property_id,
+    invited_email: invite.invited_email || null,
+    access_role: normalizePropertyAccessRole(invite.access_role),
+    access_label: propertyAccessRoleLabel(invite.access_role),
+    status: invite.status || null,
+    expires_at: invite.expires_at || null,
+    accepted_at: invite.accepted_at || null,
+    accepted_by_user_id: invite.accepted_by_user_id || null,
+    revoked_at: invite.revoked_at || null,
+    revoked_by_user_id: invite.revoked_by_user_id || null,
+    created_at: invite.created_at || null,
+    updated_at: invite.updated_at || null,
+  })
+
+  const ownerRoleDocId = (propertyId) => `po_${propertyId}`
+  const propertyAccessRoleDocId = ({ propertyId, accessRole }) =>
+    `${propertyAccessMembershipRole(accessRole)}_${propertyId}`
+  const ownerHistoryEventRef = ({ db, propertyId, eventType }) =>
+    db
+      .collection('properties')
+      .doc(propertyId)
+      .collection('history_events')
+      .doc(`${eventType}_${randomUUID()}`)
+
   const LEASE_APPLICATION_PRIVATE_DOC_ID = 'profile'
   const LEASE_APPLICATION_ACCESS_LOGS_COLLECTION = 'lease_application_access_logs'
 
@@ -1106,6 +1379,57 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     throw createApiError(403, 'PERMISSION_DENIED', 'You do not have access to this application.')
   }
 
+  const normalizeTenantPayload = (tenant = {}) => ({
+    personal_info:
+      tenant?.personal_info && typeof tenant.personal_info === 'object' ? tenant.personal_info : {},
+    current_address:
+      tenant?.current_address && typeof tenant.current_address === 'object'
+        ? tenant.current_address
+        : {},
+    employment:
+      tenant?.employment && typeof tenant.employment === 'object' ? tenant.employment : null,
+    emergency_contact:
+      tenant?.emergency_contact && typeof tenant.emergency_contact === 'object'
+        ? tenant.emergency_contact
+        : null,
+    co_applicants: Array.isArray(tenant?.co_applicants) ? tenant.co_applicants : [],
+    vehicles: Array.isArray(tenant?.vehicles) ? tenant.vehicles : [],
+    pets: Array.isArray(tenant?.pets) ? tenant.pets : [],
+    documents: Array.isArray(tenant?.documents) ? tenant.documents : [],
+    notes: String(tenant?.notes || '').trim(),
+    status:
+      String(tenant?.status || 'active')
+        .trim()
+        .toLowerCase() || 'active',
+  })
+
+  const assertPmPropertyAccess = async ({ actor, propertyId }) => {
+    const normalizedPropertyId = extractPropertyId(propertyId)
+    if (
+      !normalizedPropertyId ||
+      !(await hasPmAccessToProperty({ actor, propertyId: normalizedPropertyId }))
+    ) {
+      throw createApiError(403, 'PERMISSION_DENIED', 'PM access to this property is required.')
+    }
+    return normalizedPropertyId
+  }
+
+  const assertLeaseBelongsToProperty = async ({ db, leaseId, propertyId }) => {
+    const normalizedLeaseId = String(leaseId || '').trim()
+    if (!normalizedLeaseId) return null
+    const leaseRef = db.collection('leases').doc(normalizedLeaseId)
+    const leaseSnap = await leaseRef.get()
+    if (!leaseSnap.exists) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+    if (extractPropertyId(leaseSnap.data()?.property_id) !== propertyId) {
+      throw createApiError(
+        403,
+        'LEASE_PROPERTY_MISMATCH',
+        'Lease does not belong to this property.',
+      )
+    }
+    return { ref: leaseRef, data: leaseSnap.data() || {} }
+  }
+
   const uploadLeaseApplicationDocumentFile = async ({
     applicationId,
     filePayload,
@@ -1163,6 +1487,14 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       .replace(/\/$/, '')
     if (!baseUrl) return `/public/owner-invite/${token}`
     return `${baseUrl}/public/owner-invite/${token}`
+  }
+
+  const buildPropertyAccessInviteUrl = ({ origin, token }) => {
+    const baseUrl = String(appBaseUrl || origin || '')
+      .trim()
+      .replace(/\/$/, '')
+    if (!baseUrl) return `/public/property-access-invite/${token}`
+    return `${baseUrl}/public/property-access-invite/${token}`
   }
 
   const renderOwnerInviteEmail = ({ inviteUrl, propertyName, propertyAddress, inviterName }) => {
@@ -1776,7 +2108,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   }
 
-  const createStripeCheckoutSession = async ({ order, body = {}, now = new Date().toISOString() }) => {
+  const createStripeCheckoutSession = async ({
+    order,
+    body = {},
+    now = new Date().toISOString(),
+  }) => {
     if (!stripeSecretKey) {
       return createStripeCheckoutSessionPlaceholder({ order, body, now })
     }
@@ -1807,7 +2143,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     params.set('line_items[0][quantity]', '1')
     params.set('line_items[0][price_data][currency]', String(order.currency || 'USD').toLowerCase())
     params.set('line_items[0][price_data][unit_amount]', String(Number(order.amount_cents || 0)))
-    params.set('line_items[0][price_data][product_data][name]', String(order.sku_name || order.sku_code))
+    params.set(
+      'line_items[0][price_data][product_data][name]',
+      String(order.sku_name || order.sku_code),
+    )
     params.set('payment_method_types[0]', 'card')
     params.set('allow_promotion_codes', 'false')
 
@@ -1873,8 +2212,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       try {
         const candidate = Buffer.from(signature, 'hex')
         return (
-          candidate.length === expectedBuffer.length &&
-          timingSafeEqual(candidate, expectedBuffer)
+          candidate.length === expectedBuffer.length && timingSafeEqual(candidate, expectedBuffer)
         )
       } catch {
         return false
@@ -4494,6 +4832,787 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return ok(res, requestId, summary)
   })
 
+  route(
+    'GET',
+    '/properties/:propertyId/tenants',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const propertyId = await assertPmPropertyAccess({ actor, propertyId: params.propertyId })
+        const snap = await getDb()
+          .collection('tenants')
+          .where('property_id', '==', propertyId)
+          .get()
+        const rows = snap.docs
+          .map((row) => ({ id: row.id, ...(row.data() || {}) }))
+          .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        return ok(res, requestId, { rows })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'TENANT_LIST_FAILED',
+          error?.message || 'Failed to load tenants.',
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/properties/:propertyId/tenants',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const propertyId = await assertPmPropertyAccess({ actor, propertyId: params.propertyId })
+        const tenant = normalizeTenantPayload(body?.tenant)
+        const firstName = String(tenant.personal_info?.first_name || '').trim()
+        const lastName = String(tenant.personal_info?.last_name || '').trim()
+        const email = String(tenant.personal_info?.email || '').trim()
+        if (!firstName || !lastName || !email) {
+          throw createApiError(
+            400,
+            'INCOMPLETE_TENANT',
+            'Tenant first name, last name, and email are required.',
+          )
+        }
+
+        const db = getDb()
+        const leaseId = String(body?.lease_id || '').trim() || null
+        if (leaseId) await assertLeaseBelongsToProperty({ db, leaseId, propertyId })
+        const now = new Date().toISOString()
+        const tenantRef = db.collection('tenants').doc()
+        const record = {
+          ...tenant,
+          property_id: propertyId,
+          lease_id: leaseId,
+          created_at: now,
+          updated_at: now,
+          created_by: actor.id,
+        }
+        await tenantRef.set(record)
+        await db
+          .collection('properties')
+          .doc(propertyId)
+          .collection('history_events')
+          .doc(`tenant_created_${tenantRef.id}`)
+          .set({
+            event_type: 'tenant_created',
+            entity_type: 'tenant',
+            entity_id: tenantRef.id,
+            actor_id: actor.id,
+            created_at: now,
+          })
+        return ok(res, requestId, { tenant: { id: tenantRef.id, ...record } })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'TENANT_CREATE_FAILED',
+          error?.message || 'Failed to create tenant.',
+        )
+      }
+    },
+  )
+
+  route(
+    'PATCH',
+    '/properties/:propertyId/tenants/:tenantId',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const propertyId = await assertPmPropertyAccess({ actor, propertyId: params.propertyId })
+        const db = getDb()
+        const tenantRef = db.collection('tenants').doc(String(params.tenantId || '').trim())
+        const tenantSnap = await tenantRef.get()
+        if (!tenantSnap.exists) throw createApiError(404, 'TENANT_NOT_FOUND', 'Tenant not found.')
+        const existing = tenantSnap.data() || {}
+        if (extractPropertyId(existing.property_id) !== propertyId) {
+          throw createApiError(403, 'PERMISSION_DENIED', 'Tenant does not belong to this property.')
+        }
+        const patch = normalizeTenantPayload({ ...existing, ...(body?.tenant || {}) })
+        const now = new Date().toISOString()
+        const record = {
+          ...patch,
+          property_id: propertyId,
+          lease_id: existing.lease_id || null,
+          updated_at: now,
+        }
+        await tenantRef.set(record, { merge: true })
+        return ok(res, requestId, { tenant: { id: tenantRef.id, ...existing, ...record } })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'TENANT_UPDATE_FAILED',
+          error?.message || 'Failed to update tenant.',
+        )
+      }
+    },
+  )
+
+  route(
+    'DELETE',
+    '/properties/:propertyId/tenants/:tenantId',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const propertyId = await assertPmPropertyAccess({ actor, propertyId: params.propertyId })
+        const db = getDb()
+        const tenantRef = db.collection('tenants').doc(String(params.tenantId || '').trim())
+        const tenantSnap = await tenantRef.get()
+        if (!tenantSnap.exists) throw createApiError(404, 'TENANT_NOT_FOUND', 'Tenant not found.')
+        if (extractPropertyId(tenantSnap.data()?.property_id) !== propertyId) {
+          throw createApiError(403, 'PERMISSION_DENIED', 'Tenant does not belong to this property.')
+        }
+        await tenantRef.delete()
+        return ok(res, requestId, { deleted: true })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'TENANT_DELETE_FAILED',
+          error?.message || 'Failed to delete tenant.',
+        )
+      }
+    },
+  )
+
+  route('GET', '/tenant-invites/:leaseId', async ({ params, res, requestId }) => {
+    try {
+      const lease = await getLeaseById(params.leaseId)
+      if (!lease)
+        throw createApiError(404, 'LEASE_NOT_FOUND', 'This invitation is no longer available.')
+      if (
+        !['available', 'pending', 'rented'].includes(
+          String(lease.status || '')
+            .trim()
+            .toLowerCase(),
+        )
+      ) {
+        throw createApiError(404, 'LEASE_NOT_AVAILABLE', 'This invitation is no longer available.')
+      }
+      const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+      const property = propertyId ? await getFirestorePropertyById(propertyId) : null
+      if (!property)
+        throw createApiError(404, 'PROPERTY_NOT_FOUND', 'This invitation is no longer available.')
+      return ok(res, requestId, {
+        lease: {
+          id: lease.id,
+          status: lease.status || null,
+          rate_amount: lease.rate_amount || null,
+          rate_type: lease.rate_type || null,
+          lease_term: lease.lease_term || null,
+          lease_start_date: lease.lease_start_date || null,
+          lease_end_date: lease.lease_end_date || null,
+          property_id: propertyId,
+        },
+        property: {
+          id: propertyId,
+          nickname: property.nickname || '',
+          address: property.address || '',
+          city: property.city || '',
+          state: property.state || '',
+          zip_code: property.zip_code || '',
+        },
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_INVITE_LOAD_FAILED',
+        error?.message || 'Unable to load invitation.',
+      )
+    }
+  })
+
+  route('POST', '/tenant/lease-link', async ({ actor, verified, body, res, requestId }) => {
+    try {
+      requireVerifiedActor({ actor, verified })
+      const leaseId = String(body?.lease_id || '').trim()
+      const email = normalizeEmail(actor.email)
+      if (!leaseId || !email)
+        throw createApiError(
+          400,
+          'TENANT_LINK_INVALID',
+          'A verified account email and lease invitation are required.',
+        )
+      const db = getDb()
+      const result = await db.runTransaction(async (transaction) => {
+        const leaseRef = db.collection('leases').doc(leaseId)
+        const leaseSnap = await transaction.get(leaseRef)
+        if (!leaseSnap.exists) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+        const lease = { id: leaseSnap.id, ...(leaseSnap.data() || {}) }
+        const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+        if (!propertyId)
+          throw createApiError(400, 'LEASE_PROPERTY_MISSING', 'Lease is not linked to a property.')
+
+        const tenantQuery = await db.collection('tenants').where('lease_id', '==', leaseId).get()
+        const tenantMatch = tenantQuery.docs.find((row) => {
+          const data = row.data() || {}
+          return normalizeEmail(data?.personal_info?.email || data?.email) === email
+        })
+        const leaseEmailMatches = normalizeEmail(lease.tenant_email) === email
+        if (!tenantMatch && !leaseEmailMatches) {
+          throw createApiError(
+            403,
+            'TENANT_INVITE_EMAIL_MISMATCH',
+            'This invitation was issued to a different email address.',
+          )
+        }
+
+        const now = new Date().toISOString()
+        const tenantRef = tenantMatch?.ref || db.collection('tenants').doc(actor.id)
+        const existingTenant = tenantMatch?.data() || {}
+        const personalInfo = {
+          ...(existingTenant.personal_info || {}),
+          email,
+          phone: String(body?.phone || existingTenant?.personal_info?.phone || '').trim(),
+        }
+        const tenantRecord = {
+          ...existingTenant,
+          property_id: propertyId,
+          lease_id: leaseId,
+          personal_info: personalInfo,
+          account_user_id: actor.id,
+          status: 'active',
+          updated_at: now,
+          ...(tenantMatch ? {} : { created_at: now, created_by: actor.id }),
+        }
+        const leaseSnapshot = {
+          lease_id: leaseId,
+          status: lease.status || null,
+          rate_amount: lease.rate_amount || null,
+          rate_type: lease.rate_type || null,
+          lease_term: lease.lease_term || null,
+          lease_start_date: lease.lease_start_date || null,
+          lease_end_date: lease.lease_end_date || null,
+          property_id: propertyId,
+        }
+        transaction.set(tenantRef, tenantRecord, { merge: true })
+        transaction.set(
+          db.collection('users').doc(actor.id),
+          {
+            lease_id: leaseId,
+            property_id: propertyId,
+            lease_snapshot: leaseSnapshot,
+            updated_at: now,
+          },
+          { merge: true },
+        )
+        transaction.set(
+          leaseRef,
+          { tenant_id: actor.id, tenant_email: email, updated_at: now },
+          { merge: true },
+        )
+        return {
+          lease: { ...lease, ...leaseSnapshot },
+          tenant: { id: tenantRef.id, ...tenantRecord },
+        }
+      })
+      return ok(res, requestId, result)
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_LINK_FAILED',
+        error?.message || 'Unable to link tenant account.',
+      )
+    }
+  })
+
+  route('GET', '/tenant/dashboard', async ({ actor, verified, res, requestId }) => {
+    try {
+      requireVerifiedActor({ actor, verified })
+      const db = getDb()
+      const userSnap = await db.collection('users').doc(actor.id).get()
+      const leaseId = String(userSnap.data()?.lease_id || '').trim()
+      if (!leaseId)
+        throw createApiError(
+          404,
+          'TENANT_LEASE_NOT_LINKED',
+          'No lease is linked to this tenant account.',
+        )
+      const lease = await getLeaseById(leaseId)
+      if (!lease || String(lease.tenant_id || '') !== actor.id) {
+        throw createApiError(
+          403,
+          'TENANT_LEASE_ACCESS_DENIED',
+          'This tenant account is not linked to the requested lease.',
+        )
+      }
+      const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+      const [tenantsSnap, transactionsSnap, tasksSnap, documentsSnap] = await Promise.all([
+        db.collection('tenants').where('lease_id', '==', leaseId).get(),
+        db.collection('transactions').where('property_id', '==', propertyId).get(),
+        db.collection('properties').doc(propertyId).collection('mxrecords').get(),
+        db.collection('properties').doc(propertyId).collection('documents').get(),
+      ])
+      const transactions = transactionsSnap.docs
+        .map((row) => ({ id: row.id, ...(row.data() || {}) }))
+        .filter((row) => {
+          const fromId = extractPropertyId(row.from) || String(row.from_id || '')
+          const toId = extractPropertyId(row.to) || String(row.to_id || '')
+          return row.tenant_id === actor.id || fromId === actor.id || toId === actor.id
+        })
+      const tasks = tasksSnap.docs
+        .map((row) => ({ id: row.id, ...(row.data() || {}) }))
+        .filter(
+          (row) =>
+            String(row.created_by || '') === actor.id || String(row.tenant_id || '') === actor.id,
+        )
+      const tenantSummaries = tenantsSnap.docs.map((row) => {
+        const tenant = row.data() || {}
+        const personalInfo = tenant.personal_info || {}
+        const email = normalizeEmail(personalInfo.email || tenant.email)
+        const fullName = String(
+          personalInfo.full_name ||
+            [personalInfo.first_name, personalInfo.last_name].filter(Boolean).join(' ') ||
+            tenant.full_name ||
+            email ||
+            'Tenant',
+        ).trim()
+        return {
+          id: row.id,
+          name: fullName,
+          email: email || null,
+          phone:
+            String(personalInfo.phone || tenant.phone || tenant.phone_number || '').trim() || null,
+          is_current: String(tenant.account_user_id || '') === actor.id,
+        }
+      })
+      const documents = documentsSnap.docs
+        .map((row) => ({ id: row.id, ...(row.data() || {}) }))
+        .filter((row) => {
+          const belongsToCurrentTenant = String(row.tenant_id || '') === actor.id
+          const isLeaseSharedDocument = !row.tenant_id && String(row.lease_id || '') === leaseId
+          return belongsToCurrentTenant || isLeaseSharedDocument
+        })
+        .map(({ url, storage_path, ...document }) => document)
+      return ok(res, requestId, {
+        lease,
+        tenants: tenantSummaries,
+        transactions,
+        tasks,
+        documents,
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_DASHBOARD_FAILED',
+        error?.message || 'Unable to load tenant workspace.',
+      )
+    }
+  })
+
+  route(
+    'GET',
+    '/tenant/documents/:documentId/access',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const db = getDb()
+        const userSnap = await db.collection('users').doc(actor.id).get()
+        const leaseId = String(userSnap.data()?.lease_id || '').trim()
+        const lease = await getLeaseById(leaseId)
+        if (!lease || String(lease.tenant_id || '') !== actor.id) {
+          throw createApiError(
+            403,
+            'TENANT_LEASE_ACCESS_DENIED',
+            'This tenant account is not linked to an active lease.',
+          )
+        }
+        const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+        const documentRef = db
+          .collection('properties')
+          .doc(propertyId)
+          .collection('documents')
+          .doc(String(params.documentId || '').trim())
+        const documentSnap = await documentRef.get()
+        if (!documentSnap.exists)
+          throw createApiError(404, 'TENANT_DOCUMENT_NOT_FOUND', 'Document not found.')
+        const document = documentSnap.data() || {}
+        const belongsToCurrentTenant = String(document.tenant_id || '') === actor.id
+        const isLeaseSharedDocument =
+          !document.tenant_id && String(document.lease_id || '') === leaseId
+        if (!belongsToCurrentTenant && !isLeaseSharedDocument) {
+          throw createApiError(
+            403,
+            'TENANT_DOCUMENT_ACCESS_DENIED',
+            'You do not have access to this document.',
+          )
+        }
+        const storagePath = String(document.storage_path || '').trim()
+        if (!storagePath)
+          throw createApiError(404, 'TENANT_DOCUMENT_FILE_MISSING', 'Document file is unavailable.')
+        const [url] = await getStorageBucket()
+          .file(storagePath)
+          .getSignedUrl({ action: 'read', expires: Date.now() + 5 * 60 * 1000 })
+        return ok(res, requestId, { url, expires_in_seconds: 300 })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'TENANT_DOCUMENT_ACCESS_FAILED',
+          error?.message || 'Unable to open document.',
+        )
+      }
+    },
+  )
+
+  route('PATCH', '/tenant/contact', async ({ actor, verified, body, res, requestId }) => {
+    try {
+      requireVerifiedActor({ actor, verified })
+      const db = getDb()
+      const userSnap = await db.collection('users').doc(actor.id).get()
+      const leaseId = String(userSnap.data()?.lease_id || '').trim()
+      const lease = await getLeaseById(leaseId)
+      if (!lease || String(lease.tenant_id || '') !== actor.id) {
+        throw createApiError(
+          403,
+          'TENANT_LEASE_ACCESS_DENIED',
+          'This tenant account is not linked to an active lease.',
+        )
+      }
+      const tenantSnap = await db
+        .collection('tenants')
+        .where('account_user_id', '==', actor.id)
+        .get()
+      const tenantDoc = tenantSnap.docs.find(
+        (row) => String(row.data()?.lease_id || '') === leaseId,
+      )
+      if (!tenantDoc)
+        throw createApiError(404, 'TENANT_PROFILE_NOT_FOUND', 'Tenant profile not found.')
+      const existing = tenantDoc.data() || {}
+      const email = normalizeEmail(body?.email || actor.email)
+      if (!email)
+        throw createApiError(400, 'TENANT_EMAIL_REQUIRED', 'A valid email address is required.')
+      const phone = String(body?.phone || '').trim()
+      const updatedAt = new Date().toISOString()
+      const personalInfo = { ...(existing.personal_info || {}), email, phone }
+      await tenantDoc.ref.set(
+        { email, phone, personal_info: personalInfo, updated_at: updatedAt },
+        { merge: true },
+      )
+      return ok(res, requestId, {
+        tenant: {
+          id: tenantDoc.id,
+          ...existing,
+          email,
+          phone,
+          personal_info: personalInfo,
+          updated_at: updatedAt,
+        },
+      })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_CONTACT_UPDATE_FAILED',
+        error?.message || 'Unable to update tenant contact.',
+      )
+    }
+  })
+
+  route('POST', '/tenant/tasks', async ({ actor, verified, body, res, requestId }) => {
+    try {
+      requireVerifiedActor({ actor, verified })
+      const db = getDb()
+      const userSnap = await db.collection('users').doc(actor.id).get()
+      const leaseId = String(userSnap.data()?.lease_id || '').trim()
+      const lease = await getLeaseById(leaseId)
+      if (!lease || String(lease.tenant_id || '') !== actor.id) {
+        throw createApiError(
+          403,
+          'TENANT_LEASE_ACCESS_DENIED',
+          'This tenant account is not linked to an active lease.',
+        )
+      }
+      const title = String(body?.title || '').trim()
+      if (!title)
+        throw createApiError(400, 'TENANT_TASK_TITLE_REQUIRED', 'A task title is required.')
+      const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+      const now = new Date().toISOString()
+      const taskRef = db.collection('properties').doc(propertyId).collection('mxrecords').doc()
+      const task = {
+        mx_id: `mx_${taskRef.id}`,
+        task_title: title,
+        description: String(body?.description || '').trim(),
+        category: String(body?.category || 'Maintenance').trim(),
+        priority: String(body?.priority || 'medium').trim(),
+        due_date: String(body?.due_date || '').trim() || null,
+        report_date: String(body?.due_date || '').trim() || now.slice(0, 10),
+        status: 'open',
+        created_by: actor.id,
+        created_by_name: String(actor.email || 'Tenant'),
+        created_by_role: 'tt',
+        reported_by: String(actor.email || 'Tenant'),
+        reported_by_id: actor.id,
+        reported_role: 'tt',
+        tenant_id: actor.id,
+        lease_id: leaseId,
+        property_id: propertyId,
+        created_at: now,
+        updated_at: now,
+      }
+      await taskRef.set(task)
+      return ok(res, requestId, { task: { id: taskRef.id, ...task } })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_TASK_CREATE_FAILED',
+        error?.message || 'Unable to submit maintenance request.',
+      )
+    }
+  })
+
+  route('POST', '/tenant/documents', async ({ actor, verified, body, res, requestId }) => {
+    try {
+      requireVerifiedActor({ actor, verified })
+      const db = getDb()
+      const userSnap = await db.collection('users').doc(actor.id).get()
+      const leaseId = String(userSnap.data()?.lease_id || '').trim()
+      const lease = await getLeaseById(leaseId)
+      if (!lease || String(lease.tenant_id || '') !== actor.id) {
+        throw createApiError(
+          403,
+          'TENANT_LEASE_ACCESS_DENIED',
+          'This tenant account is not linked to an active lease.',
+        )
+      }
+      const files = Array.isArray(body?.files) ? body.files : []
+      if (!files.length || files.length > 10)
+        throw createApiError(400, 'TENANT_DOCUMENTS_INVALID', 'Upload between one and ten files.')
+      const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+      const category = String(body?.category || 'General')
+        .trim()
+        .slice(0, 80)
+      const note = String(body?.note || '')
+        .trim()
+        .slice(0, 2000)
+      const bucket = getStorageBucket()
+      const now = new Date().toISOString()
+      const documents = []
+      for (const payload of files) {
+        const size = Number(payload?.size || 0)
+        if (!Number.isFinite(size) || size <= 0 || size > 10 * 1024 * 1024) {
+          throw createApiError(
+            400,
+            'TENANT_DOCUMENT_TOO_LARGE',
+            'Each uploaded file must be 10 MB or smaller.',
+          )
+        }
+        const buffer = parseBase64PayloadToBuffer(payload?.data_base64)
+        const documentId = randomUUID()
+        const originalFilename = sanitizeFileName(payload?.original_filename || 'document')
+        const storagePath = `secure/tenant_documents/${propertyId}/${actor.id}/${documentId}/${originalFilename}`
+        await bucket.file(storagePath).save(buffer, {
+          resumable: false,
+          metadata: { contentType: String(payload?.content_type || 'application/octet-stream') },
+        })
+        const [url] = await bucket
+          .file(storagePath)
+          .getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 })
+        const docRef = db.collection('properties').doc(propertyId).collection('documents').doc()
+        const document = {
+          name: originalFilename,
+          category,
+          note,
+          url,
+          storage_path: storagePath,
+          uploaded_by: actor.id,
+          uploaded_by_role: 'tt',
+          tenant_id: actor.id,
+          lease_id: leaseId,
+          source_type: 'tenant_upload',
+          source_page: 'tenant_home',
+          content_type: String(payload?.content_type || 'application/octet-stream'),
+          size,
+          created_at: now,
+        }
+        await docRef.set(document)
+        documents.push({ id: docRef.id, ...document })
+      }
+      return ok(res, requestId, { documents })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error?.status || 500,
+        error?.code || 'TENANT_DOCUMENT_UPLOAD_FAILED',
+        error?.message || 'Unable to upload tenant documents.',
+      )
+    }
+  })
+
+  route(
+    'PATCH',
+    '/lease-applications/:id/review',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const applicationId = String(params.id || '').trim()
+        const decision = String(body?.decision || '')
+          .trim()
+          .toLowerCase()
+        if (!['approved', 'rejected'].includes(decision)) {
+          throw createApiError(
+            400,
+            'INVALID_REVIEW_DECISION',
+            'Decision must be approved or rejected.',
+          )
+        }
+        const db = getDb()
+        const result = await db.runTransaction(async (transaction) => {
+          const applicationRef = db.collection('lease_applications').doc(applicationId)
+          const applicationSnap = await transaction.get(applicationRef)
+          if (!applicationSnap.exists)
+            throw createApiError(404, 'APPLICATION_NOT_FOUND', 'Application not found.')
+          const summary = applicationSnap.data() || {}
+          const propertyId = await assertPmPropertyAccess({
+            actor,
+            propertyId: summary.property_id,
+          })
+          const currentStatus = String(summary.status || 'pending')
+            .trim()
+            .toLowerCase()
+          if (currentStatus === 'approved' || currentStatus === 'rejected') {
+            throw createApiError(
+              409,
+              'APPLICATION_ALREADY_REVIEWED',
+              'Application has already been reviewed.',
+            )
+          }
+          const privateRef = applicationRef
+            .collection('private')
+            .doc(LEASE_APPLICATION_PRIVATE_DOC_ID)
+          const privateSnap = await transaction.get(privateRef)
+          const privateData = privateSnap.exists ? privateSnap.data() || {} : {}
+          const now = new Date().toISOString()
+          const reviewPatch = {
+            status: decision,
+            reviewed_at: now,
+            reviewed_by_user_id: actor.id,
+            updated_at: now,
+            ...(decision === 'approved' ? { approved_at: now } : { rejected_at: now }),
+          }
+          transaction.set(applicationRef, reviewPatch, { merge: true })
+
+          if (decision === 'approved') {
+            const leaseId = String(summary.lease_id || '').trim()
+            if (!leaseId)
+              throw createApiError(
+                400,
+                'LEASE_REQUIRED',
+                'A lease is required to approve an application.',
+              )
+            const lease = await assertLeaseBelongsToProperty({ db, leaseId, propertyId })
+            const startDate = String(
+              body?.lease_start_date || summary.desired_move_in_date || '',
+            ).trim()
+            if (!startDate)
+              throw createApiError(
+                400,
+                'LEASE_START_DATE_REQUIRED',
+                'A lease start date is required.',
+              )
+            const tenantRef = db.collection('tenants').doc()
+            const tenant = normalizeTenantPayload({
+              personal_info: privateData.applicant || summary.applicant || {},
+              co_applicants: privateData.co_applicants || [],
+              vehicles: privateData.vehicles || [],
+              pets: privateData.pets || [],
+              documents: privateData.documents || [],
+              notes: privateData.additional_notes || '',
+              status: 'active',
+            })
+            transaction.set(tenantRef, {
+              ...tenant,
+              property_id: propertyId,
+              lease_id: leaseId,
+              application_id: applicationId,
+              tenant_status: 'active',
+              move_in_date: startDate,
+              created_at: now,
+              updated_at: now,
+              created_by: actor.id,
+            })
+            transaction.set(
+              lease.ref,
+              {
+                status: 'Rented',
+                start_date: startDate,
+                lease_start_date: startDate,
+                move_in_date: startDate,
+                tenant_id: tenantRef.id,
+                tenant_email: String(tenant.personal_info?.email || '').trim() || null,
+                rented_at: now,
+                updated_at: now,
+              },
+              { merge: true },
+            )
+            transaction.set(
+              db
+                .collection('properties')
+                .doc(propertyId)
+                .collection('history_events')
+                .doc(`application_approved_${applicationId}`),
+              {
+                event_type: 'application_approved',
+                entity_type: 'lease_application',
+                entity_id: applicationId,
+                actor_id: actor.id,
+                tenant_id: tenantRef.id,
+                lease_id: leaseId,
+                created_at: now,
+              },
+            )
+            return {
+              application: { id: applicationId, ...summary, ...reviewPatch },
+              tenant_id: tenantRef.id,
+            }
+          }
+          transaction.set(
+            db
+              .collection('properties')
+              .doc(propertyId)
+              .collection('history_events')
+              .doc(`application_rejected_${applicationId}`),
+            {
+              event_type: 'application_rejected',
+              entity_type: 'lease_application',
+              entity_id: applicationId,
+              actor_id: actor.id,
+              created_at: now,
+            },
+          )
+          return { application: { id: applicationId, ...summary, ...reviewPatch }, tenant_id: null }
+        })
+        return ok(res, requestId, result)
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'APPLICATION_REVIEW_FAILED',
+          error?.message || 'Failed to review application.',
+        )
+      }
+    },
+  )
+
   route('POST', '/lease-applications', async ({ body, actor, verified, res, requestId }) => {
     const application =
       body?.application && typeof body.application === 'object' ? body.application : null
@@ -4949,6 +6068,267 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     }
   })
 
+  route(
+    'GET',
+    '/properties/:propertyId/leases',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+          throw createApiError(403, 'PERMISSION_DENIED', 'You do not have access to this property.')
+        }
+        const snapshot = await getDb()
+          .collection('leases')
+          .where('property_string_id', '==', propertyId)
+          .get()
+        const leases = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+          .sort((left, right) =>
+            String(right.created_at || '').localeCompare(String(left.created_at || '')),
+          )
+        return ok(res, requestId, { leases })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'LEASE_LIST_FAILED',
+          error.message || 'Unable to load leases.',
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/properties/:propertyId/leases',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        const propertyId = String(params.propertyId || '').trim()
+        await requirePropertyManager({ actor, verified, propertyId })
+        const property = await getFirestorePropertyById(propertyId)
+        if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+        const input = body?.lease || {}
+        const status = String(input.status || '').trim()
+        if (!LEASE_STATUSES.has(status))
+          throw createApiError(400, 'INVALID_LEASE_STATUS', 'A valid lease status is required.')
+        if (!Number.isFinite(Number(input.lease_term)) || Number(input.lease_term) <= 0) {
+          throw createApiError(400, 'INVALID_LEASE_TERM', 'lease_term must be greater than zero.')
+        }
+        if (
+          !String(input.lease_create_date || '').trim() ||
+          !String(input.rate_type || '').trim()
+        ) {
+          throw createApiError(
+            400,
+            'INVALID_LEASE',
+            'lease_create_date and rate_type are required.',
+          )
+        }
+        const now = new Date().toISOString()
+        const leaseId = `lease-${randomUUID()}`
+        const propertySnapshot = { ...property }
+        const lease = {
+          id: leaseId,
+          property_id: propertySnapshot,
+          property_string_id: propertyId,
+          LSID: String(
+            input.LSID || `${property.nickname || property.name || 'Property'}${Date.now()}`,
+          ).slice(0, 160),
+          ...sanitizeLeaseChanges(input),
+          lease_term: Number(input.lease_term),
+          rate_amount: Number(input.rate_amount || 0),
+          deposit: Number(input.deposit || 0),
+          pet_fee: Number(input.pet_fee || 0),
+          application_fee_per_person: Number(input.application_fee_per_person || 0),
+          utilities_included: Array.isArray(input.utilities_included)
+            ? input.utilities_included
+            : [],
+          created_by: actor.id,
+          created_at: now,
+          created_datetime: now,
+          updated_at: now,
+        }
+        const inventory = {
+          id: 'primary',
+          property_id: propertyId,
+          property_address: String(property.address || ''),
+          lease_doc_id: leaseId,
+          lease_lsid: lease.LSID,
+          ktcs_items: {},
+          custom_items: [],
+          created_datetime: now,
+          updated_datetime: now,
+        }
+        await getDb().runTransaction(async (transaction) => {
+          transaction.set(getDb().collection('leases').doc(leaseId), lease)
+          transaction.set(
+            getDb().collection('leases').doc(leaseId).collection('inventories').doc('primary'),
+            inventory,
+          )
+        })
+        return ok(res, requestId, { lease })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'LEASE_CREATE_FAILED',
+          error.message || 'Unable to create lease.',
+        )
+      }
+    },
+  )
+
+  route('PATCH', '/leases/:leaseId', async ({ actor, verified, params, body, res, requestId }) => {
+    try {
+      const lease = await getLeaseById(params.leaseId)
+      if (!lease) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+      await requirePropertyManager({
+        actor,
+        verified,
+        propertyId: lease.property_string_id || lease.property_id,
+      })
+      const changes = sanitizeLeaseChanges(body?.changes || body || {})
+      if (!Object.keys(changes).length)
+        throw createApiError(400, 'NO_LEASE_CHANGES', 'No editable lease fields were supplied.')
+      const updatedAt = new Date().toISOString()
+      const updated = { ...lease, ...changes, updated_at: updatedAt }
+      await getDb()
+        .collection('leases')
+        .doc(lease.id)
+        .set({ ...changes, updated_at: updatedAt }, { merge: true })
+      return ok(res, requestId, { lease: updated })
+    } catch (error) {
+      return sendError(
+        res,
+        requestId,
+        error.status || 500,
+        error.code || 'LEASE_UPDATE_FAILED',
+        error.message || 'Unable to update lease.',
+      )
+    }
+  })
+
+  route(
+    'PATCH',
+    '/leases/:leaseId/status',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        const lease = await getLeaseById(params.leaseId)
+        if (!lease) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+        await requirePropertyManager({
+          actor,
+          verified,
+          propertyId: lease.property_string_id || lease.property_id,
+        })
+        const status = String(body?.status || '').trim()
+        if (!LEASE_STATUSES.has(status))
+          throw createApiError(
+            400,
+            'INVALID_LEASE_STATUS',
+            'The requested lease status is invalid.',
+          )
+        const now = new Date().toISOString()
+        const changes = { status, updated_at: now }
+        if (Boolean(body?.archived) || status === 'Archived') {
+          changes.archived = true
+          changes.archived_at = now
+        }
+        await getDb().collection('leases').doc(lease.id).set(changes, { merge: true })
+        return ok(res, requestId, { lease: { ...lease, ...changes } })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'LEASE_STATUS_UPDATE_FAILED',
+          error.message || 'Unable to update lease status.',
+        )
+      }
+    },
+  )
+
+  route(
+    'GET',
+    '/leases/:leaseId/inventories/primary',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const lease = await getLeaseById(params.leaseId)
+        if (!lease) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+        if (
+          !(await hasShareAccessToProperty({
+            actor,
+            propertyId: lease.property_string_id || lease.property_id,
+          }))
+        ) {
+          throw createApiError(403, 'PERMISSION_DENIED', 'You do not have access to this lease.')
+        }
+        const snapshot = await getDb()
+          .collection('leases')
+          .doc(lease.id)
+          .collection('inventories')
+          .doc('primary')
+          .get()
+        return ok(res, requestId, {
+          inventory: snapshot.exists ? { id: snapshot.id, ...(snapshot.data() || {}) } : null,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'INVENTORY_LOAD_FAILED',
+          error.message || 'Unable to load inventory.',
+        )
+      }
+    },
+  )
+
+  route(
+    'PUT',
+    '/leases/:leaseId/inventories/primary',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        const lease = await getLeaseById(params.leaseId)
+        if (!lease) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+        const propertyId = extractPropertyId(lease.property_string_id || lease.property_id)
+        await requirePropertyManager({ actor, verified, propertyId })
+        const source = body?.inventory || {}
+        const now = new Date().toISOString()
+        const inventory = {
+          id: 'primary',
+          property_id: propertyId,
+          property_address: String(lease.property_id?.address || source.property_address || ''),
+          lease_doc_id: lease.id,
+          lease_lsid: String(lease.LSID || source.lease_lsid || ''),
+          ktcs_items:
+            source.ktcs_items && typeof source.ktcs_items === 'object' ? source.ktcs_items : {},
+          custom_items: Array.isArray(source.custom_items) ? source.custom_items : [],
+          created_datetime: source.created_datetime || now,
+          updated_datetime: now,
+        }
+        await getDb()
+          .collection('leases')
+          .doc(lease.id)
+          .collection('inventories')
+          .doc('primary')
+          .set(inventory)
+        return ok(res, requestId, { inventory })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'INVENTORY_SAVE_FAILED',
+          error.message || 'Unable to save inventory.',
+        )
+      }
+    },
+  )
+
   route('POST', '/owner-invites/email', async ({ actor, body, req, res, requestId }) => {
     const propertyId = String(body?.property_id || '').trim()
     const ownerEmail = normalizeEmail(body?.owner_email)
@@ -5069,6 +6449,938 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       fallback_reason: emailResult.emailSent ? null : emailResult.reason || 'email_delivery_failed',
     })
   })
+
+  route('GET', '/owner-invites/:token', async ({ params, res, requestId }) => {
+    const token = String(params.token || '').trim()
+    if (!token) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+
+    const inviteSnap = await getDb()
+      .collection('owner_invites')
+      .where('token', '==', token)
+      .limit(1)
+      .get()
+    const inviteDoc = inviteSnap.docs[0]
+    if (!inviteDoc) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+
+    const invite = { id: inviteDoc.id, ...(inviteDoc.data() || {}) }
+    if (
+      String(invite.status || '').toLowerCase() !== OWNER_INVITE_PENDING ||
+      isExpiredOwnerInvite(invite)
+    ) {
+      return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    }
+
+    const property = await getFirestorePropertyById(invite.property_id)
+    if (!property) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    return ok(res, requestId, sanitizeOwnerInvite({ invite, property }))
+  })
+
+  route(
+    'GET',
+    '/properties/:propertyId/owner-invites',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        if (!propertyId)
+          throw createApiError(400, 'PROPERTY_ID_REQUIRED', 'Property id is required.')
+        if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot view owner invites for this property.',
+          )
+        }
+        const property = await getFirestorePropertyById(propertyId)
+        if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+        const snap = await getDb()
+          .collection('owner_invites')
+          .where('property_id', '==', propertyId)
+          .get()
+        const invites = snap.docs
+          .map((doc) => sanitizeOwnerInviteForPropertyMember({ id: doc.id, ...(doc.data() || {}) }))
+          .sort((a, b) =>
+            String(b.updated_at || b.created_at || '').localeCompare(
+              String(a.updated_at || a.created_at || ''),
+            ),
+          )
+        return ok(res, requestId, { property_id: propertyId, invites })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'OWNER_INVITES_LOAD_FAILED',
+          error.message || 'Unable to load owner invites.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/owner-invites/:token/accept',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const token = String(params.token || '').trim()
+        if (!token) throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+        const actorEmail = normalizeEmail(actor.email)
+        if (!actorEmail) {
+          throw createApiError(
+            400,
+            'ACCOUNT_EMAIL_REQUIRED',
+            'Your authenticated account must have an email.',
+          )
+        }
+
+        const db = getDb()
+        const result = await db.runTransaction(async (tx) => {
+          const inviteQuery = db.collection('owner_invites').where('token', '==', token).limit(1)
+          const inviteQuerySnap = await tx.get(inviteQuery)
+          const inviteDoc = inviteQuerySnap.docs[0]
+          if (!inviteDoc) throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+
+          const invite = { id: inviteDoc.id, ...(inviteDoc.data() || {}) }
+          const inviteStatus = String(invite.status || '')
+            .trim()
+            .toLowerCase()
+          if (normalizeEmail(invite.owner_email) !== actorEmail) {
+            throw createApiError(
+              403,
+              'INVITE_EMAIL_MISMATCH',
+              'This invite was issued for a different email address.',
+            )
+          }
+          if (inviteStatus === OWNER_INVITE_ACCEPTED) {
+            if (String(invite.accepted_by_user_id || '') !== actor.id) {
+              throw createApiError(
+                409,
+                'INVITE_ALREADY_ACCEPTED',
+                'This invite has already been accepted.',
+              )
+            }
+            return { propertyId: invite.property_id, idempotent: true }
+          }
+          if (inviteStatus !== OWNER_INVITE_PENDING || isExpiredOwnerInvite(invite)) {
+            throw createApiError(
+              410,
+              'INVITE_EXPIRED_OR_UNAVAILABLE',
+              'This invite is no longer available.',
+            )
+          }
+
+          const propertyRef = db.collection('properties').doc(String(invite.property_id))
+          const roleRef = db
+            .collection('users')
+            .doc(actor.id)
+            .collection('roles')
+            .doc(ownerRoleDocId(invite.property_id))
+          const [propertySnap, roleSnap] = await Promise.all([tx.get(propertyRef), tx.get(roleRef)])
+          if (!propertySnap.exists)
+            throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+
+          const now = new Date()
+          const property = propertySnap.data() || {}
+          const ownerIds = [
+            ...new Set([
+              ...(Array.isArray(property.owner_user_ids) ? property.owner_user_ids : []),
+              actor.id,
+            ]),
+          ]
+          tx.set(
+            roleRef,
+            {
+              property_id: String(invite.property_id),
+              user_id: actor.id,
+              role: 'po',
+              status: 'active',
+              relationship_type: 'owner',
+              invite_id: invite.invite_id || invite.id,
+              granted_by: invite.invited_by_user_id || invite.pm_user_id || null,
+              created_at: roleSnap.exists ? roleSnap.data()?.created_at || now : now,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          tx.set(
+            propertyRef,
+            {
+              owner_user_ids: ownerIds,
+              primary_owner_user_id: property.primary_owner_user_id || actor.id,
+              updated_by_user_id: actor.id,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          tx.set(
+            inviteDoc.ref,
+            {
+              status: OWNER_INVITE_ACCEPTED,
+              accepted_at: now,
+              accepted_by_user_id: actor.id,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          tx.set(
+            ownerHistoryEventRef({
+              db,
+              propertyId: invite.property_id,
+              eventType: 'owner_invite_accepted',
+            }),
+            {
+              event_type: 'owner_invite_accepted',
+              property_id: String(invite.property_id),
+              invite_id: invite.invite_id || invite.id,
+              actor_user_id: actor.id,
+              subject_user_id: actor.id,
+              created_at: now,
+            },
+          )
+          return { propertyId: invite.property_id, idempotent: false }
+        })
+
+        return ok(res, requestId, {
+          property_id: result.propertyId,
+          status: OWNER_INVITE_ACCEPTED,
+          accepted: true,
+          idempotent: result.idempotent,
+          already_accepted: result.idempotent,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'OWNER_INVITE_ACCEPT_FAILED',
+          error.message || 'Unable to accept owner invite.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/properties/:propertyId/owner-invites/:inviteId/revoke',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        const inviteId = String(params.inviteId || '').trim()
+        if (!propertyId || !inviteId)
+          throw createApiError(400, 'INVITE_ID_REQUIRED', 'Invite id is required.')
+        if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot manage owner invites for this property.',
+          )
+        }
+
+        const db = getDb()
+        const result = await db.runTransaction(async (tx) => {
+          const propertyRef = db.collection('properties').doc(propertyId)
+          const inviteRef = db.collection('owner_invites').doc(inviteId)
+          const [propertySnap, inviteSnap] = await Promise.all([
+            tx.get(propertyRef),
+            tx.get(inviteRef),
+          ])
+          if (!propertySnap.exists)
+            throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+          if (!inviteSnap.exists || String(inviteSnap.data()?.property_id || '') !== propertyId) {
+            throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+          }
+          const invite = inviteSnap.data() || {}
+          const status = String(invite.status || '').toLowerCase()
+          if (status === 'revoked') return { idempotent: true }
+          if (status !== OWNER_INVITE_PENDING) {
+            throw createApiError(
+              409,
+              'INVITE_NOT_PENDING',
+              'Only pending owner invites can be revoked.',
+            )
+          }
+
+          const now = new Date()
+          tx.set(
+            inviteRef,
+            { status: 'revoked', revoked_at: now, revoked_by_user_id: actor.id, updated_at: now },
+            { merge: true },
+          )
+          tx.set(ownerHistoryEventRef({ db, propertyId, eventType: 'owner_invite_revoked' }), {
+            event_type: 'owner_invite_revoked',
+            property_id: propertyId,
+            invite_id: inviteId,
+            actor_user_id: actor.id,
+            created_at: now,
+          })
+          return { idempotent: false }
+        })
+        return ok(res, requestId, {
+          invite_id: inviteId,
+          status: 'revoked',
+          idempotent: result.idempotent,
+          already_revoked: result.idempotent,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'OWNER_INVITE_REVOKE_FAILED',
+          error.message || 'Unable to revoke owner invite.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'DELETE',
+    '/properties/:propertyId/owners/:ownerUserId',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        const ownerUserId = String(params.ownerUserId || '').trim()
+        if (!propertyId || !ownerUserId)
+          throw createApiError(400, 'OWNER_ID_REQUIRED', 'Owner id is required.')
+        const actorIsPm = await hasPmAccessToProperty({ actor, propertyId })
+        const actorHasAccess = actorIsPm || (await hasShareAccessToProperty({ actor, propertyId }))
+        if (!actorHasAccess)
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot manage owners for this property.',
+          )
+
+        const db = getDb()
+        const result = await db.runTransaction(async (tx) => {
+          const propertyRef = db.collection('properties').doc(propertyId)
+          const rolesQuery = db
+            .collection('users')
+            .doc(ownerUserId)
+            .collection('roles')
+            .where('property_id', '==', propertyId)
+          const invitesQuery = db.collection('owner_invites').where('property_id', '==', propertyId)
+          const [propertySnap, rolesSnap, invitesSnap] = await Promise.all([
+            tx.get(propertyRef),
+            tx.get(rolesQuery),
+            tx.get(invitesQuery),
+          ])
+          if (!propertySnap.exists)
+            throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+          const property = propertySnap.data() || {}
+          const ownerIds = [
+            ...new Set(Array.isArray(property.owner_user_ids) ? property.owner_user_ids : []),
+          ]
+          if (!ownerIds.includes(ownerUserId))
+            return { idempotent: true, primaryOwnerUserId: property.primary_owner_user_id || null }
+          if (
+            !actorIsPm &&
+            actor.id !== ownerUserId &&
+            String(property.primary_owner_user_id || '') !== actor.id
+          ) {
+            throw createApiError(
+              403,
+              'PERMISSION_DENIED',
+              'Only a PM, the primary owner, or the owner themselves can remove this access.',
+            )
+          }
+          if (ownerIds.length <= 1) {
+            throw createApiError(
+              409,
+              'LAST_OWNER_REMOVAL_FORBIDDEN',
+              'Assign another owner before removing the last owner.',
+            )
+          }
+
+          const nextOwnerIds = ownerIds.filter((id) => id !== ownerUserId)
+          const nextPrimaryOwnerId = nextOwnerIds.includes(property.primary_owner_user_id)
+            ? property.primary_owner_user_id
+            : nextOwnerIds[0]
+          const now = new Date()
+          for (const roleDoc of rolesSnap.docs) {
+            if (String(roleDoc.data()?.role || '').toLowerCase() === 'po') tx.delete(roleDoc.ref)
+          }
+          for (const inviteDoc of invitesSnap.docs) {
+            const invite = inviteDoc.data() || {}
+            if (
+              String(invite.status || '').toLowerCase() === OWNER_INVITE_ACCEPTED &&
+              String(invite.accepted_by_user_id || '') === ownerUserId
+            ) {
+              tx.set(
+                inviteDoc.ref,
+                {
+                  status: 'revoked',
+                  revoked_at: now,
+                  revoked_by_user_id: actor.id,
+                  accepted_by_user_id: null,
+                  updated_at: now,
+                },
+                { merge: true },
+              )
+            }
+          }
+          tx.set(
+            propertyRef,
+            {
+              owner_user_ids: nextOwnerIds,
+              primary_owner_user_id: nextPrimaryOwnerId,
+              ownership_mode: nextOwnerIds.length ? 'self_owned' : 'managed_for_owner',
+              updated_by_user_id: actor.id,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          tx.set(ownerHistoryEventRef({ db, propertyId, eventType: 'owner_access_removed' }), {
+            event_type: 'owner_access_removed',
+            property_id: propertyId,
+            actor_user_id: actor.id,
+            subject_user_id: ownerUserId,
+            created_at: now,
+          })
+          return { idempotent: false, primaryOwnerUserId: nextPrimaryOwnerId }
+        })
+        return ok(res, requestId, {
+          owner_user_id: ownerUserId,
+          removed: !result.idempotent,
+          idempotent: result.idempotent,
+          primary_owner_user_id: result.primaryOwnerUserId,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'OWNER_REMOVAL_FAILED',
+          error.message || 'Unable to remove owner access.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/property-access-invites/email',
+    async ({ actor, verified, body, req, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(body?.property_id || '').trim()
+        const invitedEmail = normalizeEmail(body?.invited_email)
+        const accessRole = normalizePropertyAccessRole(body?.access_role)
+        if (!propertyId)
+          throw createApiError(400, 'PROPERTY_ID_REQUIRED', 'property_id is required.')
+        if (!/.+@.+\..+/.test(invitedEmail)) {
+          throw createApiError(400, 'INVALID_INVITED_EMAIL', 'A valid invited_email is required.')
+        }
+        if (!accessRole) {
+          throw createApiError(
+            400,
+            'INVALID_ACCESS_ROLE',
+            'access_role must be owner, manager, or viewer.',
+          )
+        }
+        if (!(await hasPropertyAccessManagementRights({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'Only a property manager or owner can invite access.',
+          )
+        }
+
+        const property = await getFirestorePropertyById(propertyId)
+        if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+        const existingInvites = await getDb()
+          .collection('property_access_invites')
+          .where('property_id', '==', propertyId)
+          .get()
+        const existing = existingInvites.docs
+          .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+          .find(
+            (invite) =>
+              normalizeEmail(invite.invited_email) === invitedEmail &&
+              normalizePropertyAccessRole(invite.access_role) === accessRole &&
+              [PROPERTY_ACCESS_INVITE_PENDING, PROPERTY_ACCESS_INVITE_ACCEPTED].includes(
+                String(invite.status || '')
+                  .trim()
+                  .toLowerCase(),
+              ),
+          )
+        if (existing) {
+          const accepted =
+            String(existing.status || '')
+              .trim()
+              .toLowerCase() === PROPERTY_ACCESS_INVITE_ACCEPTED
+          throw createApiError(
+            409,
+            accepted ? 'ACCESS_ALREADY_GRANTED' : 'ACCESS_INVITE_ALREADY_PENDING',
+            accepted
+              ? 'This email already has this level of access to the property.'
+              : 'A matching access invite is already pending for this email.',
+          )
+        }
+
+        const token = generateOwnerInviteToken()
+        const now = new Date()
+        const inviteId = token.slice(0, 20)
+        await getDb().collection('property_access_invites').doc(inviteId).set({
+          invite_id: inviteId,
+          property_id: propertyId,
+          invited_email: invitedEmail,
+          access_role: accessRole,
+          invited_by_user_id: actor.id,
+          status: PROPERTY_ACCESS_INVITE_PENDING,
+          token,
+          expires_at: createOwnerInviteExpiry(),
+          accepted_at: null,
+          accepted_by_user_id: null,
+          revoked_at: null,
+          revoked_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+
+        const inviteUrl = buildPropertyAccessInviteUrl({
+          origin: String(req.headers.origin || '').trim(),
+          token,
+        })
+        const emailResult = await sendOwnerInviteEmail({
+          to: invitedEmail,
+          inviteUrl,
+          propertyName: String(property.nickname || property.address || 'Property').trim(),
+          propertyAddress: String(property.address || '').trim(),
+          inviterName: String(
+            body?.inviter_name || actor?.name || actor?.email || 'A property member',
+          ).trim(),
+        })
+        return ok(res, requestId, {
+          invite_id: inviteId,
+          invite_url: inviteUrl,
+          access_role: accessRole,
+          email_sent: emailResult.emailSent,
+          email_message_id: emailResult.messageId || null,
+          fallback_reason: emailResult.emailSent
+            ? null
+            : emailResult.reason || 'email_delivery_failed',
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'PROPERTY_ACCESS_INVITE_CREATE_FAILED',
+          error.message || 'Unable to create property access invite.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route('GET', '/property-access-invites/:token', async ({ params, res, requestId }) => {
+    const token = String(params.token || '').trim()
+    if (!token) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    const inviteSnap = await getDb()
+      .collection('property_access_invites')
+      .where('token', '==', token)
+      .limit(1)
+      .get()
+    const inviteDoc = inviteSnap.docs[0]
+    if (!inviteDoc) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    const invite = { id: inviteDoc.id, ...(inviteDoc.data() || {}) }
+    if (
+      String(invite.status || '').toLowerCase() !== PROPERTY_ACCESS_INVITE_PENDING ||
+      isExpiredPropertyAccessInvite(invite)
+    ) {
+      return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    }
+    const property = await getFirestorePropertyById(invite.property_id)
+    if (!property) return sendError(res, requestId, 404, 'INVITE_NOT_FOUND', 'Invite not found.')
+    return ok(res, requestId, sanitizePropertyAccessInvite({ invite, property }))
+  })
+
+  route(
+    'POST',
+    '/property-access-invites/:token/accept',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const token = String(params.token || '').trim()
+        const actorEmail = normalizeEmail(actor.email)
+        if (!token) throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+        if (!actorEmail)
+          throw createApiError(
+            400,
+            'ACCOUNT_EMAIL_REQUIRED',
+            'Your authenticated account must have an email.',
+          )
+
+        const db = getDb()
+        const result = await db.runTransaction(async (tx) => {
+          const inviteQuery = db
+            .collection('property_access_invites')
+            .where('token', '==', token)
+            .limit(1)
+          const inviteSnap = await tx.get(inviteQuery)
+          const inviteDoc = inviteSnap.docs[0]
+          if (!inviteDoc) throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+          const invite = { id: inviteDoc.id, ...(inviteDoc.data() || {}) }
+          const accessRole = normalizePropertyAccessRole(invite.access_role)
+          if (!accessRole)
+            throw createApiError(
+              409,
+              'INVALID_ACCESS_ROLE',
+              'This invite has an unsupported access role.',
+            )
+          if (normalizeEmail(invite.invited_email) !== actorEmail) {
+            throw createApiError(
+              403,
+              'INVITE_EMAIL_MISMATCH',
+              'This invite was issued for a different email address.',
+            )
+          }
+          const status = String(invite.status || '')
+            .trim()
+            .toLowerCase()
+          if (status === PROPERTY_ACCESS_INVITE_ACCEPTED) {
+            if (String(invite.accepted_by_user_id || '') !== actor.id) {
+              throw createApiError(
+                409,
+                'INVITE_ALREADY_ACCEPTED',
+                'This invite has already been accepted.',
+              )
+            }
+            return { propertyId: invite.property_id, accessRole, idempotent: true }
+          }
+          if (status !== PROPERTY_ACCESS_INVITE_PENDING || isExpiredPropertyAccessInvite(invite)) {
+            throw createApiError(
+              410,
+              'INVITE_EXPIRED_OR_UNAVAILABLE',
+              'This invite is no longer available.',
+            )
+          }
+
+          const propertyRef = db.collection('properties').doc(String(invite.property_id))
+          const membershipRole = propertyAccessMembershipRole(accessRole)
+          const roleRef = db
+            .collection('users')
+            .doc(actor.id)
+            .collection('roles')
+            .doc(propertyAccessRoleDocId({ propertyId: invite.property_id, accessRole }))
+          const [propertySnap, roleSnap] = await Promise.all([tx.get(propertyRef), tx.get(roleRef)])
+          if (!propertySnap.exists)
+            throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+          const property = propertySnap.data() || {}
+          const memberField = propertyAccessUserIdsField(accessRole)
+          const memberIds = [
+            ...new Set([
+              ...(Array.isArray(property[memberField]) ? property[memberField] : []),
+              actor.id,
+            ]),
+          ]
+          const now = new Date()
+          tx.set(
+            roleRef,
+            {
+              property_id: String(invite.property_id),
+              user_id: actor.id,
+              role: membershipRole,
+              status: 'active',
+              relationship_type: accessRole,
+              invite_id: invite.invite_id || invite.id,
+              granted_by: invite.invited_by_user_id || null,
+              created_at: roleSnap.exists ? roleSnap.data()?.created_at || now : now,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          const propertyUpdate = {
+            [memberField]: memberIds,
+            updated_by_user_id: actor.id,
+            updated_at: now,
+          }
+          if (accessRole === 'owner') {
+            propertyUpdate.primary_owner_user_id = property.primary_owner_user_id || actor.id
+            propertyUpdate.ownership_mode = 'self_owned'
+          }
+          tx.set(propertyRef, propertyUpdate, { merge: true })
+          tx.set(
+            inviteDoc.ref,
+            {
+              status: PROPERTY_ACCESS_INVITE_ACCEPTED,
+              accepted_at: now,
+              accepted_by_user_id: actor.id,
+              updated_at: now,
+            },
+            { merge: true },
+          )
+          tx.set(
+            ownerHistoryEventRef({
+              db,
+              propertyId: invite.property_id,
+              eventType: 'property_access_granted',
+            }),
+            {
+              event_type: 'property_access_granted',
+              property_id: String(invite.property_id),
+              invite_id: invite.invite_id || invite.id,
+              access_role: accessRole,
+              actor_user_id: actor.id,
+              subject_user_id: actor.id,
+              created_at: now,
+            },
+          )
+          return { propertyId: invite.property_id, accessRole, idempotent: false }
+        })
+        return ok(res, requestId, {
+          property_id: result.propertyId,
+          access_role: result.accessRole,
+          status: PROPERTY_ACCESS_INVITE_ACCEPTED,
+          accepted: true,
+          already_accepted: result.idempotent,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'PROPERTY_ACCESS_INVITE_ACCEPT_FAILED',
+          error.message || 'Unable to accept property access invite.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'GET',
+    '/properties/:propertyId/access',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        if (!propertyId)
+          throw createApiError(400, 'PROPERTY_ID_REQUIRED', 'Property id is required.')
+        if (!(await hasPropertyAccessManagementRights({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot manage access for this property.',
+          )
+        }
+        const property = await getFirestorePropertyById(propertyId)
+        if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+        const members = []
+        for (const [accessRole, field] of [
+          ['owner', 'owner_user_ids'],
+          ['manager', 'manager_user_ids'],
+          ['viewer', 'viewer_user_ids'],
+        ]) {
+          for (const userId of [
+            ...new Set(Array.isArray(property[field]) ? property[field] : []),
+          ]) {
+            const profileSnap = await getDb().collection('users').doc(String(userId)).get()
+            const profile = profileSnap.exists ? profileSnap.data() || {} : {}
+            members.push({
+              user_id: String(userId),
+              access_role: accessRole,
+              access_label: propertyAccessRoleLabel(accessRole),
+              is_primary_owner:
+                accessRole === 'owner' &&
+                String(property.primary_owner_user_id || '') === String(userId),
+              name: profile.full_name || profile.user_name || profile.display_name || null,
+              email: profile.email || null,
+            })
+          }
+        }
+        const invitesSnap = await getDb()
+          .collection('property_access_invites')
+          .where('property_id', '==', propertyId)
+          .get()
+        const invites = invitesSnap.docs
+          .map((doc) =>
+            sanitizePropertyAccessInviteForManager({ id: doc.id, ...(doc.data() || {}) }),
+          )
+          .sort((a, b) =>
+            String(b.updated_at || b.created_at || '').localeCompare(
+              String(a.updated_at || a.created_at || ''),
+            ),
+          )
+        return ok(res, requestId, { property_id: propertyId, members, invites })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'PROPERTY_ACCESS_LOAD_FAILED',
+          error.message || 'Unable to load property access.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/properties/:propertyId/property-access-invites/:inviteId/revoke',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        const inviteId = String(params.inviteId || '').trim()
+        if (!propertyId || !inviteId)
+          throw createApiError(400, 'INVITE_ID_REQUIRED', 'Invite id is required.')
+        if (!(await hasPropertyAccessManagementRights({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot manage access for this property.',
+          )
+        }
+        const inviteRef = getDb().collection('property_access_invites').doc(inviteId)
+        const inviteSnap = await inviteRef.get()
+        if (!inviteSnap.exists || String(inviteSnap.data()?.property_id || '') !== propertyId) {
+          throw createApiError(404, 'INVITE_NOT_FOUND', 'Invite not found.')
+        }
+        const invite = inviteSnap.data() || {}
+        const status = String(invite.status || '').toLowerCase()
+        if (status === PROPERTY_ACCESS_INVITE_REVOKED)
+          return ok(res, requestId, { invite_id: inviteId, already_revoked: true })
+        if (status !== PROPERTY_ACCESS_INVITE_PENDING) {
+          throw createApiError(409, 'INVITE_NOT_PENDING', 'Only a pending invite can be cancelled.')
+        }
+        const now = new Date()
+        await inviteRef.set(
+          {
+            status: PROPERTY_ACCESS_INVITE_REVOKED,
+            revoked_at: now,
+            revoked_by_user_id: actor.id,
+            updated_at: now,
+          },
+          { merge: true },
+        )
+        return ok(res, requestId, {
+          invite_id: inviteId,
+          status: PROPERTY_ACCESS_INVITE_REVOKED,
+          already_revoked: false,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'PROPERTY_ACCESS_INVITE_REVOKE_FAILED',
+          error.message || 'Unable to cancel property access invite.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
+
+  route(
+    'DELETE',
+    '/properties/:propertyId/access/:userId',
+    async ({ actor, verified, params, body, res, requestId }) => {
+      try {
+        requireVerifiedActor({ verified, actor })
+        const propertyId = String(params.propertyId || '').trim()
+        const userId = String(params.userId || '').trim()
+        const accessRole = normalizePropertyAccessRole(body?.access_role)
+        if (!propertyId || !userId || !accessRole) {
+          throw createApiError(
+            400,
+            'ACCESS_MEMBER_REQUIRED',
+            'property id, user id, and access_role are required.',
+          )
+        }
+        if (!(await hasPropertyAccessManagementRights({ actor, propertyId }))) {
+          throw createApiError(
+            403,
+            'PERMISSION_DENIED',
+            'You cannot manage access for this property.',
+          )
+        }
+        const db = getDb()
+        const result = await db.runTransaction(async (tx) => {
+          const propertyRef = db.collection('properties').doc(propertyId)
+          const propertySnap = await tx.get(propertyRef)
+          if (!propertySnap.exists)
+            throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+          const property = propertySnap.data() || {}
+          const field = propertyAccessUserIdsField(accessRole)
+          const currentIds = [...new Set(Array.isArray(property[field]) ? property[field] : [])]
+          if (!currentIds.includes(userId))
+            return { idempotent: true, primaryOwnerUserId: property.primary_owner_user_id || null }
+          const nextIds = currentIds.filter((id) => id !== userId)
+          const now = new Date()
+          const update = { [field]: nextIds, updated_by_user_id: actor.id, updated_at: now }
+          if (accessRole === 'owner') {
+            if (!nextIds.length) {
+              throw createApiError(
+                409,
+                'LAST_OWNER_REMOVAL_FORBIDDEN',
+                'Assign another owner before removing the last owner.',
+              )
+            }
+            const currentPrimary = String(property.primary_owner_user_id || '')
+            const requestedPrimary = String(body?.next_primary_owner_user_id || '').trim()
+            if (currentPrimary === userId) {
+              if (requestedPrimary && !nextIds.includes(requestedPrimary)) {
+                throw createApiError(
+                  400,
+                  'INVALID_PRIMARY_OWNER',
+                  'The next primary owner must already be an owner.',
+                )
+              }
+              update.primary_owner_user_id = requestedPrimary || nextIds[0]
+            }
+            update.ownership_mode = 'self_owned'
+          }
+          tx.set(propertyRef, update, { merge: true })
+          tx.delete(
+            db
+              .collection('users')
+              .doc(userId)
+              .collection('roles')
+              .doc(propertyAccessRoleDocId({ propertyId, accessRole })),
+          )
+          tx.set(ownerHistoryEventRef({ db, propertyId, eventType: 'property_access_removed' }), {
+            event_type: 'property_access_removed',
+            property_id: propertyId,
+            access_role: accessRole,
+            actor_user_id: actor.id,
+            subject_user_id: userId,
+            created_at: now,
+          })
+          return {
+            idempotent: false,
+            primaryOwnerUserId:
+              update.primary_owner_user_id || property.primary_owner_user_id || null,
+          }
+        })
+        return ok(res, requestId, {
+          user_id: userId,
+          access_role: accessRole,
+          removed: !result.idempotent,
+          already_removed: result.idempotent,
+          primary_owner_user_id: result.primaryOwnerUserId,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error.status || 500,
+          error.code || 'PROPERTY_ACCESS_REMOVE_FAILED',
+          error.message || 'Unable to remove property access.',
+          error.status >= 500,
+        )
+      }
+    },
+  )
 
   route('POST', '/sp/posts/ingest', async ({ actor, body, req, res, requestId }) => {
     if (!assertRole({ actor, allowed: ['sp', 'admin'], res, requestId })) return
@@ -5652,6 +7964,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           'I can help with maintenance issue understanding, task creation, transaction entry, reminder setup, and finding service providers.',
       })
     }
+    if (!hasAiQuotaAvailable(actor)) {
+      return sendError(
+        res,
+        requestId,
+        402,
+        'AI_CREDIT_EXHAUSTED',
+        'AI credit used up. Add credits or upgrade to continue.',
+      )
+    }
 
     const idempotencyKey = String(req.headers['idempotency-key'] || '')
     const result = await Promise.resolve(
@@ -5686,7 +8007,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       eventType: 'agent_intake',
       actor,
       requestId,
-      metadata: { capability: output?.capability || null },
+      metadata: {
+        capability: output?.capability || null,
+        ai_tokens_charged: recordAiUsage({ actor, input: rawTextInput, output }),
+      },
     })
 
     ok(res, requestId, output)
@@ -5712,6 +8036,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         message:
           'I can help explain maintenance tasks and suggest whether contacting a service provider makes sense.',
       })
+    }
+    if (!hasAiQuotaAvailable(actor)) {
+      return sendError(
+        res,
+        requestId,
+        402,
+        'AI_CREDIT_EXHAUSTED',
+        'AI credit used up. Add credits or upgrade to continue.',
+      )
     }
 
     const insightResult = await runTaskInsightSkill({
@@ -5752,6 +8085,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       metadata: {
         task_id: task?.id || null,
         fallback_reason: normalized.fallback_reason,
+        ai_tokens_charged: recordAiUsage({ actor, input: description, output }),
       },
     })
 
@@ -7185,9 +9519,168 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     ok(res, requestId, { items })
   })
 
+  route(
+    'POST',
+    '/storage/upload-reservations',
+    async ({ actor, verified, body, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        if (!assertRole({ actor, allowed: ['pm_po', 'admin'], res, requestId })) return
+        const storagePath = String(body?.storage_path || '').replace(/^\/+/, '')
+        const sizeBytes = Number(body?.size_bytes || 0)
+        const contentType = String(body?.content_type || 'application/octet-stream')
+        if (
+          !storagePath ||
+          !Number.isFinite(sizeBytes) ||
+          sizeBytes <= 0 ||
+          sizeBytes > 25 * 1024 * 1024
+        ) {
+          throw createApiError(
+            400,
+            'INVALID_UPLOAD',
+            'A storage path and file up to 25 MB are required.',
+          )
+        }
+        const propertyId = await getPmUploadPropertyId(storagePath)
+        if (!propertyId)
+          throw createApiError(
+            400,
+            'INVALID_STORAGE_PATH',
+            'Uploads must target a property or lease path.',
+          )
+        await assertPmPropertyAccess({ actor, propertyId })
+        const sizeMb = sizeBytes / (1024 * 1024)
+        if (
+          Number(actor.billing.storage_used_mb || 0) + sizeMb >
+          Number(actor.billing.storage_limit_mb || 0)
+        ) {
+          return sendError(
+            res,
+            requestId,
+            402,
+            'STORAGE_CREDIT_EXHAUSTED',
+            'Storage limit reached. Delete files or upgrade to continue.',
+          )
+        }
+        const id = `upload-${randomUUID()}`
+        const downloadToken = randomUUID()
+        const bucket = getStorageBucket()
+        const file = bucket.file(storagePath)
+        const [uploadUrl] = await file.getSignedUrl({
+          version: 'v4',
+          action: 'write',
+          expires: Date.now() + 10 * 60 * 1000,
+          contentType,
+          extensionHeaders: { 'x-goog-meta-firebaseStorageDownloadTokens': downloadToken },
+        })
+        const reservation = {
+          id,
+          user_id: actor.id,
+          property_id: propertyId,
+          storage_path: storagePath,
+          size_bytes: sizeBytes,
+          content_type: contentType,
+          download_token: downloadToken,
+          status: 'reserved',
+          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+        }
+        await getDb().collection(STORAGE_UPLOAD_RESERVATIONS_COLLECTION).doc(id).set(reservation)
+        return ok(res, requestId, {
+          reservation_id: id,
+          upload_url: uploadUrl,
+          download_token: downloadToken,
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'UPLOAD_RESERVATION_FAILED',
+          error?.message || 'Unable to reserve upload.',
+        )
+      }
+    },
+  )
+
+  route(
+    'POST',
+    '/storage/upload-reservations/:id/commit',
+    async ({ actor, verified, params, res, requestId }) => {
+      try {
+        requireVerifiedActor({ actor, verified })
+        const ref = getDb().collection(STORAGE_UPLOAD_RESERVATIONS_COLLECTION).doc(params.id)
+        const snap = await ref.get()
+        if (!snap.exists)
+          throw createApiError(404, 'UPLOAD_RESERVATION_NOT_FOUND', 'Upload reservation not found.')
+        const reservation = snap.data() || {}
+        if (
+          reservation.user_id !== actor.id ||
+          reservation.status !== 'reserved' ||
+          Date.parse(reservation.expires_at) < Date.now()
+        )
+          throw createApiError(
+            403,
+            'UPLOAD_RESERVATION_INVALID',
+            'Upload reservation is no longer valid.',
+          )
+        const [metadata] = await getStorageBucket().file(reservation.storage_path).getMetadata()
+        const sizeBytes = Number(metadata?.size || 0)
+        if (!sizeBytes || sizeBytes > Number(reservation.size_bytes || 0))
+          throw createApiError(
+            400,
+            'UPLOAD_SIZE_MISMATCH',
+            'Uploaded file exceeds its reserved size.',
+          )
+        const sizeMb = sizeBytes / (1024 * 1024)
+        if (
+          Number(actor.billing.storage_used_mb || 0) + sizeMb >
+          Number(actor.billing.storage_limit_mb || 0)
+        )
+          throw createApiError(402, 'STORAGE_CREDIT_EXHAUSTED', 'Storage limit reached.')
+        actor.billing.storage_used_mb = Number(actor.billing.storage_used_mb || 0) + sizeMb
+        actor.billing.history.push({
+          id: `hist-${randomUUID()}`,
+          type: 'storage_usage',
+          size_bytes: sizeBytes,
+          storage_path: reservation.storage_path,
+          created_at: new Date().toISOString(),
+        })
+        await ref.set(
+          {
+            status: 'committed',
+            committed_at: new Date().toISOString(),
+            actual_size_bytes: sizeBytes,
+          },
+          { merge: true },
+        )
+        return ok(res, requestId, {
+          storage_path: reservation.storage_path,
+          size_bytes: sizeBytes,
+          url: getPersistentStorageUrl({
+            bucketName: getStorageBucket().name,
+            storagePath: reservation.storage_path,
+            downloadToken: reservation.download_token,
+          }),
+        })
+      } catch (error) {
+        return sendError(
+          res,
+          requestId,
+          error?.status || 500,
+          error?.code || 'UPLOAD_COMMIT_FAILED',
+          error?.message || 'Unable to commit upload.',
+        )
+      }
+    },
+  )
+
   route('GET', '/billing/profile-summary', async ({ actor, res, requestId }) => {
     const aiStatus = getQuotaStatus(actor.billing.ai_tokens_used, actor.billing.ai_tokens_limit)
-    const storageStatus = getQuotaStatus(actor.billing.storage_used_mb, actor.billing.storage_limit_mb)
+    const storageStatus = getQuotaStatus(
+      actor.billing.storage_used_mb,
+      actor.billing.storage_limit_mb,
+    )
     ok(res, requestId, {
       plan_name: actor.billing.plan_name,
       subscription_status: actor.billing.subscription_status,
@@ -7678,7 +10171,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       const order = store.spCreditOrders.get(orderId)
       if (!order) return sendError(res, requestId, 404, 'ORDER_NOT_FOUND', 'Credit order not found')
 
-      const wasCredited = normalizeCreditOrderStatus(order.status) === 'credited' || Boolean(order.fulfilled_at)
+      const wasCredited =
+        normalizeCreditOrderStatus(order.status) === 'credited' || Boolean(order.fulfilled_at)
       const wasRefunded = normalizeCreditOrderStatus(order.status) === 'refunded'
       order.status = status
       order.provider_txn_id = body?.provider_txn_id || order.provider_txn_id || null
@@ -7964,5 +10458,6 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const server = http.createServer(handler)
-  return { server, handler, store }
+  server.once('close', disposeFirebaseAdapters)
+  return { server, handler, store, dispose: disposeFirebaseAdapters }
 }

@@ -1,7 +1,10 @@
 <template>
   <q-layout view="lHh Lpr lFf" class="admin-layout">
     <q-drawer v-model="drawerOpen" show-if-above bordered :width="220" class="admin-drawer">
-      <div class="admin-brand">Handout Admin</div>
+      <div class="admin-brand">
+        <span class="admin-brand-mark">H</span>
+        <span>Handout <small>Admin</small></span>
+      </div>
       <q-list class="q-pa-sm">
         <q-item
           v-for="item in menu"
@@ -20,9 +23,10 @@
     </q-drawer>
 
     <q-header class="admin-header">
-      <q-toolbar>
+      <q-toolbar class="admin-toolbar">
         <q-btn flat round dense icon="menu" @click="drawerOpen = !drawerOpen" />
         <q-toolbar-title>Admin Supervision</q-toolbar-title>
+        <div class="admin-status"><span></span> System live</div>
       </q-toolbar>
     </q-header>
 
@@ -50,18 +54,19 @@ const menu = [
 
 <style scoped>
 .admin-layout {
-  background: var(--bg-primary);
+  min-height: 100vh;
+  background: radial-gradient(circle at 8% 0%, rgba(39, 194, 164, 0.09), transparent 24%), #eef3f5;
 }
 
 .admin-header {
   background: transparent;
-  color: var(--neutral-800);
-  padding: 10px 14px 0;
+  color: #f8fcff;
+  padding: 12px 20px 0;
 }
 
 .admin-header :deep(.q-toolbar) {
-  background: var(--bg-surface);
-  border: 1px solid var(--neutral-200);
+  background: linear-gradient(135deg, #19364d 0%, #132b40 100%);
+  border: 1px solid rgba(162, 238, 220, 0.2);
   border-radius: var(--border-radius-card);
   min-height: 68px;
   padding: 0 18px;
@@ -74,28 +79,88 @@ const menu = [
 }
 
 .admin-drawer {
-  background: var(--bg-surface);
-  border-right: 1px solid var(--neutral-200);
-  color: var(--neutral-700);
+  background: #f7fafc;
+  border-right: 1px solid #dbe6ec;
+  color: #314154;
 }
 
 .admin-brand {
-  color: var(--neutral-800);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #243b53;
   font-family: var(--font-title);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 750;
   letter-spacing: -0.04em;
-  padding: 26px 18px 20px;
+  padding: 24px 18px 20px;
+}
+
+.admin-brand small {
+  color: #668094;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-brand-mark {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #15364a;
+  background: #27c2a4;
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .admin-menu-active {
-  background: #eaf8f6;
-  color: var(--neutral-800);
+  background: #e5f7f2;
+  color: #173d50;
 }
 
 .admin-drawer :deep(.q-item) {
-  border-radius: var(--border-radius-sm);
-  margin-bottom: 4px;
+  min-height: 46px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+.admin-drawer :deep(.q-item__section--avatar) {
+  min-width: 38px;
+  color: #668094;
+}
+
+.admin-drawer :deep(.q-item--active .q-icon) {
+  color: #14806d;
+}
+
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(248, 252, 255, 0.7);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.admin-status span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #81e6ca;
+  box-shadow: 0 0 0 4px rgba(129, 230, 202, 0.12);
+}
+
+@media (max-width: 768px) {
+  .admin-header {
+    padding: 10px 12px 0;
+  }
+
+  .admin-status {
+    display: none;
+  }
 }
 
 :global(body.body--dark) .admin-menu-active {

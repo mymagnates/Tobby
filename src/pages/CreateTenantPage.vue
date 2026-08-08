@@ -787,12 +787,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
+import { createPropertyTenantRequest } from '../services/tenantApi'
 
 const router = useRouter()
 const route = useRoute()
 const $q = useQuasar()
 const userDataStore = useUserDataStore()
-const { createDocument, uploadImagesWithDetails } = useFirebase()
+const { uploadImagesWithDetails } = useFirebase()
 
 // Form Data
 const formData = ref({
@@ -1186,8 +1187,11 @@ const handleSubmit = async () => {
       created_by: userDataStore.userId,
     }
 
-    // Save to Firestore
-    await createDocument('tenants', tenantData)
+    await createPropertyTenantRequest({
+      propertyId: formData.value.propertyId,
+      leaseId: formData.value.leaseId || null,
+      tenant: tenantData,
+    })
 
     $q.notify({
       type: 'positive',

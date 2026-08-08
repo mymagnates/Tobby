@@ -42,6 +42,14 @@
             label="Company Name (Optional)"
             class="q-mt-md"
           />
+          <div class="text-subtitle2 text-weight-medium q-mt-md">Which properties will you manage?</div>
+          <q-option-group
+            v-model="manageScope"
+            :options="manageScopeOptions"
+            type="checkbox"
+            color="primary"
+            class="q-mt-xs"
+          />
         </q-card>
       </div>
 
@@ -102,6 +110,7 @@ const saving = ref(false)
 const errorMessage = ref('')
 const showConfirmDialog = ref(false)
 const companyName = ref('')
+const manageScope = ref(['Own'])
 
 const ACCOUNT_TYPE_OPTIONS = Object.freeze([
   {
@@ -119,6 +128,11 @@ const ACCOUNT_TYPE_OPTIONS = Object.freeze([
       'Receive opportunities, submit proposals, and collaborate on assigned service work.',
   },
 ])
+
+const manageScopeOptions = [
+  { label: 'My own properties', value: 'Own' },
+  { label: 'Properties for others', value: 'Others' },
+]
 
 const hasLockedType = computed(() => {
   const profile = userDataStore.userProfile || {}
@@ -164,6 +178,10 @@ const confirmSelection = async () => {
         account_type_selected_at: now,
         user_category: accountType,
         owner_workspace_only: selectedType.value === 'MANAGER' ? false : currentProfile.owner_workspace_only || false,
+        manage_scope:
+          selectedType.value === 'MANAGER'
+            ? (Array.isArray(manageScope.value) ? manageScope.value : [])
+            : (Array.isArray(currentProfile.manage_scope) ? currentProfile.manage_scope : []),
         company_name:
           selectedType.value === 'MANAGER'
             ? (companyName.value || currentProfile.company_name || '')
@@ -192,6 +210,7 @@ const openConfirmDialog = () => {
 watch(selectedType, (next) => {
   if (next !== 'MANAGER') {
     companyName.value = ''
+    manageScope.value = ['Own']
   }
 })
 

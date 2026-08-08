@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useFirebase } from '../../../src/composables/useFirebase'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
-import { collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+} from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { auth as mockedAuth } from '../../../src/boot/firebase'
 
@@ -47,6 +56,8 @@ vi.mock('../../../src/boot/firebase', () => ({
       return vi.fn()
     }),
   },
+  authPersistenceReady: Promise.resolve(),
+  authStateReady: Promise.resolve(null),
   db: {},
   storage: {},
   sessionManager: {
@@ -92,7 +103,9 @@ describe('useFirebase', () => {
       const error = new Error('Invalid credentials')
       signInWithEmailAndPassword.mockRejectedValue(error)
 
-      await expect(firebase.signIn('test@example.com', 'wrong')).rejects.toThrow('Invalid credentials')
+      await expect(firebase.signIn('test@example.com', 'wrong')).rejects.toThrow(
+        'Invalid credentials',
+      )
     })
   })
 
@@ -153,7 +166,11 @@ describe('useFirebase', () => {
       doc.mockReturnValue(mockDoc)
       setDoc.mockResolvedValue()
 
-      const result = await firebase.createDocument('properties', { name: 'Test Property' }, 'doc123')
+      const result = await firebase.createDocument(
+        'properties',
+        { name: 'Test Property' },
+        'doc123',
+      )
 
       expect(setDoc).toHaveBeenCalled()
       expect(result).toBe('doc123')

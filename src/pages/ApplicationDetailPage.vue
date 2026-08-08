@@ -980,17 +980,16 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
-import { collection, doc, setDoc } from 'firebase/firestore'
-import { db } from '../boot/firebase'
 import {
   fetchLeaseApplicationRequest,
   getLeaseApplicationDocumentAccessRequest,
+  reviewLeaseApplicationRequest,
   uploadLeaseApplicationDocumentRequest,
 } from '../services/leaseApplicationApi'
 
 const route = useRoute()
 const router = useRouter()
-const { getDocument, updateDocument } = useFirebase()
+const { getDocument } = useFirebase()
 const applicationAccessToken = computed(() => String(route.query.access || '').trim())
 
 // Determine if page is within MainLayout based on route meta
@@ -1262,97 +1261,14 @@ const approveApplication = async () => {
   try {
     console.log('Approving application...')
 
-    const leaseId = application.value.lease_id
-    const applicationId = application.value.id
-
-    // Prepare tenant data (copy from application)
-    const tenantData = {
-      // Application reference
-      application_id: applicationId,
-
-      // Main applicant information
-      applicant: application.value.applicant,
-
-      // Co-applicants
-      co_applicants: application.value.co_applicants || [],
-
-      // Vehicles
-      vehicles: application.value.vehicles || [],
-
-      // Pets
-      pets: application.value.pets || [],
-
-      // Additional info
-      number_of_occupants: application.value.number_of_occupants,
-      desired_move_in_date: application.value.desired_move_in_date,
-      lease_term_months: application.value.lease_term_months,
-      additional_notes: application.value.additional_notes,
-
-      // Tenant status
-      tenant_status: 'active',
-      move_in_date: leaseStartDate.value, // Use the selected start date
-
-      // Metadata
-      approved_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-    }
-
-    // Add tenant to lease's tenants subcollection
-    const tenantRef = doc(collection(db, 'leases', leaseId, 'tenants'), applicationId)
-    await setDoc(tenantRef, tenantData)
-
-    console.log('Tenant data added to lease subcollection')
-
-    // Copy application documents to lease
-    if (application.value.documents && application.value.documents.length > 0) {
-      console.log('Copying application documents to lease...')
-
-      // Get current lease to check for existing documents
-      const leaseDoc = await getDocument(`leases/${leaseId}`)
-      const existingDocuments = leaseDoc?.documents || []
-
-      // Add application documents with metadata
-      const applicationDocuments = application.value.documents.map((doc) => ({
-        ...doc,
-        source: 'application',
-        application_id: applicationId,
-        copied_at: new Date().toISOString(),
-        category: doc.category || 'Application Documents',
-      }))
-
-      // Merge with existing documents
-      const mergedDocuments = [...existingDocuments, ...applicationDocuments]
-
-      // Update lease with merged documents
-      await updateDocument('leases', leaseId, {
-        documents: mergedDocuments,
-      })
-
-      console.log(`Copied ${applicationDocuments.length} documents to lease`)
-    }
-
-    // Update application status to approved
-    await updateDocument('lease_applications', applicationId, {
-      status: 'approved',
-      approved_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const response = await reviewLeaseApplicationRequest({
+      applicationId: application.value.id,
+      decision: 'approved',
+      leaseStartDate: leaseStartDate.value,
     })
-
-    // Update lease status to "Rented" and keep start/move-in fields aligned
-    await updateDocument('leases', leaseId, {
-      status: 'Rented',
-      start_date: leaseStartDate.value, // Save the start date to the lease
-      lease_start_date: leaseStartDate.value,
-      move_in_date: leaseStartDate.value,
-      rented_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-
-    console.log('Lease status updated to Rented with start date')
 
     // Update local application data
-    application.value.status = 'approved'
-    application.value.approved_at = new Date().toISOString()
+    Object.assign(application.value, response?.application || { status: 'approved' })
 
     const documentsCount = application.value.documents?.length || 0
     const caption =
@@ -1417,16 +1333,13 @@ const rejectApplication = async () => {
   try {
     console.log('Rejecting application...')
 
-    // Update application status to rejected
-    await updateDocument('lease_applications', application.value.id, {
-      status: 'rejected',
-      rejected_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const response = await reviewLeaseApplicationRequest({
+      applicationId: application.value.id,
+      decision: 'rejected',
     })
 
     // Update local application data
-    application.value.status = 'rejected'
-    application.value.rejected_at = new Date().toISOString()
+    Object.assign(application.value, response?.application || { status: 'rejected' })
 
     Notify.create({
       type: 'positive',

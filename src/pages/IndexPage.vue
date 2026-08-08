@@ -50,81 +50,290 @@
       </div>
     </div>
 
-    <!-- PM/PO Feed Layout: outer layout provides the property and status rails. -->
+    <section
+      v-else-if="isIndexHome"
+      class="operations-dashboard"
+      aria-label="Property operations dashboard"
+    >
+      <div class="operations-dashboard__quick-actions" aria-label="Create a new record">
+        <q-btn
+          unelevated
+          dense
+          no-caps
+          color="primary"
+          icon="receipt_long"
+          label="+Transaction"
+          class="operations-dashboard__quick-action"
+          @click="openCreateTransactionDialog"
+        />
+        <q-btn
+          unelevated
+          dense
+          no-caps
+          color="primary"
+          icon="dns"
+          label="+Task"
+          class="operations-dashboard__quick-action"
+          @click="openCreateTaskDialog"
+        />
+        <q-btn
+          unelevated
+          dense
+          no-caps
+          color="primary"
+          icon="inventory_2"
+          label="+Asset"
+          class="operations-dashboard__quick-action"
+          @click="openCreateAssetDialog"
+        />
+        <q-btn
+          unelevated
+          dense
+          no-caps
+          color="primary"
+          icon="description"
+          label="+Document"
+          class="operations-dashboard__quick-action"
+          @click="openCreateDocumentDialog"
+        />
+        <q-btn
+          unelevated
+          dense
+          no-caps
+          color="primary"
+          icon="smart_toy"
+          label="Ask Tobby"
+          class="operations-dashboard__quick-action operations-dashboard__quick-action--assistant"
+          @click="openTobbyAssistant"
+        />
+      </div>
+
+      <div class="operations-dashboard__metrics" aria-label="Operations summary">
+        <article class="operations-metric-card">
+          <span>Open work</span>
+          <strong>{{ dashboardOpenWorkCount }}</strong>
+          <small><i class="material-icons">assignment</i> Active property tasks</small>
+        </article>
+        <article class="operations-metric-card operations-metric-card--approval">
+          <span>Needs review</span>
+          <strong>{{ dashboardReviewCount }}</strong>
+          <small><i class="material-icons">gavel</i> Bids and decisions</small>
+        </article>
+        <article class="operations-metric-card operations-metric-card--due">
+          <span>Due this week</span>
+          <strong>{{ dashboardDueThisWeekCount }}</strong>
+          <small><i class="material-icons">event</i> Reminders and follow-ups</small>
+        </article>
+      </div>
+
+      <div class="operations-dashboard__grid">
+        <section class="operations-panel operations-panel--queue">
+          <div class="operations-panel__header">
+            <div>
+              <span class="operations-panel__eyebrow">Priority queue</span>
+              <h2>Move the next decision forward.</h2>
+            </div>
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="primary"
+              label="View all"
+              icon-right="arrow_forward"
+              @click="$router.push('/mx-records')"
+            />
+          </div>
+
+          <div v-if="dashboardPriorityItems.length" class="operations-queue">
+            <button
+              v-for="post in dashboardPriorityItems"
+              :key="`priority-${post.eventId || post.id}`"
+              type="button"
+              class="operations-queue__item"
+              @click="openFeedPreview(post)"
+            >
+              <span
+                class="operations-queue__icon"
+                :class="`operations-queue__icon--${dashboardItemTone(post)}`"
+              >
+                <q-icon :name="post.avatarIcon || 'assignment'" size="19px" />
+              </span>
+              <span class="operations-queue__copy">
+                <strong>{{ dashboardItemTitle(post) }}</strong>
+                <small
+                  >{{ post.property || 'Property record' }} · {{ dashboardItemDetail(post) }}</small
+                >
+              </span>
+              <span
+                class="operations-queue__status"
+                :class="`operations-queue__status--${dashboardItemStatus(post).tone}`"
+              >
+                {{ dashboardItemStatus(post).label }}
+              </span>
+            </button>
+          </div>
+          <div v-else class="operations-empty-state">
+            <q-icon name="task_alt" size="24px" />
+            <div>
+              <strong>Your queue is clear.</strong
+              ><span>New tasks, bids, and updates will appear here.</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="operations-panel operations-panel--activity">
+          <div class="operations-panel__header operations-panel__header--compact">
+            <div>
+              <span class="operations-panel__eyebrow">Activity</span>
+              <h2>Latest updates</h2>
+            </div>
+            <q-icon name="tune" size="20px" class="operations-panel__control" />
+          </div>
+
+          <div v-if="dashboardActivityItems.length" class="operations-activity-list">
+            <button
+              v-for="post in dashboardActivityItems"
+              :key="`activity-${post.eventId || post.id}`"
+              type="button"
+              class="operations-activity"
+              @click="openFeedPreview(post)"
+            >
+              <span
+                class="operations-activity__icon"
+                :class="`operations-activity__icon--${dashboardItemTone(post)}`"
+              >
+                <q-icon :name="post.avatarIcon || 'bolt'" size="16px" />
+              </span>
+              <span
+                ><strong>{{ dashboardItemTitle(post) }}</strong
+                ><small
+                  >{{ post.property || 'Property record' }} ·
+                  {{ formatCompactEventTime(post) }}</small
+                ></span
+              >
+            </button>
+          </div>
+          <div v-else class="operations-activity-list operations-activity-list--empty">
+            <span>Updates will appear as your team records work.</span>
+          </div>
+
+          <div class="operations-reminders">
+            <div class="operations-reminders__heading">
+              <span>Up next</span
+              ><q-btn
+                flat
+                dense
+                round
+                icon="add"
+                size="sm"
+                @click="showCreateReminderDialog = true"
+              />
+            </div>
+            <button
+              v-for="item in dashboardReminderItems"
+              :key="`dashboard-reminder-${item.id}`"
+              type="button"
+              class="operations-reminder"
+              @click="openReminderDetail(item)"
+            >
+              <q-icon name="notifications_active" size="15px" />
+              <span
+                ><strong>{{ item.title }}</strong
+                ><small>{{ item.propertyName }} · {{ item.dueLabel || 'No date' }}</small></span
+              >
+            </button>
+            <div v-if="!dashboardReminderItems.length" class="operations-reminders__empty">
+              No upcoming reminders.
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Non-dashboard routes retain the existing event feed implementation. -->
     <div v-else class="feed-shell feed-shell--no-reminders">
       <Teleport v-if="isIndexHome" to="#index-reminders-slot">
         <aside class="feed-reminders">
-        <button class="mobile-column-toggle" type="button" @click="toggleMobileColumn('reminders')">
-          <span>Reminders</span>
-          <span class="mobile-column-count">{{ filteredReminderItems.length }}</span>
-          <q-icon :name="mobileColumnOpenIcon('reminders')" size="18px" />
-        </button>
-        <div class="mobile-collapsible-column" :class="{ 'is-collapsed': isMobileColumnCollapsed('reminders') }">
-          <q-card class="rail-card">
-            <q-card-section class="q-pa-sm">
-              <div class="reminder-section-header">
-                <div class="rail-title">Reminders</div>
-                <q-btn
-                  flat
-                  dense
-                  no-caps
-                  size="xs"
-                  color="primary"
-                  label="View All"
-                  class="reminder-view-all-btn"
-                  @click="$router.push('/reminders')"
-                />
-              </div>
-              <q-card
-                v-if="!filteredReminderItems.length"
-                flat
-                bordered
-                class="reminder-card feed-empty-card q-mb-sm"
-              >
-                <q-card-section class="q-pa-sm">
-                  <div class="reminder-title q-mb-xs">No Reminders Yet</div>
-                  <div class="reminder-brief">
-                    Reminder cards will appear here when due, updated, or created.
-                  </div>
-                </q-card-section>
-              </q-card>
-              <div v-else class="reminder-list">
+          <button
+            class="mobile-column-toggle"
+            type="button"
+            @click="toggleMobileColumn('reminders')"
+          >
+            <span>Reminders</span>
+            <span class="mobile-column-count">{{ filteredReminderItems.length }}</span>
+            <q-icon :name="mobileColumnOpenIcon('reminders')" size="18px" />
+          </button>
+          <div
+            class="mobile-collapsible-column"
+            :class="{ 'is-collapsed': isMobileColumnCollapsed('reminders') }"
+          >
+            <q-card class="rail-card">
+              <q-card-section class="q-pa-sm">
+                <div class="reminder-section-header">
+                  <div class="rail-title">Reminders</div>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="primary"
+                    label="View All"
+                    class="reminder-view-all-btn"
+                    @click="$router.push('/reminders')"
+                  />
+                </div>
                 <q-card
-                  v-for="item in filteredReminderItems"
-                  :key="item.id"
+                  v-if="!filteredReminderItems.length"
                   flat
                   bordered
-                  class="reminder-card reminder-card-compact q-mb-xs"
-                  :class="{ 'reminder-overdue': item.daysDue !== null && item.daysDue < 0 }"
-                  clickable
-                  @click="openReminderDetail(item)"
+                  class="reminder-card feed-empty-card q-mb-sm"
                 >
-                  <q-card-section class="reminder-compact-section">
-                    <div class="reminder-compact-row">
-                      <div class="reminder-compact-left">
-                        <div class="reminder-title">{{ item.title }}</div>
-                        <div class="reminder-property-name">
-                          <q-icon name="home" size="12px" class="q-mr-xs" />{{ item.propertyName }}
-                        </div>
-                      </div>
-                      <div
-                        v-if="item.dueLabel"
-                        class="reminder-due-badge"
-                        :class="{
-                          'due-overdue': item.daysDue < 0,
-                          'due-today': item.daysDue === 0,
-                          'due-soon': item.daysDue > 0,
-                        }"
-                      >
-                        {{ item.dueLabel }}
-                      </div>
+                  <q-card-section class="q-pa-sm">
+                    <div class="reminder-title q-mb-xs">No Reminders Yet</div>
+                    <div class="reminder-brief">
+                      Reminder cards will appear here when due, updated, or created.
                     </div>
                   </q-card-section>
                 </q-card>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
+                <div v-else class="reminder-list">
+                  <q-card
+                    v-for="item in filteredReminderItems"
+                    :key="item.id"
+                    flat
+                    bordered
+                    class="reminder-card reminder-card-compact q-mb-xs"
+                    :class="{ 'reminder-overdue': item.daysDue !== null && item.daysDue < 0 }"
+                    clickable
+                    @click="openReminderDetail(item)"
+                  >
+                    <q-card-section class="reminder-compact-section">
+                      <div class="reminder-compact-row">
+                        <div class="reminder-compact-left">
+                          <div class="reminder-title">{{ item.title }}</div>
+                          <div class="reminder-property-name">
+                            <q-icon name="home" size="12px" class="q-mr-xs" />{{
+                              item.propertyName
+                            }}
+                          </div>
+                        </div>
+                        <div
+                          v-if="item.dueLabel"
+                          class="reminder-due-badge"
+                          :class="{
+                            'due-overdue': item.daysDue < 0,
+                            'due-today': item.daysDue === 0,
+                            'due-soon': item.daysDue > 0,
+                          }"
+                        >
+                          {{ item.dueLabel }}
+                        </div>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
         </aside>
       </Teleport>
 
@@ -206,19 +415,28 @@
                         <q-item clickable v-close-popup @click="toggleSort('time')">
                           <q-item-section>Time</q-item-section>
                           <q-item-section side>
-                            <q-icon :name="sortIcon('time')" :color="feedSortField === 'time' ? 'primary' : 'grey-5'" />
+                            <q-icon
+                              :name="sortIcon('time')"
+                              :color="feedSortField === 'time' ? 'primary' : 'grey-5'"
+                            />
                           </q-item-section>
                         </q-item>
                         <q-item clickable v-close-popup @click="toggleSort('type')">
                           <q-item-section>Type</q-item-section>
                           <q-item-section side>
-                            <q-icon :name="sortIcon('type')" :color="feedSortField === 'type' ? 'primary' : 'grey-5'" />
+                            <q-icon
+                              :name="sortIcon('type')"
+                              :color="feedSortField === 'type' ? 'primary' : 'grey-5'"
+                            />
                           </q-item-section>
                         </q-item>
                         <q-item clickable v-close-popup @click="toggleSort('property')">
                           <q-item-section>Property</q-item-section>
                           <q-item-section side>
-                            <q-icon :name="sortIcon('property')" :color="feedSortField === 'property' ? 'primary' : 'grey-5'" />
+                            <q-icon
+                              :name="sortIcon('property')"
+                              :color="feedSortField === 'property' ? 'primary' : 'grey-5'"
+                            />
                           </q-item-section>
                         </q-item>
                       </q-list>
@@ -239,13 +457,19 @@
                       <q-list dense class="feed-sort-menu">
                         <q-item clickable v-close-popup @click="feedViewMode = 'list'">
                           <q-item-section avatar>
-                            <q-icon name="view_agenda" :color="feedViewMode === 'list' ? 'primary' : 'grey-5'" />
+                            <q-icon
+                              name="view_agenda"
+                              :color="feedViewMode === 'list' ? 'primary' : 'grey-5'"
+                            />
                           </q-item-section>
                           <q-item-section>List</q-item-section>
                         </q-item>
                         <q-item clickable v-close-popup @click="feedViewMode = 'tile'">
                           <q-item-section avatar>
-                            <q-icon name="grid_view" :color="feedViewMode === 'tile' ? 'primary' : 'grey-5'" />
+                            <q-icon
+                              name="grid_view"
+                              :color="feedViewMode === 'tile' ? 'primary' : 'grey-5'"
+                            />
                           </q-item-section>
                           <q-item-section>Tile</q-item-section>
                         </q-item>
@@ -301,7 +525,9 @@
                       <span v-if="post.amount" class="post-amount">{{ post.amount }}</span>
                       <span v-else></span>
                       <div class="feed-card-meta">
-                        <div class="post-time post-time--compact">{{ formatCompactEventTime(post) }}</div>
+                        <div class="post-time post-time--compact">
+                          {{ formatCompactEventTime(post) }}
+                        </div>
                         <div class="post-property">
                           <q-icon name="home" size="12px" class="q-mr-xs" />{{ post.property }}
                         </div>
@@ -348,7 +574,9 @@
                     <span class="feed-tile-type" :class="`feed-tile-type--${post.type}`">{{
                       formatFeedType(post.type)
                     }}</span>
-                    <div class="post-time post-time--compact">{{ formatCompactEventTime(post) }}</div>
+                    <div class="post-time post-time--compact">
+                      {{ formatCompactEventTime(post) }}
+                    </div>
                   </div>
                   <div class="feed-tile-title">{{ post.title }}</div>
                   <div class="feed-tile-brief">{{ post.brief }}</div>
@@ -772,7 +1000,8 @@
               {{ selectedReminderForHistory.title }}
             </div>
             <div class="text-caption text-grey-6">
-              Current Due Date: {{ formatReminderDate(getReminderEffectiveDueDate(selectedReminderForHistory)) }}
+              Current Due Date:
+              {{ formatReminderDate(getReminderEffectiveDueDate(selectedReminderForHistory)) }}
             </div>
           </div>
 
@@ -1578,6 +1807,84 @@ const showMoreFeedButton = computed(
 )
 const isMainFeedEmpty = computed(() => allFeedItems.value.length === 0)
 
+const isOpenDashboardTask = (task) => {
+  const status = String(task?.status || 'open')
+    .trim()
+    .toLowerCase()
+  return !['closed', 'completed', 'cancelled', 'canceled', 'resolved'].includes(status)
+}
+
+const dashboardOpenWorkCount = computed(
+  () =>
+    (userDataStore.userAccessibleMxRecords || []).filter(
+      (task) => matchesDashboardProperty(task?.property_id) && isOpenDashboardTask(task),
+    ).length,
+)
+
+const dashboardReviewCount = computed(
+  () =>
+    (userDataStore.userAccessibleMxRecords || []).filter((task) => {
+      if (!matchesDashboardProperty(task?.property_id)) return false
+      return Number(getTaskBidSummary(task)?.bidCount || 0) > 0
+    }).length,
+)
+
+const dashboardDueThisWeekCount = computed(
+  () =>
+    filteredReminderItems.value.filter(
+      (item) => item.daysDue !== null && item.daysDue >= 0 && item.daysDue <= 7,
+    ).length,
+)
+
+const dashboardPriorityItems = computed(() => {
+  const activeTaskIds = new Set(
+    (userDataStore.userAccessibleMxRecords || [])
+      .filter((task) => matchesDashboardProperty(task?.property_id) && isOpenDashboardTask(task))
+      .map((task) => normalizeId(task?.id, task?.mx_id, task?.task_id))
+      .filter(Boolean),
+  )
+  const priorityItems = allFeedItems.value.filter((post) => {
+    if (post.type === 'bid') return true
+    if (post.type !== 'task') return false
+    const taskId = normalizeId(post?.dataId, post?.taskId)
+    return activeTaskIds.has(taskId)
+  })
+  return priorityItems.slice(0, 5)
+})
+
+const dashboardActivityItems = computed(() => allFeedItems.value.slice(0, 5))
+const dashboardReminderItems = computed(() => filteredReminderItems.value.slice(0, 3))
+
+const dashboardItemTitle = (post) => {
+  const title = String(post?.title || '').trim()
+  if (post?.type === 'task' && title.startsWith('Task ')) {
+    return post?.brief || title
+  }
+  return title || 'Property update'
+}
+
+const dashboardItemDetail = (post) => {
+  if (post?.type === 'bid') return post?.brief || 'Vendor proposal ready'
+  if (post?.type === 'task' && post?.bidCount > 0)
+    return post.latestBidSummary || 'Proposal submitted'
+  return post?.brief || formatCompactEventTime(post)
+}
+
+const dashboardItemTone = (post) => {
+  if (post?.type === 'bid') return 'review'
+  if (post?.type === 'transaction') return 'done'
+  if (post?.type === 'lease') return 'lease'
+  return 'new'
+}
+
+const dashboardItemStatus = (post) => {
+  if (post?.type === 'bid' || Number(post?.bidCount || 0) > 0)
+    return { label: 'Review', tone: 'review' }
+  if (post?.type === 'transaction') return { label: 'Recorded', tone: 'done' }
+  if (post?.type === 'lease') return { label: 'Lease', tone: 'lease' }
+  return { label: 'Open', tone: 'new' }
+}
+
 const resetVisibleFeedCount = () => {
   visibleFeedCount.value = FEED_PAGE_SIZE
 }
@@ -1604,8 +1911,12 @@ const currentSortLabel = computed(() => {
   return 'Time'
 })
 const currentSortIcon = computed(() => sortIcon(feedSortField.value))
-const currentViewLabel = computed(() => (feedViewMode.value === 'tile' ? 'View: Tile' : 'View: List'))
-const currentViewIcon = computed(() => (feedViewMode.value === 'tile' ? 'grid_view' : 'view_agenda'))
+const currentViewLabel = computed(() =>
+  feedViewMode.value === 'tile' ? 'View: Tile' : 'View: List',
+)
+const currentViewIcon = computed(() =>
+  feedViewMode.value === 'tile' ? 'grid_view' : 'view_agenda',
+)
 
 const formatFeedType = (type) => {
   const normalized = String(type || 'event')
@@ -1655,7 +1966,9 @@ const legacyRepeatByToUnit = {
   'one-time': 'one-time',
 }
 const normalizeReminderRepeatUnit = (reminder = {}) => {
-  const explicitUnit = String(reminder?.repeat_unit || '').trim().toLowerCase()
+  const explicitUnit = String(reminder?.repeat_unit || '')
+    .trim()
+    .toLowerCase()
   if (['day', 'days'].includes(explicitUnit)) return 'days'
   if (['week', 'weeks'].includes(explicitUnit)) return 'weeks'
   if (['month', 'months'].includes(explicitUnit)) return 'months'
@@ -1740,35 +2053,37 @@ const getReminderDueStatusLabel = (reminder) => {
 }
 
 const propertyReminderItems = computed(() =>
-  (propertyReminders.value || []).filter((reminder) => matchesDashboardProperty(reminder.property_id)).map((reminder) => {
-    const propId = reminder.property_id?.id || reminder.property_id
-    const propertyName = resolvePropertyName(propId)
-    const today = toMidnight(new Date())
-    let daysDue = null
-    let dueLabel = ''
-    const dueDate = getReminderEffectiveDueDate(reminder)
-    if (dueDate) {
-      daysDue = Math.floor((dueDate.getTime() - today.getTime()) / MS_PER_DAY)
-      if (daysDue < 0) dueLabel = `${Math.abs(daysDue)}d overdue`
-      else if (daysDue === 0) dueLabel = 'Due today'
-      else dueLabel = `Due in ${daysDue} day${daysDue === 1 ? '' : 's'}`
-    }
-    return {
-      eventId: makeEventId('reminder', normalizeId(reminder.id, reminder.reminder_id)),
-      id: normalizeId(reminder.id, reminder.reminder_id),
-      type: 'reminder',
-      avatarColor: reminder.status ? 'purple-2' : 'grey-4',
-      avatarIcon: reminder.status ? 'notifications_active' : 'notifications_off',
-      title: `${String(reminder.category || 'Reminder').toUpperCase()} reminder`,
-      propertyName,
-      daysDue,
-      dueLabel,
-      detailPath: '/reminders',
-      dataType: 'reminder',
-      dataId: normalizeId(reminder.id, reminder.reminder_id),
-      eventDate: dueDate || reminder.created_date || reminder.due_date || reminder.start_date,
-    }
-  }),
+  (propertyReminders.value || [])
+    .filter((reminder) => matchesDashboardProperty(reminder.property_id))
+    .map((reminder) => {
+      const propId = reminder.property_id?.id || reminder.property_id
+      const propertyName = resolvePropertyName(propId)
+      const today = toMidnight(new Date())
+      let daysDue = null
+      let dueLabel = ''
+      const dueDate = getReminderEffectiveDueDate(reminder)
+      if (dueDate) {
+        daysDue = Math.floor((dueDate.getTime() - today.getTime()) / MS_PER_DAY)
+        if (daysDue < 0) dueLabel = `${Math.abs(daysDue)}d overdue`
+        else if (daysDue === 0) dueLabel = 'Due today'
+        else dueLabel = `Due in ${daysDue} day${daysDue === 1 ? '' : 's'}`
+      }
+      return {
+        eventId: makeEventId('reminder', normalizeId(reminder.id, reminder.reminder_id)),
+        id: normalizeId(reminder.id, reminder.reminder_id),
+        type: 'reminder',
+        avatarColor: reminder.status ? 'purple-2' : 'grey-4',
+        avatarIcon: reminder.status ? 'notifications_active' : 'notifications_off',
+        title: `${String(reminder.category || 'Reminder').toUpperCase()} reminder`,
+        propertyName,
+        daysDue,
+        dueLabel,
+        detailPath: '/reminders',
+        dataType: 'reminder',
+        dataId: normalizeId(reminder.id, reminder.reminder_id),
+        eventDate: dueDate || reminder.created_date || reminder.due_date || reminder.start_date,
+      }
+    }),
 )
 
 const reminderItems = computed(() => [...propertyReminderItems.value])
@@ -1805,7 +2120,11 @@ const feedPreviewOverviewFields = computed(() => {
     )
   } else if (type === 'transaction') {
     rows.push(
-      { key: 'amount', label: 'Amount', value: formatDetailCurrency(snapshot.amount ?? post.amount) },
+      {
+        key: 'amount',
+        label: 'Amount',
+        value: formatDetailCurrency(snapshot.amount ?? post.amount),
+      },
       {
         key: 'direction',
         label: 'Flow',
@@ -1815,22 +2134,42 @@ const feedPreviewOverviewFields = computed(() => {
   } else if (type === 'lease') {
     rows.push(
       { key: 'status', label: 'Status', value: safeDisplay(snapshot.status) },
-      { key: 'start', label: 'Start', value: formatDetailDate(pickFirstValue(snapshot, ['start_date', 'lease_start_date', 'move_in_date'])) },
-      { key: 'rent', label: 'Rent', value: formatDetailCurrency(pickFirstValue(snapshot, ['rate_amount', 'rent', 'monthly_rent'])) },
+      {
+        key: 'start',
+        label: 'Start',
+        value: formatDetailDate(
+          pickFirstValue(snapshot, ['start_date', 'lease_start_date', 'move_in_date']),
+        ),
+      },
+      {
+        key: 'rent',
+        label: 'Rent',
+        value: formatDetailCurrency(
+          pickFirstValue(snapshot, ['rate_amount', 'rent', 'monthly_rent']),
+        ),
+      },
     )
   } else if (type === 'bid') {
     rows.push(
       { key: 'amount', label: 'Bid Amount', value: formatDetailCurrency(bidSnapshot.amount) },
-      { key: 'status', label: 'Bid Status', value: safeDisplay(bidSnapshot.status || post.latestBidStatus) },
+      {
+        key: 'status',
+        label: 'Bid Status',
+        value: safeDisplay(bidSnapshot.status || post.latestBidStatus),
+      },
       {
         key: 'sp',
         label: 'Service Provider',
-        value: safeDisplay(pickFirstValue(bidSnapshot, ['sp_business_name', 'sp_name', 'sp_display_name'])),
+        value: safeDisplay(
+          pickFirstValue(bidSnapshot, ['sp_business_name', 'sp_name', 'sp_display_name']),
+        ),
       },
       {
         key: 'task',
         label: 'Related Task',
-        value: safeDisplay(taskSnapshot.task_title || taskSnapshot.title || taskSnapshot.mx_id || post.taskId),
+        value: safeDisplay(
+          taskSnapshot.task_title || taskSnapshot.title || taskSnapshot.mx_id || post.taskId,
+        ),
       },
     )
   }
@@ -1937,7 +2276,11 @@ const feedPreviewSourceFields = computed(() => {
   if (type === 'transaction') {
     const tx = post.snapshot || {}
     return [
-      { key: 'date', label: 'Date', value: formatDetailDate(tx.transac_date || tx.date || post.eventDate) },
+      {
+        key: 'date',
+        label: 'Date',
+        value: formatDetailDate(tx.transac_date || tx.date || post.eventDate),
+      },
       { key: 'type', label: 'Type', value: safeDisplay(tx.transac_type) },
       { key: 'note', label: 'Note', value: safeDisplay(tx.note || tx.description || post.brief) },
     ]
@@ -1992,7 +2335,11 @@ const feedPreviewSourceFields = computed(() => {
         label: 'Task',
         value: safeDisplay(task.task_title || task.title || task.mx_id || post.taskId),
       },
-      { key: 'submitted', label: 'Submitted', value: formatDetailDate(bid.created_at || post.eventDate) },
+      {
+        key: 'submitted',
+        label: 'Submitted',
+        value: formatDetailDate(bid.created_at || post.eventDate),
+      },
       {
         key: 'note',
         label: 'Note',
@@ -2125,7 +2472,10 @@ const renewReminderFromDetail = async () => {
 
     const todayIso = toIsoDate(new Date())
     const previousStartDate = current.start_date || todayIso
-    const previousDueDate = toIsoDate(getReminderEffectiveDueDate(current)) || getReminderDueDateValue(current) || previousStartDate
+    const previousDueDate =
+      toIsoDate(getReminderEffectiveDueDate(current)) ||
+      getReminderDueDateValue(current) ||
+      previousStartDate
     const newDueDate = calculateReminderRenewalDueDate(current)
     const renewals = Array.isArray(current.renewals) ? [...current.renewals] : []
     renewals.push({
@@ -2288,6 +2638,10 @@ const openCreateAssetDialog = () => {
 const openCreateDocumentDialog = () => {
   showCreateDocumentDialog.value = true
   showQuickActions.value = false
+}
+
+const openTobbyAssistant = () => {
+  window.dispatchEvent(new CustomEvent('open-global-assistant'))
 }
 
 const navigateToPage = async (path, actionLabel) => {
@@ -2530,7 +2884,9 @@ const loadPropertyReminders = async () => {
 onMounted(async () => {
   console.log('IndexPage mounted')
   if (typeof window !== 'undefined') {
-    const savedViewMode = String(window.localStorage.getItem(FEED_VIEW_MODE_STORAGE_KEY) || '').trim()
+    const savedViewMode = String(
+      window.localStorage.getItem(FEED_VIEW_MODE_STORAGE_KEY) || '',
+    ).trim()
     if (savedViewMode === 'list' || savedViewMode === 'tile') {
       feedViewMode.value = savedViewMode
     }
@@ -2607,6 +2963,9 @@ watch(feedViewMode, (nextValue) => {
 
 <style scoped>
 .pm-po-feed-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 10px;
   background: transparent;
   min-height: 100vh;
@@ -4045,6 +4404,512 @@ watch(feedViewMode, (nextValue) => {
   transform: scale(1.05);
 }
 
+/* PM command-center dashboard */
+.operations-dashboard {
+  --ops-ink: #193348;
+  --ops-muted: #6e8192;
+  --ops-border: #dbe6ec;
+  --ops-surface: #ffffff;
+  --ops-mint: #167f6d;
+  --ops-mint-pale: #ddf6ee;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px;
+  color: var(--ops-ink);
+}
+
+.operations-dashboard__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+
+.operations-dashboard__quick-action {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(22, 127, 109, 0.18);
+  border-radius: 9px !important;
+  color: #167f6d !important;
+  background: #effaf7 !important;
+  box-shadow: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.operations-dashboard__quick-action:hover {
+  border-color: rgba(22, 127, 109, 0.36);
+  background: #ddf6ee !important;
+}
+
+.operations-dashboard__quick-action--assistant {
+  background: #193348 !important;
+  border-color: #193348;
+  color: #ffffff !important;
+}
+
+.operations-dashboard__quick-action--assistant:hover {
+  background: #28485f !important;
+  border-color: #28485f;
+}
+
+.operations-panel__eyebrow {
+  color: var(--ops-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.operations-dashboard__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.operations-metric-card {
+  min-width: 0;
+  min-height: 138px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ops-border);
+  border-radius: 15px;
+  background: var(--ops-surface);
+  box-shadow: 0 12px 28px rgba(22, 49, 70, 0.045);
+}
+
+.operations-metric-card > span {
+  color: var(--ops-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.operations-metric-card strong {
+  margin: 12px 0 8px;
+  color: var(--ops-ink);
+  font-family: 'Sora', 'Avenir Next', sans-serif;
+  font-size: 2rem;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.operations-metric-card small {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+.operations-metric-card small .material-icons {
+  color: var(--ops-mint);
+  font-size: 14px;
+}
+
+.operations-metric-card--approval strong {
+  color: #8d611c;
+}
+.operations-metric-card--approval small .material-icons {
+  color: #a46e1b;
+}
+.operations-metric-card--due strong {
+  color: #2d6598;
+}
+.operations-metric-card--due small .material-icons {
+  color: #367eb7;
+}
+
+.operations-dashboard__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.37fr);
+  gap: 14px;
+  margin-top: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.operations-panel {
+  overflow: hidden;
+  border: 1px solid var(--ops-border);
+  border-radius: 15px;
+  background: var(--ops-surface);
+  box-shadow: 0 12px 28px rgba(22, 49, 70, 0.045);
+}
+
+.operations-panel--queue {
+  min-height: 422px;
+}
+.operations-panel--activity {
+  min-height: 422px;
+}
+
+.operations-panel__header {
+  min-height: 85px;
+  padding: 19px 20px 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #edf2f5;
+}
+
+.operations-panel__header h2 {
+  margin: 5px 0 0;
+  color: var(--ops-ink);
+  font-family: 'Sora', 'Avenir Next', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.operations-panel__header .q-btn {
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.operations-panel__header--compact {
+  min-height: 78px;
+}
+.operations-panel__control {
+  color: #7f90a0;
+}
+
+.operations-queue {
+  padding: 0 20px;
+}
+
+.operations-queue__item {
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-bottom: 1px solid #edf2f5;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.operations-queue__item:last-child {
+  border-bottom: 0;
+}
+.operations-queue__item:hover {
+  background: #f7fbfa;
+  transform: translateX(3px);
+}
+
+.operations-queue__icon,
+.operations-activity__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #2278bd;
+  background: #e5f0fd;
+}
+
+.operations-queue__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.operations-queue__icon--review,
+.operations-activity__icon--review {
+  color: #8b61b5;
+  background: #f0eafa;
+}
+.operations-queue__icon--done,
+.operations-activity__icon--done {
+  color: #157d6a;
+  background: #ddf6ed;
+}
+.operations-queue__icon--lease,
+.operations-activity__icon--lease {
+  color: #aa741b;
+  background: #fff1d7;
+}
+
+.operations-queue__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.operations-queue__copy strong,
+.operations-queue__copy small,
+.operations-activity strong,
+.operations-activity small,
+.operations-reminder strong,
+.operations-reminder small {
+  display: block;
+}
+
+.operations-queue__copy strong {
+  overflow: hidden;
+  color: var(--ops-ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-queue__copy small {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-queue__status {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: #2576b7;
+  background: #e5f0fd;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.operations-queue__status--review {
+  color: #91621a;
+  background: #fff1d7;
+}
+.operations-queue__status--done {
+  color: #147b69;
+  background: #dcf6ed;
+}
+.operations-queue__status--lease {
+  color: #8760ac;
+  background: #eee8fb;
+}
+
+.operations-empty-state {
+  min-height: 310px;
+  padding: 34px;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  color: var(--ops-muted);
+  text-align: center;
+}
+
+.operations-empty-state .q-icon {
+  margin: 0 auto;
+  color: var(--ops-mint);
+}
+.operations-empty-state strong,
+.operations-empty-state span {
+  display: block;
+}
+.operations-empty-state strong {
+  color: var(--ops-ink);
+  font-size: 0.9rem;
+}
+.operations-empty-state span {
+  margin-top: 5px;
+  font-size: 0.78rem;
+}
+
+.operations-activity-list {
+  padding: 7px 16px 10px;
+}
+.operations-activity-list--empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  color: var(--ops-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.operations-activity {
+  width: 100%;
+  padding: 9px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.operations-activity:hover strong {
+  color: var(--ops-mint);
+}
+.operations-activity__icon {
+  width: 27px;
+  height: 27px;
+  margin-top: 1px;
+  border-radius: 9px;
+}
+.operations-activity > span:last-child {
+  min-width: 0;
+}
+.operations-activity strong {
+  overflow: hidden;
+  color: var(--ops-ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.operations-activity small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--ops-muted);
+  font-size: 0.67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-reminders {
+  margin: 4px 16px 16px;
+  padding-top: 13px;
+  border-top: 1px solid #edf2f5;
+}
+.operations-reminders__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ops-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.operations-reminders__heading .q-btn {
+  color: var(--ops-mint);
+}
+.operations-reminder {
+  width: 100%;
+  padding: 9px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.operations-reminder > .q-icon {
+  margin-top: 2px;
+  color: #b27b21;
+}
+.operations-reminder strong {
+  overflow: hidden;
+  color: var(--ops-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.operations-reminder small {
+  margin-top: 2px;
+  color: var(--ops-muted);
+  font-size: 0.65rem;
+}
+.operations-reminders__empty {
+  margin-top: 12px;
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 1180px) {
+  .operations-dashboard__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operations-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+  .operations-panel--activity {
+    min-height: 0;
+  }
+  .operations-activity-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+  .operations-reminders {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  .operations-dashboard {
+    padding: 2px;
+  }
+  .operations-dashboard__quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .operations-dashboard__quick-action {
+    width: 100%;
+    padding: 0 7px;
+    font-size: 0.7rem;
+  }
+  .operations-dashboard__metrics {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .operations-metric-card {
+    min-height: 94px;
+    padding: 15px;
+  }
+  .operations-metric-card strong {
+    margin: 7px 0;
+    font-size: 1.65rem;
+  }
+  .operations-dashboard__grid {
+    gap: 9px;
+    margin-top: 9px;
+  }
+  .operations-panel__header {
+    min-height: 74px;
+    padding: 15px;
+  }
+  .operations-panel__header h2 {
+    font-size: 0.92rem;
+  }
+  .operations-queue {
+    padding: 0 15px;
+  }
+  .operations-queue__item {
+    min-height: 70px;
+  }
+  .operations-queue__status {
+    display: none;
+  }
+  .operations-queue__copy small {
+    font-size: 0.7rem;
+  }
+  .operations-activity-list {
+    grid-template-columns: 1fr;
+    padding: 7px 15px;
+  }
+  .operations-reminders {
+    display: block;
+    margin: 4px 15px 15px;
+  }
+}
+
 /* ========================================
    DARK MODE STYLES
    ======================================== */
@@ -4052,8 +4917,7 @@ watch(feedViewMode, (nextValue) => {
 :global(body.body--dark) .pm-po-feed-page {
   background:
     radial-gradient(circle at top left, rgba(45, 212, 191, 0.1), transparent 24%),
-    radial-gradient(circle at top right, rgba(94, 234, 212, 0.06), transparent 20%),
-    #0f172a !important;
+    radial-gradient(circle at top right, rgba(94, 234, 212, 0.06), transparent 20%), #0f172a !important;
 }
 
 :global(body.body--dark) .mobile-column-toggle {

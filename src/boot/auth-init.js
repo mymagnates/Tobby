@@ -1,6 +1,6 @@
 import { defineBoot } from '#q-app/wrappers'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, authPersistenceReady } from './firebase'
+import { auth, authStateReady } from './firebase'
 import { useUserDataStore } from '../stores/userDataStore'
 
 /**
@@ -8,7 +8,7 @@ import { useUserDataStore } from '../stores/userDataStore'
  * This ensures user data is loaded immediately when the app starts
  * and persists across page refreshes using localStorage cache
  */
-export default defineBoot(() => {
+export default defineBoot(async () => {
   const userDataStore = useUserDataStore()
 
   if (typeof window !== 'undefined') {
@@ -30,18 +30,20 @@ export default defineBoot(() => {
     }
   }
 
-  void authPersistenceReady.finally(() => {
-    // Let the app mount immediately; auth hydration can catch up in the background.
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        try {
-          userDataStore.setUser(user)
-        } catch (error) {
-          console.error('Auth init - Error initializing user data:', error)
-        }
-      } else {
-        userDataStore.clearAllData()
-      }
-    })
+  // Hydrate the store before the router evaluates a protected deep link.
+  // `authStateReady` only resolves after Firebase has restored LOCAL state.
+  const restoredUser = await authStateReady
+  if (restoredUser) {
+    await userDataStore.setUser(restoredUser)
+  } else {
+    userDataStore.clearAllData()
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      void userDataStore.setUser(user)
+    } else {
+      userDataStore.clearAllData()
+    }
   })
 })

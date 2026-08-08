@@ -1,21 +1,22 @@
 <template>
-  <q-layout view="lHh Lpr lFr" class="dashboard-layout">
-    <!-- Dark Left Sidebar -->
+  <q-layout
+    view="hHh Lpr lFr"
+    class="dashboard-layout"
+    :class="{ 'dashboard-layout--sp': isSpWorkspaceRoute }"
+  >
+    <!-- Console navigation rail -->
     <q-drawer
       v-model="leftDrawerOpen"
       side="left"
-      :width="280"
+      :width="248"
+      :mini-width="76"
+      :mini="drawerIsMini"
       class="dark-drawer"
       :breakpoint="1024"
-      overlay
+      show-if-above
       bordered
     >
-      <!-- Logo Text - Click to collapse menu -->
-      <div class="drawer-logo-icon" @click="goHome">
-        <span class="sidebar-app-title">Handout</span>
-      </div>
-
-      <!-- Navigation Grid -->
+      <!-- Navigation -->
       <div class="nav-grid-wrap">
         <template v-for="(section, sectionIndex) in navSections" :key="section.key">
           <div class="nav-grid">
@@ -26,23 +27,26 @@
               :class="{ 'nav-grid-active': isNavActive(link.link) }"
               @click="navigateTo(link.link)"
             >
-              <div class="nav-grid-icon" :style="{ background: link.bg || 'rgba(0,0,0,0.06)' }">
-                <q-icon :name="link.icon" size="22px" :color="link.color || 'grey-7'" />
+              <div class="nav-grid-icon">
+                <q-icon :name="link.icon" size="21px" />
               </div>
               <span class="nav-grid-label">{{ link.title }}</span>
+              <q-tooltip v-if="drawerIsMini" anchor="center right" self="center left" :delay="250">
+                {{ link.title }}
+              </q-tooltip>
             </button>
           </div>
           <q-separator v-if="sectionIndex < navSections.length - 1" class="q-my-sm" />
         </template>
       </div>
-
     </q-drawer>
 
     <!-- Top Header -->
-    <q-header class="dashboard-header" :class="{ 'drawer-minimized': !leftDrawerOpen }">
+    <q-header class="dashboard-header" :class="{ 'drawer-minimized': drawerIsMini }">
       <q-toolbar class="header-toolbar q-px-lg">
         <!-- Left: Logo -->
         <div class="header-handout-logo" @click="goHome">
+          <img src="/icons/favicon-128x128.png" alt="" class="header-brand-mark" />
           <span class="header-app-title">Handout</span>
         </div>
         <q-space />
@@ -53,11 +57,10 @@
 
         <!-- Right: Actions -->
 
-
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
           <q-btn
-            v-if="isPmPo"
+            v-if="showWorkspaceNavButton"
             flat
             round
             dense
@@ -80,7 +83,7 @@
             >
               <q-tooltip>Universal Search</q-tooltip>
             </q-btn>
-           <!--
+            <!--
             <q-btn
               flat
               round
@@ -102,6 +105,17 @@
               @click="showGlobalCreateDialog = true"
             >
               <q-tooltip>Create</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-if="showAssistantHeaderButton"
+              flat
+              round
+              dense
+              icon="smart_toy"
+              class="header-action-btn"
+              @click="showAssistantPanel = true"
+            >
+              <q-tooltip>Ask Tobby</q-tooltip>
             </q-btn>
           </template>
 
@@ -170,6 +184,9 @@
             v-model="activePropertyId"
             :properties="userDataStore.userAccessibleProperties"
             :include-all="propertyRailIncludeAll"
+            compact
+            :show-create="showPropertyRailCreate"
+            @create="goToCreatePropertyPage"
           />
         </aside>
 
@@ -309,7 +326,10 @@
                   class="assistant-message-row"
                   :class="`assistant-message-row--${message.role}`"
                 >
-                  <div class="assistant-message-bubble" :class="`assistant-message-bubble--${message.role}`">
+                  <div
+                    class="assistant-message-bubble"
+                    :class="`assistant-message-bubble--${message.role}`"
+                  >
                     <div class="assistant-message-text">{{ message.text }}</div>
                     <div v-if="message.draft" class="assistant-draft assistant-draft--message">
                       <div class="text-subtitle2 text-weight-bold q-mb-xs">{{ message.title }}</div>
@@ -331,29 +351,31 @@
                   </div>
                 </div>
               </div>
-              <q-input
-                v-model="assistantInput"
-                type="textarea"
-                outlined
-                autogrow
-                dense
-                label="Ask Tobby"
-                :disable="assistantLoading"
-                class="assistant-input"
-                @keyup.enter.exact.prevent="runAssistantIntake"
-              />
-              <div class="assistant-actions">
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Send"
-                  :loading="assistantLoading"
-                  @click="runAssistantIntake"
+              <div class="assistant-composer">
+                <q-input
+                  v-model="assistantInput"
+                  type="textarea"
+                  outlined
+                  autogrow
+                  dense
+                  label="Ask Tobby"
+                  :disable="assistantLoading"
+                  class="assistant-input"
+                  @keyup.enter.exact.prevent="runAssistantIntake"
                 />
-                <q-btn flat label="Clear" @click="resetAssistant" />
+                <div class="assistant-actions">
+                  <q-btn
+                    unelevated
+                    color="primary"
+                    label="Send"
+                    :loading="assistantLoading"
+                    @click="runAssistantIntake"
+                  />
+                  <q-btn flat label="Clear" @click="resetAssistant" />
+                </div>
+                <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
+                <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
               </div>
-              <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
-              <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
             </q-card-section>
           </q-card>
         </aside>
@@ -385,7 +407,12 @@
     </q-dialog>
 
     <!-- Create Form Dialog (embeds create components) -->
-    <q-dialog v-model="showCreateFormDialog" maximized transition-show="slide-up" transition-hide="slide-down">
+    <q-dialog
+      v-model="showCreateFormDialog"
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
       <q-card class="create-form-dialog">
         <q-card-section class="create-form-dialog-header">
           <q-btn icon="close" flat round dense @click="showCreateFormDialog = false" />
@@ -439,61 +466,51 @@
       </q-card>
     </q-dialog>
 
-    <!-- Global Assistant Widget (bottom-right, available on all pages) -->
-    <div v-if="!showAssistantInRail" class="global-assistant-widget">
-      <q-btn
-        v-if="showFloatingAssistantFab && !showAssistantPanel"
-        rounded
-        color="primary"
-        icon="chat"
-        size="md"
-        class="assistant-fab"
-        @click="showAssistantPanel = true"
-      >
-        Talk to Tobby
-        <q-tooltip>Talk to Tobby</q-tooltip>
-      </q-btn>
-
-      <transition name="assistant-slide">
-        <q-card v-if="showAssistantPanel" class="assistant-panel">
-          <q-card-section class="assistant-panel-header">
-            <div class="assistant-panel-title">
-              <q-icon name="smart_toy" size="20px" class="q-mr-sm" />
-              Tobby
-            </div>
-            <q-btn flat round dense icon="close" size="sm" @click="showAssistantPanel = false" />
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="assistant-panel-body">
-            <div ref="assistantFloatingMessagesEl" class="assistant-message-list">
+    <!-- Assistant dialog for routes without an assistant rail -->
+    <q-dialog v-if="!showAssistantInRail" v-model="showAssistantPanel" :maximized="$q.screen.lt.sm">
+      <q-card class="assistant-panel assistant-dialog-card">
+        <q-card-section class="assistant-panel-header">
+          <div class="assistant-panel-title">
+            <q-icon name="smart_toy" size="20px" class="q-mr-sm" />
+            Tobby
+          </div>
+          <q-btn flat round dense icon="close" size="sm" @click="showAssistantPanel = false" />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="assistant-panel-body">
+          <div ref="assistantFloatingMessagesEl" class="assistant-message-list">
+            <div
+              v-for="message in assistantMessages"
+              :key="`floating-${message.id}`"
+              class="assistant-message-row"
+              :class="`assistant-message-row--${message.role}`"
+            >
               <div
-                v-for="message in assistantMessages"
-                :key="`floating-${message.id}`"
-                class="assistant-message-row"
-                :class="`assistant-message-row--${message.role}`"
+                class="assistant-message-bubble"
+                :class="`assistant-message-bubble--${message.role}`"
               >
-                <div class="assistant-message-bubble" :class="`assistant-message-bubble--${message.role}`">
-                  <div class="assistant-message-text">{{ message.text }}</div>
-                  <div v-if="message.draft" class="assistant-draft assistant-draft--message">
-                    <div class="text-subtitle2 text-weight-bold q-mb-xs">{{ message.title }}</div>
-                    <div
-                      v-for="line in message.summaryLines"
-                      :key="`floating-${message.id}-${line.label}`"
-                      class="assistant-draft-line"
-                    >
-                      <strong>{{ line.label }}:</strong> {{ line.value }}
-                    </div>
-                    <q-btn
-                      unelevated
-                      color="primary"
-                      :label="message.actionLabel"
-                      class="q-mt-sm"
-                      @click="openAssistantDraft(message)"
-                    />
+                <div class="assistant-message-text">{{ message.text }}</div>
+                <div v-if="message.draft" class="assistant-draft assistant-draft--message">
+                  <div class="text-subtitle2 text-weight-bold q-mb-xs">{{ message.title }}</div>
+                  <div
+                    v-for="line in message.summaryLines"
+                    :key="`floating-${message.id}-${line.label}`"
+                    class="assistant-draft-line"
+                  >
+                    <strong>{{ line.label }}:</strong> {{ line.value }}
                   </div>
+                  <q-btn
+                    unelevated
+                    color="primary"
+                    :label="message.actionLabel"
+                    class="q-mt-sm"
+                    @click="openAssistantDraft(message)"
+                  />
                 </div>
               </div>
             </div>
+          </div>
+          <div class="assistant-composer">
             <q-input
               v-model="assistantInput"
               type="textarea"
@@ -517,10 +534,10 @@
             </div>
             <div v-if="assistantError" class="text-negative">{{ assistantError }}</div>
             <div v-if="assistantOutOfScope" class="text-grey-7">{{ assistantOutOfScope }}</div>
-          </q-card-section>
-        </q-card>
-      </transition>
-    </div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
@@ -546,7 +563,6 @@ const createComponentMap = {
   tenant: defineAsyncComponent(() => import('pages/CreateTenantPage.vue')),
 }
 
-
 const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
@@ -570,30 +586,47 @@ const PAGE_TITLES = {
   '/user-profile': 'User Profile',
   '/tenant-home': 'Tenant Home',
   '/create-tenant': 'Create Tenant',
+  '/sp-dashboard': 'SP Home',
+  '/sp-leads': 'SP Leads',
+  '/sp-bids': 'SP Bids',
+  '/sp-invoices': 'SP Invoices',
+  '/sp-services': 'SP Services',
+  '/sp-credits': 'SP Credits',
   '/sp-profile': 'SP Profile',
 }
 
-const headerPageTitle = computed(() =>
-  PAGE_TITLES[route.path] ??
-  (route.path.startsWith('/assets') ? 'Assets' : null) ??
-  (route.path.startsWith('/edit-property') ? 'Edit Property' : null) ??
-  (route.path.startsWith('/application-detail') ? 'Application' : null) ??
-  (route.name ? String(route.name).replace(/([A-Z])/g, ' $1').trim() : null) ??
-  'Dashboard'
+const headerPageTitle = computed(
+  () =>
+    PAGE_TITLES[route.path] ??
+    (route.path.startsWith('/assets') ? 'Assets' : null) ??
+    (route.path.startsWith('/edit-property') ? 'Edit Property' : null) ??
+    (route.path.startsWith('/application-detail') ? 'Application' : null) ??
+    (route.name
+      ? String(route.name)
+          .replace(/([A-Z])/g, ' $1')
+          .trim()
+      : null) ??
+    'Dashboard',
 )
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
 const hasOwnerWorkspaceAccess = computed(() => Boolean(userDataStore.hasOwnerWorkspaceAccess))
 const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUser))
-const isPmPo = computed(() => ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) || hasOwnerWorkspaceAccess.value || userDataStore.isManagerCapableUser)
+const isPmPo = computed(
+  () =>
+    ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) ||
+    hasOwnerWorkspaceAccess.value ||
+    userDataStore.isManagerCapableUser,
+)
+const isSpUser = computed(() => String(userDataStore.userCategory || '').toLowerCase() === 'sp')
+const showWorkspaceNavButton = computed(() => isPmPo.value || isSpUser.value)
+const isSpWorkspaceRoute = computed(() => String(route.path || '').startsWith('/sp-'))
 const isTenantUser = computed(() => String(userDataStore.userCategory || '').toLowerCase() === 'tt')
 const isNativePmOnlyLaunch = computed(() => {
   if (typeof window === 'undefined') return false
   const capacitor = window.Capacitor
   return Boolean(
-    capacitor &&
-      typeof capacitor.isNativePlatform === 'function' &&
-      capacitor.isNativePlatform(),
+    capacitor && typeof capacitor.isNativePlatform === 'function' && capacitor.isNativePlatform(),
   )
 })
 const nativePmOnlyBlockedPrefixes = [
@@ -623,9 +656,12 @@ const showFloatingAssistant = computed(() => {
   if (isOwnerWorkspaceOnly.value) return false
   return true
 })
-const showAssistantInRail = computed(() => Boolean(showAdRail.value && isPmPo.value && showFloatingAssistant.value))
-const showFloatingAssistantFab = computed(() => Boolean(showFloatingAssistant.value && !showAssistantInRail.value))
+const showAssistantInRail = computed(() =>
+  Boolean(showAdRail.value && isPmPo.value && showFloatingAssistant.value),
+)
 const PROPERTY_RAIL_ROUTES = [
+  '/my-properties',
+  '/property-view',
   '/transactions',
   '/mx-records',
   '/reminders',
@@ -637,15 +673,28 @@ const PROPERTY_RAIL_ROUTES = [
   '/reports',
 ]
 const isIndexDashboard = computed(() => route.path === '/' || route.path === '/pm-po-feed')
+const showAssistantHeaderButton = computed(() =>
+  Boolean(showFloatingAssistant.value && !showAssistantInRail.value && !isIndexDashboard.value),
+)
 const propertyRailIncludeAll = computed(() => route.path !== '/property-services')
+const showPropertyRailCreate = computed(() =>
+  Boolean(
+    showPropertyRail.value && userDataStore.isManagerCapableUser && !isOwnerWorkspaceOnly.value,
+  ),
+)
 const showPropertyRail = computed(() => {
-  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  const accountType = String(
+    userDataStore.accountType || userDataStore.userCategory || '',
+  ).toLowerCase()
   if (!['pm', 'po', 'admin'].includes(accountType)) return false
   return isIndexDashboard.value || PROPERTY_RAIL_ROUTES.some((path) => route.path.startsWith(path))
 })
 const showAdRail = computed(() => {
-  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  const accountType = String(
+    userDataStore.accountType || userDataStore.userCategory || '',
+  ).toLowerCase()
   if (!['pm', 'po', 'admin'].includes(accountType)) return false
+  if (isIndexDashboard.value) return false
   if (showPropertyRail.value) return true
   return route.path === '/' || route.path === '/pm-po-feed'
 })
@@ -657,7 +706,11 @@ const getTransactionDate = (transaction) => {
 const isIncomeType = (transaction) => {
   if (transaction?.type === 'income') return true
   const transacType = String(transaction?.transac_type || '').toLowerCase()
-  return transacType.includes('rent') || transacType.includes('deposit') || transacType.includes('refund')
+  return (
+    transacType.includes('rent') ||
+    transacType.includes('deposit') ||
+    transacType.includes('refund')
+  )
 }
 const monthlyIncome = computed(() => {
   const currentMonth = new Date().getMonth()
@@ -697,18 +750,20 @@ const matchesSelectedRailProperty = (record) => {
   ).trim()
   return propertyId === selectedRailPropertyId.value
 }
-const openTasks = computed(() =>
-  (userDataStore.userAccessibleMxRecords || []).filter(
-    (task) =>
-      matchesSelectedRailProperty(task) &&
-      (!task?.status || String(task.status).toLowerCase() === 'open'),
-  ).length,
+const openTasks = computed(
+  () =>
+    (userDataStore.userAccessibleMxRecords || []).filter(
+      (task) =>
+        matchesSelectedRailProperty(task) &&
+        (!task?.status || String(task.status).toLowerCase() === 'open'),
+    ).length,
 )
-const activeLeases = computed(() =>
-  (userDataStore.userAccessibleLeases || []).filter((lease) => {
-    const status = String(lease?.status || lease?.leasedetail?.status || '').toLowerCase()
-    return matchesSelectedRailProperty(lease) && (status === 'active' || status === 'occupied')
-  }).length,
+const activeLeases = computed(
+  () =>
+    (userDataStore.userAccessibleLeases || []).filter((lease) => {
+      const status = String(lease?.status || lease?.leasedetail?.status || '').toLowerCase()
+      return matchesSelectedRailProperty(lease) && (status === 'active' || status === 'occupied')
+    }).length,
 )
 const formatStatCurrency = (amount) =>
   new Intl.NumberFormat('en-US', {
@@ -716,7 +771,9 @@ const formatStatCurrency = (amount) =>
     maximumFractionDigits: 0,
   }).format(amount || 0)
 const contentShellClass = computed(() => ({
-  'content-shell--with-rails': showPropertyRail.value,
+  'content-shell--with-rails': showPropertyRail.value && showAdRail.value,
+  'content-shell--with-property-rail-only': showPropertyRail.value && !showAdRail.value,
+  'content-shell--with-compact-property-rail': showPropertyRail.value && isIndexDashboard.value,
   'content-shell--with-ad-rail': !showPropertyRail.value && showAdRail.value,
 }))
 const activePropertyId = computed({
@@ -764,15 +821,54 @@ const handleOpenGlobalAssistant = () => {
 }
 
 const globalCreateOptions = [
-  { label: 'Property', icon: 'home', path: '/create-property', bg: 'rgba(156,39,176,0.1)', color: 'purple' },
+  {
+    label: 'Property',
+    icon: 'home',
+    path: '/create-property',
+    bg: 'rgba(156,39,176,0.1)',
+    color: 'purple',
+  },
   { label: 'Task', icon: 'dns', key: 'task', bg: 'rgba(33,150,243,0.1)', color: 'primary' },
-  { label: 'Transaction', icon: 'receipt_long', key: 'transaction', bg: 'rgba(76,175,80,0.1)', color: 'positive' },
+  {
+    label: 'Transaction',
+    icon: 'receipt_long',
+    key: 'transaction',
+    bg: 'rgba(76,175,80,0.1)',
+    color: 'positive',
+  },
   { label: 'Lease', icon: 'event', key: 'lease', bg: 'rgba(255,152,0,0.1)', color: 'warning' },
-  { label: 'Tenant', icon: 'person_add', key: 'tenant', bg: 'rgba(3,169,244,0.1)', color: 'cyan-8' },
-  { label: 'Reminder', icon: 'alarm', key: 'reminder', path: '/reminders?create=true', bg: 'rgba(244,67,54,0.1)', color: 'negative' },
+  {
+    label: 'Tenant',
+    icon: 'person_add',
+    key: 'tenant',
+    bg: 'rgba(3,169,244,0.1)',
+    color: 'cyan-8',
+  },
+  {
+    label: 'Reminder',
+    icon: 'alarm',
+    key: 'reminder',
+    path: '/reminders?create=true',
+    bg: 'rgba(244,67,54,0.1)',
+    color: 'negative',
+  },
   { label: 'Asset', icon: 'inventory_2', key: 'asset', bg: 'rgba(121,85,72,0.1)', color: 'brown' },
-  { label: 'Document', icon: 'description', key: 'document', path: '/documents?create=true', bg: 'rgba(0,150,136,0.1)', color: 'teal' },
-  { label: 'Service', icon: 'handyman', key: 'service', path: '/property-services', bg: 'rgba(96,125,139,0.1)', color: 'blue-grey' },
+  {
+    label: 'Document',
+    icon: 'description',
+    key: 'document',
+    path: '/documents?create=true',
+    bg: 'rgba(0,150,136,0.1)',
+    color: 'teal',
+  },
+  {
+    label: 'Service',
+    icon: 'handyman',
+    key: 'service',
+    path: '/property-services',
+    bg: 'rgba(96,125,139,0.1)',
+    color: 'blue-grey',
+  },
 ]
 
 const filteredGlobalCreateOptions = computed(() => {
@@ -780,8 +876,7 @@ const filteredGlobalCreateOptions = computed(() => {
     ? globalCreateOptions.filter((option) => option.key !== 'tenant')
     : globalCreateOptions
   if (isOwnerWorkspaceOnly.value) {
-    const allowed = new Set(['task', 'transaction', 'reminder', 'asset', 'service'])
-    return options.filter((option) => allowed.has(option.key))
+    return []
   }
   return options
 })
@@ -820,7 +915,7 @@ function toggleLanguage() {
     message: newLang === 'es-ES' ? 'Idioma cambiado a Español' : 'Language changed to English',
     position: 'top',
     timeout: 1500,
-    color: 'primary'
+    color: 'primary',
   })
 }
 
@@ -1079,7 +1174,10 @@ const openAssistantDraft = (message) => {
   openTaskCreateWithDraft(draft)
 }
 
-const normalizeMatchValue = (value) => String(value || '').toLowerCase().trim()
+const normalizeMatchValue = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .trim()
 
 const extractStreetParts = (value) => {
   const text = normalizeMatchValue(value)
@@ -1119,7 +1217,17 @@ const TRANSACTION_ROLE_OPTIONS = [
 ]
 
 const REMINDER_CATEGORY_OPTIONS = ['fee', 'hoa', 'rent', 'maintenance', 'labor', 'tax', 'other']
-const ASSET_TYPE_OPTIONS = ['Appliance', 'HVAC', 'Pool/Spa', 'Electrical', 'Plumbing', 'Safety', 'Exterior', 'Furniture', 'Other']
+const ASSET_TYPE_OPTIONS = [
+  'Appliance',
+  'HVAC',
+  'Pool/Spa',
+  'Electrical',
+  'Plumbing',
+  'Safety',
+  'Exterior',
+  'Furniture',
+  'Other',
+]
 const SERVICE_TYPE_OPTIONS = [
   'loan',
   'insurance',
@@ -1138,8 +1246,10 @@ const SERVICE_TYPE_OPTIONS = [
 const detectAssetTypeLocal = (message) => {
   const text = normalizeMatchValue(message)
   if (!text) return 'Other'
-  if (/water heater|heater|ac|hvac|furnace|thermostat|air handler|compressor/.test(text)) return 'HVAC'
-  if (/dishwasher|washer|dryer|fridge|refrigerator|stove|oven|microwave|appliance/.test(text)) return 'Appliance'
+  if (/water heater|heater|ac|hvac|furnace|thermostat|air handler|compressor/.test(text))
+    return 'HVAC'
+  if (/dishwasher|washer|dryer|fridge|refrigerator|stove|oven|microwave|appliance/.test(text))
+    return 'Appliance'
   if (/outlet|breaker|panel|switch|electrical|light|wiring/.test(text)) return 'Electrical'
   if (/toilet|sink|faucet|pipe|plumbing|drain|garbage disposal/.test(text)) return 'Plumbing'
   if (/camera|alarm|detector|safety|sensor|extinguisher/.test(text)) return 'Safety'
@@ -1236,12 +1346,12 @@ const resolveTransactionRole = (value) => {
   if (synonym) return synonym.role
 
   const direct = TRANSACTION_ROLE_OPTIONS.find(
-    (option) => normalizeMatchValue(option) === normalized
+    (option) => normalizeMatchValue(option) === normalized,
   )
   if (direct) return direct
 
   const partial = TRANSACTION_ROLE_OPTIONS.find((option) =>
-    normalizeMatchValue(option).includes(normalized)
+    normalizeMatchValue(option).includes(normalized),
   )
   return partial || ''
 }
@@ -1258,26 +1368,27 @@ const resolvePropertyLabel = (propertyId, properties) => {
   const normalizedId = normalizePropertyIdValue(propertyId)
   if (!normalizedId) return ''
   const match = (properties || []).find(
-    (property) => String(property.id || property.property_id || '').trim() === normalizedId
+    (property) => String(property.id || property.property_id || '').trim() === normalizedId,
   )
   if (!match) return ''
   return match.nickname || match.displayName || match.address || match.id || ''
 }
 
-const normalizeAssistantDraftProperty = (draft, properties, matchedPropertyId, matchedPropertyLabel) => {
+const normalizeAssistantDraftProperty = (
+  draft,
+  properties,
+  matchedPropertyId,
+  matchedPropertyLabel,
+) => {
   const propertyId =
     matchedPropertyId ||
     normalizePropertyIdValue(draft?.property_id) ||
     normalizePropertyIdValue(draft?.propertyId) ||
     null
-  const resolvedLabel =
-    matchedPropertyLabel ||
-    resolvePropertyLabel(propertyId, properties) ||
-    ''
+  const resolvedLabel = matchedPropertyLabel || resolvePropertyLabel(propertyId, properties) || ''
   const rawName = String(draft?.property_name || draft?.propertyName || '').trim()
   const propertyName =
-    resolvedLabel ||
-    (rawName && rawName !== String(propertyId || '').trim() ? rawName : '')
+    resolvedLabel || (rawName && rawName !== String(propertyId || '').trim() ? rawName : '')
 
   return {
     ...draft,
@@ -1425,7 +1536,8 @@ const runAssistantIntake = async () => {
       },
     })
     if (response?.capability === 'out_of_scope' || response?.entity_type === 'out_of_scope') {
-      assistantOutOfScope.value = response?.message || 'This request is outside the assistant scope.'
+      assistantOutOfScope.value =
+        response?.message || 'This request is outside the assistant scope.'
       await addAssistantMessage({
         role: 'assistant',
         text: assistantOutOfScope.value,
@@ -1560,6 +1672,46 @@ const allLinksList = computed(() => [
     allowedFor: ['pm', 'po', 'admin'],
   },
   {
+    title: 'SP Home',
+    icon: 'home',
+    link: '/sp-dashboard',
+    bg: 'rgba(39,194,164,0.12)',
+    color: 'primary',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
+    title: 'Leads',
+    icon: 'campaign',
+    link: '/sp-leads',
+    bg: 'rgba(33,150,243,0.1)',
+    color: 'primary',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
+    title: 'Bids',
+    icon: 'gavel',
+    link: '/sp-bids',
+    bg: 'rgba(76,175,80,0.1)',
+    color: 'positive',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
+    title: 'Invoices',
+    icon: 'receipt_long',
+    link: '/sp-invoices',
+    bg: 'rgba(255,152,0,0.12)',
+    color: 'warning',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
+    title: 'Services',
+    icon: 'handyman',
+    link: '/sp-services',
+    bg: 'rgba(96,125,139,0.1)',
+    color: 'blue-grey',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
     title: 'SP Credits',
     icon: 'token',
     link: '/sp-credits',
@@ -1568,8 +1720,16 @@ const allLinksList = computed(() => [
     allowedFor: ['sp', 'admin'],
   },
   {
+    title: 'SP Profile',
+    icon: 'badge',
+    link: '/sp-profile',
+    bg: 'rgba(121,85,72,0.1)',
+    color: 'brown',
+    allowedFor: ['sp', 'admin'],
+  },
+  {
     title: t('Properties'),
-    icon: 'home',
+    icon: 'holiday_village',
     link: '/my-properties',
     bg: 'rgba(156,39,176,0.1)',
     color: 'purple',
@@ -1686,16 +1846,36 @@ const linksList = computed(() => {
 const getSectionKey = (link) => {
   const path = link?.link || ''
   if (['/', '/po-dashboard', '/reports'].includes(path)) return 'dashboard'
-  if (['/my-properties', '/assets', '/documents', '/property-services'].includes(path)) return 'propertyAssetDocuments'
+  if (['/my-properties', '/assets', '/documents', '/property-services'].includes(path))
+    return 'propertyAssetDocuments'
   if (['/mx-records', '/transactions', '/reminders', '/leases', '/tenants'].includes(path))
     return 'taskTransactionReminderLeaseTenants'
   if (['/sp-cards'].includes(path)) return 'reportBizCard'
-  if (['/sp-dashboard', '/sp-credits'].includes(path)) return 'spPortal'
+  if (
+    [
+      '/sp-dashboard',
+      '/sp-leads',
+      '/sp-bids',
+      '/sp-invoices',
+      '/sp-services',
+      '/sp-credits',
+      '/sp-profile',
+    ].includes(path)
+  )
+    return 'spPortal'
   if (['/tenant-home'].includes(path)) return 'tenant'
   return 'other'
 }
 
-const NAV_SECTION_ORDER = ['dashboard', 'propertyAssetDocuments', 'taskTransactionReminderLeaseTenants', 'reportBizCard', 'spPortal', 'tenant', 'other']
+const NAV_SECTION_ORDER = [
+  'dashboard',
+  'propertyAssetDocuments',
+  'taskTransactionReminderLeaseTenants',
+  'reportBizCard',
+  'spPortal',
+  'tenant',
+  'other',
+]
 
 const navSections = computed(() => {
   const grouped = linksList.value.reduce((acc, link) => {
@@ -1707,12 +1887,17 @@ const navSections = computed(() => {
     return acc
   }, {})
 
-  return NAV_SECTION_ORDER
-    .filter((key) => Array.isArray(grouped[key]) && grouped[key].length > 0)
-    .map((key) => ({ key, links: grouped[key] }))
+  return NAV_SECTION_ORDER.filter(
+    (key) => Array.isArray(grouped[key]) && grouped[key].length > 0,
+  ).map((key) => ({ key, links: grouped[key] }))
 })
 
 const leftDrawerOpen = ref(false)
+const drawerMini = ref(true)
+const drawerIsMini = computed(() => {
+  if ($q.screen.lt.md) return false
+  return $q.screen.lt.lg || drawerMini.value
+})
 const dataLoading = ref(false)
 
 // Universal data loading function
@@ -1841,7 +2026,17 @@ watch(
 )
 
 function toggleLeftDrawer() {
-  leftDrawerOpen.value = !leftDrawerOpen.value
+  if ($q.screen.lt.md) {
+    leftDrawerOpen.value = !leftDrawerOpen.value
+    return
+  }
+
+  if ($q.screen.lt.lg) {
+    drawerMini.value = true
+    return
+  }
+
+  drawerMini.value = !drawerMini.value
 }
 
 function isNavActive(link) {
@@ -1851,7 +2046,9 @@ function isNavActive(link) {
 }
 
 function navigateTo(link) {
-  leftDrawerOpen.value = false
+  if ($q.screen.lt.md) {
+    leftDrawerOpen.value = false
+  }
   router.push(link)
 }
 
@@ -1917,14 +2114,30 @@ function handleCreateOption(option) {
   }
 }
 
+function openCreatePropertyDialog() {
+  if (isOwnerWorkspaceOnly.value || !userDataStore.isManagerCapableUser) return
+  activeCreateLabel.value = 'Create Property'
+  activeCreateComponent.value = createComponentMap.property
+  activeCreateProps.value = { autoNavigate: false }
+  showCreateFormDialog.value = true
+}
+
+function goToCreatePropertyPage() {
+  if (isOwnerWorkspaceOnly.value || !userDataStore.isManagerCapableUser) return
+  router.push('/create-property')
+}
+
 watch(
   () => route.query.create,
   (value) => {
     if (value === 'property') {
-      activeCreateLabel.value = 'Create Property'
-      activeCreateComponent.value = createComponentMap.property
-      activeCreateProps.value = { autoNavigate: false }
-      showCreateFormDialog.value = true
+      if (isOwnerWorkspaceOnly.value || !userDataStore.isManagerCapableUser) {
+        const nextQuery = { ...route.query }
+        delete nextQuery.create
+        router.replace({ query: nextQuery }).catch(() => {})
+        return
+      }
+      openCreatePropertyDialog()
       const nextQuery = { ...route.query }
       delete nextQuery.create
       router.replace({ query: nextQuery }).catch(() => {})
@@ -1935,15 +2148,6 @@ watch(
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
-
-/* Dashboard Color Palette */
-/* Primary Blue: #1976d2 */
-/* Dark Sidebar: #1F2128 */
-/* White: #FFFFFF */
-/* Light Gray: #F5F7FA */
-/* Text Gray: #6B7280 */
-
 .dashboard-layout {
   background:
     radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
@@ -1962,14 +2166,22 @@ watch(
 }
 
 /* ========================================
-   DARK SIDEBAR STYLING
+   NAVIGATION RAIL STYLING
    ======================================== */
 
+.dashboard-layout :deep(.q-drawer) {
+  left: 20px !important;
+  top: 114px !important;
+}
+
+.dashboard-layout--sp :deep(.q-drawer) {
+  top: 82px !important;
+}
+
 .dark-drawer {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(18px);
-  border-right: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: var(--shadow-lg);
+  background: #f7fafc;
+  border-right: 1px solid #dbe6ec;
+  box-shadow: 8px 0 24px rgba(23, 45, 68, 0.05);
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* Allow scrolling */
@@ -1981,109 +2193,101 @@ watch(
   display: none; /* Chrome, Safari, Opera */
 }
 
-.drawer-logo-icon {
-  padding: 32px 20px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.drawer-logo-icon:hover {
-  background: rgba(36, 59, 83, 0.06);
-}
-
-.sidebar-app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: var(--primary-color);
-  letter-spacing: 0.02em;
-  transition: all 0.3s ease;
-}
-
-.drawer-logo-icon:hover .sidebar-app-title {
-  transform: scale(1.05);
-}
-
 .nav-grid-wrap {
-  padding: 12px 16px 24px;
+  padding: 24px 10px;
   flex: 1;
 }
 
 .nav-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .nav-grid-item {
   display: flex;
-  flex-direction: column;
+  position: relative;
   align-items: center;
-  gap: 6px;
-  padding: 14px 6px 10px;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 10px;
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.52);
-  border-radius: var(--border-radius-card, 14px);
+  background: transparent;
+  border-radius: 10px;
+  color: #587086;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 .nav-grid-item:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(36, 59, 83, 0.08);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
-}
-:global(body.body--dark) .nav-grid-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #eef6f6;
+  border-color: #d8ece8;
+  color: #243b53;
 }
 
 .nav-grid-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--border-radius-card);
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  background: #e8f0f4;
+  color: #668094;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .nav-grid-item:hover .nav-grid-icon {
-  transform: scale(1.08);
+  background: #def5ef;
+  color: #167f6d;
 }
 
 .nav-grid-label {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: var(--neutral-700, #424242);
-  text-align: center;
+  color: inherit;
+  text-align: left;
   line-height: 1.2;
-  max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-:global(body.body--dark) .nav-grid-label {
-  color: #bbb;
-}
 
 .nav-grid-active {
-  background: linear-gradient(180deg, rgba(39, 194, 164, 0.14), rgba(39, 194, 164, 0.08));
-  border: 1px solid rgba(39, 194, 164, 0.24);
-  border-radius: var(--border-radius-card, 14px);
-  box-shadow: var(--shadow-sm);
+  background: #e5f7f2;
+  border-color: #b8e8dd;
+  color: #173d50;
 }
-.nav-grid-active .nav-grid-label {
-  color: var(--neutral-900);
-  font-weight: 700;
+.nav-grid-active .nav-grid-icon {
+  background: #27c2a4;
+  color: #15364a;
 }
-:global(body.body--dark) .nav-grid-active {
-  background: rgba(45, 212, 191, 0.18);
+
+.nav-grid-wrap .q-separator {
+  margin: 14px 4px !important;
+  background: #dfe9ee;
 }
-:global(body.body--dark) .nav-grid-active .nav-grid-label {
-  color: #ecfeff;
+
+:deep(.q-drawer--mini) .nav-grid-label,
+:deep(.q-drawer--mini) .nav-grid-wrap .q-separator {
+  display: none;
+}
+
+:deep(.q-drawer--mini) .nav-grid-wrap {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+:deep(.q-drawer--mini) .nav-grid-item {
+  justify-content: center;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 /* ========================================
@@ -2091,6 +2295,9 @@ watch(
    ======================================== */
 
 .dashboard-header {
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 3000;
   background: transparent;
   border-bottom: none;
   box-shadow: none;
@@ -2101,20 +2308,27 @@ watch(
 .dashboard-header .header-toolbar {
   max-width: none;
   width: 100%;
-  background: #f8fbfd;
+  background: linear-gradient(135deg, #19364d 0%, #132b40 100%);
   backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid rgba(36, 59, 83, 0.12);
+  border: 1px solid rgba(162, 238, 220, 0.2);
   border-radius: var(--border-radius-drawer);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow:
+    0 12px 30px rgba(15, 35, 54, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
   min-height: 60px;
-  padding-left: 8px;
+  padding-left: 16px;
   padding-right: 12px;
-  transition: box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    background 0.3s ease;
 }
 
 .dashboard-header .header-toolbar:hover {
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12), 0 1px 0 rgba(255, 255, 255, 0.85) inset;
-  border-color: rgba(39, 194, 164, 0.22);
+  box-shadow:
+    0 16px 36px rgba(15, 35, 54, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  border-color: rgba(111, 230, 204, 0.44);
 }
 
 .header-toolbar {
@@ -2130,7 +2344,7 @@ watch(
   font-size: 1.04rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--neutral-900);
+  color: #f8fcff;
   pointer-events: none;
 }
 
@@ -2140,21 +2354,32 @@ watch(
   align-items: center;
   flex: 0 0 auto;
   cursor: pointer;
-  padding: 8px 16px;
+  gap: 9px;
+  padding: 8px 14px;
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .header-handout-logo:hover {
-  background: var(--primary-glow);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.header-brand-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset;
 }
 
 .header-handout-logo .header-app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: var(--primary-color);
-  letter-spacing: 0.02em;
+  font-family: var(--font-title);
+  font-size: 1.06rem;
+  font-weight: 750;
+  color: #f8fcff;
+  letter-spacing: -0.035em;
 }
 
 /* Header Logo */
@@ -2194,11 +2419,11 @@ watch(
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 !important;
-  color: var(--primary-color) !important;
-  background: rgba(255, 255, 255, 0.62) !important;
-  border: 1px solid rgba(36, 59, 83, 0.1) !important;
+  color: #e5f1f5 !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(225, 242, 247, 0.2) !important;
   border-radius: var(--border-radius-card) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
   transition: all 0.2s ease;
   margin: 0;
 }
@@ -2215,11 +2440,11 @@ watch(
 }
 
 .header-action-btn:hover {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(39, 194, 164, 0.32) !important;
-  color: var(--accent-dark) !important;
+  background: rgba(39, 194, 164, 0.18) !important;
+  border-color: rgba(111, 230, 204, 0.58) !important;
+  color: #ffffff !important;
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 8px 18px rgba(7, 27, 43, 0.22);
 }
 
 /* Language switcher: same 40x40, label centered, text only */
@@ -2227,7 +2452,7 @@ watch(
   font-weight: 600 !important;
   font-size: 0.875rem !important;
   background: transparent !important;
-  color: var(--primary-color) !important;
+  color: #e5f1f5 !important;
 }
 
 .language-switcher :deep(.q-btn__content) {
@@ -2235,34 +2460,34 @@ watch(
 }
 
 .language-switcher:hover {
-  background: var(--accent-glow) !important;
+  background: rgba(39, 194, 164, 0.18) !important;
 }
 
 /* Refresh and Dark Mode buttons: primary background with white icon */
 .refresh-btn,
 .dark-mode-btn {
-  background: transparent !important;
-  border: 1.5px solid var(--border-strong) !important;
-  color: var(--primary-color) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(225, 242, 247, 0.2) !important;
+  color: #e5f1f5 !important;
 }
 
 .refresh-btn:hover,
 .dark-mode-btn:hover {
-  background: var(--accent-glow) !important;
+  background: rgba(39, 194, 164, 0.18) !important;
 }
 
 .profile-btn {
   min-width: 56px !important;
   width: auto !important;
   padding: 0 8px !important;
-  background: linear-gradient(180deg, rgba(39, 194, 164, 0.14), rgba(39, 194, 164, 0.08)) !important;
-  border: 1px solid rgba(39, 194, 164, 0.34) !important;
-  color: var(--accent-dark) !important;
+  background: rgba(39, 194, 164, 0.18) !important;
+  border: 1px solid rgba(111, 230, 204, 0.48) !important;
+  color: #a9f3df !important;
 }
 
 .profile-btn:hover {
-  background: rgba(20, 184, 166, 0.18) !important;
-  color: var(--accent-dark) !important;
+  background: rgba(39, 194, 164, 0.28) !important;
+  color: #ffffff !important;
 }
 
 .profile-btn :deep(.q-btn__content) {
@@ -2303,13 +2528,22 @@ watch(
   overflow-y: auto; /* Allow scrolling */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
-  padding-left: 20px;
+  padding-left: 112px;
   padding-right: 20px;
 }
 
 /* When side menu is active, extra left padding so content aligns with banner */
 .page-container.drawer-open {
-  padding-left: 24px;
+  padding-left: 112px;
+}
+
+.dashboard-layout--sp .page-container,
+.dashboard-layout--sp .page-container.drawer-open {
+  padding-left: 112px;
+}
+
+.dashboard-layout--sp .content-main {
+  margin-left: 40px;
 }
 
 .page-container::-webkit-scrollbar {
@@ -2323,9 +2557,29 @@ watch(
 
 .content-shell--with-rails {
   display: grid;
-  grid-template-columns: 260px 1fr 260px;
+  grid-template-columns: 112px minmax(0, 1fr) 260px;
   gap: 16px;
   align-items: start;
+}
+
+.content-shell--with-property-rail-only {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.content-shell--with-compact-property-rail {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.content-shell--with-rails .property-rail,
+.content-shell--with-property-rail-only .property-rail,
+.content-shell--with-compact-property-rail .property-rail {
+  width: 76px;
+  justify-self: end;
 }
 
 .content-shell--with-ad-rail {
@@ -2374,7 +2628,9 @@ watch(
 }
 
 .assistant-rail-card--expanded {
-  min-height: calc(100vh - 96px);
+  height: calc(100dvh - 96px);
+  min-height: 0;
+  max-height: calc(100dvh - 96px);
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -2543,6 +2799,15 @@ watch(
    ======================================== */
 
 @media (max-width: 768px) {
+  .dashboard-layout :deep(.q-drawer) {
+    left: 0 !important;
+    top: 0 !important;
+  }
+
+  .nav-grid-wrap {
+    padding-top: 20px;
+  }
+
   .dashboard-header {
     min-height: 48px;
     padding: min(12px, env(safe-area-inset-top, 10px)) 12px 0;
@@ -2612,6 +2877,8 @@ watch(
   }
 
   .content-shell--with-rails,
+  .content-shell--with-property-rail-only,
+  .content-shell--with-compact-property-rail,
   .content-shell--with-ad-rail {
     grid-template-columns: 1fr;
   }
@@ -2693,12 +2960,16 @@ watch(
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.86));
   backdrop-filter: blur(20px) saturate(150%);
   border-color: rgba(148, 163, 184, 0.2);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.34),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 :global(body.body--dark) .dashboard-header .header-toolbar:hover {
   border-color: rgba(45, 212, 191, 0.28);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
 :global(body.body--dark) .header-center-title {
@@ -2739,11 +3010,17 @@ watch(
   color: #d8fff6 !important;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)) !important;
   border: 1.5px solid rgba(148, 163, 184, 0.28) !important;
-  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+  box-shadow:
+    0 6px 16px rgba(2, 6, 23, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
 }
 
 :global(body.body--dark) .header-action-btn:hover {
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 184, 166, 0.28),
+    rgba(15, 118, 110, 0.24)
+  ) !important;
   border-color: rgba(45, 212, 191, 0.5) !important;
   color: #ffffff !important;
 }
@@ -2761,7 +3038,11 @@ watch(
 }
 
 :global(body.body--dark) .language-switcher:hover {
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 184, 166, 0.28),
+    rgba(15, 118, 110, 0.24)
+  ) !important;
 }
 
 :global(body.body--dark) .refresh-btn,
@@ -2773,15 +3054,25 @@ watch(
 
 :global(body.body--dark) .refresh-btn:hover,
 :global(body.body--dark) .dark-mode-btn:hover {
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.28), rgba(15, 118, 110, 0.24)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 184, 166, 0.28),
+    rgba(15, 118, 110, 0.24)
+  ) !important;
   color: #ffffff !important;
 }
 
 :global(body.body--dark) .profile-btn {
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.26), rgba(15, 118, 110, 0.22)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 184, 166, 0.26),
+    rgba(15, 118, 110, 0.22)
+  ) !important;
   border: 1.5px solid rgba(45, 212, 191, 0.42) !important;
   color: #ecfeff !important;
-  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+  box-shadow:
+    0 6px 16px rgba(2, 6, 23, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
 }
 
 :global(body.body--dark) .profile-btn:hover {
@@ -2843,22 +3134,14 @@ watch(
   color: rgba(255, 255, 255, 0.88);
 }
 
-/* Global Assistant Widget — aligned with right rail (280px) */
-.global-assistant-widget {
-  position: fixed;
-  bottom: 10px;
-  right: 30px;
-  z-index: 6000;
-}
-
-.assistant-fab {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+:global(body.body--dark) .assistant-composer {
+  background: #1e1e1e;
 }
 
 .assistant-panel {
-  width: 260px;
-  height: min(560px, calc(100vh - var(--ad-rail-reserve, 320px) - 20px));
-  max-height: min(560px, calc(100vh - var(--ad-rail-reserve, 320px) - 20px));
+  width: min(560px, calc(100vw - 48px));
+  height: min(640px, calc(100vh - 96px));
+  max-height: min(640px, calc(100vh - 96px));
   min-height: 300px;
   border-radius: var(--border-radius-card, 10px);
   display: flex;
@@ -2867,6 +3150,10 @@ watch(
   border: 1px solid var(--neutral-200, #e5e7eb);
   background: var(--bg-surface, #fff);
   overflow: hidden;
+}
+
+.assistant-dialog-card {
+  border-radius: 18px;
 }
 
 .assistant-panel-header {
@@ -2886,6 +3173,7 @@ watch(
 
 .assistant-panel-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -2894,7 +3182,7 @@ watch(
 }
 
 .assistant-panel-body--rail {
-  min-height: 280px;
+  min-height: 0;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -2902,7 +3190,9 @@ watch(
 
 .assistant-message-list {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2946,14 +3236,20 @@ watch(
 }
 
 .assistant-input {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.assistant-composer {
+  flex: 0 0 auto;
+  padding: 10px 0 calc(16px + env(safe-area-inset-bottom));
+  background: var(--bg-surface, #fff);
 }
 
 .assistant-actions {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .assistant-draft {
@@ -2976,26 +3272,17 @@ watch(
   color: var(--neutral-700);
 }
 
-.assistant-slide-enter-active,
-.assistant-slide-leave-active {
-  transition: all 0.25s ease;
-}
-
-.assistant-slide-enter-from,
-.assistant-slide-leave-to {
-  opacity: 0;
-  transform: translateY(16px) scale(0.96);
-}
-
 @media (max-width: 768px) {
-  .global-assistant-widget {
-    right: 22px;
-    bottom: 12px;
+  .assistant-panel {
+    width: 100vw;
+    height: 100vh;
+    max-height: none;
+    border-radius: 0;
   }
 
-  .assistant-panel {
-    width: calc(100vw - 44px);
-    height: 55vh;
+  .assistant-rail-card--expanded {
+    height: auto;
+    max-height: none;
   }
 }
 

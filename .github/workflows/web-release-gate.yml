@@ -1,0 +1,215 @@
+name: Web release gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_release_checks:
+        description: Run WebKit and Lighthouse checks against isolated staging.
+        required: false
+        default: false
+        type: boolean
+      staging_base_url:
+        description: Isolated staging URL only. Never use production.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  FIREBASE_PROJECT_ID: handout-ci
+
+jobs:
+  test-readiness:
+    name: Test gate readiness
+    runs-on: ubuntu-latest
+    outputs:
+      rules_required: ${{ steps.gates.outputs.rules_required }}
+      browser_required: ${{ steps.gates.outputs.browser_required }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gates
+        shell: bash
+        run: |
+          node -e "const gates=require('./release-test-gates.json'); const fs=require('fs'); const rulesReady=Boolean(gates.firebase_rules_required && fs.existsSync('firestore.rules') && fs.existsSync('tests/rules')); const browserReady=Boolean(gates.browser_e2e_required && fs.existsSync('tests/e2e/playwright.config.js')); console.log('rules_required=' + rulesReady); console.log('browser_required=' + browserReady); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'rules_required=' + rulesReady + '\\nbrowser_required=' + browserReady + '\\n')"
+
+  unit-and-api:
+    name: Unit and API contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run test:api
+      - name: Upload Vitest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-report
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  firebase-rules:
+    name: Firebase rules isolation
+    needs: [test-readiness, unit-and-api]
+    if: ${{ needs.test-readiness.outputs.rules_required == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run test:rules
+      - name: Upload emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-rules-evidence
+          path: |
+            test-results/rules/
+            firebase-debug.log
+            firestore-debug.log
+            storage-debug.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  browser-e2e:
+    name: PM browser flow (Chromium)
+    needs: [test-readiness, unit-and-api]
+    if: ${{ needs.test-readiness.outputs.browser_required == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run PM critical path against isolated fixtures
+        run: npm run test:e2e
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-chromium-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  staging-smoke:
+    name: Staging public smoke
+    needs: unit-and-api
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.staging_base_url != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run public smoke against supplied staging URL
+        env:
+          E2E_BASE_URL: ${{ inputs.staging_base_url }}
+          E2E_ENV: staging
+          E2E_STAGING_CONFIRMATION: isolated
+        run: npm run test:smoke:staging
+
+  release-candidate:
+    name: Release candidate browser and performance checks
+    needs: [test-readiness, unit-and-api, firebase-rules, browser-e2e, staging-smoke]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_release_checks && inputs.staging_base_url != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Run WebKit PM flow against isolated staging fixtures
+        env:
+          E2E_BASE_URL: ${{ inputs.staging_base_url }}
+          E2E_ENV: staging
+          E2E_STAGING_CONFIRMATION: isolated
+          E2E_PM_EMAIL: ${{ secrets.E2E_PM_EMAIL }}
+          E2E_PM_PASSWORD: ${{ secrets.E2E_PM_PASSWORD }}
+          E2E_PROPERTY_ID: ${{ vars.E2E_PROPERTY_ID }}
+        run: npm run test:e2e:webkit
+      - name: Run Lighthouse release budget
+        env:
+          E2E_BASE_URL: ${{ inputs.staging_base_url }}
+          E2E_ENV: staging
+          E2E_STAGING_CONFIRMATION: isolated
+        run: npm run test:release
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-evidence
+          path: |
+            playwright-report/
+            test-results/
+            .lighthouseci/
+          if-no-files-found: warn
+          retention-days: 30
+
+  release-gate:
+    name: Release gate
+    needs: [test-readiness, unit-and-api, firebase-rules, browser-e2e, staging-smoke, release-candidate]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce enabled gates and selected release checks
+        env:
+          UNIT_RESULT: ${{ needs.unit-and-api.result }}
+          RULES_REQUIRED: ${{ needs.test-readiness.outputs.rules_required }}
+          RULES_RESULT: ${{ needs.firebase-rules.result }}
+          BROWSER_REQUIRED: ${{ needs.test-readiness.outputs.browser_required }}
+          BROWSER_RESULT: ${{ needs.browser-e2e.result }}
+          SMOKE_RESULT: ${{ needs.staging-smoke.result }}
+          RELEASE_RESULT: ${{ needs.release-candidate.result }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_RELEASE_CHECKS: ${{ inputs.run_release_checks }}
+          STAGING_BASE_URL: ${{ inputs.staging_base_url }}
+        run: |
+          test "$UNIT_RESULT" = success
+          if [ "$RULES_REQUIRED" = true ]; then test "$RULES_RESULT" = success; fi
+          if [ "$BROWSER_REQUIRED" = true ]; then test "$BROWSER_RESULT" = success; fi
+          if [ "$EVENT_NAME" = workflow_dispatch ] && [ -n "$STAGING_BASE_URL" ]; then test "$SMOKE_RESULT" = success; fi
+          if [ "$EVENT_NAME" = workflow_dispatch ] && [ "$RUN_RELEASE_CHECKS" = true ]; then
+            test -n "$STAGING_BASE_URL"
+            test "$RELEASE_RESULT" = success
+          fi

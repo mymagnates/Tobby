@@ -105,13 +105,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { collection, getDocs, limit, query, where } from 'firebase/firestore'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
-import { db } from '../boot/firebase'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
-import { OWNER_INVITE_STATUS, OWNER_WORKSPACE_PATH } from '../utils/ownerInviteUtils'
+import { OWNER_WORKSPACE_PATH } from '../utils/ownerInviteUtils'
+import { normalizeAccountType } from '../utils/roleUtils'
+import { acceptOwnerInviteRequest, getOwnerInviteByToken } from '../services/ownerInviteApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,7 +121,6 @@ const {
   signIn,
   signUp,
   createDocument,
-  updateDocument,
   getDocument,
 } = useFirebase()
 
@@ -141,30 +140,15 @@ const form = ref({
 
 const authenticatedUser = computed(() => user.value)
 
-const isInviteUsable = (record) => {
-  if (!record) return false
-  if (record.status !== OWNER_INVITE_STATUS.PENDING) return false
-  const expiresAt = record.expires_at?.toDate?.() || new Date(record.expires_at)
-  return !Number.isNaN(expiresAt?.getTime?.()) && expiresAt.getTime() > Date.now()
-}
-
-const hasExistingPmRole = async (authUserId) => {
-  if (!authUserId) return false
-  const rolesSnapshot = await getDocs(collection(db, 'users', authUserId, 'roles'))
-  return rolesSnapshot.docs.some((doc) => {
-    const data = doc.data() || {}
-    return String(data.role || '').trim().toLowerCase() === 'pm' &&
-      String(data.status || 'active').trim().toLowerCase() === 'active'
-  })
-}
-
 const syncProfileForOwnerWorkspace = async (authUser) => {
   const existingProfile = await getDocument(`users/${authUser.uid}`)
-  const alreadyHasPmRole = await hasExistingPmRole(authUser.uid)
+  const hasExistingProfile = Boolean(existingProfile)
   const now = new Date()
   const baseProfile = existingProfile || {}
+  const existingAccountType = normalizeAccountType(baseProfile.account_type || baseProfile.user_category)
   const shouldStayManagerCapable =
-    alreadyHasPmRole ||
+    hasExistingProfile &&
+    existingAccountType === 'pm' &&
     Boolean(baseProfile.owner_workspace_only) === false
   const payload = {
     ...baseProfile,
@@ -202,42 +186,9 @@ const acceptInviteForUser = async (authUser) => {
   errorMessage.value = ''
 
   try {
+    // The server validates the token and email, then atomically grants membership and audits acceptance.
+    await acceptOwnerInviteRequest(String(route.params.token || '').trim())
     await syncProfileForOwnerWorkspace(authUser)
-
-    const now = new Date()
-    const roleDocId = `po_${propertySummary.value.id}`
-    await createDocument(`users/${authUser.uid}/roles`, {
-      property_id: propertySummary.value.id,
-      user_id: authUser.uid,
-      role: 'po',
-      status: 'active',
-      relationship_type: 'owner',
-      invite_id: invite.value.invite_id || invite.value.id,
-      granted_by: invite.value.pm_user_id || null,
-      role_date: now.toISOString().split('T')[0],
-      expire_date: '',
-      role_grant_by: invite.value.pm_user_id || 'System',
-      created_at: now,
-      updated_at: now,
-      createdAt: now,
-      updatedAt: now,
-    }, roleDocId)
-
-    const existingOwners = Array.isArray(propertySummary.value.owner_user_ids)
-      ? propertySummary.value.owner_user_ids
-      : []
-    await updateDocument('properties', propertySummary.value.id, {
-      owner_user_ids: [...new Set([...existingOwners, authUser.uid])],
-      updated_by_user_id: authUser.uid,
-      updated_at: now,
-    })
-
-    await updateDocument('owner_invites', invite.value.id, {
-      status: OWNER_INVITE_STATUS.ACCEPTED,
-      accepted_at: now,
-      accepted_by_user_id: authUser.uid,
-      updated_at: now,
-    })
 
     await userDataStore.initialize(authUser, { forceFresh: true })
 
@@ -294,26 +245,15 @@ const loadInvite = async () => {
       return
     }
 
-    const inviteQuery = query(
-      collection(db, 'owner_invites'),
-      where('token', '==', token),
-      limit(1),
-    )
-    const inviteSnapshot = await getDocs(inviteQuery)
-    const inviteDoc = inviteSnapshot.docs[0] || null
-    const match = inviteDoc ? { id: inviteDoc.id, ...inviteDoc.data() } : null
-    if (!match) {
+    const result = await getOwnerInviteByToken(token)
+    const match = result?.invite
+    if (!match?.id && !match?.invite_id) {
       inviteError.value = 'This owner invite was not found.'
-      return
-    }
-    if (!isInviteUsable(match)) {
-      inviteError.value = 'This owner invite is no longer active.'
       return
     }
 
     invite.value = match
-    const property = await getDocument(`properties/${match.property_id}`)
-    propertySummary.value = property || {}
+    propertySummary.value = result?.property || {}
     form.value.email = match.owner_email || form.value.email
   } catch (error) {
     inviteError.value = error?.message || 'Failed to load invite.'

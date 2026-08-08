@@ -8,6 +8,11 @@ const routes = [
     meta: { isPublic: true },
   },
   {
+    path: '/public/property-access-invite/:token',
+    component: () => import('pages/PropertyAccessInvitePage.vue'),
+    meta: { isPublic: true },
+  },
+  {
     path: '/public',
     component: () => import('layouts/GuestLayout.vue'),
     children: [
@@ -89,18 +94,46 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: 'sp-dashboard', component: () => import('pages/SpDashboardPage.vue'), meta: { keepAlive: true } },
+      {
+        path: 'sp-dashboard',
+        component: () => import('pages/SpDashboardPage.vue'),
+        meta: { keepAlive: true },
+      },
       { path: 'sp-cards', redirect: '/sp-dashboard' },
-      { path: 'sp-leads', component: () => import('pages/SpLeadsPage.vue'), meta: { keepAlive: true } },
-      { path: 'sp-bids', component: () => import('pages/SpBidsPage.vue'), meta: { keepAlive: true } },
+      {
+        path: 'sp-leads',
+        component: () => import('pages/SpLeadsPage.vue'),
+        meta: { keepAlive: true },
+      },
+      {
+        path: 'sp-bids',
+        component: () => import('pages/SpBidsPage.vue'),
+        meta: { keepAlive: true },
+      },
       { path: 'sp-documents', redirect: '/sp-profile' },
       { path: 'sp-messages', redirect: '/sp-leads' },
       { path: 'sp-projects', redirect: (to) => ({ path: '/sp-bids', query: to.query }) },
-      { path: 'sp-invoices', component: () => import('pages/SpInvoicesPage.vue'), meta: { keepAlive: true } },
-      { path: 'sp-services', component: () => import('pages/SpServicesPage.vue'), meta: { keepAlive: true } },
-      { path: 'sp-credits', component: () => import('pages/SpCreditsPage.vue'), meta: { keepAlive: true } },
+      {
+        path: 'sp-invoices',
+        component: () => import('pages/SpInvoicesPage.vue'),
+        meta: { keepAlive: true },
+      },
+      {
+        path: 'sp-services',
+        component: () => import('pages/SpServicesPage.vue'),
+        meta: { keepAlive: true },
+      },
+      {
+        path: 'sp-credits',
+        component: () => import('pages/SpCreditsPage.vue'),
+        meta: { keepAlive: true },
+      },
       { path: 'sp-payment-method', redirect: '/sp-credits' },
-      { path: 'sp-profile', component: () => import('pages/SpProfilePage.vue'), meta: { keepAlive: true } },
+      {
+        path: 'sp-profile',
+        component: () => import('pages/SpProfilePage.vue'),
+        meta: { keepAlive: true },
+      },
       { path: 'sp-handout-builder', redirect: '/sp-profile' },
       { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
       { path: 'po-dashboard', component: () => import('pages/PoDashboardPage.vue') },
@@ -112,13 +145,19 @@ const routes = [
           { path: '/pm-po-feed', redirect: '/' },
           { path: '/universal-search', redirect: '/my-properties' },
           { path: '/firebase-test', redirect: '/' },
-          { path: '/edit-property/:propertyId', component: () => import('pages/EditPropertyPage.vue') },
+          {
+            path: '/edit-property/:propertyId',
+            component: () => import('pages/EditPropertyPage.vue'),
+          },
           { path: '/create-mxrecord', component: () => import('components/CreateMxRecord.vue') },
           {
             path: '/create-mxrecord/:propertyId',
             component: () => import('components/CreateMxRecord.vue'),
           },
-          { path: '/create-transaction', component: () => import('components/CreateTransaction.vue') },
+          {
+            path: '/create-transaction',
+            component: () => import('components/CreateTransaction.vue'),
+          },
           {
             path: '/create-transaction/:propertyId',
             component: () => import('components/CreateTransaction.vue'),
@@ -138,7 +177,10 @@ const routes = [
           { path: '/documents', component: () => import('pages/DocumentsPage.vue') },
           { path: '/assets/:propertyId?', component: () => import('pages/AssetsPage.vue') },
           { path: '/reports', component: () => import('pages/ReportsPage.vue') },
-          { path: '/account-type-setup', component: () => import('pages/AccountTypeSetupPage.vue') },
+          {
+            path: '/account-type-setup',
+            component: () => import('pages/AccountTypeSetupPage.vue'),
+          },
           { path: '/create-tenant', component: () => import('pages/CreateTenantPage.vue') },
           { path: '/property-services', component: () => import('pages/PropertyServicesPage.vue') },
           { path: '/user-profile', component: () => import('pages/UserProfilePage.vue') },

@@ -3924,11 +3924,153 @@ body.body--dark {
 
 body:not(.body--dark) .dashboard-layout,
 body:not(.body--dark) .admin-layout {
-  --bg-primary: #faf8f3;
-  --bg-secondary: #f2ede4;
-  --bg-tertiary: #e9e2d6;
-  --bg-muted: #f2ede4;
+  --bg-primary: #eef3f5;
+  --bg-secondary: #e6edf1;
+  --bg-tertiary: #dce7ec;
+  --bg-muted: #eaf0f3;
   --bg-surface: rgba(255, 255, 255, 0.94);
+}
+
+// Shared workspace visual system. This scopes the operating surface so public pages
+// retain their own marketing and authentication treatments.
+.dashboard-layout,
+.admin-layout,
+.application-layout {
+  --border-radius: 14px;
+  --border-radius-sm: 10px;
+  --border-radius-lg: 18px;
+  --border-radius-xl: 22px;
+  --border-radius-card: 14px;
+  --border-radius-drawer: 14px;
+  --border-radius-btn: 10px;
+}
+
+.dashboard-layout .q-page,
+.admin-layout .q-page,
+.application-layout .q-page {
+  color: #243b53;
+}
+
+.dashboard-layout .q-card,
+.admin-layout .q-card,
+.application-layout .q-card {
+  border-color: rgba(36, 59, 83, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.dashboard-layout .q-card:hover,
+.admin-layout .q-card:hover,
+.application-layout .q-card:hover {
+  border-color: rgba(39, 194, 164, 0.42);
+  box-shadow: 0 14px 30px rgba(21, 54, 74, 0.08) !important;
+}
+
+.dashboard-layout .page-toolbar,
+.admin-layout .page-toolbar {
+  padding: 9px;
+  border-color: rgba(36, 59, 83, 0.12);
+  border-radius: var(--border-radius-card);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.dashboard-layout .page-tool-field,
+.dashboard-layout .page-tool-toggle,
+.admin-layout .page-tool-field,
+.admin-layout .page-tool-toggle {
+  border-color: rgba(36, 59, 83, 0.13);
+  border-radius: var(--border-radius-sm);
+  background: #f7fafc;
+}
+
+.dashboard-layout .page-tool-field:focus-within,
+.admin-layout .page-tool-field:focus-within {
+  border-color: rgba(39, 194, 164, 0.72);
+  box-shadow: 0 0 0 3px rgba(39, 194, 164, 0.12);
+}
+
+.dashboard-layout .q-field--outlined .q-field__control,
+.dashboard-layout .q-input--outlined .q-field__control,
+.dashboard-layout .q-select--outlined .q-field__control,
+.dashboard-layout .q-textarea--outlined .q-field__control,
+.admin-layout .q-field--outlined .q-field__control,
+.admin-layout .q-input--outlined .q-field__control,
+.admin-layout .q-select--outlined .q-field__control,
+.admin-layout .q-textarea--outlined .q-field__control,
+.application-layout .q-field--outlined .q-field__control,
+.application-layout .q-input--outlined .q-field__control,
+.application-layout .q-select--outlined .q-field__control,
+.application-layout .q-textarea--outlined .q-field__control {
+  border: 1px solid rgba(36, 59, 83, 0.16) !important;
+  border-radius: var(--border-radius-sm) !important;
+  background: #f8fbfc !important;
+}
+
+.dashboard-layout .q-field--outlined.q-field--focused .q-field__control,
+.dashboard-layout .q-input--outlined.q-field--focused .q-field__control,
+.dashboard-layout .q-select--outlined.q-field--focused .q-field__control,
+.dashboard-layout .q-textarea--outlined.q-field--focused .q-field__control,
+.admin-layout .q-field--outlined.q-field--focused .q-field__control,
+.admin-layout .q-input--outlined.q-field--focused .q-field__control,
+.admin-layout .q-select--outlined.q-field--focused .q-field__control,
+.admin-layout .q-textarea--outlined.q-field--focused .q-field__control,
+.application-layout .q-field--outlined.q-field--focused .q-field__control,
+.application-layout .q-input--outlined.q-field--focused .q-field__control,
+.application-layout .q-select--outlined.q-field--focused .q-field__control,
+.application-layout .q-textarea--outlined.q-field--focused .q-field__control {
+  border-color: #27c2a4 !important;
+  box-shadow: 0 0 0 3px rgba(39, 194, 164, 0.13) !important;
+}
+
+.dashboard-layout .q-table,
+.admin-layout .q-table {
+  border-color: rgba(36, 59, 83, 0.13);
+  background: #ffffff;
+}
+
+.dashboard-layout .q-table .q-table__top,
+.admin-layout .q-table .q-table__top {
+  color: #f8fcff;
+  background: linear-gradient(135deg, #19364d 0%, #132b40 100%);
+}
+
+.dashboard-layout .q-table .q-table__thead th,
+.admin-layout .q-table .q-table__thead th {
+  color: #526d82;
+  background: #f3f7f9;
+  border-color: #dfe9ee;
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-layout .q-table .q-table__tbody td,
+.admin-layout .q-table .q-table__tbody td {
+  border-color: #e6edf1;
+}
+
+.dashboard-layout .q-table .q-table__tbody tr:hover td,
+.admin-layout .q-table .q-table__tbody tr:hover td {
+  background: #f1fbf8;
+}
+
+.dashboard-layout .q-chip,
+.admin-layout .q-chip,
+.application-layout .q-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(36, 59, 83, 0.1);
+  background: #f1f6f8;
+  color: #526d82;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.dashboard-layout .q-notification,
+.admin-layout .q-notification,
+.application-layout .q-notification {
+  border-color: rgba(39, 194, 164, 0.32);
+  background: #ffffff;
+  color: #243b53;
 }
 
 // Keep public authentication styles last so the app-wide Quasar overrides above

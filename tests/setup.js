@@ -12,6 +12,9 @@ vi.mock('../../src/boot/firebase', () => ({
     }),
     signOut: vi.fn(),
   },
+  // Keep composable tests aligned with the production auth hydration contract.
+  authPersistenceReady: Promise.resolve(),
+  authStateReady: Promise.resolve(null),
   db: {},
   storage: {},
   sessionManager: {

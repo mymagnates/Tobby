@@ -7,6 +7,12 @@ let baseUrl
 let store
 let impressionToken
 
+const unavailableFirestore = {
+  collection: () => {
+    throw new Error('Firestore is intentionally unavailable in this contract test')
+  },
+}
+
 const call = async (path, options = {}) => {
   const response = await fetch(`${baseUrl}${path}`, options)
   const contentType = response.headers.get('content-type') || ''
@@ -17,7 +23,7 @@ const call = async (path, options = {}) => {
 describe('Ad Slot post delivery', () => {
   beforeAll(async () => {
     store = createInMemoryStore()
-    const runtime = createApiServer({ store })
+    const runtime = createApiServer({ store, config: { firestoreDb: unavailableFirestore } })
     server = runtime.server
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
@@ -34,6 +40,7 @@ describe('Ad Slot post delivery', () => {
       headers: {
         'Content-Type': 'application/json',
         'X-User-Id': 'u-sp-1',
+        'X-User-Role': 'sp',
       },
       body: JSON.stringify({
         source_code: 'sp_plumbing_v1',
@@ -58,6 +65,7 @@ describe('Ad Slot post delivery', () => {
     const { response, payload } = await call('/ad-slots/pm_feed_top/feed?limit=1', {
       headers: {
         'X-User-Id': 'u-pm-1',
+        'X-User-Role': 'pm_po',
       },
     })
     expect(response.status).toBe(200)
@@ -77,6 +85,7 @@ describe('Ad Slot post delivery', () => {
     const second = await call('/ad-slots/pm_feed_top/feed?limit=1', {
       headers: {
         'X-User-Id': 'u-pm-1',
+        'X-User-Role': 'pm_po',
       },
     })
     expect(second.response.status).toBe(200)
@@ -90,6 +99,7 @@ describe('Ad Slot post delivery', () => {
       headers: {
         'Content-Type': 'application/json',
         'X-User-Id': 'u-pm-1',
+        'X-User-Role': 'pm_po',
       },
       body: JSON.stringify({
         impression_token: impressionToken,
@@ -105,6 +115,7 @@ describe('Ad Slot post delivery', () => {
       headers: {
         'Content-Type': 'application/json',
         'X-User-Id': 'u-pm-1',
+        'X-User-Role': 'pm_po',
       },
       body: JSON.stringify({
         impression_token: impressionToken,
@@ -119,7 +130,7 @@ describe('Ad Slot post delivery', () => {
 
   it('counts click and redirects to SP handout URL with post id', async () => {
     const response = await fetch(`${baseUrl}/api/ad-events/click/${impressionToken}`, {
-      headers: { 'X-User-Id': 'u-pm-1' },
+      headers: { 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po' },
       redirect: 'manual',
     })
     expect(response.status).toBe(302)
@@ -129,7 +140,7 @@ describe('Ad Slot post delivery', () => {
     expect(store.adClickEvents.size).toBe(1)
 
     const second = await fetch(`${baseUrl}/api/ad-events/click/${impressionToken}`, {
-      headers: { 'X-User-Id': 'u-pm-1' },
+      headers: { 'X-User-Id': 'u-pm-1', 'X-User-Role': 'pm_po' },
       redirect: 'manual',
     })
     expect(second.status).toBe(302)

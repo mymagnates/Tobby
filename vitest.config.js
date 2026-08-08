@@ -17,6 +17,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.js'],
+    // API server Firebase adapters are module-scoped; serialize files that inject them.
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -33,6 +35,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'src': fileURLToPath(new URL('./src', import.meta.url)),
       'layouts': fileURLToPath(new URL('./src/layouts', import.meta.url)),
       'components': fileURLToPath(new URL('./src/components', import.meta.url)),
       'pages': fileURLToPath(new URL('./src/pages', import.meta.url)),

@@ -31,615 +31,872 @@
 
     <div v-else>
       <div class="property-view-container">
-        <!-- Left Sidebar - Property Selection -->
-        <div class="property-sidebar">
-          <PropertySidebarPicker
-            class="property-list-card"
-            :model-value="selectedPropertyId"
-            :properties="userProperties"
-            :include-all="false"
-            @update:model-value="handleSidebarPropertySelect"
-          />
-        </div>
-
-      <!-- Right Content - Property Details -->
-      <div class="property-content" style="padding-right: 5px">
-        <div v-if="!selectedProperty" class="text-center q-pa-lg">
-          <q-icon name="home" size="100px" color="grey-4" />
-          <div class="text-h6 q-mt-md text-grey-6">Select a Property</div>
-          <div class="text-body2 text-grey-6 q-mt-sm">
-            Choose a property from the list to view detailed information
+        <div class="property-content">
+          <div v-if="!selectedProperty" class="text-center q-pa-lg">
+            <q-icon name="home" size="100px" color="grey-4" />
+            <div class="text-h6 q-mt-md text-grey-6">Select a Property</div>
+            <div class="text-body2 text-grey-6 q-mt-sm">
+              Choose a property from the list to view detailed information
+            </div>
           </div>
-        </div>
 
-        <div v-else class="property-details-grid">
-          <!-- Property Image Card -->
-          <q-card class="property-image-card" clickable @click="viewProperty(selectedProperty.id)">
-            <q-img
-              :src="getPropertyPreviewImageUrl(selectedProperty)"
-              :alt="selectedProperty.nickname"
-              class="property-main-image"
-              fit="cover"
-            >
-            </q-img>
-          </q-card>
-
-          <!-- Basic Information Card -->
-          <q-card class="property-info-card" clickable @click="viewProperty(selectedProperty.id)">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="info" class="q-mr-sm" />
-                Basic Information
-              </div>
-
-              <div class="info-grid">
-                <div class="info-item">
-                  <div class="info-label">Property Name</div>
-                  <div class="info-value">{{ selectedProperty.nickname || 'N/A' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Address</div>
-                  <div class="info-value">{{ selectedProperty.address || 'N/A' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Type</div>
-                  <div class="info-value">{{ selectedProperty.type || 'N/A' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Status</div>
-                  <div class="info-value">
-                    <q-chip
-                      :color="getStatusColor(selectedProperty.status)"
-                      text-color="white"
-                      size="sm"
-                    >
-                      {{ selectedProperty.status }}
-                    </q-chip>
-                  </div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Bedrooms</div>
-                  <div class="info-value">{{ selectedProperty.spec?.bedroom || 'N/A' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Bathrooms</div>
-                  <div class="info-value">{{ selectedProperty.spec?.full_bathroom || 'N/A' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Size</div>
-                  <div class="info-value">
-                    {{
-                      selectedProperty.spec?.size ? `${selectedProperty.spec?.size} sq ft` : 'N/A'
-                    }}
-                  </div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Your Role</div>
-                  <div class="info-value">
-                    <q-chip
-                      :color="getRoleColor(selectedProperty.userRole)"
-                      text-color="white"
-                      size="sm"
-                    >
-                      {{ getRoleLabel(selectedProperty.userRole) }}
-                    </q-chip>
-                  </div>
-                </div>
-                <div v-if="selectedProperty.notes" class="info-item info-item--wide">
-                  <div class="info-label">Notes</div>
-                  <div class="info-value info-value--notes">{{ selectedProperty.notes }}</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card v-if="getCurrentLease()" class="lease-status-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="home_work" class="q-mr-sm" />
-                Current Lease Status
-              </div>
-
-              <div class="lease-info">
-                <div class="lease-item">
-                  <div class="lease-label">Tenant</div>
-                  <div class="lease-value">{{ getLeaseDisplayTenantName(getCurrentLease()) }}</div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Rent Amount</div>
-                  <div class="lease-value">
-                    ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
-                      getCurrentLease().rate_type || 'month'
-                    }}
-                  </div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Lease Start</div>
-                  <div class="lease-value">
-                    {{ formatDate(getCurrentLease().lease_start_date || getCurrentLease().start_date || getCurrentLease().move_in_date) }}
-                  </div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Lease End</div>
-                  <div class="lease-value">{{ formatDate(getCurrentLease().lease_end_date || getCurrentLease().end_date) }}</div>
-                </div>
-                <div class="lease-item">
-                  <div class="lease-label">Status</div>
-                  <div class="lease-value">
-                    <q-chip
-                      :color="getLeaseStatusColor(getCurrentLease().status)"
-                      text-color="white"
-                      size="sm"
-                    >
-                      {{ getCurrentLease().status }}
-                    </q-chip>
-                  </div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="property-history-card">
-            <q-card-section>
-              <div class="history-card-header">
+          <div v-else class="property-workspace">
+            <header class="property-workspace__header">
+              <div class="property-workspace__identity">
+                <q-avatar square class="property-workspace__icon">
+                  <q-icon name="home" size="30px" />
+                </q-avatar>
                 <div>
-                  <div class="history-card-title">
-                    <q-icon name="receipt_long" class="q-mr-sm" />
-                    Transaction History
-                  </div>
-                  <div class="history-card-caption">{{ propertyTransactions.length }} records</div>
+                  <h1>{{ selectedProperty.nickname || selectedProperty.address || 'Property' }}</h1>
+                  <p>{{ propertyWorkspaceSubtitle }}</p>
                 </div>
-                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/transactions')">
-                  <q-tooltip>View transactions</q-tooltip>
-                </q-btn>
               </div>
-              <q-list v-if="displayedPropertyTransactions.length" dense separator class="history-list">
-                <q-item v-for="transaction in displayedPropertyTransactions" :key="transaction.id">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ getTransactionTitle(transaction) }}</q-item-label>
-                    <q-item-label caption>{{ formatDate(getTransactionDate(transaction)) }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="history-amount">{{ formatAmount(transaction.amount) }}</div>
-                    <div class="history-status">{{ normalizeStatus(transaction.status) }}</div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <div v-else class="history-empty">No transactions recorded.</div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="property-history-card">
-            <q-card-section>
-              <div class="history-card-header">
-                <div>
-                  <div class="history-card-title">
-                    <q-icon name="task_alt" class="q-mr-sm" />
-                    Task History
-                  </div>
-                  <div class="history-card-caption">{{ propertyTasks.length }} records</div>
-                </div>
-                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/mx-records')">
-                  <q-tooltip>View tasks</q-tooltip>
-                </q-btn>
-              </div>
-              <q-list v-if="displayedPropertyTasks.length" dense separator class="history-list">
-                <q-item v-for="task in displayedPropertyTasks" :key="task.id">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ getTaskTitle(task) }}</q-item-label>
-                    <q-item-label caption>{{ formatDate(getTaskDate(task)) }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-chip dense :color="getRecordStatusColor(task.status)" text-color="white">
-                      {{ normalizeStatus(task.status || 'open') }}
-                    </q-chip>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <div v-else class="history-empty">No tasks recorded.</div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="property-history-card">
-            <q-card-section>
-              <div class="history-card-header">
-                <div>
-                  <div class="history-card-title">
-                    <q-icon name="description" class="q-mr-sm" />
-                    Lease History
-                  </div>
-                  <div class="history-card-caption">{{ propertyLeases.length }} records</div>
-                </div>
-                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/leases')">
-                  <q-tooltip>View leases</q-tooltip>
-                </q-btn>
-              </div>
-              <q-list v-if="displayedPropertyLeases.length" dense separator class="history-list">
-                <q-item v-for="lease in displayedPropertyLeases" :key="lease.id">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ getLeaseDisplayTenantName(lease) }}</q-item-label>
-                    <q-item-label caption>
-                      {{ formatDate(lease.lease_start_date || lease.start_date || lease.move_in_date) }}
-                      - {{ formatDate(lease.lease_end_date || lease.end_date) }}
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-chip dense :color="getLeaseStatusColor(lease.status)" text-color="white">
-                      {{ normalizeStatus(lease.status) }}
-                    </q-chip>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <div v-else class="history-empty">No lease history recorded.</div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="property-history-card">
-            <q-card-section>
-              <div class="history-card-header">
-                <div>
-                  <div class="history-card-title">
-                    <q-icon name="notifications" class="q-mr-sm" />
-                    Reminders
-                  </div>
-                  <div class="history-card-caption">{{ propertyReminders.length }} records</div>
-                </div>
-                <q-btn flat round dense size="sm" color="primary" icon="open_in_new" @click="router.push('/reminders')">
-                  <q-tooltip>View reminders</q-tooltip>
-                </q-btn>
-              </div>
-              <q-list v-if="displayedPropertyReminders.length" dense separator class="history-list">
-                <q-item v-for="reminder in displayedPropertyReminders" :key="reminder.id">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ getReminderTitle(reminder) }}</q-item-label>
-                    <q-item-label caption>{{ formatDate(getReminderDate(reminder)) }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-chip dense :color="reminder.status ? 'positive' : 'grey-6'" text-color="white">
-                      {{ reminder.status ? 'Active' : 'Inactive' }}
-                    </q-chip>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <div v-else class="history-empty">No reminders recorded.</div>
-            </q-card-section>
-          </q-card>
-
-        <q-card class="property-services-card">
-          <q-expansion-item
-            icon="handyman"
-            label="Services"
-            :caption="`${displayedPropertyServices.length} services`"
-            default-opened
-            header-class="text-subtitle1"
-            expand-separator
-          >
-            <q-card-section>
-                <div class="row items-center justify-end q-mb-sm">
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    color="primary"
-                    icon="open_in_new"
-                    @click="router.push({ path: '/property-services', query: { propertyId: selectedProperty?.id } })"
-                  >
-                    <q-tooltip>Manage services</q-tooltip>
-                  </q-btn>
-                </div>
-                <div v-if="displayedPropertyServices.length > 0" class="services-list">
-                  <q-list separator dense>
+              <q-btn flat round icon="more_horiz" class="property-workspace__more">
+                <q-menu anchor="bottom right" self="top right">
+                  <q-list dense style="min-width: 190px">
+                    <q-item clickable v-close-popup @click="viewProperty(selectedProperty.id)">
+                      <q-item-section avatar><q-icon name="open_in_new" /></q-item-section>
+                      <q-item-section>Manage property</q-item-section>
+                    </q-item>
                     <q-item
-                      v-for="service in displayedPropertyServices"
-                      :key="service.id || `${service.service_type}-${service.company_name}`"
+                      v-if="selectedProperty && canInviteOwner(selectedProperty)"
                       clickable
-                      class="service-list-item"
-                      @click="router.push({ path: '/property-services', query: { propertyId: selectedProperty?.id } })"
+                      v-close-popup
+                      @click="showPropertyAccessDialog = true"
                     >
-                      <q-item-section avatar>
-                        <q-icon name="handyman" color="primary" size="18px" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>{{ formatServiceType(service.service_type) }}</q-item-label>
-                        <q-item-label caption>
-                          {{ service.company_name || 'Unknown Company' }}
-                          <span v-if="service.agent?.name"> · {{ service.agent.name }}</span>
-                          <span v-if="service.service_start_date"> · {{ formatDate(service.service_start_date) }}</span>
-                        </q-item-label>
-                      </q-item-section>
+                      <q-item-section avatar><q-icon name="person_add" /></q-item-section>
+                      <q-item-section>Manage access</q-item-section>
+                    </q-item>
+                    <q-item
+                      v-if="canManageRecords"
+                      clickable
+                      v-close-popup
+                      @click="openCreatePropertyDialog"
+                    >
+                      <q-item-section avatar><q-icon name="add_home" /></q-item-section>
+                      <q-item-section>Create property</q-item-section>
                     </q-item>
                   </q-list>
-                </div>
-                <div v-else class="no-services">
-                  <q-icon name="handyman" size="32px" color="grey-4" />
-                  <div class="text-grey-6 q-mt-sm">No services linked to this property</div>
-                </div>
-              </q-card-section>
-            </q-expansion-item>
-          </q-card>
+                </q-menu>
+              </q-btn>
+            </header>
 
-          <q-card class="property-documents-card">
-            <q-expansion-item
-              icon="folder"
-              label="Property Documents"
-              :caption="`${syncedPropertyDocuments.length} files`"
-              default-opened
-              header-class="text-subtitle1"
-              expand-separator
-            >
-              <q-card-section>
-                <div class="row items-center justify-end q-mb-sm">
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    color="primary"
-                    icon="open_in_new"
-                    @click="router.push('/documents')"
+            <nav class="property-workspace__tabs" aria-label="Property sections">
+              <button
+                type="button"
+                class="property-workspace__tab"
+                :class="{ 'property-workspace__tab--active': activePropertyTab === 'overview' }"
+                @click="scrollToPropertySection('property-overview', 'overview')"
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                class="property-workspace__tab"
+                :class="{ 'property-workspace__tab--active': activePropertyTab === 'work' }"
+                @click="scrollToPropertySection('property-work', 'work')"
+              >
+                Work
+              </button>
+              <button
+                type="button"
+                class="property-workspace__tab"
+                :class="{ 'property-workspace__tab--active': activePropertyTab === 'documents' }"
+                @click="scrollToPropertySection('property-documents', 'documents')"
+              >
+                Documents
+              </button>
+              <button
+                type="button"
+                class="property-workspace__tab"
+                :class="{ 'property-workspace__tab--active': activePropertyTab === 'money' }"
+                @click="scrollToPropertySection('property-money', 'money')"
+              >
+                Money
+              </button>
+            </nav>
+
+            <section id="property-overview" class="property-overview-grid">
+              <q-card flat bordered class="property-health-card">
+                <q-card-section>
+                  <div class="property-overview-label">Property health</div>
+                  <div class="property-health-card__status">
+                    {{ propertyHealth.label }}
+                    <span
+                      :class="`property-health-card__dot property-health-card__dot--${propertyHealth.tone}`"
+                    />
+                  </div>
+                  <div class="property-health-card__meter">
+                    <span :style="{ width: `${propertyHealth.score}%` }" />
+                  </div>
+                  <p>{{ propertyHealth.detail }}</p>
+                </q-card-section>
+              </q-card>
+
+              <q-card flat bordered class="property-activity-card">
+                <q-card-section>
+                  <div class="property-activity-card__heading">
+                    <div>
+                      <div class="property-activity-card__title">Recent activity</div>
+                      <div class="property-activity-card__caption">
+                        Updates across this property
+                      </div>
+                    </div>
+                    <q-btn
+                      flat
+                      no-caps
+                      color="primary"
+                      label="View timeline"
+                      @click="scrollToPropertySection('property-work', 'work')"
+                    />
+                  </div>
+                  <q-list
+                    v-if="propertyRecentActivity.length"
+                    separator
+                    class="property-activity-list"
                   >
-                    <q-tooltip>View all documents</q-tooltip>
-                  </q-btn>
-                </div>
-
-                <div v-if="loadingPhotos || loadingDocuments" class="documents-loading">
-                  <q-spinner-dots size="24px" color="primary" />
-                  <div class="text-caption text-grey-6 q-mt-sm">Loading documents...</div>
-                </div>
-
-                <div v-else-if="syncedPropertyDocuments.length > 0" class="documents-list">
-                  <q-list separator dense>
-                    <q-item
-                      v-for="doc in syncedPropertyDocuments"
-                      :key="doc.id"
-                      clickable
-                      class="document-list-item"
-                      @click="viewDocument(doc)"
-                    >
+                    <q-item v-for="activity in propertyRecentActivity" :key="activity.key">
                       <q-item-section avatar>
-                        <q-icon :name="getFileIcon(doc)" :color="getFileIconColor(doc)" size="18px" />
+                        <q-avatar
+                          :class="`property-activity-icon property-activity-icon--${activity.tone}`"
+                        >
+                          <q-icon :name="activity.icon" size="20px" />
+                        </q-avatar>
                       </q-item-section>
                       <q-item-section>
-                        <q-item-label>{{ getDocumentDisplayName(doc) }}</q-item-label>
-                        <q-item-label caption>
-                          {{ getFileExtension(doc) }} · {{ formatDate(getDocumentDate(doc)) }}
-                          <span v-if="doc.uploaded_by_role">
-                            · {{ getRoleLabel(doc.uploaded_by_role) }}
-                          </span>
-                        </q-item-label>
+                        <q-item-label class="property-activity-title">{{
+                          activity.title
+                        }}</q-item-label>
+                        <q-item-label caption class="property-activity-detail">{{
+                          activity.detail
+                        }}</q-item-label>
                       </q-item-section>
+                      <q-item-section side class="property-activity-date">{{
+                        formatDate(activity.date)
+                      }}</q-item-section>
                     </q-item>
                   </q-list>
-                </div>
+                  <div v-else class="property-activity-empty">No recent property activity.</div>
+                </q-card-section>
+              </q-card>
+            </section>
 
-                <div v-else class="no-documents">
-                  <q-icon name="folder_open" size="32px" color="grey-4" />
-                  <div class="text-grey-6 q-mt-sm">No documents uploaded</div>
-                </div>
-              </q-card-section>
-            </q-expansion-item>
-          </q-card>
-
-          <q-card class="property-assets-card">
-            <q-expansion-item
-              icon="inventory_2"
-              label="Asset List"
-              :caption="`${propertyAssets.length} items`"
-              default-opened
-              header-class="text-subtitle1"
-              expand-separator
-            >
-              <q-card-section>
-                <div class="row items-center justify-end q-mb-sm">
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    color="primary"
-                    icon="open_in_new"
-                    @click="router.push('/assets')"
-                  >
-                    <q-tooltip>View all assets</q-tooltip>
-                  </q-btn>
-                </div>
-
-                <div v-if="loadingAssets" class="assets-loading">
-                  <q-spinner-dots size="24px" color="primary" />
-                  <div class="text-caption text-grey-6 q-mt-sm">Loading assets...</div>
-                </div>
-
-                <div v-else-if="propertyAssets.length === 0" class="no-assets">
-                  <q-icon name="inventory_2" size="28px" color="grey-4" />
-                  <div class="text-grey-6 q-mt-sm">No assets for this property</div>
-                </div>
-
-                <q-list v-else dense separator class="asset-list">
-                  <q-item
-                    v-for="asset in displayedPropertyAssets"
-                    :key="asset.id"
-                    clickable
-                    @click="router.push('/assets')"
-                  >
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        {{ getAssetDisplayName(asset) }}
-                      </q-item-label>
-                      <q-item-label caption>
-                        {{ getAssetSubtitle(asset) }} · Updated {{ formatDate(asset.updated_at) }}
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-chip
-                        size="sm"
-                        :color="String(asset.status || '').toLowerCase() === 'archived' ? 'grey-6' : 'positive'"
-                        text-color="white"
-                      >
-                        {{
-                          String(asset.status || '').toLowerCase() === 'archived'
-                            ? 'Archived'
-                            : 'Active'
-                        }}
-                      </q-chip>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </q-card-section>
-            </q-expansion-item>
-          </q-card>
-
-          <!-- Tasks Summary Card -->
-          <q-card v-if="false" class="tasks-summary-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="task_alt" class="q-mr-sm" />
-                Tasks Summary
-              </div>
-
-              <div class="tasks-grid">
-                <div class="task-item">
-                  <div class="task-count">{{ getOpenMxRecordsCount() }}</div>
-                  <div class="task-label">Open Tasks</div>
-                </div>
-                <div class="task-item">
-                  <div class="task-count">{{ getPendingTransactionsCount() }}</div>
-                  <div class="task-label">Pending Transactions</div>
-                </div>
-                <div class="task-item">
-                  <div class="task-count">{{ getActiveLeasesCount() }}</div>
-                  <div class="task-label">Active Leases</div>
-                </div>
-                <div class="task-item">
-                  <div class="task-count">{{ getUpcomingRenewalsCount() }}</div>
-                  <div class="task-label">Upcoming Renewals</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <!-- Transaction Summary Card -->
-          <q-card v-if="false" class="transaction-summary-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="account_balance" class="q-mr-sm" />
-                Financial Summary
-              </div>
-
-              <div class="financial-grid">
-                <div class="financial-item income">
-                  <div class="financial-label">Total Income</div>
-                  <div class="financial-value">${{ getTotalIncome() }}</div>
-                </div>
-                <div class="financial-item expense">
-                  <div class="financial-label">Total Expenses</div>
-                  <div class="financial-value">${{ getTotalExpenses() }}</div>
-                </div>
-                <div class="financial-item monthly-income">
-                  <div class="financial-label">Monthly Income</div>
-                  <div class="financial-value">${{ getMonthlyIncome() }}</div>
-                </div>
-                <div class="financial-item monthly-expense">
-                  <div class="financial-label">Monthly Expense</div>
-                  <div class="financial-value">${{ getMonthlyExpense() }}</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <!-- Rent Tracking Card -->
-          <q-card v-if="false" class="rent-tracking-card">
-            <q-card-section>
-              <div class="text-h6 q-mb-md">
-                <q-icon name="payments" class="q-mr-sm" />
-                Rent Tracking
-                <span class="text-caption text-grey-6 q-ml-sm">{{ getCurrentMonthYear() }}</span>
-              </div>
-
-              <!-- Rent Summary -->
-              <div class="rent-summary q-mb-md">
-                <div class="rent-summary-item">
-                  <div class="rent-summary-label">Expected</div>
-                  <div class="rent-summary-value">${{ getExpectedRent() }}</div>
-                </div>
-                <div class="rent-summary-item collected">
-                  <div class="rent-summary-label">Collected</div>
-                  <div class="rent-summary-value">${{ getCollectedRent() }}</div>
-                </div>
-                <div class="rent-summary-item" :class="getRentBalanceClass()">
-                  <div class="rent-summary-label">Balance</div>
-                  <div class="rent-summary-value">${{ getRentBalance() }}</div>
-                </div>
-              </div>
-
-              <!-- Rent Status by Lease -->
-              <div v-if="getPropertyLeases().length > 0" class="rent-status-list">
-                <div class="text-subtitle2 text-grey-7 q-mb-sm">Payment Status by Tenant</div>
-                <div
-                  v-for="lease in getPropertyLeases()"
-                  :key="lease.id"
-                  class="rent-status-item"
+            <div id="property-work" class="property-details-grid">
+              <!-- Property Image Card -->
+              <q-card
+                class="property-image-card"
+                clickable
+                @click="viewProperty(selectedProperty.id)"
+              >
+                <q-img
+                  :src="getPropertyPreviewImageUrl(selectedProperty)"
+                  :alt="selectedProperty.nickname"
+                  class="property-main-image"
+                  fit="cover"
                 >
-                  <div class="rent-tenant-info">
-                    <q-avatar size="32px" color="primary" text-color="white">
-                      {{ getTenantInitials(lease.tenant_name) }}
-                    </q-avatar>
-                    <div class="rent-tenant-details">
-                      <div class="rent-tenant-name">{{ lease.tenant_name || 'Unknown Tenant' }}</div>
-                      <div class="rent-tenant-amount">${{ lease.rate_amount || 0 }}/month</div>
+                </q-img>
+              </q-card>
+
+              <!-- Basic Information Card -->
+              <q-card
+                class="property-info-card"
+                clickable
+                @click="viewProperty(selectedProperty.id)"
+              >
+                <q-card-section>
+                  <div class="text-h6 q-mb-md">
+                    <q-icon name="info" class="q-mr-sm" />
+                    Basic Information
+                  </div>
+
+                  <div class="info-grid">
+                    <div class="info-item">
+                      <div class="info-label">Property Name</div>
+                      <div class="info-value">{{ selectedProperty.nickname || 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Address</div>
+                      <div class="info-value">{{ selectedProperty.address || 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Type</div>
+                      <div class="info-value">{{ selectedProperty.type || 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Status</div>
+                      <div class="info-value">
+                        <q-chip
+                          :color="getStatusColor(selectedProperty.status)"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ selectedProperty.status }}
+                        </q-chip>
+                      </div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Bedrooms</div>
+                      <div class="info-value">{{ selectedProperty.spec?.bedroom || 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Bathrooms</div>
+                      <div class="info-value">
+                        {{ selectedProperty.spec?.full_bathroom || 'N/A' }}
+                      </div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Size</div>
+                      <div class="info-value">
+                        {{
+                          selectedProperty.spec?.size
+                            ? `${selectedProperty.spec?.size} sq ft`
+                            : 'N/A'
+                        }}
+                      </div>
+                    </div>
+                    <div class="info-item">
+                      <div class="info-label">Your Role</div>
+                      <div class="info-value">
+                        <q-chip
+                          :color="getRoleColor(selectedProperty.userRole)"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ getRoleLabel(selectedProperty.userRole) }}
+                        </q-chip>
+                      </div>
+                    </div>
+                    <div v-if="selectedProperty.notes" class="info-item info-item--wide">
+                      <div class="info-label">Notes</div>
+                      <div class="info-value info-value--notes">{{ selectedProperty.notes }}</div>
                     </div>
                   </div>
-                  <div class="rent-payment-status">
-                    <q-chip
-                      :color="getRentStatusColor(getLeaseRentStatus(lease))"
-                      text-color="white"
+                </q-card-section>
+              </q-card>
+
+              <q-card v-if="getCurrentLease()" class="lease-status-card">
+                <q-card-section>
+                  <div class="text-h6 q-mb-md">
+                    <q-icon name="home_work" class="q-mr-sm" />
+                    Current Lease Status
+                  </div>
+
+                  <div class="lease-info">
+                    <div class="lease-item">
+                      <div class="lease-label">Tenant</div>
+                      <div class="lease-value">
+                        {{ getLeaseDisplayTenantName(getCurrentLease()) }}
+                      </div>
+                    </div>
+                    <div class="lease-item">
+                      <div class="lease-label">Rent Amount</div>
+                      <div class="lease-value">
+                        ${{ getCurrentLease().rate_amount || 'N/A' }}/{{
+                          getCurrentLease().rate_type || 'month'
+                        }}
+                      </div>
+                    </div>
+                    <div class="lease-item">
+                      <div class="lease-label">Lease Start</div>
+                      <div class="lease-value">
+                        {{
+                          formatDate(
+                            getCurrentLease().lease_start_date ||
+                              getCurrentLease().start_date ||
+                              getCurrentLease().move_in_date,
+                          )
+                        }}
+                      </div>
+                    </div>
+                    <div class="lease-item">
+                      <div class="lease-label">Lease End</div>
+                      <div class="lease-value">
+                        {{
+                          formatDate(getCurrentLease().lease_end_date || getCurrentLease().end_date)
+                        }}
+                      </div>
+                    </div>
+                    <div class="lease-item">
+                      <div class="lease-label">Status</div>
+                      <div class="lease-value">
+                        <q-chip
+                          :color="getLeaseStatusColor(getCurrentLease().status)"
+                          text-color="white"
+                          size="sm"
+                        >
+                          {{ getCurrentLease().status }}
+                        </q-chip>
+                      </div>
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+
+              <q-card id="property-money" class="property-history-card">
+                <q-card-section>
+                  <div class="history-card-header">
+                    <div>
+                      <div class="history-card-title">
+                        <q-icon name="receipt_long" class="q-mr-sm" />
+                        Transaction History
+                      </div>
+                      <div class="history-card-caption">
+                        {{ propertyTransactions.length }} records
+                      </div>
+                    </div>
+                    <q-btn
+                      flat
+                      round
+                      dense
                       size="sm"
-                      :icon="getRentStatusIcon(getLeaseRentStatus(lease))"
+                      color="primary"
+                      icon="open_in_new"
+                      @click="router.push('/transactions')"
                     >
-                      {{ getLeaseRentStatus(lease).label }}
-                    </q-chip>
-                    <div class="rent-paid-amount" v-if="getLeaseRentStatus(lease).paid > 0">
-                      ${{ getLeaseRentStatus(lease).paid }} paid
+                      <q-tooltip>View transactions</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <q-list
+                    v-if="displayedPropertyTransactions.length"
+                    dense
+                    separator
+                    class="history-list"
+                  >
+                    <q-item
+                      v-for="transaction in displayedPropertyTransactions"
+                      :key="transaction.id"
+                    >
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">{{
+                          getTransactionTitle(transaction)
+                        }}</q-item-label>
+                        <q-item-label caption>{{
+                          formatDate(getTransactionDate(transaction))
+                        }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="history-amount">{{ formatAmount(transaction.amount) }}</div>
+                        <div class="history-status">{{ normalizeStatus(transaction.status) }}</div>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                  <div v-else class="history-empty">No transactions recorded.</div>
+                </q-card-section>
+              </q-card>
+
+              <q-card class="property-history-card">
+                <q-card-section>
+                  <div class="history-card-header">
+                    <div>
+                      <div class="history-card-title">
+                        <q-icon name="task_alt" class="q-mr-sm" />
+                        Task History
+                      </div>
+                      <div class="history-card-caption">{{ propertyTasks.length }} records</div>
+                    </div>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      color="primary"
+                      icon="open_in_new"
+                      @click="router.push('/mx-records')"
+                    >
+                      <q-tooltip>View tasks</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <q-list v-if="displayedPropertyTasks.length" dense separator class="history-list">
+                    <q-item v-for="task in displayedPropertyTasks" :key="task.id">
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">{{
+                          getTaskTitle(task)
+                        }}</q-item-label>
+                        <q-item-label caption>{{ formatDate(getTaskDate(task)) }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-chip dense :color="getRecordStatusColor(task.status)" text-color="white">
+                          {{ normalizeStatus(task.status || 'open') }}
+                        </q-chip>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                  <div v-else class="history-empty">No tasks recorded.</div>
+                </q-card-section>
+              </q-card>
+
+              <q-card class="property-history-card">
+                <q-card-section>
+                  <div class="history-card-header">
+                    <div>
+                      <div class="history-card-title">
+                        <q-icon name="description" class="q-mr-sm" />
+                        Lease History
+                      </div>
+                      <div class="history-card-caption">{{ propertyLeases.length }} records</div>
+                    </div>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      color="primary"
+                      icon="open_in_new"
+                      @click="router.push('/leases')"
+                    >
+                      <q-tooltip>View leases</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <q-list
+                    v-if="displayedPropertyLeases.length"
+                    dense
+                    separator
+                    class="history-list"
+                  >
+                    <q-item v-for="lease in displayedPropertyLeases" :key="lease.id">
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">{{
+                          getLeaseDisplayTenantName(lease)
+                        }}</q-item-label>
+                        <q-item-label caption>
+                          {{
+                            formatDate(
+                              lease.lease_start_date || lease.start_date || lease.move_in_date,
+                            )
+                          }}
+                          - {{ formatDate(lease.lease_end_date || lease.end_date) }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-chip dense :color="getLeaseStatusColor(lease.status)" text-color="white">
+                          {{ normalizeStatus(lease.status) }}
+                        </q-chip>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                  <div v-else class="history-empty">No lease history recorded.</div>
+                </q-card-section>
+              </q-card>
+
+              <q-card class="property-history-card">
+                <q-card-section>
+                  <div class="history-card-header">
+                    <div>
+                      <div class="history-card-title">
+                        <q-icon name="notifications" class="q-mr-sm" />
+                        Reminders
+                      </div>
+                      <div class="history-card-caption">{{ propertyReminders.length }} records</div>
+                    </div>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      color="primary"
+                      icon="open_in_new"
+                      @click="router.push('/reminders')"
+                    >
+                      <q-tooltip>View reminders</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <q-list
+                    v-if="displayedPropertyReminders.length"
+                    dense
+                    separator
+                    class="history-list"
+                  >
+                    <q-item v-for="reminder in displayedPropertyReminders" :key="reminder.id">
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">{{
+                          getReminderTitle(reminder)
+                        }}</q-item-label>
+                        <q-item-label caption>{{
+                          formatDate(getReminderDate(reminder))
+                        }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-chip
+                          dense
+                          :color="reminder.status ? 'positive' : 'grey-6'"
+                          text-color="white"
+                        >
+                          {{ reminder.status ? 'Active' : 'Inactive' }}
+                        </q-chip>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                  <div v-else class="history-empty">No reminders recorded.</div>
+                </q-card-section>
+              </q-card>
+
+              <q-card class="property-services-card">
+                <q-expansion-item
+                  icon="handyman"
+                  label="Services"
+                  :caption="`${displayedPropertyServices.length} services`"
+                  default-opened
+                  header-class="text-subtitle1"
+                  expand-separator
+                >
+                  <q-card-section>
+                    <div class="row items-center justify-end q-mb-sm">
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        size="sm"
+                        color="primary"
+                        icon="open_in_new"
+                        @click="
+                          router.push({
+                            path: '/property-services',
+                            query: { propertyId: selectedProperty?.id },
+                          })
+                        "
+                      >
+                        <q-tooltip>Manage services</q-tooltip>
+                      </q-btn>
+                    </div>
+                    <div v-if="displayedPropertyServices.length > 0" class="services-list">
+                      <q-list separator dense>
+                        <q-item
+                          v-for="service in displayedPropertyServices"
+                          :key="service.id || `${service.service_type}-${service.company_name}`"
+                          clickable
+                          class="service-list-item"
+                          @click="
+                            router.push({
+                              path: '/property-services',
+                              query: { propertyId: selectedProperty?.id },
+                            })
+                          "
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="handyman" color="primary" size="18px" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{
+                              formatServiceType(service.service_type)
+                            }}</q-item-label>
+                            <q-item-label caption>
+                              {{ service.company_name || 'Unknown Company' }}
+                              <span v-if="service.agent?.name"> · {{ service.agent.name }}</span>
+                              <span v-if="service.service_start_date">
+                                · {{ formatDate(service.service_start_date) }}</span
+                              >
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+                    <div v-else class="no-services">
+                      <q-icon name="handyman" size="32px" color="grey-4" />
+                      <div class="text-grey-6 q-mt-sm">No services linked to this property</div>
+                    </div>
+                  </q-card-section>
+                </q-expansion-item>
+              </q-card>
+
+              <q-card id="property-documents" class="property-documents-card">
+                <q-expansion-item
+                  icon="folder"
+                  label="Property Documents"
+                  :caption="`${syncedPropertyDocuments.length} files`"
+                  default-opened
+                  header-class="text-subtitle1"
+                  expand-separator
+                >
+                  <q-card-section>
+                    <div class="row items-center justify-end q-mb-sm">
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        size="sm"
+                        color="primary"
+                        icon="open_in_new"
+                        @click="router.push('/documents')"
+                      >
+                        <q-tooltip>View all documents</q-tooltip>
+                      </q-btn>
+                    </div>
+
+                    <div v-if="loadingPhotos || loadingDocuments" class="documents-loading">
+                      <q-spinner-dots size="24px" color="primary" />
+                      <div class="text-caption text-grey-6 q-mt-sm">Loading documents...</div>
+                    </div>
+
+                    <div v-else-if="syncedPropertyDocuments.length > 0" class="documents-list">
+                      <q-list separator dense>
+                        <q-item
+                          v-for="doc in syncedPropertyDocuments"
+                          :key="doc.id"
+                          clickable
+                          class="document-list-item"
+                          @click="viewDocument(doc)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon
+                              :name="getFileIcon(doc)"
+                              :color="getFileIconColor(doc)"
+                              size="18px"
+                            />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ getDocumentDisplayName(doc) }}</q-item-label>
+                            <q-item-label caption>
+                              {{ getFileExtension(doc) }} · {{ formatDate(getDocumentDate(doc)) }}
+                              <span v-if="doc.uploaded_by_role">
+                                · {{ getRoleLabel(doc.uploaded_by_role) }}
+                              </span>
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+
+                    <div v-else class="no-documents">
+                      <q-icon name="folder_open" size="32px" color="grey-4" />
+                      <div class="text-grey-6 q-mt-sm">No documents uploaded</div>
+                    </div>
+                  </q-card-section>
+                </q-expansion-item>
+              </q-card>
+
+              <q-card class="property-assets-card">
+                <q-expansion-item
+                  icon="inventory_2"
+                  label="Asset List"
+                  :caption="`${propertyAssets.length} items`"
+                  default-opened
+                  header-class="text-subtitle1"
+                  expand-separator
+                >
+                  <q-card-section>
+                    <div class="row items-center justify-end q-mb-sm">
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        size="sm"
+                        color="primary"
+                        icon="open_in_new"
+                        @click="router.push('/assets')"
+                      >
+                        <q-tooltip>View all assets</q-tooltip>
+                      </q-btn>
+                    </div>
+
+                    <div v-if="loadingAssets" class="assets-loading">
+                      <q-spinner-dots size="24px" color="primary" />
+                      <div class="text-caption text-grey-6 q-mt-sm">Loading assets...</div>
+                    </div>
+
+                    <div v-else-if="propertyAssets.length === 0" class="no-assets">
+                      <q-icon name="inventory_2" size="28px" color="grey-4" />
+                      <div class="text-grey-6 q-mt-sm">No assets for this property</div>
+                    </div>
+
+                    <q-list v-else dense separator class="asset-list">
+                      <q-item
+                        v-for="asset in displayedPropertyAssets"
+                        :key="asset.id"
+                        clickable
+                        @click="router.push('/assets')"
+                      >
+                        <q-item-section>
+                          <q-item-label class="text-weight-medium">
+                            {{ getAssetDisplayName(asset) }}
+                          </q-item-label>
+                          <q-item-label caption>
+                            {{ getAssetSubtitle(asset) }} · Updated
+                            {{ formatDate(asset.updated_at) }}
+                          </q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-chip
+                            size="sm"
+                            :color="
+                              String(asset.status || '').toLowerCase() === 'archived'
+                                ? 'grey-6'
+                                : 'positive'
+                            "
+                            text-color="white"
+                          >
+                            {{
+                              String(asset.status || '').toLowerCase() === 'archived'
+                                ? 'Archived'
+                                : 'Active'
+                            }}
+                          </q-chip>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-card-section>
+                </q-expansion-item>
+              </q-card>
+
+              <!-- Tasks Summary Card -->
+              <q-card v-if="false" class="tasks-summary-card">
+                <q-card-section>
+                  <div class="text-h6 q-mb-md">
+                    <q-icon name="task_alt" class="q-mr-sm" />
+                    Tasks Summary
+                  </div>
+
+                  <div class="tasks-grid">
+                    <div class="task-item">
+                      <div class="task-count">{{ getOpenMxRecordsCount() }}</div>
+                      <div class="task-label">Open Tasks</div>
+                    </div>
+                    <div class="task-item">
+                      <div class="task-count">{{ getPendingTransactionsCount() }}</div>
+                      <div class="task-label">Pending Transactions</div>
+                    </div>
+                    <div class="task-item">
+                      <div class="task-count">{{ getActiveLeasesCount() }}</div>
+                      <div class="task-label">Active Leases</div>
+                    </div>
+                    <div class="task-item">
+                      <div class="task-count">{{ getUpcomingRenewalsCount() }}</div>
+                      <div class="task-label">Upcoming Renewals</div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </q-card-section>
+              </q-card>
 
-              <!-- No Leases State -->
-              <div v-else class="no-rent-data">
-                <q-icon name="payments" size="40px" color="grey-4" />
-                <div class="text-grey-6 q-mt-sm">No active leases</div>
-                <div class="text-caption text-grey-5">Add a lease to track rent payments</div>
-              </div>
+              <!-- Transaction Summary Card -->
+              <q-card v-if="false" class="transaction-summary-card">
+                <q-card-section>
+                  <div class="text-h6 q-mb-md">
+                    <q-icon name="account_balance" class="q-mr-sm" />
+                    Financial Summary
+                  </div>
 
-              <!-- Recent Rent Payments -->
-              <div v-if="getRecentRentPayments().length > 0" class="recent-rent-payments q-mt-md">
-                <div class="text-subtitle2 text-grey-7 q-mb-sm">Recent Rent Payments</div>
-                <q-list dense class="rent-payments-list">
-                  <q-item
-                    v-for="payment in getRecentRentPayments()"
-                    :key="payment.id"
-                    class="rent-payment-item"
+                  <div class="financial-grid">
+                    <div class="financial-item income">
+                      <div class="financial-label">Total Income</div>
+                      <div class="financial-value">${{ getTotalIncome() }}</div>
+                    </div>
+                    <div class="financial-item expense">
+                      <div class="financial-label">Total Expenses</div>
+                      <div class="financial-value">${{ getTotalExpenses() }}</div>
+                    </div>
+                    <div class="financial-item monthly-income">
+                      <div class="financial-label">Monthly Income</div>
+                      <div class="financial-value">${{ getMonthlyIncome() }}</div>
+                    </div>
+                    <div class="financial-item monthly-expense">
+                      <div class="financial-label">Monthly Expense</div>
+                      <div class="financial-value">${{ getMonthlyExpense() }}</div>
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+
+              <!-- Rent Tracking Card -->
+              <q-card v-if="false" class="rent-tracking-card">
+                <q-card-section>
+                  <div class="text-h6 q-mb-md">
+                    <q-icon name="payments" class="q-mr-sm" />
+                    Rent Tracking
+                    <span class="text-caption text-grey-6 q-ml-sm">{{
+                      getCurrentMonthYear()
+                    }}</span>
+                  </div>
+
+                  <!-- Rent Summary -->
+                  <div class="rent-summary q-mb-md">
+                    <div class="rent-summary-item">
+                      <div class="rent-summary-label">Expected</div>
+                      <div class="rent-summary-value">${{ getExpectedRent() }}</div>
+                    </div>
+                    <div class="rent-summary-item collected">
+                      <div class="rent-summary-label">Collected</div>
+                      <div class="rent-summary-value">${{ getCollectedRent() }}</div>
+                    </div>
+                    <div class="rent-summary-item" :class="getRentBalanceClass()">
+                      <div class="rent-summary-label">Balance</div>
+                      <div class="rent-summary-value">${{ getRentBalance() }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Rent Status by Lease -->
+                  <div v-if="getPropertyLeases().length > 0" class="rent-status-list">
+                    <div class="text-subtitle2 text-grey-7 q-mb-sm">Payment Status by Tenant</div>
+                    <div
+                      v-for="lease in getPropertyLeases()"
+                      :key="lease.id"
+                      class="rent-status-item"
+                    >
+                      <div class="rent-tenant-info">
+                        <q-avatar size="32px" color="primary" text-color="white">
+                          {{ getTenantInitials(lease.tenant_name) }}
+                        </q-avatar>
+                        <div class="rent-tenant-details">
+                          <div class="rent-tenant-name">
+                            {{ lease.tenant_name || 'Unknown Tenant' }}
+                          </div>
+                          <div class="rent-tenant-amount">${{ lease.rate_amount || 0 }}/month</div>
+                        </div>
+                      </div>
+                      <div class="rent-payment-status">
+                        <q-chip
+                          :color="getRentStatusColor(getLeaseRentStatus(lease))"
+                          text-color="white"
+                          size="sm"
+                          :icon="getRentStatusIcon(getLeaseRentStatus(lease))"
+                        >
+                          {{ getLeaseRentStatus(lease).label }}
+                        </q-chip>
+                        <div class="rent-paid-amount" v-if="getLeaseRentStatus(lease).paid > 0">
+                          ${{ getLeaseRentStatus(lease).paid }} paid
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- No Leases State -->
+                  <div v-else class="no-rent-data">
+                    <q-icon name="payments" size="40px" color="grey-4" />
+                    <div class="text-grey-6 q-mt-sm">No active leases</div>
+                    <div class="text-caption text-grey-5">Add a lease to track rent payments</div>
+                  </div>
+
+                  <!-- Recent Rent Payments -->
+                  <div
+                    v-if="getRecentRentPayments().length > 0"
+                    class="recent-rent-payments q-mt-md"
                   >
-                    <q-item-section avatar>
-                      <q-icon name="check_circle" color="positive" />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label>{{ payment.description || 'Rent Payment' }}</q-item-label>
-                      <q-item-label caption>{{ formatDate(payment.transaction_date) }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-item-label class="text-positive text-weight-bold">
-                        +${{ payment.amount }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </div>
-            </q-card-section>
-          </q-card>
-
-        </div>
+                    <div class="text-subtitle2 text-grey-7 q-mb-sm">Recent Rent Payments</div>
+                    <q-list dense class="rent-payments-list">
+                      <q-item
+                        v-for="payment in getRecentRentPayments()"
+                        :key="payment.id"
+                        class="rent-payment-item"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="check_circle" color="positive" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label>{{ payment.description || 'Rent Payment' }}</q-item-label>
+                          <q-item-label caption>{{
+                            formatDate(payment.transaction_date)
+                          }}</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-item-label class="text-positive text-weight-bold">
+                            +${{ payment.amount }}
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
         </div>
         <aside class="property-action-rail">
           <q-card flat bordered class="property-action-card">
@@ -655,9 +912,9 @@
                 unelevated
                 no-caps
                 icon="person_add"
-                label="Invite Owner"
+                label="Manage Access"
                 class="full-width q-mt-sm"
-                @click="promptOwnerInvite(selectedProperty)"
+                @click="showPropertyAccessDialog = true"
               />
               <q-btn
                 v-if="canManageRecords"
@@ -673,88 +930,31 @@
             </q-card-section>
           </q-card>
 
-          <q-card v-if="hasPropertyOwnerContext" flat bordered class="property-action-card property-owner-card">
+          <q-card
+            v-if="selectedProperty && canInviteOwner(selectedProperty)"
+            flat
+            bordered
+            class="property-action-card"
+          >
             <q-card-section>
               <div class="property-action-title">
-                <q-icon name="person" size="18px" class="q-mr-xs" />
-                Owner
+                <q-icon name="group" size="18px" class="q-mr-xs" />
+                Property access
               </div>
               <div class="property-action-subtitle">
-                Owner contact and invitation status for this property.
+                Manage owners, property managers, and view-only collaborators in one place.
               </div>
-
-              <div v-if="loadingOwnerInfo" class="owner-info-loading">
-                <q-spinner-dots size="24px" color="primary" />
-              </div>
-
-              <div v-else class="owner-info-list">
-                <div
-                  v-for="owner in propertyOwnerProfiles"
-                  :key="owner.id || owner.email"
-                  class="owner-info-card"
-                >
-                  <div class="owner-info-name">{{ getOwnerDisplayName(owner) }}</div>
-                  <div class="owner-info-status">Accepted owner</div>
-                  <div class="owner-info-row" v-if="getOwnerEmail(owner)">
-                    <q-icon name="mail" size="14px" />
-                    <span>{{ getOwnerEmail(owner) }}</span>
-                  </div>
-                  <div class="owner-info-row" v-if="getOwnerPhone(owner)">
-                    <q-icon name="call" size="14px" />
-                    <span>{{ getOwnerPhone(owner) }}</span>
-                  </div>
-                  <div class="owner-info-row" v-if="getOwnerCompany(owner)">
-                    <q-icon name="business" size="14px" />
-                    <span>{{ getOwnerCompany(owner) }}</span>
-                  </div>
-                  <div class="owner-info-row" v-if="getOwnerMailingAddress(owner)">
-                    <q-icon name="home" size="14px" />
-                    <span>{{ getOwnerMailingAddress(owner) }}</span>
-                  </div>
-                  <q-btn
-                    v-if="selectedProperty && canManagePropertyAction(selectedProperty.id)"
-                    color="negative"
-                    outline
-                    no-caps
-                    icon="person_remove"
-                    label="Remove Access"
-                    class="full-width q-mt-sm"
-                    :loading="ownerAccessActionKey === `accepted:${owner.id || getOwnerEmail(owner)}`"
-                    @click="removeOwnerAccess(owner)"
-                  />
-                </div>
-
-                <div
-                  v-for="invite in pendingOwnerInvites"
-                  :key="invite.id || invite.owner_email"
-                  class="owner-info-card owner-info-card--pending"
-                >
-                  <div class="owner-info-name">{{ invite.owner_email || 'Pending owner' }}</div>
-                  <div class="owner-info-status">Invite pending</div>
-                  <div class="owner-info-row" v-if="invite.owner_email">
-                    <q-icon name="mail" size="14px" />
-                    <span>{{ invite.owner_email }}</span>
-                  </div>
-                  <div class="owner-info-row" v-if="invite.created_at || invite.updated_at">
-                    <q-icon name="schedule" size="14px" />
-                    <span>Sent {{ formatDate(invite.created_at || invite.updated_at) }}</span>
-                  </div>
-                  <q-btn
-                    v-if="selectedProperty && canManagePropertyAction(selectedProperty.id)"
-                    color="negative"
-                    outline
-                    no-caps
-                    icon="cancel"
-                    label="Cancel Invite"
-                    class="full-width q-mt-sm"
-                    :loading="ownerAccessActionKey === `pending:${invite.id || invite.owner_email}`"
-                    @click="revokePendingOwnerInvite(invite)"
-                  />
-                </div>
-              </div>
+              <q-btn
+                color="primary"
+                outline
+                no-caps
+                icon="manage_accounts"
+                label="Manage Access"
+                class="full-width q-mt-sm"
+                @click="showPropertyAccessDialog = true"
+              />
             </q-card-section>
           </q-card>
-
         </aside>
       </div>
     </div>
@@ -814,7 +1014,8 @@
                   {{ isEditMode ? 'Edit Property' : 'Property Details' }}
                 </div>
                 <div class="text-caption text-grey-7 q-mb-sm">
-                  Review or update the core property profile without losing the current property context.
+                  Review or update the core property profile without losing the current property
+                  context.
                 </div>
                 <div class="text-caption text-grey-6">
                   {{ selectedProperty.nickname || 'Unnamed Property' }} ·
@@ -920,7 +1121,9 @@
                     />
                     <div v-else class="detail-display-card">
                       <div class="detail-display-label">Property Name</div>
-                      <div class="detail-display-value">{{ selectedProperty.nickname || 'N/A' }}</div>
+                      <div class="detail-display-value">
+                        {{ selectedProperty.nickname || 'N/A' }}
+                      </div>
                     </div>
                   </div>
                   <div class="col-12 col-md-6">
@@ -957,7 +1160,9 @@
                     />
                     <div v-else class="detail-display-card">
                       <div class="detail-display-label">Address</div>
-                      <div class="detail-display-value">{{ selectedProperty.address || 'N/A' }}</div>
+                      <div class="detail-display-value">
+                        {{ selectedProperty.address || 'N/A' }}
+                      </div>
                     </div>
                   </div>
                   <div class="col-12 col-md-4">
@@ -1068,7 +1273,9 @@
                     />
                     <div v-else class="detail-display-card">
                       <div class="detail-display-label">Bedrooms</div>
-                      <div class="detail-display-value">{{ selectedProperty.spec?.bedroom || 'N/A' }}</div>
+                      <div class="detail-display-value">
+                        {{ selectedProperty.spec?.bedroom || 'N/A' }}
+                      </div>
                     </div>
                   </div>
                   <div class="col-12 col-md-4">
@@ -1256,7 +1463,9 @@
                 <div class="text-caption text-grey-6 q-mt-xs">
                   Upload documents for {{ selectedProperty.nickname || selectedProperty.address }}
                   <br />
-                  <span class="text-primary">Supported: Images, PDFs, Documents, Spreadsheets, and more</span>
+                  <span class="text-primary"
+                    >Supported: Images, PDFs, Documents, Spreadsheets, and more</span
+                  >
                 </div>
               </div>
 
@@ -1354,7 +1563,9 @@
                           size="sm"
                           @click.stop="viewDocument(doc)"
                         >
-                          <q-tooltip>{{ isImageFile(doc) ? 'View fullscreen' : 'Open file' }}</q-tooltip>
+                          <q-tooltip>{{
+                            isImageFile(doc) ? 'View fullscreen' : 'Open file'
+                          }}</q-tooltip>
                         </q-btn>
                         <q-btn
                           flat
@@ -1481,32 +1692,12 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="showInviteLinkDialog">
-      <q-card style="width: 100%; max-width: 720px">
-        <q-card-section class="row items-center">
-          <div class="text-h6">Invite Link</div>
-        </q-card-section>
-        <q-card-section class="q-pt-none">
-          <div class="text-body2 text-grey-7 q-mb-sm">
-            Email was not sent. Share this link manually.
-          </div>
-          <div v-if="inviteLinkReason" class="text-caption text-warning q-mb-sm">
-            {{ inviteLinkReason }}
-          </div>
-          <q-input
-            :model-value="inviteLinkValue"
-            outlined
-            readonly
-            autogrow
-            type="textarea"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Close" v-close-popup />
-          <q-btn color="primary" unelevated label="Copy Link" @click="copyInviteLink" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <PropertyAccessManager
+      v-model="showPropertyAccessDialog"
+      :property="selectedProperty"
+      :can-manage="Boolean(selectedProperty && canInviteOwner(selectedProperty))"
+      @access-updated="handlePropertyAccessUpdated"
+    />
   </q-page>
 </template>
 
@@ -1517,14 +1708,11 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
-import { formatOwnerInviteFallbackReason } from '../utils/ownerInviteEmailFeedback'
-import { generateOwnerInviteToken, createOwnerInviteExpiry, buildOwnerInviteUrl } from '../utils/ownerInviteUtils'
-import { sendOwnerInviteEmailRequest } from '../services/ownerInviteApi'
 import CreateMxRecord from '../components/CreateMxRecord.vue'
 import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
 import CreateAsset from '../components/CreateAsset.vue'
-import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
+import PropertyAccessManager from '../components/PropertyAccessManager.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1539,322 +1727,9 @@ const {
   getDocument,
 } = useFirebase()
 const canManageRecords = computed(() => userDataStore.isManagerCapableUser)
-const canManagePropertyAction = (propertyId) => {
-  if (!propertyId) return false
-  return userDataStore.canManageProperty(propertyId)
-}
 const canInviteOwner = (property) => {
   if (!property?.id) return false
   return userDataStore.canShareProperty(property.id)
-}
-
-const normalizeInviteEmail = (value) => String(value || '').trim().toLowerCase()
-
-const getExistingOwnerInviteConflict = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
-  if (!property?.id || !normalizedOwnerEmail) return null
-
-  const acceptedOwnerMatch = propertyOwnerProfiles.value.find(
-    (entry) => normalizeInviteEmail(getOwnerEmail(entry)) === normalizedOwnerEmail,
-  )
-  if (acceptedOwnerMatch) {
-    return {
-      type: 'owner_exists',
-      message: 'This email is already linked to this property as an owner or co-owner.',
-    }
-  }
-
-  const existingInvites = await getAllDocuments('owner_invites')
-  const matchedInvite = existingInvites.find((entry) => {
-    const sameProperty = String(entry?.property_id || '') === String(property.id || '')
-    const sameOwnerEmail = normalizeInviteEmail(entry?.owner_email) === normalizedOwnerEmail
-    const status = String(entry?.status || '').trim().toLowerCase()
-    return sameProperty && sameOwnerEmail && (status === 'pending' || status === 'accepted')
-  })
-
-  if (!matchedInvite) return null
-
-  const status = String(matchedInvite.status || '').trim().toLowerCase()
-  if (status === 'accepted') {
-    return {
-      type: 'invite_accepted',
-      message: 'This email has already accepted access to this property.',
-    }
-  }
-
-  return {
-    type: 'invite_pending',
-    message: 'A pending invite already exists for this email on this property.',
-  }
-}
-
-const createOwnerInvite = async (property, ownerEmail) => {
-  const normalizedOwnerEmail = normalizeInviteEmail(ownerEmail)
-  const conflict = await getExistingOwnerInviteConflict(property, normalizedOwnerEmail)
-  if (conflict) {
-    throw new Error(conflict.message)
-  }
-
-  const token = generateOwnerInviteToken()
-  const now = new Date()
-  const expiresAt = createOwnerInviteExpiry()
-
-  const inviteId = token.slice(0, 20)
-
-  await createDocument('owner_invites', {
-    invite_id: inviteId,
-    property_id: property.id,
-    pm_user_id: userDataStore.userId,
-    owner_email: normalizedOwnerEmail,
-    status: 'pending',
-    token,
-    expires_at: expiresAt,
-    accepted_at: null,
-    accepted_by_user_id: null,
-    created_at: now,
-    updated_at: now,
-  }, inviteId)
-
-  return buildOwnerInviteUrl(token)
-}
-
-const promptOwnerInvite = (property) => {
-  const input = window.prompt(
-    'Enter the email of the owner, spouse, or co-owner you want to share this property with.',
-    '',
-  )
-  const email = normalizeInviteEmail(input)
-  if (!email) return
-  if (!/.+@.+\..+/.test(email)) {
-    Notify.create({
-      type: 'negative',
-      message: 'Please enter a valid email address.',
-      position: 'top',
-    })
-    return
-  }
-
-  ;(async () => {
-    try {
-      const conflict = await getExistingOwnerInviteConflict(property, email)
-      if (conflict) {
-        Notify.create({
-          type: 'warning',
-          message: conflict.message,
-          position: 'top',
-          timeout: 5000,
-        })
-        return
-      }
-
-      const confirmed = window.confirm(
-        `Send an owner access invite to ${email} for ${property?.nickname || property?.address || 'this property'}?`,
-      )
-      if (!confirmed) return
-
-      const response = await sendOwnerInviteEmailRequest({
-        propertyId: property.id,
-        ownerEmail: email,
-        propertyName: property.nickname || property.address || 'Property',
-        propertyAddress: property.address || '',
-        inviterName:
-          userDataStore.userProfile?.full_name ||
-          userDataStore.userProfile?.user_name ||
-          userDataStore.user?.displayName ||
-          userDataStore.user?.email ||
-          'A property manager',
-      })
-
-      if (response?.email_sent) {
-        await loadPropertyOwnerInfo()
-        Notify.create({
-          type: 'positive',
-          message: 'Owner invitation email sent successfully.',
-          position: 'top',
-          timeout: 4000,
-        })
-        return
-      }
-
-      const inviteLink = String(response?.invite_url || '').trim()
-      const reasonMessage = formatOwnerInviteFallbackReason(response?.fallback_reason)
-      openInviteLinkDialog(inviteLink, reasonMessage)
-      await loadPropertyOwnerInfo()
-      Notify.create({
-        type: 'warning',
-        message: 'Email was not sent. Invite link is shown for manual copy.',
-        caption: reasonMessage,
-        position: 'top',
-        timeout: 6000,
-      })
-    } catch (error) {
-      try {
-        const inviteLink = await createOwnerInvite(property, email)
-        const reasonMessage = formatOwnerInviteFallbackReason(
-          error?.payload?.message || error?.message || 'resend_request_failed',
-        )
-        openInviteLinkDialog(inviteLink, reasonMessage)
-        await loadPropertyOwnerInfo()
-        Notify.create({
-          type: 'warning',
-          message: 'Email service unavailable. Invite link is shown for manual copy.',
-          caption: reasonMessage,
-          position: 'top',
-          timeout: 6000,
-        })
-      } catch (fallbackError) {
-        Notify.create({
-          type: 'negative',
-          message: fallbackError?.message || error?.message || 'Failed to create owner access link.',
-          position: 'top',
-        })
-      }
-    }
-  })()
-}
-
-const revokePendingOwnerInvite = async (invite) => {
-  if (!selectedProperty.value?.id || !invite?.id) return
-
-  const inviteEmail = normalizeInviteEmail(invite.owner_email)
-  const propertyLabel =
-    selectedProperty.value.nickname || selectedProperty.value.address || 'this property'
-  const confirmed = window.confirm(
-    `Cancel the pending invite for ${inviteEmail || 'this email'} on ${propertyLabel}?`,
-  )
-  if (!confirmed) return
-
-  ownerAccessActionKey.value = `pending:${invite.id || invite.owner_email}`
-  try {
-    const now = new Date()
-    await updateDocument('owner_invites', invite.id, {
-      status: 'revoked',
-      revoked_at: now,
-      revoked_by_user_id: userDataStore.userId,
-      updated_at: now,
-    })
-
-    await refreshData()
-    const refreshed = userProperties.value.find((property) => property.id === selectedProperty.value?.id)
-    if (refreshed) {
-      selectedProperty.value = cloneProperty(refreshed)
-    }
-    await loadPropertyOwnerInfo()
-
-    Notify.create({
-      type: 'positive',
-      message: 'Pending owner invite cancelled.',
-      position: 'top',
-    })
-  } catch (error) {
-    Notify.create({
-      type: 'negative',
-      message: error?.message || 'Failed to cancel pending owner invite.',
-      position: 'top',
-    })
-  } finally {
-    ownerAccessActionKey.value = ''
-  }
-}
-
-const removeOwnerAccess = async (owner) => {
-  if (!selectedProperty.value?.id) return
-
-  const ownerId = String(owner?.id || '').trim()
-  const ownerEmail = normalizeInviteEmail(getOwnerEmail(owner))
-  const ownerLabel = ownerEmail || getOwnerDisplayName(owner) || 'this owner'
-  const propertyLabel =
-    selectedProperty.value.nickname || selectedProperty.value.address || 'this property'
-
-  if (!ownerId) {
-    Notify.create({
-      type: 'negative',
-      message: 'Owner access cannot be removed because the user record is missing.',
-      position: 'top',
-    })
-    return
-  }
-
-  const confirmed = window.confirm(
-    `Remove ${ownerLabel} access from ${propertyLabel}? This revokes owner/co-owner access for this property only.`,
-  )
-  if (!confirmed) return
-
-  ownerAccessActionKey.value = `accepted:${ownerId || ownerEmail}`
-  try {
-    const propertyId = selectedProperty.value.id
-    const now = new Date()
-    const propertyOwnerIds = Array.isArray(selectedProperty.value.owner_user_ids)
-      ? selectedProperty.value.owner_user_ids
-      : []
-    const nextOwnerIds = propertyOwnerIds.filter((id) => String(id || '') !== ownerId)
-    const currentPrimaryOwnerId = String(selectedProperty.value.primary_owner_user_id || '').trim()
-    const nextPrimaryOwnerId =
-      currentPrimaryOwnerId && currentPrimaryOwnerId !== ownerId && nextOwnerIds.includes(currentPrimaryOwnerId)
-        ? currentPrimaryOwnerId
-        : nextOwnerIds[0] || null
-
-    const ownerRoles = await getAllDocuments(`users/${ownerId}/roles`)
-    const ownerPoRoles = (ownerRoles || []).filter((role) => {
-      const roleName = String(role?.role || '').trim().toLowerCase()
-      const rolePropertyId = String(role?.property_id || '').trim()
-      return roleName === 'po' && rolePropertyId === String(propertyId)
-    })
-
-    await Promise.all(
-      ownerPoRoles.map((role) => deleteDocument(`users/${ownerId}/roles`, role.id)),
-    )
-
-    await updateDocument('properties', propertyId, {
-      owner_user_ids: nextOwnerIds,
-      primary_owner_user_id: nextPrimaryOwnerId,
-      ownership_mode: nextOwnerIds.length > 0 ? 'self_owned' : 'managed_for_owner',
-      updated_at: now,
-      updatedAt: now,
-    })
-
-    const invites = await getAllDocuments('owner_invites')
-    const matchingAcceptedInvites = (invites || []).filter((entry) => {
-      const sameProperty = String(entry?.property_id || '') === String(propertyId)
-      const sameAcceptedOwner = String(entry?.accepted_by_user_id || '') === ownerId
-      const sameEmail = ownerEmail && normalizeInviteEmail(entry?.owner_email) === ownerEmail
-      const status = String(entry?.status || '').trim().toLowerCase()
-      return sameProperty && status === 'accepted' && (sameAcceptedOwner || sameEmail)
-    })
-
-    await Promise.all(
-      matchingAcceptedInvites.map((invite) =>
-        updateDocument('owner_invites', invite.id, {
-          status: 'revoked',
-          revoked_at: now,
-          revoked_by_user_id: userDataStore.userId,
-          accepted_by_user_id: null,
-          updated_at: now,
-        }),
-      ),
-    )
-
-    await refreshData()
-    const refreshed = userProperties.value.find((property) => property.id === propertyId)
-    if (refreshed) {
-      selectedProperty.value = cloneProperty(refreshed)
-    }
-    await loadPropertyOwnerInfo()
-
-    Notify.create({
-      type: 'positive',
-      message: 'Owner access removed for this property.',
-      position: 'top',
-    })
-  } catch (error) {
-    Notify.create({
-      type: 'negative',
-      message: error?.message || 'Failed to remove owner access.',
-      position: 'top',
-    })
-  } finally {
-    ownerAccessActionKey.value = ''
-  }
 }
 
 const propertyTypeOptions = ['Residential', 'Commercial', 'Industrial', 'Land', 'Mixed Use']
@@ -1873,7 +1748,10 @@ const propertyStatusOptions = [
 const parseLegacyAddressParts = (rawAddress) => {
   const text = String(rawAddress || '').trim()
   if (!text) return { city: '', state: '', zip: '' }
-  const parts = text.split(',').map((item) => item.trim()).filter(Boolean)
+  const parts = text
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
   if (parts.length < 2) return { city: '', state: '', zip: '' }
   const city = parts[parts.length - 2] || ''
   const stateZip = parts[parts.length - 1] || ''
@@ -1899,7 +1777,14 @@ const normalizePropertyAddressFields = (property) => {
     ...property,
     city: String(property.city || fallback.city || '').trim(),
     state: String(property.state || fallback.state || '').trim(),
-    zip: String(property.zip || property.zip_code || property.zipCode || property.postal_code || fallback.zip || '').trim(),
+    zip: String(
+      property.zip ||
+        property.zip_code ||
+        property.zipCode ||
+        property.postal_code ||
+        fallback.zip ||
+        '',
+    ).trim(),
   }
 }
 
@@ -1915,12 +1800,11 @@ const cloneProperty = (property) => {
 // Dialog state
 const showPropertyDialog = ref(false)
 const showPropertySelectorDialog = ref(false)
+const showPropertyAccessDialog = ref(false)
 const selectedProperty = ref(null)
+const activePropertyTab = ref('overview')
 const isEditMode = ref(false)
 const editLoading = ref(false)
-const showInviteLinkDialog = ref(false)
-const inviteLinkValue = ref('')
-const inviteLinkReason = ref('')
 
 // Create form dialogs
 const showCreateMxRecordDialog = ref(false)
@@ -1939,8 +1823,6 @@ const propertyDocuments = ref([])
 const propertyAssets = ref([])
 const propertyServices = ref([])
 const propertyReminders = ref([])
-const propertyOwnerProfiles = ref([])
-const propertyOwnerInvites = ref([])
 const uploadFiles = ref(null)
 const snapshotUploadFile = ref(null)
 const snapshotUploading = ref(false)
@@ -1949,41 +1831,12 @@ const loadingPhotos = ref(false)
 const loadingDocuments = ref(false)
 const loadingAssets = ref(false)
 const loadingReminders = ref(false)
-const loadingOwnerInfo = ref(false)
 const deletingPhoto = ref(false)
 const photoToDelete = ref(null)
 const currentPhotoUrl = ref('')
 const currentPhotoTitle = ref('')
-const ownerAccessActionKey = ref('')
-
-const openInviteLinkDialog = (link, reason = '') => {
-  inviteLinkValue.value = String(link || '').trim()
-  inviteLinkReason.value = String(reason || '').trim()
-  showInviteLinkDialog.value = true
-}
-
-const copyInviteLink = async () => {
-  const link = String(inviteLinkValue.value || '').trim()
-  if (!link) return
-  try {
-    await navigator.clipboard.writeText(link)
-    Notify.create({
-      type: 'positive',
-      message: 'Invite link copied.',
-      position: 'top',
-    })
-  } catch {
-    Notify.create({
-      type: 'negative',
-      message: 'Unable to copy link automatically.',
-      caption: 'Please copy it manually from the text box.',
-      position: 'top',
-    })
-  }
-}
 
 const loading = computed(() => userDataStore.loading)
-const selectedPropertyId = computed(() => selectedProperty.value?.id || null)
 
 const toDateObject = (value) => {
   if (!value) return null
@@ -2058,14 +1911,22 @@ const displayedPropertyAssets = computed(() =>
     .slice(0, 6),
 )
 
-const getEntityPropertyId = (item) => item?.property_id?.id || item?.property_id || item?.property?.id || null
+const getEntityPropertyId = (item) =>
+  item?.property_id?.id || item?.property_id || item?.property?.id || null
 
 const propertyTransactions = computed(() => {
   if (!selectedProperty.value) return []
   return (userDataStore.userAccessibleTransactions || [])
-    .filter((transaction) => String(getEntityPropertyId(transaction) || '') === String(selectedProperty.value.id || ''))
+    .filter(
+      (transaction) =>
+        String(getEntityPropertyId(transaction) || '') === String(selectedProperty.value.id || ''),
+    )
     .slice()
-    .sort((a, b) => (toDateObject(getTransactionDate(b))?.getTime() || 0) - (toDateObject(getTransactionDate(a))?.getTime() || 0))
+    .sort(
+      (a, b) =>
+        (toDateObject(getTransactionDate(b))?.getTime() || 0) -
+        (toDateObject(getTransactionDate(a))?.getTime() || 0),
+    )
 })
 
 const displayedPropertyTransactions = computed(() => propertyTransactions.value.slice(0, 6))
@@ -2073,9 +1934,15 @@ const displayedPropertyTransactions = computed(() => propertyTransactions.value.
 const propertyTasks = computed(() => {
   if (!selectedProperty.value) return []
   return (userDataStore.userAccessibleMxRecords || [])
-    .filter((task) => String(getEntityPropertyId(task) || '') === String(selectedProperty.value.id || ''))
+    .filter(
+      (task) => String(getEntityPropertyId(task) || '') === String(selectedProperty.value.id || ''),
+    )
     .slice()
-    .sort((a, b) => (toDateObject(getTaskDate(b))?.getTime() || 0) - (toDateObject(getTaskDate(a))?.getTime() || 0))
+    .sort(
+      (a, b) =>
+        (toDateObject(getTaskDate(b))?.getTime() || 0) -
+        (toDateObject(getTaskDate(a))?.getTime() || 0),
+    )
 })
 
 const displayedPropertyTasks = computed(() => propertyTasks.value.slice(0, 6))
@@ -2084,7 +1951,11 @@ const propertyLeases = computed(() =>
   (userDataStore.userAccessibleLeases || [])
     .filter((lease) => isLeaseForSelectedProperty(lease))
     .slice()
-    .sort((a, b) => (toDateObject(getLeaseSortDate(b))?.getTime() || 0) - (toDateObject(getLeaseSortDate(a))?.getTime() || 0)),
+    .sort(
+      (a, b) =>
+        (toDateObject(getLeaseSortDate(b))?.getTime() || 0) -
+        (toDateObject(getLeaseSortDate(a))?.getTime() || 0),
+    ),
 )
 
 const displayedPropertyLeases = computed(() => propertyLeases.value.slice(0, 6))
@@ -2092,17 +1963,101 @@ const displayedPropertyLeases = computed(() => propertyLeases.value.slice(0, 6))
 const displayedPropertyReminders = computed(() =>
   (propertyReminders.value || [])
     .slice()
-    .sort((a, b) => (toDateObject(getReminderDate(b))?.getTime() || 0) - (toDateObject(getReminderDate(a))?.getTime() || 0))
+    .sort(
+      (a, b) =>
+        (toDateObject(getReminderDate(b))?.getTime() || 0) -
+        (toDateObject(getReminderDate(a))?.getTime() || 0),
+    )
     .slice(0, 6),
 )
 
-const pendingOwnerInvites = computed(() =>
-  propertyOwnerInvites.value.filter((invite) => String(invite?.status || '').toLowerCase() === 'pending'),
-)
+const propertyWorkspaceSubtitle = computed(() => {
+  const property = selectedProperty.value
+  if (!property) return ''
+  const location = [property.city, property.state].filter(Boolean).join(', ')
+  return [property.type || 'Property', location || property.address].filter(Boolean).join(' · ')
+})
 
-const hasPropertyOwnerContext = computed(
-  () => propertyOwnerProfiles.value.length > 0 || propertyOwnerInvites.value.length > 0,
-)
+const propertyHealth = computed(() => {
+  const openTasks = propertyTasks.value.filter((task) => {
+    const status = String(task?.status || '')
+      .trim()
+      .toLowerCase()
+    return !['completed', 'complete', 'closed', 'done', 'cancelled', 'canceled'].includes(status)
+  }).length
+  const activeReminders = propertyReminders.value.filter((reminder) => reminder?.status).length
+  const attentionItems = openTasks + activeReminders
+
+  if (attentionItems === 0) {
+    return {
+      label: 'On track',
+      detail: 'No overdue tasks or active reminders',
+      score: 82,
+      tone: 'positive',
+    }
+  }
+  if (attentionItems <= 2) {
+    return {
+      label: 'Needs attention',
+      detail: `${attentionItems} active item${attentionItems === 1 ? '' : 's'} to review`,
+      score: 62,
+      tone: 'warning',
+    }
+  }
+  return {
+    label: 'Action needed',
+    detail: `${attentionItems} active items need follow-up`,
+    score: 38,
+    tone: 'negative',
+  }
+})
+
+const propertyRecentActivity = computed(() => {
+  const activities = [
+    ...propertyTasks.value.map((task) => ({
+      key: `task-${task.id}`,
+      icon: 'handyman',
+      tone: 'work',
+      title: task.title || task.task_name || task.name || 'Property task updated',
+      detail: normalizeStatus(task.status || 'Open'),
+      date: getTaskDate(task),
+    })),
+    ...propertyTransactions.value.map((transaction) => ({
+      key: `transaction-${transaction.id}`,
+      icon: 'payments',
+      tone: 'money',
+      title: getTransactionTitle(transaction),
+      detail: `${normalizeStatus(transaction.status || 'Recorded')} · ${formatAmount(transaction.amount)}`,
+      date: getTransactionDate(transaction),
+    })),
+    ...syncedPropertyDocuments.value.map((document) => ({
+      key: `document-${document.source_collection || 'document'}-${document.id}`,
+      icon: 'description',
+      tone: 'document',
+      title: getDocumentDisplayName(document),
+      detail: 'Document added',
+      date: getDocumentDate(document),
+    })),
+    ...propertyLeases.value.map((lease) => ({
+      key: `lease-${lease.id}`,
+      icon: 'home_work',
+      tone: 'lease',
+      title: `${getLeaseDisplayTenantName(lease)} lease`,
+      detail: normalizeStatus(lease.status || 'Active'),
+      date: lease.updated_at || lease.created_at || lease.lease_start_date || lease.start_date,
+    })),
+  ]
+
+  return activities
+    .filter((activity) => activity.date)
+    .sort((a, b) => (toDateObject(b.date)?.getTime() || 0) - (toDateObject(a.date)?.getTime() || 0))
+    .slice(0, 4)
+})
+
+const scrollToPropertySection = (id, tab) => {
+  activePropertyTab.value = tab
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const userProperties = computed(() => {
   console.log('PropertyView - Computing userProperties')
@@ -2244,58 +2199,6 @@ const loadPropertyReminders = async () => {
   }
 }
 
-const loadPropertyOwnerInfo = async () => {
-  if (!selectedProperty.value?.id) return
-
-  try {
-    loadingOwnerInfo.value = true
-    const propertyId = selectedProperty.value.id
-    const ownerIds = new Set(
-      (Array.isArray(selectedProperty.value.owner_user_ids)
-        ? selectedProperty.value.owner_user_ids
-        : []
-      ).filter(Boolean),
-    )
-    if (selectedProperty.value.primary_owner_user_id) {
-      ownerIds.add(selectedProperty.value.primary_owner_user_id)
-    }
-
-    const invites = await getAllDocuments('owner_invites')
-    const propertyInvites = (invites || [])
-      .filter((invite) => String(invite?.property_id || '') === String(propertyId))
-      .sort((a, b) => (toDateObject(b?.updated_at || b?.created_at)?.getTime() || 0) - (toDateObject(a?.updated_at || a?.created_at)?.getTime() || 0))
-
-    propertyInvites.forEach((invite) => {
-      const inviteStatus = String(invite?.status || '').trim().toLowerCase()
-      if (inviteStatus === 'accepted' && invite.accepted_by_user_id) {
-        ownerIds.add(invite.accepted_by_user_id)
-      }
-    })
-
-    propertyOwnerInvites.value = propertyInvites
-
-    const ownerProfiles = await Promise.all(
-      [...ownerIds].map(async (ownerId) => {
-        try {
-          const profile = await getDocument(`users/${ownerId}`)
-          return profile ? { id: ownerId, ...profile } : { id: ownerId }
-        } catch (error) {
-          console.warn('Failed to load owner profile:', ownerId, error)
-          return { id: ownerId }
-        }
-      }),
-    )
-
-    propertyOwnerProfiles.value = ownerProfiles
-  } catch (error) {
-    console.error('Error loading property owner info:', error)
-    propertyOwnerProfiles.value = []
-    propertyOwnerInvites.value = []
-  } finally {
-    loadingOwnerInfo.value = false
-  }
-}
-
 const normalizeFileSelection = (files) => {
   if (!files) return []
   if (Array.isArray(files)) return files.filter(Boolean)
@@ -2360,13 +2263,14 @@ const onSnapshotSelected = async (file) => {
     console.error('Error replacing snapshot:', error)
     Notify.create({
       type: 'negative',
-      message: error?.code === 'storage/unauthorized'
-        ? 'Upload blocked by Firebase Storage permissions.'
-        : error?.code === 'storage/unauthenticated'
-          ? 'Your login session is not available for uploads. Please sign in again.'
-          : error?.code === 'permission-denied'
-            ? 'Upload record blocked by Firestore permissions.'
-            : error?.message || 'Failed to replace snapshot.',
+      message:
+        error?.code === 'storage/unauthorized'
+          ? 'Upload blocked by Firebase Storage permissions.'
+          : error?.code === 'storage/unauthenticated'
+            ? 'Your login session is not available for uploads. Please sign in again.'
+            : error?.code === 'permission-denied'
+              ? 'Upload record blocked by Firestore permissions.'
+              : error?.message || 'Failed to replace snapshot.',
       position: 'top',
     })
   } finally {
@@ -2450,13 +2354,14 @@ const uploadPhotos = async () => {
     console.error('Error uploading photos:', error)
     Notify.create({
       type: 'negative',
-      message: error?.code === 'storage/unauthorized'
-        ? 'Upload blocked by Firebase Storage permissions.'
-        : error?.code === 'storage/unauthenticated'
-          ? 'Your login session is not available for uploads. Please sign in again.'
-        : error?.code === 'permission-denied'
-          ? 'Upload record blocked by Firestore permissions.'
-          : error?.message || 'Failed to upload files. Please try again.',
+      message:
+        error?.code === 'storage/unauthorized'
+          ? 'Upload blocked by Firebase Storage permissions.'
+          : error?.code === 'storage/unauthenticated'
+            ? 'Your login session is not available for uploads. Please sign in again.'
+            : error?.code === 'permission-denied'
+              ? 'Upload record blocked by Firestore permissions.'
+              : error?.message || 'Failed to upload files. Please try again.',
       position: 'top',
     })
   } finally {
@@ -2765,13 +2670,10 @@ watch(
       loadPropertyAssets()
       loadPropertyServices()
       loadPropertyReminders()
-      loadPropertyOwnerInfo()
     } else {
       propertyAssets.value = []
       propertyServices.value = []
       propertyReminders.value = []
-      propertyOwnerProfiles.value = []
-      propertyOwnerInvites.value = []
     }
   },
   { immediate: true },
@@ -2848,7 +2750,8 @@ const normalizeStatus = (status) => {
 const getRecordStatusColor = (status) => {
   const normalized = String(status || '').toLowerCase()
   if (['open', 'pending', 'in progress', 'in_progress'].includes(normalized)) return 'primary'
-  if (['completed', 'complete', 'done', 'closed', 'resolved'].includes(normalized)) return 'positive'
+  if (['completed', 'complete', 'done', 'closed', 'resolved'].includes(normalized))
+    return 'positive'
   if (['cancelled', 'canceled', 'inactive'].includes(normalized)) return 'grey-6'
   if (['urgent', 'overdue'].includes(normalized)) return 'negative'
   return 'grey-7'
@@ -2865,78 +2768,37 @@ const formatAmount = (amount) => {
 }
 
 const getTransactionDate = (transaction) =>
-  transaction?.transac_date || transaction?.transaction_date || transaction?.created_datetime || transaction?.date || transaction?.created_at
+  transaction?.transac_date ||
+  transaction?.transaction_date ||
+  transaction?.created_datetime ||
+  transaction?.date ||
+  transaction?.created_at
 
 const getTransactionTitle = (transaction) =>
   transaction?.description || transaction?.transac_type || transaction?.type || 'Transaction'
 
-const getTaskDate = (task) => task?.report_date || task?.created_datetime || task?.created_at || task?.createAt || task?.date
+const getTaskDate = (task) =>
+  task?.report_date || task?.created_datetime || task?.created_at || task?.createAt || task?.date
 
 const getTaskTitle = (task) =>
   task?.task_title || task?.description || task?.task_category || task?.category || 'Task'
 
 const getLeaseSortDate = (lease) =>
-  lease?.lease_start_date || lease?.start_date || lease?.move_in_date || lease?.created_datetime || lease?.created_at
+  lease?.lease_start_date ||
+  lease?.start_date ||
+  lease?.move_in_date ||
+  lease?.created_datetime ||
+  lease?.created_at
 
 const getReminderDate = (reminder) =>
-  reminder?.due_date || reminder?.start_date || reminder?.created_datetime || reminder?.created_at || reminder?.date
+  reminder?.due_date ||
+  reminder?.start_date ||
+  reminder?.created_datetime ||
+  reminder?.created_at ||
+  reminder?.date
 
 const getReminderTitle = (reminder) =>
   reminder?.note || reminder?.title || reminder?.category || reminder?.repeat_by || 'Reminder'
-
-const pickFirstNonEmpty = (...values) =>
-  values.find((value) => String(value || '').trim().length > 0) || ''
-
-const getOwnerDisplayName = (owner) =>
-  pickFirstNonEmpty(
-    owner?.full_name,
-    owner?.display_name,
-    owner?.displayName,
-    owner?.user_name,
-    owner?.name,
-    owner?.email,
-  ) || 'Property Owner'
-
-const getOwnerEmail = (owner) => pickFirstNonEmpty(owner?.email, owner?.owner_email)
-
-const getOwnerPhone = (owner) =>
-  pickFirstNonEmpty(
-    owner?.phone,
-    owner?.cellphone,
-    owner?.cell_phone,
-    owner?.mobile,
-    owner?.mobile_phone,
-    owner?.contact_phone,
-    owner?.phone_number,
-  )
-
-const getOwnerCompany = (owner) =>
-  pickFirstNonEmpty(
-    owner?.company_name,
-    owner?.company,
-    owner?.business_name,
-    owner?.organization,
-  )
-
-const getOwnerMailingAddress = (owner) => {
-  const direct = pickFirstNonEmpty(
-    owner?.mailing_address,
-    owner?.mailingAddress,
-    owner?.registered_business_address,
-    owner?.address,
-    owner?.street_address,
-  )
-  if (direct) return direct
-
-  return [
-    pickFirstNonEmpty(owner?.mailing_street, owner?.street),
-    pickFirstNonEmpty(owner?.mailing_city, owner?.city),
-    pickFirstNonEmpty(owner?.mailing_state, owner?.state),
-    pickFirstNonEmpty(owner?.mailing_zip, owner?.zip, owner?.zip_code),
-  ]
-    .filter(Boolean)
-    .join(', ')
-}
 
 const getAssetDisplayName = (asset) => asset?.nickname || asset?.name || 'Unnamed Asset'
 
@@ -2951,12 +2813,18 @@ const selectProperty = (property) => {
   console.log('PropertyView - Selected property:', property)
 }
 
-const handleSidebarPropertySelect = (propertyId) => {
-  const property = userProperties.value.find((item) => item.id === propertyId)
-  if (property) {
-    selectProperty(property)
-  }
-}
+watch(
+  [() => route.query.propertyId, userProperties],
+  ([propertyId, properties]) => {
+    const normalizedId = String(propertyId || '').trim()
+    if (!normalizedId) return
+    const property = (properties || []).find((item) => String(item?.id || '') === normalizedId)
+    if (property && String(selectedProperty.value?.id || '') !== normalizedId) {
+      selectProperty(property)
+    }
+  },
+  { immediate: true },
+)
 
 const selectPropertyFromDialog = (property) => {
   selectProperty(property)
@@ -2971,6 +2839,15 @@ const refreshData = async () => {
   } catch (error) {
     console.error('PropertyView - Error refreshing data:', error)
   }
+}
+
+const handlePropertyAccessUpdated = async () => {
+  const propertyId = selectedProperty.value?.id
+  await refreshData()
+  const refreshed = userProperties.value.find(
+    (property) => String(property?.id || '') === String(propertyId || ''),
+  )
+  if (refreshed) selectedProperty.value = cloneProperty(refreshed)
 }
 
 // Task summary functions
@@ -2991,7 +2868,9 @@ const getPendingTransactionsCount = () => {
 
 const getActiveLeasesCount = () => {
   if (!selectedProperty.value) return 0
-  return userDataStore.leases.filter((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status)).length
+  return userDataStore.leases.filter(
+    (lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status),
+  ).length
 }
 
 const getUpcomingRenewalsCount = () => {
@@ -3087,13 +2966,17 @@ const getMonthlyExpense = () => {
 // Lease functions
 const getCurrentLease = () => {
   if (!selectedProperty.value) return null
-  return userDataStore.leases.find((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status))
+  return userDataStore.leases.find(
+    (lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status),
+  )
 }
 
 // Get all active leases for property
 const getPropertyLeases = () => {
   if (!selectedProperty.value) return []
-  return userDataStore.leases.filter((lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status))
+  return userDataStore.leases.filter(
+    (lease) => isLeaseForSelectedProperty(lease) && isActiveLeaseStatus(lease.status),
+  )
 }
 
 const getLeaseDisplayTenantName = (lease) =>
@@ -3534,23 +3417,13 @@ const cancelEdit = () => {
 
 <style scoped>
 .property-view-container {
-  --property-summary-card-height: 360px;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) minmax(240px, 260px);
-  gap: 16px;
-  align-items: start;
-  height: calc(100vh - 112px);
-  min-height: 0;
+  --property-summary-card-height: 300px;
+  width: min(100%, 1220px);
+  margin: 0 auto;
 }
 
 .property-sidebar {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: none;
 }
 
 .property-list-card {
@@ -3604,29 +3477,272 @@ const cancelEdit = () => {
 
 .property-content {
   min-width: 0;
-  max-height: calc(100vh - 112px);
-  overflow-y: auto;
-  padding-right: 8px !important;
-  scrollbar-width: thin;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0 !important;
+}
+
+.property-workspace {
+  overflow: hidden;
+  border: 1px solid #d7e3eb;
+  border-radius: 28px;
+  background: #f7fafc;
+  box-shadow: 0 20px 48px rgba(27, 54, 79, 0.08);
+}
+
+.property-workspace__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 132px;
+  padding: 30px 42px;
+  background: #ffffff;
+  border-bottom: 1px solid #dce6ed;
+}
+
+.property-workspace__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 20px;
+}
+
+.property-workspace__icon {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  color: #148a78;
+  background: #dff7f0;
+  border-radius: 22px;
+}
+
+.property-workspace h1 {
+  margin: 0;
+  color: #172235;
+  font-size: clamp(1.55rem, 2.7vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.property-workspace__identity p {
+  margin: 7px 0 0;
+  color: #74879a;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.property-workspace__more {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  color: #75869a;
+  background: #f1f5f7;
+  border-radius: 16px;
+}
+
+.property-workspace__tabs {
+  display: flex;
+  gap: 34px;
+  align-items: center;
+  min-height: 78px;
+  padding: 0 42px;
+  overflow-x: auto;
+  background: #ffffff;
+  border-bottom: 1px solid #dce6ed;
+}
+
+.property-workspace__tab {
+  position: relative;
+  flex: 0 0 auto;
+  height: 78px;
+  padding: 0 2px;
+  color: #718296;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 750;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.property-workspace__tab:hover,
+.property-workspace__tab--active {
+  color: #137f70;
+}
+
+.property-workspace__tab--active::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  content: '';
+  background: #178b7a;
+}
+
+.property-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+  gap: 24px;
+  padding: 38px 42px 26px;
+}
+
+.property-health-card,
+.property-activity-card {
+  min-height: 268px;
+  border-color: #d8e4eb !important;
+  border-radius: 22px;
+  background: #ffffff;
+}
+
+.property-health-card .q-card__section,
+.property-activity-card .q-card__section {
+  padding: 28px;
+}
+
+.property-overview-label {
+  color: #718399;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.property-health-card__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  color: #1d816f;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.property-health-card__dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+
+.property-health-card__dot--positive {
+  background: #5cd2b8;
+}
+.property-health-card__dot--warning {
+  background: #f2b968;
+}
+.property-health-card__dot--negative {
+  background: #e97972;
+}
+
+.property-health-card__meter {
+  height: 14px;
+  margin-top: 22px;
+  overflow: hidden;
+  background: #e2ecef;
+  border-radius: 999px;
+}
+
+.property-health-card__meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #64d5bc, #269f8a);
+  border-radius: inherit;
+}
+
+.property-health-card p {
+  margin: 20px 0 0;
+  color: #718399;
+  font-size: 0.96rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.property-activity-card__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e7edf1;
+}
+
+.property-activity-card__title {
+  color: #172235;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.property-activity-card__caption,
+.property-activity-detail,
+.property-activity-date {
+  color: #7d8fa1 !important;
+  font-weight: 550;
+}
+
+.property-activity-card__caption {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+.property-activity-list {
+  margin-top: 4px;
+}
+.property-activity-list .q-item {
+  min-height: 58px;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.property-activity-icon {
+  color: #2677bc;
+  background: #e7f1fd;
+}
+.property-activity-icon--document {
+  color: #128c79;
+  background: #e2f7f1;
+}
+.property-activity-icon--money {
+  color: #8d5cb8;
+  background: #f0e9fb;
+}
+.property-activity-icon--lease {
+  color: #b06d22;
+  background: #fff0dd;
+}
+.property-activity-title {
+  color: #2b4057;
+  font-weight: 760;
+}
+.property-activity-date {
+  align-self: flex-start;
+  padding-top: 3px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.property-activity-empty {
+  padding: 34px 0 12px;
+  color: #7d8fa1;
+  text-align: center;
 }
 
 .property-details-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
   gap: 12px;
+  padding: 12px 42px 42px;
   height: fit-content;
   align-items: stretch;
 }
 
 .property-action-rail {
-  position: sticky;
-  top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: min(100%, 1220px);
+  margin: 16px auto 0;
+}
+
+.property-action-rail > :first-child {
+  display: none;
 }
 
 .property-action-card {
@@ -3724,7 +3840,6 @@ const cancelEdit = () => {
 .rent-tracking-card {
   grid-column: 1 / -1;
 }
-
 
 .property-image-card:hover {
   transform: translateY(-2px);
@@ -4241,46 +4356,26 @@ const cancelEdit = () => {
 
 /* Responsive design */
 @media (max-width: 1280px) {
-  .property-view-container {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-
   .property-action-rail {
-    grid-column: 2;
-    position: static;
-    max-height: none;
-    overflow: visible;
+    width: 100%;
   }
 }
 
 @media (max-width: 1024px) {
-  .property-view-container {
+  .property-workspace__header,
+  .property-workspace__tabs {
+    padding-right: 28px;
+    padding-left: 28px;
+  }
+
+  .property-overview-grid {
     grid-template-columns: 1fr;
-    height: auto;
-    --property-summary-card-height: auto;
-  }
-
-  .property-sidebar {
-    position: static;
-    max-height: none;
-    order: 1;
-  }
-
-  .property-content {
-    order: 2;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0 !important;
-  }
-
-  .property-action-rail {
-    position: static;
-    grid-column: 1;
-    order: 3;
+    padding: 28px;
   }
 
   .property-details-grid {
     grid-template-columns: 1fr;
+    padding: 12px 28px 28px;
   }
 
   .info-grid {
@@ -4318,6 +4413,58 @@ const cancelEdit = () => {
 }
 
 @media (max-width: 768px) {
+  .property-workspace {
+    border-radius: 20px;
+  }
+
+  .property-workspace__header {
+    min-height: 112px;
+    padding: 24px 20px;
+  }
+
+  .property-workspace__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 17px;
+  }
+  .property-workspace__identity {
+    gap: 14px;
+  }
+  .property-workspace__identity p {
+    font-size: 0.86rem;
+  }
+  .property-workspace__more {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+  .property-workspace__tabs {
+    gap: 24px;
+    min-height: 62px;
+    padding: 0 20px;
+  }
+  .property-workspace__tab {
+    height: 62px;
+    font-size: 0.9rem;
+  }
+  .property-overview-grid {
+    gap: 16px;
+    padding: 20px;
+  }
+  .property-details-grid {
+    padding: 4px 20px 20px;
+  }
+  .property-health-card .q-card__section,
+  .property-activity-card .q-card__section {
+    padding: 22px;
+  }
+  .property-activity-card__heading {
+    align-items: center;
+  }
+  .property-activity-card__heading .q-btn {
+    font-size: 0.78rem;
+  }
+
   .info-grid,
   .tasks-grid,
   .financial-grid {

@@ -29,9 +29,10 @@
             Enter your account details to continue to your workspace.
           </p>
 
-          <q-form @submit="handleSignIn" class="auth-form">
+          <q-form data-testid="pm-login-form" @submit="handleSignIn" class="auth-form">
             <q-input
               v-model="email"
+              data-testid="pm-login-email"
               type="email"
               label="Email address"
               required
@@ -41,6 +42,7 @@
 
             <q-input
               v-model="password"
+              data-testid="pm-login-password"
               type="password"
               label="Password"
               required
@@ -60,6 +62,7 @@
             </div>
 
             <q-btn
+              data-testid="pm-login-submit"
               color="primary"
               text-color="white"
               unelevated
@@ -176,13 +179,16 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
+import { useUserDataStore } from '../stores/userDataStore'
+import { auth, authStateReady } from '../boot/firebase'
 
 const route = useRoute()
 const router = useRouter()
+const userDataStore = useUserDataStore()
 const {
   loading,
   error,
@@ -205,15 +211,42 @@ const showForgotPassword = ref(false)
 const resetEmail = ref('')
 const redirectingAfterAuth = ref(false)
 
-const goToLoadingOnce = () => {
+const getSafeRedirect = () => {
+  const target = String(route.query.redirect || '').trim()
+  return target.startsWith('/') && !target.startsWith('//') ? target : ''
+}
+
+const goToLoadingOnce = async () => {
   if (redirectingAfterAuth.value) return
   if (route.path !== '/public/login') return
   redirectingAfterAuth.value = true
-  const redirectUrl = route.query.redirect
-  if (redirectUrl) {
-    router.replace({ path: '/loading', query: { redirect: redirectUrl } })
-  } else {
-    router.replace('/loading')
+
+  try {
+    await authStateReady
+    const firebaseUser = auth.currentUser
+    if (!firebaseUser) {
+      redirectingAfterAuth.value = false
+      return
+    }
+
+    // `useFirebase()` receives auth state before the router guard necessarily
+    // sees the Pinia user. Start store hydration before crossing into a private route.
+    await userDataStore.setUser(firebaseUser)
+    await nextTick()
+
+    const redirectUrl = getSafeRedirect()
+    await router.replace(
+      redirectUrl ? { path: '/loading', query: { redirect: redirectUrl } } : '/loading',
+    )
+  } catch (error) {
+    redirectingAfterAuth.value = false
+    Notify.create({
+      type: 'negative',
+      message:
+        'Your account was verified, but the workspace could not be opened. Please try again.',
+      position: 'top',
+    })
+    console.error('Failed to open authenticated workspace:', error)
   }
 }
 
@@ -231,6 +264,7 @@ const handleSignIn = async () => {
     await signIn(email.value, password.value)
     email.value = ''
     password.value = ''
+    await goToLoadingOnce()
   } catch (err) {
     console.error('Sign in error:', err)
   }

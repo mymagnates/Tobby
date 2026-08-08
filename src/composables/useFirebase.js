@@ -18,7 +18,7 @@ import {
   getDocs,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { app, auth, authPersistenceReady, db, storage, sessionManager } from '../boot/firebase'
+import { app, auth, authStateReady, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
 
 const FIREBASE_DEBUG_LOGS_ENABLED = false
@@ -44,7 +44,7 @@ export function useFirebase() {
   }
 
   const waitForAuthenticatedUser = async () => {
-    await authPersistenceReady
+    await authStateReady
 
     if (auth.currentUser) {
       await auth.currentUser.getIdToken(true)
@@ -80,7 +80,9 @@ export function useFirebase() {
     }
 
     if (!currentUser) {
-      const authError = new Error('User is not authenticated. Please sign in again before uploading.')
+      const authError = new Error(
+        'User is not authenticated. Please sign in again before uploading.',
+      )
       authError.code = 'storage/unauthenticated'
       throw authError
     }
@@ -91,6 +93,51 @@ export function useFirebase() {
 
   const uploadFileWithRestFallback = async (path, file) => {
     const currentUser = await waitForAuthenticatedUser()
+    const normalizedPath = String(path || '').replace(/^\/+/, '')
+    const quotaProtectedPath = /^(?:images\/[^/]+\/[^/]+\/|properties\/[^/]+\/)/.test(
+      normalizedPath,
+    )
+
+    if (quotaProtectedPath) {
+      const token = await currentUser.getIdToken(true)
+      const reserveResponse = await fetch('/api/storage/upload-reservations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storage_path: normalizedPath,
+          size_bytes: Number(file?.size || 0),
+          content_type: file?.type || 'application/octet-stream',
+        }),
+      })
+      const reservation = await reserveResponse.json().catch(() => ({}))
+      if (!reserveResponse.ok) {
+        const reservationError = new Error(
+          reservation?.message || 'Unable to reserve storage upload',
+        )
+        reservationError.code = reservation?.error_code || 'storage/quota-exceeded'
+        throw reservationError
+      }
+      const uploadResponse = await fetch(reservation.upload_url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file?.type || 'application/octet-stream',
+          'x-goog-meta-firebaseStorageDownloadTokens': reservation.download_token || '',
+        },
+        body: file,
+      })
+      if (!uploadResponse.ok) throw new Error('Storage upload failed')
+      const commitResponse = await fetch(
+        `/api/storage/upload-reservations/${encodeURIComponent(reservation.reservation_id)}/commit`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      const committed = await commitResponse.json().catch(() => ({}))
+      if (!commitResponse.ok)
+        throw new Error(committed?.message || 'Unable to commit storage upload')
+      return committed.url
+    }
     const fileRef = storageRef(storage, path)
 
     try {
@@ -119,9 +166,11 @@ export function useFirebase() {
 
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
-        const errorMessage = payload?.error?.message || uploadError.message || 'Storage upload failed'
+        const errorMessage =
+          payload?.error?.message || uploadError.message || 'Storage upload failed'
         const restError = new Error(errorMessage)
-        restError.code = response.status === 401 ? 'storage/unauthenticated' : 'storage/unauthorized'
+        restError.code =
+          response.status === 401 ? 'storage/unauthenticated' : 'storage/unauthorized'
         restError.payload = payload
         throw restError
       }
@@ -130,11 +179,14 @@ export function useFirebase() {
     }
   }
 
-  // Auth state observer
-  onAuthStateChanged(auth, async (currentUser) => {
-    user.value = currentUser
-    // Use the new initialize method which handles both new logins and page refreshes
-    userDataStore.setUser(currentUser)
+  // Register only after persisted Auth state has settled. This avoids treating
+  // the startup null state as a real logout in components mounted during refresh.
+  void authStateReady.finally(() => {
+    onAuthStateChanged(auth, async (currentUser) => {
+      user.value = currentUser
+      // Use the new initialize method which handles both new logins and page refreshes.
+      await userDataStore.setUser(currentUser)
+    })
   })
 
   // Authentication methods
@@ -143,11 +195,11 @@ export function useFirebase() {
       loading.value = true
       error.value = null
       const result = await signInWithEmailAndPassword(auth, email, password)
-      
+
       // Persist session with LOCAL auth persistence
       sessionManager.setLoginTime()
       debugLog('User signed in successfully; session persistence is always-on')
-      
+
       return result
     } catch (err) {
       error.value = err.message
@@ -433,7 +485,9 @@ export function useFirebase() {
       const now = new Date()
       const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0]
 
-      debugLog(`Uploading ${normalizedFiles.length} images for property: ${propertyName} (${propertyId})`)
+      debugLog(
+        `Uploading ${normalizedFiles.length} images for property: ${propertyName} (${propertyId})`,
+      )
       await waitForAuthenticatedUser()
 
       const uploadPromises = normalizedFiles.map(async (file, index) => {

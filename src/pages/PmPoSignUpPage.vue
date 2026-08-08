@@ -100,6 +100,15 @@
             <template v-slot:prepend><q-icon name="phone" /></template>
           </q-input>
 
+          <div class="form-section-title q-mt-sm">About Your Portfolio</div>
+          <q-option-group
+            v-model="form.manageScope"
+            :options="manageScopeOptions"
+            type="checkbox"
+            color="primary"
+            class="manage-scope-options"
+          />
+
           <q-banner v-if="errorMessage" class="bg-negative text-white q-mt-sm" rounded>
             <template v-slot:avatar><q-icon name="error" /></template>
             {{ errorMessage }}
@@ -154,7 +163,13 @@ const form = ref({
   fullName: '',
   companyName: '',
   phone: '',
+  manageScope: ['Own'],
 })
+
+const manageScopeOptions = [
+  { label: 'My own properties', value: 'Own' },
+  { label: 'Properties for others', value: 'Others' },
+]
 
 const handleSignUp = async () => {
   loading.value = true
@@ -177,6 +192,7 @@ const handleSignUp = async () => {
         account_type_locked: true,
         account_type_selected_at: new Date(),
         user_category: 'pm',
+        manage_scope: Array.isArray(form.value.manageScope) ? form.value.manageScope : [],
         owner_workspace_only: false,
         created_at: new Date(),
         updated_at: new Date(),
@@ -219,6 +235,10 @@ const handleSignUp = async () => {
 .loading-text {
   margin-top: 16px;
   color: var(--auth-ink-soft);
+}
+
+.manage-scope-options {
+  padding: 4px 0 2px;
 }
 
 @media (max-width: 600px) {

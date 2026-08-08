@@ -1318,15 +1318,18 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
-import { useFirebase } from 'src/composables/useFirebase'
 import CreateLease from '../components/CreateLease.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import InventoryList from '../components/InventoryList.vue'
 import LeaseDocuments from '../components/LeaseDocuments.vue'
 import { Notify } from 'quasar'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../boot/firebase'
 import { listLeaseApplicationsForLeaseRequest } from '../services/leaseApplicationApi'
+import { listPropertyTenantsRequest } from '../services/tenantApi'
+import {
+  getLeaseInventoryRequest,
+  updateLeaseRequest,
+  updateLeaseStatusRequest,
+} from '../services/leaseApi'
 
 // Router
 const router = useRouter()
@@ -1334,8 +1337,6 @@ const route = useRoute()
 
 // Store
 const userDataStore = useUserDataStore()
-const { updateDocument, getAllDocuments, getDocument } = useFirebase()
-const PRIMARY_INVENTORY_DOC_ID = 'primary'
 
 // Reactive data
 const searchQuery = ref('')
@@ -1513,18 +1514,12 @@ const fetchLeaseTenants = async (leaseId) => {
   try {
     console.log('Fetching tenants for lease:', leaseId)
 
-    // Query tenants collection with matching lease_id
-    const tenantsRef = collection(db, 'tenants')
-    const q = query(tenantsRef, where('lease_id', '==', leaseId))
-    const querySnapshot = await getDocs(q)
-
-    const tenants = []
-    querySnapshot.forEach((doc) => {
-      tenants.push({
-        id: doc.id,
-        ...doc.data(),
-      })
-    })
+    const propertyId = getLeasePropertyId(selectedLease.value)
+    if (!propertyId) throw new Error('The lease is not linked to a property.')
+    const response = await listPropertyTenantsRequest({ propertyId })
+    const tenants = (Array.isArray(response?.rows) ? response.rows : []).filter(
+      (tenant) => String(tenant?.lease_id || '') === String(leaseId),
+    )
 
     leaseTenants.value = tenants
     console.log(`Found ${tenants.length} tenants for lease ${leaseId}`)
@@ -1542,16 +1537,12 @@ const fetchAllLeaseTenants = async () => {
 
   for (const lease of rentedLeases) {
     try {
-      const tenantsRef = collection(db, 'leases', lease.id, 'tenants')
-      const querySnapshot = await getDocs(tenantsRef)
-
-      const tenants = []
-      querySnapshot.forEach((doc) => {
-        tenants.push({
-          id: doc.id,
-          ...doc.data(),
-        })
-      })
+      const propertyId = getLeasePropertyId(lease)
+      if (!propertyId) continue
+      const response = await listPropertyTenantsRequest({ propertyId })
+      const tenants = (Array.isArray(response?.rows) ? response.rows : []).filter(
+        (tenant) => String(tenant?.lease_id || '') === String(lease.id),
+      )
 
       if (tenants.length > 0) {
         leaseTenantsMap.value[lease.id] = tenants[0] // Store first tenant for display
@@ -1779,8 +1770,10 @@ const saveLeaseChanges = async () => {
       selectedLease.value.move_in_date = canonicalStartDate
     }
 
-    // Update the lease in Firebase
-    await updateDocument('leases', selectedLease.value.id, selectedLease.value)
+    await updateLeaseRequest({
+      leaseId: selectedLease.value.id,
+      changes: selectedLease.value,
+    })
 
     // Refresh the leases data
     await userDataStore.refreshLeases()
@@ -1810,8 +1803,7 @@ const quickChangeStatus = async (newStatus) => {
     // Update status locally first for immediate feedback
     selectedLease.value.status = newStatus
 
-    // Update in Firebase
-    await updateDocument('leases', selectedLease.value.id, { status: newStatus })
+    await updateLeaseStatusRequest({ leaseId: selectedLease.value.id, status: newStatus })
 
     // Refresh the leases data
     await userDataStore.refreshLeases()
@@ -1867,11 +1859,11 @@ const archiveLease = async () => {
   if (!selectedLease.value) return
 
   try {
-    // Soft archive the lease to preserve historical data
-    await updateDocument('leases', selectedLease.value.id, {
+    // The API preserves the record and applies the archive timestamp atomically.
+    await updateLeaseStatusRequest({
+      leaseId: selectedLease.value.id,
       status: 'Archived',
       archived: true,
-      archived_at: new Date().toISOString(),
     })
 
     // Refresh the leases data
@@ -1912,14 +1904,7 @@ const openInventoryDialog = async (lease = selectedLease.value) => {
     }
 
     try {
-      let inventoryRecord = await getDocument(
-        `leases/${normalizedLeaseDocId}/inventories/${PRIMARY_INVENTORY_DOC_ID}`,
-      )
-
-      if (!inventoryRecord) {
-        const inventoryRows = await getAllDocuments(`leases/${normalizedLeaseDocId}/inventories`)
-        inventoryRecord = pickBestInventoryRecord(inventoryRows)
-      }
+      let inventoryRecord = await getLeaseInventoryRequest({ leaseId: normalizedLeaseDocId })
 
       if (!inventoryRecord) {
         Notify.create({
@@ -1957,32 +1942,6 @@ const onInventorySaved = (inventoryData) => {
     message: 'Inventory saved successfully!',
     position: 'top',
   })
-}
-
-const toInventoryTimestamp = (value) => {
-  if (!value) return 0
-  const next = value?.toDate ? value.toDate() : new Date(value)
-  const time = next instanceof Date ? next.getTime() : NaN
-  return Number.isFinite(time) ? time : 0
-}
-
-const pickBestInventoryRecord = (rows) => {
-  if (!Array.isArray(rows) || rows.length === 0) return null
-
-  return [...rows].sort((a, b) => {
-    const aHasData =
-      (Array.isArray(a?.custom_items) && a.custom_items.length > 0) ||
-      Object.values(a?.ktcs_items || {}).some((item) => (item?.received || 0) > 0 || (item?.returned || 0) > 0)
-    const bHasData =
-      (Array.isArray(b?.custom_items) && b.custom_items.length > 0) ||
-      Object.values(b?.ktcs_items || {}).some((item) => (item?.received || 0) > 0 || (item?.returned || 0) > 0)
-
-    if (aHasData !== bHasData) return aHasData ? -1 : 1
-
-    const aTime = toInventoryTimestamp(a?.updated_datetime) || toInventoryTimestamp(a?.created_datetime)
-    const bTime = toInventoryTimestamp(b?.updated_datetime) || toInventoryTimestamp(b?.created_datetime)
-    return bTime - aTime
-  })[0]
 }
 
 // Documents dialog functions

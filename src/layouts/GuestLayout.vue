@@ -2,7 +2,10 @@
   <q-layout view="hHh lpr fFf" class="guest-layout">
     <q-header class="guest-header">
       <q-toolbar class="guest-toolbar">
-        <div class="logo-container" @click="goHome">Handout</div>
+        <div class="logo-container" @click="goHome">
+          <span class="guest-brand-mark">H</span>
+          <span>Handout</span>
+        </div>
         <div class="guest-actions">
           <q-btn
             v-if="isLoginPage"
@@ -34,10 +37,10 @@
       <div class="footer-content">
         <div class="footer-logo">Handout</div>
         <div class="footer-links">
-          <a href="/about" class="footer-link">About</a>
-          <a href="/contact-support" class="footer-link">Contact &amp; Support</a>
-          <a href="/privacy" class="footer-link">Privacy Policy</a>
-          <a href="/terms" class="footer-link">Terms of Service</a>
+          <a href="/about.html" class="footer-link">About</a>
+          <a href="/contact-support.html" class="footer-link">Contact &amp; Support</a>
+          <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+          <a href="/terms.html" class="footer-link">Terms of Service</a>
         </div>
         <div class="footer-copy">
           &copy; {{ currentYear }} Magnates Solution LLC. All rights reserved.
@@ -84,16 +87,18 @@ const goHome = () => {
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 .guest-layout {
-  background: #faf8f3;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%), #f4f7f9;
   font-family: 'Noto Sans SC', sans-serif;
 }
 
 .guest-header {
-  background: rgba(250, 248, 243, 0.92);
+  background: rgba(16, 34, 52, 0.96);
   backdrop-filter: blur(12px);
   box-shadow: none;
-  border-bottom: 1px solid #ddd8ce;
-  color: #1a1612;
+  border-bottom: 1px solid rgba(162, 238, 220, 0.14);
+  color: #f8fcff;
 }
 
 .guest-toolbar {
@@ -107,6 +112,9 @@ const goHome = () => {
 }
 
 .logo-container {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-family: 'Sora', sans-serif;
   font-size: 22px;
   font-weight: 800;
@@ -114,20 +122,41 @@ const goHome = () => {
   cursor: pointer;
 }
 
+.guest-brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #15364a;
+  background: #27c2a4;
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .primary-action,
 .secondary-action {
   font-weight: 600;
   padding: 8px 20px;
-  border-radius: 100px !important;
+  border-radius: 10px !important;
 }
 
-.primary-action {
-  box-shadow: 0 6px 18px rgba(26, 22, 18, 0.15);
+body .guest-layout .q-btn.primary-action {
+  background: #16786a !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(22, 120, 106, 0.16);
+}
+
+body .guest-layout .q-btn.secondary-action {
+  border-color: #16786a !important;
+  color: #16786a !important;
+  background: transparent !important;
 }
 
 .guest-footer {
   position: static;
-  background: #1a1612;
+  background: #10283c;
 }
 
 .footer-content {

@@ -7,19 +7,31 @@
         <div class="text-h4 q-mt-md">Loading Dashboard</div>
         <div class="text-h6 q-mt-sm text-grey-6">Please wait while we load your data...</div>
         <div class="loading-steps q-mt-lg">
-          <div class="loading-step" :class="{ active: loadingStep >= 1, completed: loadingStep > 1 }">
+          <div
+            class="loading-step"
+            :class="{ active: loadingStep >= 1, completed: loadingStep > 1 }"
+          >
             <q-icon name="person" size="20px" />
             <span>Loading Profile</span>
           </div>
-          <div class="loading-step" :class="{ active: loadingStep >= 2, completed: loadingStep > 2 }">
+          <div
+            class="loading-step"
+            :class="{ active: loadingStep >= 2, completed: loadingStep > 2 }"
+          >
             <q-icon name="campaign" size="20px" />
             <span>Loading Leads</span>
           </div>
-          <div class="loading-step" :class="{ active: loadingStep >= 3, completed: loadingStep > 3 }">
+          <div
+            class="loading-step"
+            :class="{ active: loadingStep >= 3, completed: loadingStep > 3 }"
+          >
             <q-icon name="gavel" size="20px" />
             <span>Loading Bids</span>
           </div>
-          <div class="loading-step" :class="{ active: loadingStep >= 4, completed: loadingStep > 4 }">
+          <div
+            class="loading-step"
+            :class="{ active: loadingStep >= 4, completed: loadingStep > 4 }"
+          >
             <q-icon name="engineering" size="20px" />
             <span>Loading Projects</span>
           </div>
@@ -70,7 +82,14 @@
               <div class="text-caption text-grey-7 q-mb-sm">
                 Open the assistant without leaving the SP workspace.
               </div>
-              <q-btn unelevated color="primary" no-caps icon="chat" label="Talk to Tobby" @click="openAssistant" />
+              <q-btn
+                unelevated
+                color="primary"
+                no-caps
+                icon="chat"
+                label="Talk to Tobby"
+                @click="openAssistant"
+              />
             </q-card-section>
           </q-card>
         </div>
@@ -109,7 +128,13 @@
               @keyup.enter.exact.prevent="sendAssistantMessage"
             />
             <div class="sp-assistant-actions">
-              <q-btn unelevated color="primary" label="Send" :loading="assistantLoading" @click="sendAssistantMessage" />
+              <q-btn
+                unelevated
+                color="primary"
+                label="Send"
+                :loading="assistantLoading"
+                @click="sendAssistantMessage"
+              />
               <q-btn flat label="Clear" @click="resetAssistant" />
             </div>
             <div v-if="assistantError" class="text-negative text-caption">{{ assistantError }}</div>
@@ -123,19 +148,57 @@
         <q-card class="create-new-card q-mb-md">
           <q-card-section class="create-new-section">
             <div class="create-new-actions">
-              <q-btn flat dense no-caps icon="campaign" label="Leads" :color="feedView === 'leads' ? 'primary' : 'grey-7'" @click="setFeedView('leads')" />
-              <q-btn flat dense no-caps icon="gavel" label="Bids" :color="feedView === 'bids' ? 'primary' : 'grey-7'" @click="setFeedView('bids')" />
-              <q-btn flat dense no-caps icon="engineering" label="Projects" :color="feedView === 'projects' ? 'primary' : 'grey-7'" @click="setFeedView('projects')" />
-              <q-btn flat dense no-caps icon="article" label="Posts" :color="feedView === 'posts' ? 'primary' : 'grey-7'" @click="setFeedView('posts')" />
-              <q-btn flat dense no-caps icon="receipt_long" label="Invoices" :color="feedView === 'invoices' ? 'primary' : 'grey-7'" @click="setFeedView('invoices')" />
-              <q-btn flat dense no-caps icon="handyman" label="Services" color="grey-7" @click="goToServices" />
-              <q-btn flat dense no-caps icon="token" label="Credits" color="grey-7" @click="goToCredits" />
-              <q-btn flat dense no-caps icon="dashboard_customize" label="Build Handout" color="grey-7" @click="goToBuildHandout" />
-              <q-btn flat dense no-caps icon="edit" label="Edit Profile" color="grey-7" @click="goToEditProfile" />
+              <q-btn
+                flat
+                dense
+                no-caps
+                icon="campaign"
+                label="Leads"
+                :color="feedView === 'leads' ? 'primary' : 'grey-7'"
+                @click="setFeedView('leads')"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                icon="gavel"
+                label="Bids"
+                :color="feedView === 'bids' ? 'primary' : 'grey-7'"
+                @click="setFeedView('bids')"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                icon="engineering"
+                label="Projects"
+                :color="feedView === 'projects' ? 'primary' : 'grey-7'"
+                @click="setFeedView('projects')"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                icon="article"
+                label="Posts"
+                :color="feedView === 'posts' ? 'primary' : 'grey-7'"
+                @click="setFeedView('posts')"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                icon="receipt_long"
+                label="Invoices"
+                :color="feedView === 'invoices' ? 'primary' : 'grey-7'"
+                @click="setFeedView('invoices')"
+              />
               <div class="feed-sort-group">
                 <span class="feed-sort-label">Sort</span>
                 <q-btn
-                  flat dense no-caps
+                  flat
+                  dense
+                  no-caps
                   label="Time"
                   :icon-right="sortIcon('time')"
                   :color="feedSortField === 'time' ? 'primary' : 'grey-7'"
@@ -164,7 +227,10 @@
               class="feed-post feed-mini-card"
               :class="{ 'feed-post-expanded': expandedFeedId === `lead-${lead.lead_id}` }"
             >
-              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`lead-${lead.lead_id}`)">
+              <q-card-section
+                class="feed-post-section feed-post-clickable"
+                @click="toggleFeedExpand(`lead-${lead.lead_id}`)"
+              >
                 <div class="feed-card-row">
                   <q-avatar size="32px" color="blue-2" text-color="white" class="feed-card-avatar">
                     <q-icon name="campaign" size="16px" />
@@ -174,16 +240,29 @@
                       <div class="post-title">{{ lead.title || 'New Lead' }}</div>
                       <div class="post-time">{{ formatRelativeTime(lead.created_at) }}</div>
                     </div>
-                    <div class="post-body">{{ lead.description || lead.scope || 'No description' }}</div>
+                    <div class="post-body">
+                      {{ lead.description || lead.scope || 'No description' }}
+                    </div>
                     <div class="feed-card-footer">
-                      <span v-if="lead.budget_range" class="post-amount">{{ lead.budget_range }}</span>
+                      <span v-if="lead.budget_range" class="post-amount">{{
+                        lead.budget_range
+                      }}</span>
                       <span v-else></span>
                       <div v-if="getLeadCityStateZip(lead) !== 'N/A'" class="post-property">
-                        <q-icon name="location_on" size="12px" class="q-mr-xs" />{{ getLeadCityStateZip(lead) }}
+                        <q-icon name="location_on" size="12px" class="q-mr-xs" />{{
+                          getLeadCityStateZip(lead)
+                        }}
                       </div>
                     </div>
                   </div>
-                  <q-icon :name="expandedFeedId === `lead-${lead.lead_id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                  <q-icon
+                    :name="
+                      expandedFeedId === `lead-${lead.lead_id}` ? 'expand_less' : 'expand_more'
+                    "
+                    size="18px"
+                    color="grey-5"
+                    class="feed-expand-icon"
+                  />
                 </div>
               </q-card-section>
               <q-slide-transition>
@@ -193,11 +272,19 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <span class="detail-label">Status</span>
-                        <q-chip dense size="sm" :color="lead.status === 'open' ? 'green' : 'grey'" text-color="white">{{ lead.status || 'open' }}</q-chip>
+                        <q-chip
+                          dense
+                          size="sm"
+                          :color="lead.status === 'open' ? 'green' : 'grey'"
+                          text-color="white"
+                          >{{ lead.status || 'open' }}</q-chip
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Budget</span>
-                        <span class="detail-value text-weight-bold">{{ lead.budget_range || '—' }}</span>
+                        <span class="detail-value text-weight-bold">{{
+                          lead.budget_range || '—'
+                        }}</span>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Location</span>
@@ -217,7 +304,15 @@
                       <p>{{ lead.scope }}</p>
                     </div>
                     <div class="detail-actions">
-                      <q-btn dense no-caps size="sm" icon="gavel" label="Submit Bid" color="primary" @click.stop="openBidDialog(lead)" />
+                      <q-btn
+                        dense
+                        no-caps
+                        size="sm"
+                        icon="gavel"
+                        label="Submit Bid"
+                        color="primary"
+                        @click.stop="openBidDialog(lead)"
+                      />
                     </div>
                   </div>
                 </div>
@@ -240,7 +335,10 @@
               class="feed-post feed-mini-card"
               :class="{ 'feed-post-expanded': expandedFeedId === `bid-${bid.bid_id}` }"
             >
-              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`bid-${bid.bid_id}`)">
+              <q-card-section
+                class="feed-post-section feed-post-clickable"
+                @click="toggleFeedExpand(`bid-${bid.bid_id}`)"
+              >
                 <div class="feed-card-row">
                   <q-avatar size="32px" color="green-2" text-color="white" class="feed-card-avatar">
                     <q-icon name="gavel" size="16px" />
@@ -250,13 +348,37 @@
                       <div class="post-title">{{ bid.title || 'Bid Submitted' }}</div>
                       <div class="post-time">{{ formatRelativeTime(bid.created_at) }}</div>
                     </div>
-                    <div class="post-body">${{ Number(bid.amount || 0).toLocaleString() }} · {{ bid.status || 'pending' }}</div>
+                    <div class="post-body">
+                      ${{ Number(bid.amount || 0).toLocaleString() }} ·
+                      {{ bid.status || 'pending' }}
+                    </div>
                     <div class="feed-card-footer">
-                      <q-chip dense size="xs" :color="bid.status === 'accepted' ? 'green' : bid.status === 'rejected' ? 'red' : bid.status === 'expired' ? 'orange' : 'amber'" text-color="white">{{ bid.status === 'accepted' ? 'Accepted' : bid.status || 'pending' }}</q-chip>
+                      <q-chip
+                        dense
+                        size="xs"
+                        :color="
+                          bid.status === 'accepted'
+                            ? 'green'
+                            : bid.status === 'rejected'
+                              ? 'red'
+                              : bid.status === 'expired'
+                                ? 'orange'
+                                : 'amber'
+                        "
+                        text-color="white"
+                        >{{
+                          bid.status === 'accepted' ? 'Accepted' : bid.status || 'pending'
+                        }}</q-chip
+                      >
                       <span></span>
                     </div>
                   </div>
-                  <q-icon :name="expandedFeedId === `bid-${bid.bid_id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                  <q-icon
+                    :name="expandedFeedId === `bid-${bid.bid_id}` ? 'expand_less' : 'expand_more'"
+                    size="18px"
+                    color="grey-5"
+                    class="feed-expand-icon"
+                  />
                 </div>
               </q-card-section>
               <q-slide-transition>
@@ -266,11 +388,27 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <span class="detail-label">Status</span>
-                        <q-chip dense size="sm" :color="bid.status === 'accepted' ? 'green' : bid.status === 'rejected' ? 'red' : bid.status === 'expired' ? 'orange' : 'amber'" text-color="white">{{ bid.status || 'pending' }}</q-chip>
+                        <q-chip
+                          dense
+                          size="sm"
+                          :color="
+                            bid.status === 'accepted'
+                              ? 'green'
+                              : bid.status === 'rejected'
+                                ? 'red'
+                                : bid.status === 'expired'
+                                  ? 'orange'
+                                  : 'amber'
+                          "
+                          text-color="white"
+                          >{{ bid.status || 'pending' }}</q-chip
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Amount</span>
-                        <span class="detail-value text-weight-bold">${{ Number(bid.amount || 0).toLocaleString() }}</span>
+                        <span class="detail-value text-weight-bold"
+                          >${{ Number(bid.amount || 0).toLocaleString() }}</span
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Lead</span>
@@ -326,7 +464,9 @@
             <q-card v-if="!sortedPosts.length" class="feed-post feed-empty-card q-mb-sm">
               <q-card-section class="q-pa-md">
                 <div class="post-title q-mb-xs">No Posts Yet</div>
-                <div class="post-body">Publish posts from this dashboard to build your Handout page.</div>
+                <div class="post-body">
+                  Publish posts from this dashboard to build your Handout page.
+                </div>
               </q-card-section>
             </q-card>
 
@@ -336,22 +476,38 @@
               class="feed-post feed-mini-card"
               :class="{ 'feed-post-expanded': expandedFeedId === `post-${post.id}` }"
             >
-              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`post-${post.id}`)">
+              <q-card-section
+                class="feed-post-section feed-post-clickable"
+                @click="toggleFeedExpand(`post-${post.id}`)"
+              >
                 <div class="feed-card-row">
-                  <q-avatar size="32px" color="indigo-2" text-color="white" class="feed-card-avatar">
+                  <q-avatar
+                    size="32px"
+                    color="indigo-2"
+                    text-color="white"
+                    class="feed-card-avatar"
+                  >
                     <q-icon name="article" size="16px" />
                   </q-avatar>
                   <div class="feed-card-content">
                     <div class="feed-card-header">
                       <div class="post-title">{{ post.title || 'Post' }}</div>
-                      <div class="post-time">{{ formatRelativeTime(post.created_at || post.updated_at) }}</div>
+                      <div class="post-time">
+                        {{ formatRelativeTime(post.created_at || post.updated_at) }}
+                      </div>
                     </div>
                     <div class="post-body">{{ post.content || 'Media post' }}</div>
                     <div class="feed-card-footer">
                       <q-chip
                         dense
                         size="xs"
-                        :color="post.media_type === 'video' ? 'deep-purple' : post.media_type === 'image' ? 'blue' : 'grey'"
+                        :color="
+                          post.media_type === 'video'
+                            ? 'deep-purple'
+                            : post.media_type === 'image'
+                              ? 'blue'
+                              : 'grey'
+                        "
                         text-color="white"
                       >
                         {{ post.media_type || 'text' }}
@@ -359,7 +515,12 @@
                       <span></span>
                     </div>
                   </div>
-                  <q-icon :name="expandedFeedId === `post-${post.id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                  <q-icon
+                    :name="expandedFeedId === `post-${post.id}` ? 'expand_less' : 'expand_more'"
+                    size="18px"
+                    color="grey-5"
+                    class="feed-expand-icon"
+                  />
                 </div>
               </q-card-section>
               <q-slide-transition>
@@ -371,8 +532,17 @@
                       <p>{{ post.content }}</p>
                     </div>
                     <div v-if="post.media_url" class="q-mt-sm">
-                      <q-img v-if="post.media_type === 'image'" :src="post.media_url" class="feed-post-media" fit="cover" />
-                      <video v-else-if="post.media_type === 'video'" controls class="feed-post-video">
+                      <q-img
+                        v-if="post.media_type === 'image'"
+                        :src="post.media_url"
+                        class="feed-post-media"
+                        fit="cover"
+                      />
+                      <video
+                        v-else-if="post.media_type === 'video'"
+                        controls
+                        class="feed-post-video"
+                      >
                         <source :src="post.media_url" />
                       </video>
                     </div>
@@ -395,43 +565,97 @@
               v-for="inv in sortedInvoices"
               :key="inv.invoice_id || inv.id"
               class="feed-post feed-mini-card"
-              :class="{ 'feed-post-expanded': expandedFeedId === `inv-${inv.invoice_id || inv.id}` }"
+              :class="{
+                'feed-post-expanded': expandedFeedId === `inv-${inv.invoice_id || inv.id}`,
+              }"
             >
-              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`inv-${inv.invoice_id || inv.id}`)">
+              <q-card-section
+                class="feed-post-section feed-post-clickable"
+                @click="toggleFeedExpand(`inv-${inv.invoice_id || inv.id}`)"
+              >
                 <div class="feed-card-row">
-                  <q-avatar size="32px" color="purple-2" text-color="white" class="feed-card-avatar">
+                  <q-avatar
+                    size="32px"
+                    color="purple-2"
+                    text-color="white"
+                    class="feed-card-avatar"
+                  >
                     <q-icon name="receipt_long" size="16px" />
                   </q-avatar>
                   <div class="feed-card-content">
                     <div class="feed-card-header">
                       <div class="post-title">Invoice {{ inv.invoice_id || inv.id || '' }}</div>
-                      <div class="post-time">{{ formatRelativeTime(inv.created_at || inv.issued_date) }}</div>
+                      <div class="post-time">
+                        {{ formatRelativeTime(inv.created_at || inv.issued_date) }}
+                      </div>
                     </div>
-                    <div class="post-body">${{ Number(inv.amount || 0).toLocaleString() }} · {{ inv.status || 'draft' }}</div>
+                    <div class="post-body">
+                      ${{ Number(inv.amount || 0).toLocaleString() }} · {{ inv.status || 'draft' }}
+                    </div>
                     <div class="feed-card-footer">
-                      <q-chip dense size="xs" :color="inv.status === 'paid' ? 'green' : inv.status === 'overdue' ? 'red' : 'amber'" text-color="white">{{ inv.status || 'draft' }}</q-chip>
+                      <q-chip
+                        dense
+                        size="xs"
+                        :color="
+                          inv.status === 'paid'
+                            ? 'green'
+                            : inv.status === 'overdue'
+                              ? 'red'
+                              : 'amber'
+                        "
+                        text-color="white"
+                        >{{ inv.status || 'draft' }}</q-chip
+                      >
                       <span></span>
                     </div>
                   </div>
-                  <q-icon :name="expandedFeedId === `inv-${inv.invoice_id || inv.id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                  <q-icon
+                    :name="
+                      expandedFeedId === `inv-${inv.invoice_id || inv.id}`
+                        ? 'expand_less'
+                        : 'expand_more'
+                    "
+                    size="18px"
+                    color="grey-5"
+                    class="feed-expand-icon"
+                  />
                 </div>
               </q-card-section>
               <q-slide-transition>
-                <div v-show="expandedFeedId === `inv-${inv.invoice_id || inv.id}`" class="feed-detail-panel">
+                <div
+                  v-show="expandedFeedId === `inv-${inv.invoice_id || inv.id}`"
+                  class="feed-detail-panel"
+                >
                   <q-separator />
                   <div class="feed-detail-body">
                     <div class="detail-grid">
                       <div class="detail-item">
                         <span class="detail-label">Status</span>
-                        <q-chip dense size="sm" :color="inv.status === 'paid' ? 'green' : inv.status === 'overdue' ? 'red' : 'amber'" text-color="white">{{ inv.status || 'draft' }}</q-chip>
+                        <q-chip
+                          dense
+                          size="sm"
+                          :color="
+                            inv.status === 'paid'
+                              ? 'green'
+                              : inv.status === 'overdue'
+                                ? 'red'
+                                : 'amber'
+                          "
+                          text-color="white"
+                          >{{ inv.status || 'draft' }}</q-chip
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Amount</span>
-                        <span class="detail-value text-weight-bold">${{ Number(inv.amount || 0).toLocaleString() }}</span>
+                        <span class="detail-value text-weight-bold"
+                          >${{ Number(inv.amount || 0).toLocaleString() }}</span
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Issued</span>
-                        <span class="detail-value">{{ formatDate(inv.issued_date || inv.created_at) }}</span>
+                        <span class="detail-value">{{
+                          formatDate(inv.issued_date || inv.created_at)
+                        }}</span>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Due</span>
@@ -463,33 +687,79 @@
               class="feed-post feed-mini-card"
               :class="{ 'feed-post-expanded': expandedFeedId === `proj-${proj.project_id}` }"
             >
-              <q-card-section class="feed-post-section feed-post-clickable" @click="toggleFeedExpand(`proj-${proj.project_id}`)">
+              <q-card-section
+                class="feed-post-section feed-post-clickable"
+                @click="toggleFeedExpand(`proj-${proj.project_id}`)"
+              >
                 <div class="feed-card-row">
-                  <q-avatar size="32px" color="orange-2" text-color="white" class="feed-card-avatar">
+                  <q-avatar
+                    size="32px"
+                    color="orange-2"
+                    text-color="white"
+                    class="feed-card-avatar"
+                  >
                     <q-icon name="engineering" size="16px" />
                   </q-avatar>
                   <div class="feed-card-content">
                     <div class="feed-card-header">
-                      <div class="post-title">{{ proj.task_title || `Project ${proj.project_id}` }}</div>
-                      <div class="post-time">{{ formatRelativeTime(proj.accepted_at || proj.created_at) }}</div>
+                      <div class="post-title">
+                        {{ proj.task_title || `Project ${proj.project_id}` }}
+                      </div>
+                      <div class="post-time">
+                        {{ formatRelativeTime(proj.accepted_at || proj.created_at) }}
+                      </div>
                     </div>
                     <div class="post-body">{{ proj.address || 'No address' }}</div>
                     <div class="feed-card-footer">
-                      <q-chip dense size="xs" :color="proj.status === 'completed' ? 'green' : proj.status === 'in_progress' ? 'blue' : 'amber'" text-color="white">{{ proj.status || 'active' }}</q-chip>
+                      <q-chip
+                        dense
+                        size="xs"
+                        :color="
+                          proj.status === 'completed'
+                            ? 'green'
+                            : proj.status === 'in_progress'
+                              ? 'blue'
+                              : 'amber'
+                        "
+                        text-color="white"
+                        >{{ proj.status || 'active' }}</q-chip
+                      >
                       <span></span>
                     </div>
                   </div>
-                  <q-icon :name="expandedFeedId === `proj-${proj.project_id}` ? 'expand_less' : 'expand_more'" size="18px" color="grey-5" class="feed-expand-icon" />
+                  <q-icon
+                    :name="
+                      expandedFeedId === `proj-${proj.project_id}` ? 'expand_less' : 'expand_more'
+                    "
+                    size="18px"
+                    color="grey-5"
+                    class="feed-expand-icon"
+                  />
                 </div>
               </q-card-section>
               <q-slide-transition>
-                <div v-show="expandedFeedId === `proj-${proj.project_id}`" class="feed-detail-panel">
+                <div
+                  v-show="expandedFeedId === `proj-${proj.project_id}`"
+                  class="feed-detail-panel"
+                >
                   <q-separator />
                   <div class="feed-detail-body">
                     <div class="detail-grid">
                       <div class="detail-item">
                         <span class="detail-label">Status</span>
-                        <q-chip dense size="sm" :color="proj.status === 'completed' ? 'green' : proj.status === 'in_progress' ? 'blue' : 'amber'" text-color="white">{{ proj.status || 'active' }}</q-chip>
+                        <q-chip
+                          dense
+                          size="sm"
+                          :color="
+                            proj.status === 'completed'
+                              ? 'green'
+                              : proj.status === 'in_progress'
+                                ? 'blue'
+                                : 'amber'
+                          "
+                          text-color="white"
+                          >{{ proj.status || 'active' }}</q-chip
+                        >
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Address</span>
@@ -523,9 +793,15 @@
                         />
                         <div class="phase-info">
                           <div class="phase-name">{{ phase.label }}</div>
-                          <div v-if="phase.completedAt" class="phase-date">{{ formatDate(phase.completedAt) }}</div>
+                          <div v-if="phase.completedAt" class="phase-date">
+                            {{ formatDate(phase.completedAt) }}
+                          </div>
                         </div>
-                        <q-icon :name="phase.icon" size="16px" :color="phase.done ? 'positive' : 'grey-4'" />
+                        <q-icon
+                          :name="phase.icon"
+                          size="16px"
+                          :color="phase.done ? 'positive' : 'grey-4'"
+                        />
                       </div>
                     </div>
 
@@ -548,7 +824,14 @@
                           class="comment-input"
                           @keyup.enter="addComment(proj)"
                         />
-                        <q-btn flat dense icon="send" color="primary" :disable="!commentInputs[proj.project_id]" @click="addComment(proj)" />
+                        <q-btn
+                          flat
+                          dense
+                          icon="send"
+                          color="primary"
+                          :disable="!commentInputs[proj.project_id]"
+                          @click="addComment(proj)"
+                        />
                       </div>
                     </div>
                   </div>
@@ -558,24 +841,25 @@
           </template>
         </div>
       </div>
-
     </div>
 
-    <SpBidDialog
-      v-model="showBidDialog"
-      :lead="bidTargetLead"
-      @submitted="handleBidSubmitted"
-    />
+    <SpBidDialog v-model="showBidDialog" :lead="bidTargetLead" @submitted="handleBidSubmitted" />
 
     <q-dialog v-model="showCreatePostDialog">
-      <q-card style="min-width: 420px; max-width: 520px;">
+      <q-card style="min-width: 420px; max-width: 520px">
         <q-card-section class="row items-center justify-between q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Create Post</div>
           <q-btn icon="close" flat round dense @click="closeCreatePostDialog" />
         </q-card-section>
         <q-separator class="q-mt-sm" />
         <q-card-section>
-          <q-input v-model="createPostForm.title" outlined dense label="Title (optional)" class="q-mb-sm" />
+          <q-input
+            v-model="createPostForm.title"
+            outlined
+            dense
+            label="Title (optional)"
+            class="q-mb-sm"
+          />
           <q-input
             v-model="createPostForm.content"
             outlined
@@ -650,7 +934,9 @@ const loadingStep = computed(() => {
 })
 
 const dataLoaded = computed(() => {
-  return !leadsLoading.value && !bidsLoading.value && !projectsLoading.value && !invoicesLoading.value
+  return (
+    !leadsLoading.value && !bidsLoading.value && !projectsLoading.value && !invoicesLoading.value
+  )
 })
 
 // Stats
@@ -670,24 +956,15 @@ const setFeedView = (view) => {
   expandedFeedId.value = null
 }
 
-const goToServices = () => {
-  router.push('/sp-services')
-}
-
-const goToCredits = () => {
-  router.push('/sp-credits')
-}
-
 const goToBuildHandout = () => {
   router.push('/sp-handout-builder')
 }
 
-const goToEditProfile = () => {
-  router.push('/sp-profile')
-}
-
 const goToShowcase = () => {
-  const slug = resolveSpSlug(userStore.userProfile || {}, userStore.userId || userStore.user?.uid || '')
+  const slug = resolveSpSlug(
+    userStore.userProfile || {},
+    userStore.userId || userStore.user?.uid || '',
+  )
   if (!slug) return
   window.open(`/public/handout/${slug}`, '_blank', 'noopener,noreferrer')
 }
@@ -759,16 +1036,20 @@ const sendAssistantMessage = async () => {
         active_projects: totalProjects.value,
       },
     })
-    assistantMessages.value.push(createAssistantMessage({
-      role: 'assistant',
-      text: getAssistantResponseText(response),
-    }))
+    assistantMessages.value.push(
+      createAssistantMessage({
+        role: 'assistant',
+        text: getAssistantResponseText(response),
+      }),
+    )
   } catch (error) {
     assistantError.value = error?.message || 'Failed to reach Tobby.'
-    assistantMessages.value.push(createAssistantMessage({
-      role: 'assistant',
-      text: assistantError.value,
-    }))
+    assistantMessages.value.push(
+      createAssistantMessage({
+        role: 'assistant',
+        text: assistantError.value,
+      }),
+    )
   } finally {
     assistantLoading.value = false
   }
@@ -890,11 +1171,7 @@ const getLeadCityStateZip = (lead) => {
   const city = String(lead.property_city || lead.city || '').trim()
   const state = String(lead.property_state || lead.state || '').trim()
   const zip = String(
-    lead.property_zip ||
-      lead.zip ||
-      lead.zip_code ||
-      lead.postal_code ||
-      '',
+    lead.property_zip || lead.zip || lead.zip_code || lead.postal_code || '',
   ).trim()
   const parts = [city, state].filter(Boolean)
   const head = parts.join(', ')
@@ -903,14 +1180,18 @@ const getLeadCityStateZip = (lead) => {
 }
 
 const handleBidSubmitted = (res) => {
-  const leadDocId = bidTargetLead.value?.id || bidTargetLead.value?.lead_doc_id || bidTargetLead.value?.lead_id
+  const leadDocId =
+    bidTargetLead.value?.id || bidTargetLead.value?.lead_doc_id || bidTargetLead.value?.lead_id
   const bidRow = res?.bid || res
   bids.value = [bidRow, ...bids.value]
-  leads.value = leads.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
+  leads.value = leads.value.filter(
+    (row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId,
+  )
   const remaining = res?.credits_balance
   Notify.create({
     type: 'positive',
-    message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
+    message:
+      remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
     position: 'top',
   })
 }
@@ -1012,7 +1293,10 @@ const commentInputs = ref({})
 const addComment = async (proj) => {
   const text = (commentInputs.value[proj.project_id] || '').trim()
   if (!text) return
-  const comments = [...(proj.comments || []), { text, created_at: new Date().toISOString(), author: userStore.userId }]
+  const comments = [
+    ...(proj.comments || []),
+    { text, created_at: new Date().toISOString(), author: userStore.userId },
+  ]
   proj.comments = comments
   commentInputs.value[proj.project_id] = ''
   try {
@@ -1026,10 +1310,18 @@ const addComment = async (proj) => {
 const loadDashboard = async () => {
   try {
     const [leadRows, bidRows, projectRows, invoiceRows, postRows] = await Promise.all([
-      spPortalApi.listLeads(userStore.userId).finally(() => { leadsLoading.value = false }),
-      spPortalApi.listBids(userStore.userId).finally(() => { bidsLoading.value = false }),
-      spPortalApi.listProjects(userStore.userId).finally(() => { projectsLoading.value = false }),
-      spPortalApi.listInvoices(userStore.userId).finally(() => { invoicesLoading.value = false }),
+      spPortalApi.listLeads(userStore.userId).finally(() => {
+        leadsLoading.value = false
+      }),
+      spPortalApi.listBids(userStore.userId).finally(() => {
+        bidsLoading.value = false
+      }),
+      spPortalApi.listProjects(userStore.userId).finally(() => {
+        projectsLoading.value = false
+      }),
+      spPortalApi.listInvoices(userStore.userId).finally(() => {
+        invoicesLoading.value = false
+      }),
       getCollectionData(`users/${String(userStore.userId || '')}/posts`).catch(() => []),
     ])
 
@@ -1039,7 +1331,9 @@ const loadDashboard = async () => {
     invoices.value = invoiceRows || []
     posts.value = postRows || []
     if (!posts.value.length) {
-      const legacyRows = await getCollectionData(`users/${String(userStore.userId || '')}/showcase_posts`).catch(() => [])
+      const legacyRows = await getCollectionData(
+        `users/${String(userStore.userId || '')}/showcase_posts`,
+      ).catch(() => [])
       posts.value = legacyRows || []
     }
   } catch (error) {
@@ -1113,11 +1407,12 @@ onMounted(loadDashboard)
 
 /* 2-column grid */
 .feed-shell {
-  max-width: 1580px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
 }
 
 .feed-reminders,
@@ -1341,7 +1636,9 @@ onMounted(loadDashboard)
 
 .feed-post-clickable {
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .feed-post-clickable:hover {

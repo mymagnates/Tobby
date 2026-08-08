@@ -7,6 +7,7 @@ import {
 } from 'vue-router'
 import routes from './routes'
 import { useUserDataStore } from '../stores/userDataStore'
+import { auth, authStateReady } from '../boot/firebase'
 
 /*
  * If not building with SSR mode, you can
@@ -50,9 +51,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     if (typeof window === 'undefined') return false
     const capacitor = window.Capacitor
     return Boolean(
-      capacitor &&
-        typeof capacitor.isNativePlatform === 'function' &&
-        capacitor.isNativePlatform(),
+      capacitor && typeof capacitor.isNativePlatform === 'function' && capacitor.isNativePlatform(),
     )
   }
 
@@ -72,6 +71,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     '/sp-profile',
     '/sp-handout-builder',
     '/public/owner-invite',
+    '/public/property-access-invite',
     '/public/tenant-signup',
     '/public/sp-signup',
     '/public/handout',
@@ -85,6 +85,16 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   // Navigation guard for authentication and role-based access control
   Router.beforeEach(async (to, from, next) => {
     const userDataStore = useUserDataStore()
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+    const needsSettledAuth = requiresAuth || to.path === '/loading' || to.path === '/public/login'
+
+    if (needsSettledAuth) {
+      await authStateReady
+      if (auth.currentUser && !userDataStore.user) {
+        await userDataStore.setUser(auth.currentUser)
+      }
+    }
+
     const userCategory = userDataStore.userCategory
     const isAuthenticated = !!userDataStore.user
     const hasSpServiceAreaConfigured = () => {
@@ -127,7 +137,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       // 2. Coming from logout-success
       // 3. Has redirect query parameter (means they were redirected here)
       if (to.path === '/public/login') {
-        if (!isAuthenticated || from.path === '/logout-success' || to.query.redirect || to.query.expired) {
+        if (
+          !isAuthenticated ||
+          from.path === '/logout-success' ||
+          to.query.redirect ||
+          to.query.expired
+        ) {
           console.log('Router Guard - Allowing access to login page')
           next()
           return
@@ -152,8 +167,6 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // ============================================
     // 2. AUTHENTICATED ROUTES (MainLayout)
     // ============================================
-    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-
     if (requiresAuth && !isAuthenticated) {
       console.log('Router Guard - Authentication required, redirecting to landing')
       if (typeof window !== 'undefined') {
@@ -201,7 +214,9 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // ============================================
     const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
     const profile = userDataStore.userProfile || {}
-    const rawRole = String(profile.account_type || profile.user_category || userCategory || '').toLowerCase()
+    const rawRole = String(
+      profile.account_type || profile.user_category || userCategory || '',
+    ).toLowerCase()
     const isAdmin = rawRole === 'admin'
     if (requiresAdmin) {
       if (!isAdmin) {
@@ -213,16 +228,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       next('/admin/overview')
       return
     }
-    
+
     // Define tenant-allowed routes (only for tenants)
-    const tenantAllowedRoutes = [
-      '/tenant-home',
-      '/application-detail',
-      '/documents',
-    ]
+    const tenantAllowedRoutes = ['/tenant-home', '/application-detail', '/documents']
 
     // Check if route path matches tenant-allowed routes
-    const isTenantAllowed = tenantAllowedRoutes.some(route => to.path.startsWith(route))
+    const isTenantAllowed = tenantAllowedRoutes.some((route) => to.path.startsWith(route))
 
     // If user is a tenant and trying to access a non-allowed route
     if (String(userCategory || '').toLowerCase() === 'tt' && !isTenantAllowed) {
@@ -265,12 +276,20 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       }
     }
 
-    const normalizedAccountType = String(userDataStore.accountType || userCategory || '').toLowerCase()
+    const normalizedAccountType = String(
+      userDataStore.accountType || userCategory || '',
+    ).toLowerCase()
     const hasPoMembership = Boolean(userDataStore.hasPoMembership)
     const hasPmMembership = Boolean(userDataStore.hasPmMembership)
     const hasLegacyPoAccount = Boolean(userDataStore.hasLegacyPoAccount)
     const isOwnerWorkspaceOnly = Boolean(userDataStore.isOwnerOnlyUser)
+    const isManagerCapableUser = Boolean(userDataStore.isManagerCapableUser)
     const canAccessOwnerWorkspace = Boolean(userDataStore.hasOwnerWorkspaceAccess)
+
+    if (to.path.startsWith('/create-property') && !isManagerCapableUser) {
+      next(canAccessOwnerWorkspace ? '/po-dashboard' : '/')
+      return
+    }
 
     if (canAccessOwnerWorkspace && (isOwnerWorkspaceOnly || to.path.startsWith('/po-dashboard'))) {
       if (to.path === '/') {
@@ -288,7 +307,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       }
     }
 
-    if (normalizedAccountType === 'pm' && !hasPmMembership && !hasPoMembership && to.path === '/po-dashboard') {
+    if (
+      normalizedAccountType === 'pm' &&
+      !hasPmMembership &&
+      !hasPoMembership &&
+      to.path === '/po-dashboard'
+    ) {
       next('/')
       return
     }

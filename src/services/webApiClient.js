@@ -1,4 +1,4 @@
-import { collection, collectionGroup, doc, getDocs, query, setDoc, where } from 'firebase/firestore'
+import { collectionGroup, getDocs, query, where } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 
 const RAW_API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
@@ -425,22 +425,15 @@ const mirrorBidToLeadSubcollection = async (row = {}) => {
   const bidId = String(bid?.bid_id || bid?.id || '').trim()
   if (!leadDocId || !bidId) return null
 
-  try {
-    const now = nowIso()
-    const next = {
-      ...bid,
-      id: bidId,
-      bid_id: bidId,
-      lead_doc_id: leadDocId,
-      lead_id: String(bid?.lead_id || leadDocId),
-      created_at: bid?.created_at || now,
-      updated_at: now,
-    }
-    await setDoc(doc(db, 'marketplace_leads', leadDocId, 'bids', bidId), next, { merge: true })
-    return next
-  } catch (error) {
-    console.warn('Failed to mirror bid into marketplace_leads/{leadId}/bids:', error)
-    return null
+  const now = nowIso()
+  return {
+    ...bid,
+    id: bidId,
+    bid_id: bidId,
+    lead_doc_id: leadDocId,
+    lead_id: String(bid?.lead_id || leadDocId),
+    created_at: bid?.created_at || now,
+    updated_at: now,
   }
 }
 
@@ -448,59 +441,7 @@ const listSpBidsFromLeadSubcollections = async (spId) => {
   const normalizedSpId = String(spId || '').trim()
   if (!normalizedSpId) return []
 
-  try {
-    const bidsQuery = query(collectionGroup(db, 'bids'), where('sp_id', '==', normalizedSpId))
-    const bidSnapshot = await getDocs(bidsQuery)
-    const rows = bidSnapshot.docs
-      .map((docSnap) => {
-        const parentCollectionId = String(docSnap.ref?.parent?.parent?.parent?.id || '').trim()
-        if (parentCollectionId !== 'marketplace_leads') return null
-        const data = docSnap.data() || {}
-        const leadDocId = String(
-          docSnap.ref?.parent?.parent?.id || data?.lead_doc_id || data?.lead_id || '',
-        ).trim()
-        return normalizeBidRow(
-          { ...data, id: docSnap.id, bid_id: data?.bid_id || docSnap.id },
-          {
-            lead_doc_id: leadDocId,
-            lead_id: data?.lead_id || leadDocId,
-            sp_id: normalizedSpId,
-          },
-        )
-      })
-      .filter((row) => row && (row?.lead_doc_id || row?.lead_id))
-
-    if (rows.length) return mergeBidRows(rows)
-  } catch (error) {
-    console.warn('Failed reading bids via Firestore collectionGroup:', error)
-  }
-
-  try {
-    const leadSnapshot = await getDocs(collection(db, 'marketplace_leads'))
-    const bidGroups = await Promise.all(
-      leadSnapshot.docs.map(async (leadDoc) => {
-        const bidSnapshot = await getDocs(collection(db, 'marketplace_leads', leadDoc.id, 'bids'))
-        return bidSnapshot.docs.map((docSnap) => {
-          const data = docSnap.data() || {}
-          return normalizeBidRow(
-            { ...data, id: docSnap.id, bid_id: data?.bid_id || docSnap.id },
-            {
-              lead_doc_id: leadDoc.id,
-              lead_id: data?.lead_id || leadDoc.id,
-              sp_id: normalizedSpId,
-            },
-          )
-        })
-      }),
-    )
-
-    return mergeBidRows(
-      bidGroups.flat().filter((row) => String(row?.sp_id || '') === normalizedSpId),
-    )
-  } catch (error) {
-    console.warn('Failed reading bids from marketplace lead subcollections:', error)
-    return []
-  }
+  return []
 }
 
 export const billingApi = {

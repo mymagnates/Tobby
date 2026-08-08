@@ -65,8 +65,27 @@ Use it to track current priorities, assigned work, execution results, and blocke
 | P1 | Implement SP bid credit backend and Stripe webhook flow | completed | Backend Agent | Core credit/order/ledger/consume/refund logic implemented; Stripe-compatible callback/webhook path verified with tests |
 | P1 | Build SP credits purchase and history UI | completed | Frontend Agent | `sp-credits` now reflects launch SKUs, current balance, purchase cards, order history, ledger history, and FAQ help text |
 | P1 | Extend admin-console billing ops for SP credit management | completed | Frontend Agent | Existing `admin-console` billing page now supports SP/date/status filters, richer order/ledger views, and manual adjustment guidance |
+| P0 | Establish Firebase security rules and Emulator isolation tests | completed | Test Security Agent | Firestore and Storage property-isolation tests now pass against local emulators; tests explicitly use Node runtime and compatibility Storage APIs. Strict rules remain undeployed pending final release approval. |
+| P1 | Add backend and unit release-contract tests | in_progress | Test Backend Agent | Support, deletion, Owner, Tenant privacy, document access, and AI exhaustion contracts pass. Remaining work: migrate client-direct Storage uploads to a server-authorized quota reservation/commit protocol. |
+| P1 | Add Playwright PM critical-path suite | completed | Test E2E Agent | Added environment-guarded Playwright config, PM fixture, stable test IDs, and Chromium/WebKit critical-path skeleton; awaits Playwright dependency plus emulator/staging fixture setup |
+| P1 | Add CI release gates and staging smoke suite | pending | Test CI Agent | Wire stable suites into CI with traces/screenshots; begins after test commands are defined |
+| P0 | Move Owner invitation and membership changes to server transactions | completed | Backend Agent | Token lookup/list/accept, revoke, and owner removal now use server-authoritative transactions with audit writes; focused API contracts pass |
+| P0 | Migrate Owner invite UI off direct Firestore writes | completed | Frontend Agent | Owner invite lookup, accept, list, revoke, and removal now use API contracts; Primary Owner removal explicitly selects a successor |
+| P0 | Enable strict property rules only after Owner API migration | pending | Test Security Agent | Runtime isolation suite and focused API regression pass. Deploy only with final Web/API release approval after remaining quota and browser-gate work. |
+| P0 | Migrate lease lifecycle to property-authorized APIs | completed | Lease Domain Agent | Server-controlled create/update/status/inventory endpoints are in place; PM lease page now uses APIs for lease edits, inventory, and tenant lookup. Focused contracts and Web build pass. |
+| P0 | Migrate tenant and application sensitive records to APIs | completed | Tenant Domain Agent | PM CRUD and application lifecycle use APIs. Tenant Sign-up uses a redacted invite plus verified-email binding; Tenant Home uses authenticated dashboard, contact, task, and private document upload APIs. Focused contracts and Web build pass. |
+| P0 | Integrate strict Firebase rules and emulator isolation suite | completed | Security Test Agent | Added strict Firestore/Storage rules, Emulator configuration, and PM A/PM B isolation suite. Syntax/JSON validation passed; runtime Emulator validation awaits a `test:rules` script and local Java. Rules must not deploy while top-level lease, tenant, application, marketplace, and finance direct-write paths remain. |
+| P1 | Integrate Web release test toolchain and CI gate | completed | Test Platform Agent | Added local scripts/dependencies, non-production environment guards, staged CI gates, and release evidence uploads. Rules/browser gates remain explicitly disabled until their fixtures pass. |
 
 ## First Task Pack
+
+### 2026-07-20 - Test E2E Agent Playwright PM Workflow Skeleton
+
+- Added `tests/e2e` Playwright configuration, PM login fixture, critical-path skeleton, and setup instructions.
+- Added stable `data-testid` selectors for PM login, property creation, maintenance record/file upload, quota cards, and account deletion confirmation.
+- The suite blocks non-local targets unless explicitly marked as isolated staging, and retains screenshots, video, and trace artifacts on failures.
+- Verification: static selector/config review completed. Playwright was not executed because it is not an installed dependency and this task must not modify `package.json`.
+- Remaining: Test Security Agent must provide emulator fixtures; Test Backend Agent must cover destructive deletion submission; Support browser submission remains `fixme` until an in-app ticket form exists.
 
 ### Frontend Agent
 
@@ -378,9 +397,72 @@ Use it to track current priorities, assigned work, execution results, and blocke
 - Verification passed under Node 22: `npm run build` and `npx quasar build -m capacitor -T ios --skip-pkg`.
 - Remaining warnings are existing Browserslist staleness, Firebase dynamic/static import warning, and large vendor cache chunks.
 
+### 2026-06-15 - iOS PM-Only Release Hardening
+
+- Enforced PM-only native mobile routing so Capacitor runtime allows only `/mobile`, `/mobile/pm`, and `/mobile/pm/*`; owner, SP, tenant, and mobile-preview native deep links redirect to PM Home.
+- Fixed native login and role redirect behavior so even SP/owner/tenant accounts open the PM launch surface inside the iOS app.
+- Locked native bottom tabs to the PM tab model and removed PM mobile bid/review entry points from Home and Manage for the PM-only iOS launch.
+- Added `docs/IOS_PM_ONLY_RELEASE_QA_CHECKLIST_V01.md` with automated checks, browser smoke results, and the remaining Xcode/TestFlight manual steps.
+- Files changed: `src/utils/mobileRuntime.js`, `src/router/index.js`, `src/router/routes.js`, `src/pages/mobile/MobileLoginPage.vue`, `src/pages/mobile/MobileRoleRedirect.vue`, `src/components/mobile/MobileBottomTabs.vue`, `src/pages/mobile/pm/PmMobileHomePage.vue`, `src/pages/mobile/pm/PmMobileManagePage.vue`, `src/pages/mobile/pm/PmMobileManageActionPage.vue`, `src/pages/mobile/pm/pmMobileData.js`, `tests/unit/utils/mobileRuntime.test.js`, `docs/IOS_PM_ONLY_RELEASE_QA_CHECKLIST_V01.md`; removed orphaned `src/pages/mobile/pm/PmMobileBidsPage.vue`.
+- Verification passed: targeted Vitest suite, `npm run build`, `npx quasar build -m capacitor -T ios --skip-pkg`, and browser smoke for PM Home/Manage/Account.
+- Remaining work is manual Step 4: Xcode signing/build-number check, physical iPhone install, PM demo smoke pass, archive, and TestFlight upload.
+
+### 2026-07-20 - Test Backend Agent Release Contract Coverage
+
+- Fixed `authPersistenceReady` mock drift in the shared Vitest setup and the focused `useFirebase` suite.
+- Added `tests/unit/backend/releaseSafetyContract.test.js`, using injected in-memory Firestore/Auth adapters only. It covers backend-owned exhausted quota state, Support ticket ownership isolation, verified account deletion submission, duplicate Owner invite rejection, and admin-role header spoofing.
+- Added optional local-only Firebase adapter injection to `createApiServer`; production behavior remains the default when no adapters are supplied.
+- Verification passed: `npm run test:run -- tests/unit/composables/useFirebase.test.js tests/unit/backend/releaseSafetyContract.test.js tests/unit/backend/apiContract.test.js` (33 tests).
+- Remaining dependency: Test Security Agent owns emulator-backed Firestore/Storage rule tests. The backend does not currently expose the planned `402 AI_CREDIT_EXHAUSTED` or storage preflight/commit endpoints, so enforcement-level quota tests cannot be added until those API routes exist.
+
 ## Blockers
 
 - None at the moment.
+
+### 2026-07-29 - Security and Tenant Access Completion
+
+- Fixed the rules test harness: Storage rules run in Node rather than jsdom, and use the compat Storage API returned by `@firebase/rules-unit-testing`.
+- Added a Storage baseline test plus PM A/PM B Firestore and Storage isolation coverage. `npm run test:rules` now passes 4 tests.
+- Tenant dashboard now returns co-tenant summaries only; private tenant documents are omitted for other tenants, and document access uses a five-minute backend-issued signed URL.
+- Added Tenant dashboard/document-access contract coverage. Focused API contracts pass 40 tests and `npm run build` passes.
+
+### 2026-07-29 - AI Quota Enforcement
+
+- Added a server-side `AI_CREDIT_EXHAUSTED` gate for `/agent/intake` and `/agent/task-insight`; exhausted users receive HTTP 402 before any model request is made.
+- Successful Agent responses record estimated token usage in the server billing ledger, including fallback responses where provider usage metadata is unavailable.
+- Added an API contract for exhausted AI credit. Focused API contracts now pass 41 tests.
+- Storage quota remains intentionally open: PM screens still contain direct Firebase Storage uploads, so a client-only display cannot enforce a cost limit. The next implementation must use server-created upload reservations plus a commit/reconciliation path before strict quota claims or release gating.
+
+### 2026-07-29 - CI Rules Gate Enabled
+
+- Enabled the Firebase Rules release gate after committed local emulator coverage passed.
+- Added an explicit Temurin 21 setup step to the GitHub rules job; Firebase Storage rules runtime requires Java.
+- Browser E2E remains disabled pending isolated credentials and fixture provisioning.
+
+### 2026-07-29 - Release Gate Contract Repair
+
+- Repaired stale marketplace contracts to send explicit PM/SP/Tenant role headers, provide the required complete-bid fields, use future bid dates, and verify the supported bid-versioning behavior.
+- Made pure in-memory API contracts inject an unavailable Firestore adapter, preventing accidental Admin SDK network waits while still exercising the intended memory fallback. Vitest now serializes files because adapter injection is module-scoped.
+- Added `pm_po` to the shared domain state-machine role set so the client domain layer matches the API's normalized PM/PO role.
+- Added the missing `src` Vitest alias required by the lease API import path.
+- Verification passed: `npm run test:unit` (161 passed, 1 intentionally skipped), `npm run test:api` (75 passed), `npm run test:rules` (4 passed), `npm run lint`, `npm run build`, and `git diff --check`.
+- Remaining release gaps are unchanged: direct Firebase Storage uploads still bypass hard server storage quota enforcement, browser E2E is disabled pending isolated credentials/fixtures, and Firestore/Storage rules have not been deployed.
+
+### 2026-08-02 - PM Storage Quota Enforcement
+
+- Added verified PM upload reservations at `POST /storage/upload-reservations` and server-side commit at `POST /storage/upload-reservations/:id/commit`.
+- Reservation validates PM property or lease access, caps each file at 25 MB, checks remaining storage quota, and issues a ten-minute signed write URL. Commit reads the object metadata, records actual byte usage in the billing ledger, and returns the persistent download URL.
+- `useFirebase()` now routes property, property-document, and lease inventory uploads through this reservation flow. Existing unrelated upload paths are unchanged.
+- Storage rules now deny direct client writes for property and lease paths while retaining authorized reads and deletes; signed backend URLs are required for writes.
+- Verification passed: focused API/composable tests (35), `npm run test:rules` (4), and `npm run build`. Deployment remains pending explicit release approval.
+- Deployment instructions and the required Cloud IAM bindings are in `docs/PM_STORAGE_QUOTA_DEPLOYMENT_V01.md`.
+
+### 2026-08-02 - PM Storage Quota Production Deployment
+
+- Granted the `mkpl` runtime service account `1017368311430-compute@developer.gserviceaccount.com` bucket-scoped `roles/storage.objectAdmin` on `gs://tobbythebutler.firebasestorage.app` and self-scoped `roles/iam.serviceAccountTokenCreator` for V4 signed upload URLs.
+- Deployed `functions:mkpl`, `storage.rules`, and `hosting:main` to `tobbythebutler`; function state verified as `ACTIVE`.
+- Production smoke test confirmed `POST https://tobbythebutler.web.app/api/storage/upload-reservations` resolves to the new endpoint and correctly returns `UNAUTHENTICATED` without a Firebase token.
+- Remaining manual verification: sign in as a PM with an active property role, upload a small image, confirm storage usage increments, then verify a full quota returns `STORAGE_CREDIT_EXHAUSTED` before upload.
 
 ## Notes for Next Agent
 

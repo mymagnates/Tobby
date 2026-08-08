@@ -5,19 +5,14 @@
       <q-toolbar class="q-px-lg">
         <q-toolbar-title class="row items-center">
           <div class="logo-container" @click="goHome">
+            <span class="app-brand-mark">H</span>
             <span class="app-title">Handout</span>
           </div>
         </q-toolbar-title>
 
         <q-space />
 
-        <q-btn
-          flat
-          label="Sign In"
-          icon="login"
-          class="login-btn"
-          @click="goToLogin"
-        />
+        <q-btn flat label="Sign In" icon="login" class="login-btn" @click="goToLogin" />
       </q-toolbar>
     </q-header>
 
@@ -58,7 +53,8 @@ const goToLogin = () => {
 
 <style scoped>
 .application-layout {
-  background-color: var(--bg-secondary);
+  background:
+    radial-gradient(circle at top left, rgba(39, 194, 164, 0.1), transparent 30%), #eef3f5;
   min-height: 100vh;
 }
 
@@ -72,15 +68,24 @@ const goToLogin = () => {
 }
 
 .application-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: transparent;
   box-shadow: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: max(10px, env(safe-area-inset-top, 10px));
+  border-bottom: 0;
+  padding: max(12px, env(safe-area-inset-top, 12px)) 20px 0;
+}
+
+.application-header :deep(.q-toolbar) {
+  min-height: 62px;
+  padding: 0 18px;
+  border: 1px solid rgba(162, 238, 220, 0.2);
+  border-radius: var(--border-radius-card);
+  background: linear-gradient(135deg, #19364d 0%, #132b40 100%);
 }
 
 .logo-container {
   display: flex;
   align-items: center;
+  gap: 9px;
   cursor: pointer;
   transition: opacity 0.2s ease;
 }
@@ -90,23 +95,35 @@ const goToLogin = () => {
 }
 
 .app-title {
-  font-family: 'Pacifico', cursive;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: white;
-  letter-spacing: 0.02em;
+  font-family: var(--font-title);
+  font-size: 1.08rem;
+  font-weight: 750;
+  color: #f8fcff;
+  letter-spacing: -0.035em;
+}
+
+.app-brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #15364a;
+  background: #27c2a4;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .login-btn {
-  color: white !important;
+  color: #dff6f0 !important;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(111, 230, 204, 0.42);
   border-radius: var(--border-radius-btn);
 }
 
 .login-btn:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border-color: white !important;
+  background: rgba(39, 194, 164, 0.16) !important;
+  border-color: #8ee8d3 !important;
 }
 
 .application-page-container {
@@ -120,8 +137,8 @@ const goToLogin = () => {
 }
 
 .application-footer {
-  background: var(--neutral-100);
-  border-top: 1px solid var(--neutral-200);
+  background: transparent;
+  border-top: 1px solid rgba(36, 59, 83, 0.1);
   padding: 12px 24px;
   margin-top: auto;
   flex-shrink: 0;
@@ -136,7 +153,7 @@ const goToLogin = () => {
 /* Responsive */
 @media (max-width: 768px) {
   .application-header {
-    padding-top: min(12px, env(safe-area-inset-top, 10px));
+    padding: min(12px, env(safe-area-inset-top, 10px)) 12px 0;
   }
 
   .application-page-container {

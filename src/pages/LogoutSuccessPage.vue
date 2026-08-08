@@ -9,9 +9,7 @@
 
         <!-- Success Message -->
         <h1 class="success-title">Successfully Signed Out</h1>
-        <p class="success-message">
-          You have been securely signed out of your account.
-        </p>
+        <p class="success-message">You have been securely signed out of your account.</p>
 
         <!-- Additional Info -->
         <div class="info-card">
@@ -98,7 +96,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(39, 194, 164, 0.18), transparent 26%),
+    linear-gradient(135deg, #19364d 0%, #10283c 100%);
   padding: 24px;
 }
 
@@ -108,10 +108,11 @@ onUnmounted(() => {
 }
 
 .success-content {
-  background: white;
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(190, 233, 224, 0.38);
+  border-radius: 18px;
   padding: 48px 32px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 56px rgba(2, 14, 26, 0.28);
   text-align: center;
 }
 
@@ -140,7 +141,7 @@ onUnmounted(() => {
 .success-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #243b53;
   margin: 0 0 16px 0;
 }
 

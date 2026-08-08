@@ -2,11 +2,11 @@
   <div class="public-auth-page">
     <div class="register-container">
       <div class="register-header">
-        <p class="public-auth-card-label">Get Started</p>
-        <h1>Choose your workspace</h1>
+        <p class="public-auth-card-label">Start your workspace</p>
+        <h1>What work are you here to move forward?</h1>
         <p class="register-subtitle">
-          Handout is launching first for property managers. Property owners access shared records
-          through an invitation from their property manager.
+          Pick the view that matches your role. You can bring your properties, partners, and next
+          request into one connected workflow.
         </p>
       </div>
 
@@ -19,17 +19,41 @@
           @click="router.push('/public/pmpo-signup')"
         >
           <q-card-section class="role-card-body">
+            <div class="role-card-topline"><span>01</span><q-icon name="arrow_forward" size="20px" /></div>
             <div class="role-icon-wrap role-icon-pmpo">
-              <q-icon name="apartment" size="27px" color="white" />
+              <q-icon name="dashboard_customize" size="25px" color="white" />
             </div>
             <div class="role-copy">
-              <div class="role-label">Start Property Manager Workspace</div>
+              <div class="role-label">Run the portfolio</div>
               <div class="role-desc">
-                Create a PM/PO workspace for records, tasks, leases, reminders, transactions, and
-                owner access.
+                Coordinate requests, leases, vendors, records, and owner decisions from one
+                command center.
               </div>
             </div>
-            <q-icon class="role-arrow" name="arrow_forward" size="20px" />
+            <div class="role-card-footer"><span>For property managers</span><strong>Set up a workspace</strong></div>
+          </q-card-section>
+        </q-card>
+
+        <q-card
+          flat
+          bordered
+          class="role-card"
+          clickable
+          @click="router.push('/public/sp-signup')"
+        >
+          <q-card-section class="role-card-body">
+            <div class="role-card-topline"><span>02</span><q-icon name="arrow_forward" size="20px" /></div>
+            <div class="role-icon-wrap role-icon-sp">
+              <q-icon name="handyman" size="25px" color="white" />
+            </div>
+            <div class="role-copy">
+              <div class="role-label">Win and manage work</div>
+              <div class="role-desc">
+                Receive qualified requests, submit proposals, and keep every service project on
+                track.
+              </div>
+            </div>
+            <div class="role-card-footer"><span>For service providers</span><strong>Build a service profile</strong></div>
           </q-card-section>
         </q-card>
       </div>
@@ -56,33 +80,33 @@ const router = useRouter()
 
 <style scoped>
 .register-container {
-  max-width: 870px;
+  max-width: 1010px;
   width: 100%;
   margin: 0 auto;
-  padding: clamp(32px, 6vw, 62px);
+  padding: clamp(34px, 6vw, 64px);
   border: 1px solid var(--auth-border);
-  border-radius: 28px;
+  border-radius: 20px;
   background: white;
-  box-shadow: 0 18px 54px var(--auth-shadow);
+  box-shadow: 0 22px 58px var(--auth-shadow);
 }
 
 .register-header {
   text-align: center;
-  max-width: 600px;
-  margin: 0 auto 42px;
+  max-width: 690px;
+  margin: 0 auto 46px;
 }
 
 .register-header h1 {
   margin: 0;
   font-family: 'Sora', sans-serif;
-  font-size: clamp(31px, 4vw, 42px);
+  font-size: clamp(31px, 4vw, 46px);
   font-weight: 800;
   color: var(--auth-ink);
-  letter-spacing: -1.2px;
+  letter-spacing: -1.5px;
 }
 
 .register-subtitle {
-  max-width: 500px;
+  max-width: 570px;
   margin: 14px auto 0;
   font-size: 15px;
   line-height: 1.7;
@@ -91,36 +115,58 @@ const router = useRouter()
 
 .role-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-  max-width: 560px;
   margin: 0 auto;
 }
 
 .role-card {
   border: 1px solid var(--auth-border);
-  border-radius: 20px;
+  min-height: 310px;
+  overflow: hidden;
+  border-radius: 16px;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 .role-card:hover {
-  border-color: color-mix(in srgb, var(--primary-color) 45%, white);
-  box-shadow: 0 16px 36px var(--auth-shadow);
+  border-color: #8bdcca;
+  box-shadow: 0 18px 38px var(--auth-shadow);
   transform: translateY(-3px);
 }
 
 .role-card-body {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 150px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   padding: 24px !important;
 }
 
+.role-card-topline {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #90a0ae;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.role-card-topline .q-icon {
+  color: #16786a;
+  transition: transform 0.2s ease;
+}
+
+.role-card:hover .role-card-topline .q-icon {
+  transform: translateX(4px);
+}
+
 .role-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 50px;
+  height: 50px;
+  margin-top: 32px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,16 +174,21 @@ const router = useRouter()
 }
 
 .role-icon-pmpo {
-  background: linear-gradient(135deg, #1a8c7a, #2db5a0);
+  background: linear-gradient(135deg, #157a6a, #45bda7);
+}
+
+.role-icon-sp {
+  background: linear-gradient(135deg, #2a5272, #5e8db3);
 }
 .role-copy {
-  flex: 1;
+  margin-top: 25px;
 }
 .role-label {
-  font-size: 1rem;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.18rem;
   font-weight: 700;
   color: var(--auth-ink);
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .role-desc {
@@ -146,8 +197,24 @@ const router = useRouter()
   line-height: 1.55;
 }
 
-.role-arrow {
-  color: var(--primary-color);
+.role-card-footer {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--auth-border);
+}
+
+.role-card-footer span {
+  color: var(--auth-ink-soft);
+  font-size: 11px;
+}
+
+.role-card-footer strong {
+  color: #16786a;
+  font-size: 12px;
 }
 
 .register-footer {
@@ -170,7 +237,7 @@ const router = useRouter()
   }
 
   .role-card-body {
-    min-height: auto;
+    min-height: 275px;
   }
 }
 </style>

@@ -241,14 +241,13 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
-import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../boot/firebase'
 import { useQuasar } from 'quasar'
+import { getTenantInviteRequest, linkTenantToLeaseRequest } from '../services/tenantAccessApi'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
-const { signUp, signIn, createDocument, updateDocument } = useFirebase()
+const { signUp, signIn, createDocument } = useFirebase()
 const userDataStore = useUserDataStore()
 
 // State
@@ -309,27 +308,10 @@ const loadProperty = async () => {
     propertyLoading.value = true
     errorMessage.value = ''
 
-    // Invite link is lease-first: /public/tenant-signup/{lease_id}
-    const leaseDoc = await getDoc(doc(db, 'leases', leaseIdFromInvite.value))
-    if (leaseDoc.exists()) {
-      invitedLease.value = {
-        id: leaseDoc.id,
-        ...leaseDoc.data(),
-      }
-      const propertyIdFromLease =
-        invitedLease.value.property_id?.id || invitedLease.value.property_id
-      if (propertyIdFromLease) {
-        const propertyDoc = await getDoc(doc(db, 'properties', propertyIdFromLease))
-        if (propertyDoc.exists()) {
-          property.value = {
-            id: propertyDoc.id,
-            ...propertyDoc.data(),
-          }
-          return
-        }
-      }
-    }
-    errorMessage.value = 'Invite link is invalid or expired.'
+    const invite = await getTenantInviteRequest({ leaseId: leaseIdFromInvite.value })
+    invitedLease.value = invite.lease || null
+    property.value = invite.property || null
+    if (!invitedLease.value || !property.value) errorMessage.value = 'Invite link is invalid or expired.'
   } catch (error) {
     console.error('Error loading property:', error)
     errorMessage.value = 'Error loading invitation details'
@@ -361,20 +343,8 @@ const createTenantProfile = async (userId, userData) => {
 
     await createDocument('users', userProfileData, userId)
 
-    if (resolvedPropertyId) {
-      const roleData = {
-        property_id: resolvedPropertyId,
-        role: 'tt',
-        role_date: new Date(),
-        status: 'active',
-        created_at: new Date(),
-      }
-      await createDocument(`users/${userId}/roles`, roleData)
-    }
-
-    await linkTenantToInvitedLease(userId, {
+    await linkTenantToInvitedLease({
       fullName: userData.fullName,
-      email: userData.email,
       phone: userData.phone,
     })
 
@@ -385,57 +355,12 @@ const createTenantProfile = async (userId, userData) => {
   }
 }
 
-const linkTenantToInvitedLease = async (userId, userData = {}) => {
-  if (!invitedLease.value?.id || !userId) return
-
-  const resolvedPropertyId = resolvePropertyId()
-  const leaseSnapshot = toLeaseSnapshot(invitedLease.value)
-  const fullName = String(userData.fullName || '').trim()
-  const email = String(userData.email || '').trim()
-  const phone = String(userData.phone || '').trim()
-
-  const [firstName, ...lastNameParts] = fullName.split(' ').filter(Boolean)
-  const tenantDocData = {
-    property_id: resolvedPropertyId,
-    lease_id: invitedLease.value.id,
-    personal_info: {
-      first_name: firstName || '',
-      middle_name: '',
-      last_name: lastNameParts.join(' '),
-      email,
-      phone,
-    },
-    status: 'active',
-    lease_snapshot: leaseSnapshot,
-    updated_at: new Date().toISOString(),
-    created_by: userId,
-  }
-
-  const tenantDoc = await getDoc(doc(db, 'tenants', userId))
-  if (tenantDoc.exists()) {
-    await updateDocument('tenants', userId, tenantDocData)
-  } else {
-    await createDocument(
-      'tenants',
-      {
-        ...tenantDocData,
-        created_at: new Date().toISOString(),
-      },
-      userId,
-    )
-  }
-
-  await updateDocument('users', userId, {
-    lease_id: invitedLease.value.id,
-    property_id: resolvedPropertyId,
-    lease_snapshot: leaseSnapshot,
-    updated_at: new Date(),
-  })
-
-  await updateDocument('leases', invitedLease.value.id, {
-    tenant_id: userId,
-    tenant_email: email || null,
-    updated_at: new Date(),
+const linkTenantToInvitedLease = async (userData = {}) => {
+  if (!invitedLease.value?.id) return
+  await linkTenantToLeaseRequest({
+    leaseId: invitedLease.value.id,
+    fullName: userData.fullName,
+    phone: userData.phone,
   })
 }
 
@@ -489,9 +414,8 @@ const handleLogin = async () => {
     const result = await signIn(loginForm.value.email, loginForm.value.password)
     const userId = result?.user?.uid
     if (userId && invitedLease.value?.id) {
-      await linkTenantToInvitedLease(userId, {
+      await linkTenantToInvitedLease({
         fullName: result?.user?.displayName || '',
-        email: loginForm.value.email,
         phone: '',
       })
     }

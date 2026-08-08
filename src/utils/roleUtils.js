@@ -1,10 +1,14 @@
-export const STANDARD_ROLES = Object.freeze(['tt', 'pm', 'po', 'sp', 'admin'])
+export const STANDARD_ROLES = Object.freeze(['tt', 'pm', 'po', 'viewer', 'sp', 'admin'])
 
 export const normalizeMembershipRole = (value) => {
-  const raw = String(value || '').trim().toLowerCase()
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase()
   if (!raw) return null
   if (['pm', 'property manager', 'manager', 'management'].includes(raw)) return 'pm'
-  if (['po', 'property owner', 'owner', 'landlord', 'homeowner', 'home owner'].includes(raw)) return 'po'
+  if (['po', 'property owner', 'owner', 'landlord', 'homeowner', 'home owner'].includes(raw))
+    return 'po'
+  if (['viewer', 'view only', 'read only', 'readonly'].includes(raw)) return 'viewer'
   if (['tt', 'tenant', 'renter'].includes(raw)) return 'tt'
   if (['sp', 'service provider', 'contractor', 'vendor'].includes(raw)) return 'sp'
   if (raw === 'admin' || raw === 'administrator') return 'admin'
@@ -15,9 +19,12 @@ export const normalizeMembershipRole = (value) => {
 export const normalizeRoleValue = (value) => normalizeMembershipRole(value)
 
 export const normalizeAccountType = (value) => {
-  const raw = String(value || '').trim().toLowerCase()
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase()
   if (!raw) return null
-  if (['pm', 'property manager', 'manager', 'management', 'pm_po', 'pmpo', 'pm/po'].includes(raw)) return 'pm'
+  if (['pm', 'property manager', 'manager', 'management', 'pm_po', 'pmpo', 'pm/po'].includes(raw))
+    return 'pm'
   // Legacy-only compatibility: keep exact stored "po" readable during migration,
   // but do not normalize owner-like labels into account-level PO for new logic.
   if (raw === 'po') return 'po'
@@ -31,6 +38,7 @@ export const roleLabel = (value) => {
   const role = normalizeRoleValue(value)
   if (role === 'pm') return 'Property Manager'
   if (role === 'po') return 'Property Owner'
+  if (role === 'viewer') return 'View Only'
   if (role === 'tt') return 'Tenant'
   if (role === 'sp') return 'Service Provider'
   if (role === 'admin') return 'Admin'
