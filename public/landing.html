@@ -3,364 +3,210 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Handout | Property Operations, In One Flow</title>
+    <title>Handout | A Clearer View of Every Property</title>
     <meta
       name="description"
-      content="Handout gives property teams one live command center for requests, vendors, approvals, records, and owner updates."
+      content="Keep property tasks, maintenance history, documents, and reports together. A simpler workspace for property managers and owners."
     />
+    <meta name="theme-color" content="#f7f8f4" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
-    <link rel="stylesheet" href="/static-site.css" />
+    <link rel="stylesheet" href="/landing-workspace.css" />
   </head>
   <body>
-    <div class="site-shell landing-page landing-page--next">
-      <header class="site-header">
-        <a class="wordmark-link" href="/landing.html">Handout</a>
-        <nav class="site-links" aria-label="Main navigation">
-          <a href="#workflow">How it works</a>
-          <a href="#command-center">Command center</a>
-          <a href="#visibility">Shared visibility</a>
-        </nav>
-        <div class="site-actions">
-          <a class="text-button" data-login-link href="/public/login">Sign In</a>
-          <a class="primary-button primary-button--nav" href="/public/pmpo-signup">Get Started</a>
-        </div>
-      </header>
-
-      <main>
-        <section class="hero hero--command" aria-label="Handout property operations platform">
-          <div class="hero-orbit hero-orbit--one"></div>
-          <div class="hero-orbit hero-orbit--two"></div>
-          <div class="hero-grid">
-            <div class="hero-content hero-content--next">
-              <div class="eyebrow">Property operations, in one flow</div>
-              <h1>Every property. One live command center.</h1>
-              <p class="hero-copy">
-                See what needs action, who owns it, and what happens next without chasing texts,
-                folders, or status updates.
-              </p>
-              <div class="hero-actions">
-                <a class="primary-button" href="/public/pmpo-signup">Build your workspace</a>
-                <a class="outline-button" href="#workflow"
-                  >See the flow <span class="material-icons">south_east</span></a
-                >
-              </div>
-              <div class="hero-proof">
-                <span><i class="proof-dot"></i> Requests, approvals, records, and people</span>
-                <span>No new process to explain</span>
-              </div>
-            </div>
-
-            <div class="hero-console" aria-label="A live property operations preview">
-              <div class="console-topbar">
-                <div class="console-brand"><span class="brand-mark">H</span> Handout</div>
-                <strong class="console-title">Dashboard</strong>
-                <span class="console-location">Willow Lane <i></i> Live</span>
-                <span class="material-icons">more_horiz</span>
-              </div>
-              <div class="console-body">
-                <aside class="console-sidebar">
-                  <span class="console-nav console-nav--active"
-                    ><span class="material-icons">grid_view</span></span
-                  >
-                  <span class="console-nav"><span class="material-icons">home_work</span></span>
-                  <span class="console-nav"><span class="material-icons">assignment</span></span>
-                  <span class="console-nav"><span class="material-icons">groups</span></span>
-                  <span class="console-nav console-nav--bottom"
-                    ><span class="material-icons">settings</span></span
-                  >
-                </aside>
-                <aside class="console-property-rail" aria-label="Property filters">
-                  <span class="console-property-home material-icons">home_work</span>
-                  <span class="console-property console-property--active">ALL</span>
-                  <span class="console-property">OP</span>
-                  <span class="console-property">PI</span>
-                  <span class="console-property">TA</span>
-                </aside>
-                <div class="console-main">
-                  <div class="console-heading">
-                    <button type="button">
-                      <span class="material-icons">receipt_long</span> +Transaction
-                    </button>
-                    <button type="button"><span class="material-icons">dns</span> +Task</button>
-                    <button type="button">
-                      <span class="material-icons">inventory_2</span> +Asset
-                    </button>
-                    <button type="button">
-                      <span class="material-icons">description</span> +Document
-                    </button>
-                  </div>
-                  <div class="console-metrics">
-                    <div>
-                      <span>Open work</span><strong>13</strong
-                      ><small><b>Active</b> property tasks</small>
-                    </div>
-                    <div>
-                      <span>Needs review</span><strong>03</strong><small>Owner decisions</small>
-                    </div>
-                    <div>
-                      <span>Due this week</span><strong>12</strong><small>Across 4 homes</small>
-                    </div>
-                  </div>
-                  <div class="console-workspace">
-                    <section class="console-request">
-                      <div class="console-section-title">
-                        <span>Priority queue</span
-                        ><a href="#workflow"
-                          >View all <i class="material-icons">arrow_forward</i></a
-                        >
-                      </div>
-                      <article class="request-card request-card--active">
-                        <div class="request-icon">
-                          <span class="material-icons">water_drop</span>
-                        </div>
-                        <div class="request-copy">
-                          <strong>Kitchen leak reported</strong
-                          ><span>42 Willow Lane · 18 min ago</span>
-                        </div>
-                        <span class="request-status">New</span>
-                      </article>
-                      <article class="request-card">
-                        <div class="request-icon request-icon--purple">
-                          <span class="material-icons">roofing</span>
-                        </div>
-                        <div class="request-copy">
-                          <strong>Roof proposal ready</strong
-                          ><span>112 Oak Street · Vendor submitted</span>
-                        </div>
-                        <span class="request-status request-status--review">Review</span>
-                      </article>
-                      <article class="request-card">
-                        <div class="request-icon request-icon--green">
-                          <span class="material-icons">task_alt</span>
-                        </div>
-                        <div class="request-copy">
-                          <strong>HVAC service completed</strong
-                          ><span>42 Willow Lane · Receipt attached</span>
-                        </div>
-                        <span class="request-status request-status--done">Done</span>
-                      </article>
-                    </section>
-                    <aside class="console-activity">
-                      <div class="console-section-title">
-                        <span>Activity</span><span class="material-icons">tune</span>
-                      </div>
-                      <div class="activity-line">
-                        <i class="activity-avatar">M</i>
-                        <p>
-                          <strong>Marcus</strong> accepted the leak request<small>Just now</small>
-                        </p>
-                      </div>
-                      <div class="activity-line">
-                        <i class="activity-avatar activity-avatar--owner">O</i>
-                        <p><strong>Owner approval</strong> requested<small>8 min ago</small></p>
-                      </div>
-                      <div class="activity-line">
-                        <i class="activity-avatar activity-avatar--system"
-                          ><span class="material-icons">description</span></i
-                        >
-                        <p>
-                          Invoice matched to <strong>HVAC service</strong><small>24 min ago</small>
-                        </p>
-                      </div>
-                      <div class="activity-pulse"><span></span><span></span><span></span></div>
-                    </aside>
-                  </div>
-                </div>
-              </div>
-              <div class="console-float console-float--approval">
-                <span class="material-icons">verified</span>
-                <div><strong>Approved</strong><small>Roof repair · $2,460</small></div>
-              </div>
-              <div class="console-float console-float--message">
-                <span class="float-avatar">JD</span>
-                <div><strong>Owner update sent</strong><small>Just now</small></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="workflow" class="workflow-section">
-          <div class="section-heading section-heading--workflow">
-            <div class="eyebrow eyebrow--dark">A calmer way to run the work</div>
-            <h2>From request to resolution, the full story stays together.</h2>
-            <p>
-              Every handoff inherits the property, history, conversations, documents, and next
-              action.
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="landing-header">
+      <a class="wordmark" href="/landing.html" aria-label="Handout home"
+        ><img src="/icons/favicon-32x32.png" width="28" height="28" alt="" />Handout</a
+      >
+      <nav aria-label="Main navigation">
+        <a href="#workspace">Workspace</a><a href="#records">Property records</a
+        ><a href="#sharing">Sharing</a>
+      </nav>
+      <div class="header-actions">
+        <a class="sign-in" data-login-link href="/public/login">Sign in</a
+        ><a class="button button--small" href="/public/pmpo-signup"
+          >Get started <span aria-hidden="true">&#8599;</span></a
+        >
+      </div>
+    </header>
+    <main id="main">
+      <section class="hero section-width" aria-labelledby="hero-title">
+        <p class="eyebrow">
+          <span class="status-dot" aria-hidden="true"></span> FOR PROPERTY MANAGERS &amp; OWNERS
+        </p>
+        <div class="hero-heading">
+          <h1 id="hero-title">Every property.<br /><span>A clearer picture.</span></h1>
+          <div class="hero-intro">
+            <p>Less searching through messages and folders. More time for the work that matters.</p>
+            <p class="muted">
+              Bring tasks, maintenance records, documents, and reports into one calm workspace.
             </p>
-          </div>
-          <div class="workflow-track" aria-label="Property task workflow">
-            <article class="workflow-step workflow-step--new">
-              <span class="workflow-number">01</span>
-              <div class="workflow-icon">
-                <span class="material-icons">notifications_active</span>
-              </div>
-              <h3>Capture</h3>
-              <p>A tenant message, inspection note, or follow-up becomes a tracked request.</p>
-            </article>
-            <div class="workflow-connector"><i></i></div>
-            <article class="workflow-step workflow-step--assign">
-              <span class="workflow-number">02</span>
-              <div class="workflow-icon"><span class="material-icons">person_add</span></div>
-              <h3>Coordinate</h3>
-              <p>Assign the right person, request a bid, and keep the context visible.</p>
-            </article>
-            <div class="workflow-connector"><i></i></div>
-            <article class="workflow-step workflow-step--approve">
-              <span class="workflow-number">03</span>
-              <div class="workflow-icon"><span class="material-icons">task_alt</span></div>
-              <h3>Approve</h3>
-              <p>Share the decision with owners when needed, without forwarding a thread.</p>
-            </article>
-            <div class="workflow-connector"><i></i></div>
-            <article class="workflow-step workflow-step--close">
-              <span class="workflow-number">04</span>
-              <div class="workflow-icon"><span class="material-icons">auto_awesome</span></div>
-              <h3>Close with proof</h3>
-              <p>The receipt, update, and service history land back on the property record.</p>
-            </article>
-          </div>
-        </section>
-
-        <section id="command-center" class="record-section">
-          <div class="record-copy">
-            <div class="eyebrow eyebrow--dark">The record that works for you</div>
-            <h2>Stop reconstructing the property story every time work starts.</h2>
-            <p>
-              Handout makes the address the source of truth. Work, money, files, and people remain
-              connected as the property changes hands.
-            </p>
-            <div class="record-points">
-              <span
-                ><i class="material-icons">check</i> One place for service history and
-                receipts</span
-              >
-              <span
-                ><i class="material-icons">check</i> A live view of due dates and open work</span
-              >
-              <span><i class="material-icons">check</i> Context that follows every decision</span>
-            </div>
-          </div>
-          <div class="record-window" aria-label="Property record preview">
-            <div class="record-window-top">
-              <span class="record-home-icon material-icons">home</span>
-              <div><strong>42 Willow Lane</strong><small>Single family · Austin, TX</small></div>
-              <button type="button"><span class="material-icons">more_horiz</span></button>
-            </div>
-            <div class="record-tabs">
-              <span class="record-tab record-tab--active">Overview</span
-              ><span class="record-tab">Work</span><span class="record-tab">Documents</span
-              ><span class="record-tab">Money</span>
-            </div>
-            <div class="record-window-body">
-              <div class="record-health">
-                <span>Property health</span><strong>On track <i></i></strong>
-                <div class="health-meter"><b></b></div>
-                <small>3 active items · no overdue tasks</small>
-              </div>
-              <div class="record-timeline">
-                <div class="timeline-heading">
-                  <strong>Recent activity</strong><span>View timeline</span>
-                </div>
-                <div class="timeline-row">
-                  <i class="timeline-icon material-icons">home_repair_service</i>
-                  <p>
-                    <strong>Leak repair scheduled</strong
-                    ><small>Tomorrow, 9:00 AM · Marcus Plumbing</small>
-                  </p>
-                  <time>Today</time>
-                </div>
-                <div class="timeline-row">
-                  <i class="timeline-icon timeline-icon--mint material-icons">description</i>
-                  <p><strong>Roof proposal added</strong><small>Awaiting owner approval</small></p>
-                  <time>May 13</time>
-                </div>
-                <div class="timeline-row">
-                  <i class="timeline-icon timeline-icon--violet material-icons">payments</i>
-                  <p><strong>April rent recorded</strong><small>Income · $2,800</small></p>
-                  <time>May 1</time>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="visibility" class="visibility-section">
-          <div class="visibility-panel">
-            <div class="visibility-copy">
-              <div class="eyebrow eyebrow--mint">Visibility without the noise</div>
-              <h2>Give each person a clear window into the work.</h2>
-              <p>
-                Managers keep the operation moving. Owners see the decisions and records that
-                matter. Service partners arrive with the right context.
-              </p>
-              <a class="outline-button" href="/public/pmpo-signup"
-                >Set up your workspace <span class="material-icons">arrow_forward</span></a
+            <div class="hero-actions">
+              <a class="button" href="/public/pmpo-signup"
+                >Create your workspace <span aria-hidden="true">&#8599;</span></a
+              ><a class="text-link" href="#workspace"
+                >Take a closer look <span aria-hidden="true">&#8595;</span></a
               >
             </div>
-            <div class="visibility-stack" aria-label="Role-specific workspace preview">
-              <article class="role-preview role-preview--owner">
-                <div class="role-preview-head">
-                  <span class="role-avatar role-avatar--owner">ON</span>
-                  <div><strong>Owner view</strong><small>42 Willow Lane</small></div>
-                  <span class="material-icons">more_horiz</span>
-                </div>
-                <div class="role-update">
-                  <span class="material-icons">thumb_up</span>
-                  <p>
-                    <strong>Roof repair approved</strong
-                    ><small>Review the proposal and work details</small>
-                  </p>
-                </div>
-              </article>
-              <article class="role-preview role-preview--vendor">
-                <div class="role-preview-head">
-                  <span class="role-avatar role-avatar--vendor">MP</span>
-                  <div><strong>Marcus Plumbing</strong><small>Assigned work</small></div>
-                  <span class="status-live">On site</span>
-                </div>
-                <div class="vendor-task">
-                  <span class="material-icons">water_drop</span>
-                  <div>
-                    <strong>Kitchen leak</strong><small>Access notes and photos included</small>
-                  </div>
-                  <i class="material-icons">arrow_forward</i>
-                </div>
-              </article>
-            </div>
           </div>
-        </section>
-
-        <section class="cta-section cta-section--next">
-          <div class="eyebrow eyebrow--dark">One place to move property work forward</div>
-          <h2>Run the next request from a better starting point.</h2>
-          <p>Start with your first property. The system grows with the work.</p>
-          <div class="cta-actions">
-            <a class="primary-button" href="/public/pmpo-signup">Get Started</a
-            ><a class="secondary-button" data-login-link href="/public/login">Sign In</a>
-          </div>
-        </section>
-      </main>
-
-      <footer class="site-footer">
-        <div class="footer-wordmark">Handout</div>
-        <div class="footer-links">
-          <a href="/about.html">About</a><a href="/privacy.html">Privacy Policy</a
-          ><a href="/terms.html">Terms of Service</a
-          ><a href="/contact-support.html">Contact &amp; Support</a>
         </div>
-        <div class="footer-copy">&copy; 2026 Magnates Solution LLC. All rights reserved.</div>
-      </footer>
-    </div>
+        <figure class="product-preview">
+          <div class="preview-caption">
+            <span><i class="status-dot" aria-hidden="true"></i> YOUR WORKSPACE, AT A GLANCE</span
+            ><span>Product preview &middot; Sample data</span>
+          </div>
+          <picture>
+            <source
+              media="(max-width: 600px)"
+              srcset="/images/workspace-dashboard-mobile.svg"
+              width="390"
+              height="600"
+            />
+            <img
+              src="/images/workspace-dashboard.svg"
+              width="1280"
+              height="760"
+              alt="Handout dashboard with a single navigation column, an All properties dropdown, task summaries, a priority queue, and recent activity. Sample data."
+              fetchpriority="high"
+              decoding="async"
+            />
+          </picture>
+          <figcaption>
+            One navigation. A simple property switcher. More room for your work.
+          </figcaption>
+        </figure>
+      </section>
+      <section
+        id="workspace"
+        class="workspace-section section-width"
+        aria-labelledby="workspace-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">LESS NOISE. MORE CONTEXT.</p>
+          <h2 id="workspace-title">The right information.<br />Right where you need it.</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <span class="feature-number">01 / SEE</span>
+            <h3>Your portfolio, in focus.</h3>
+            <p>
+              Start with the whole picture. Search and switch to a single property without leaving
+              your workspace.
+            </p>
+          </article>
+          <article>
+            <span class="feature-number">02 / DO</span>
+            <h3>Know what needs attention.</h3>
+            <p>
+              Track open tasks and reminders. Keep supporting notes, photos, and documents close to
+              the work.
+            </p>
+          </article>
+          <article>
+            <span class="feature-number">03 / KEEP</span>
+            <h3>Build a useful history.</h3>
+            <p>
+              Keep maintenance records and transactions organized, so the next question is easier to
+              answer.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section id="records" class="records-section section-width" aria-labelledby="records-title">
+        <div class="section-copy">
+          <p class="eyebrow">MORE THAN AN ADDRESS</p>
+          <h2 id="records-title">A home for your<br />property's history.</h2>
+          <p>
+            A repair today becomes useful context tomorrow. Keep the details together instead of
+            rebuilding the story from scratch.
+          </p>
+          <ul class="check-list">
+            <li>Maintenance notes and supporting documents</li>
+            <li>Tasks, assets, and property details in one place</li>
+            <li>Organized transactions for clearer reports</li>
+          </ul>
+          <a class="text-link" href="/public/pmpo-signup"
+            >Start with your first property <span aria-hidden="true">&#8594;</span></a
+          >
+        </div>
+        <figure class="record-preview">
+          <img
+            src="/images/workspace-property-record.svg"
+            width="760"
+            height="600"
+            loading="lazy"
+            decoding="async"
+            alt="Sample property record for Garden House, with Overview, Work, Documents and Money tabs and a maintenance history."
+          />
+          <figcaption>Property record illustration &middot; Sample data</figcaption>
+        </figure>
+      </section>
+      <section id="sharing" class="sharing-section section-width" aria-labelledby="sharing-title">
+        <div
+          class="sharing-visual"
+          role="img"
+          aria-label="An example of property-specific access shared with an owner using view-only permissions."
+        >
+          <div class="sharing-property">
+            <span class="house-symbol" aria-hidden="true">&#8962;</span>
+            <div><strong>Garden House</strong><span>Property access</span></div>
+            <span class="sharing-badge">Shared</span>
+          </div>
+          <div class="sharing-person">
+            <span class="person-avatar">PM</span>
+            <div><strong>Property manager</strong><span>Keep the day-to-day moving</span></div>
+          </div>
+          <div class="sharing-person">
+            <span class="person-avatar person-avatar--owner">OW</span>
+            <div><strong>Property owner</strong><span>See the records that matter</span></div>
+            <span class="access-label">View only</span>
+          </div>
+          <p class="sharing-note">The right context. The right level of access.</p>
+          <span class="illustration-label">Illustrative access example</span>
+        </div>
+        <div class="section-copy">
+          <p class="eyebrow">ON THE SAME PAGE</p>
+          <h2 id="sharing-title">Share the property.<br />Not your account.</h2>
+          <p>
+            Invite an owner or manager to the property and choose their level of access. Keep
+            collaboration specific to the home, without sharing your login.
+          </p>
+          <a class="text-link" href="/public/pmpo-signup"
+            >Bring your property team together <span aria-hidden="true">&#8594;</span></a
+          >
+        </div>
+      </section>
+      <section class="get-started section-width" aria-labelledby="get-started-title">
+        <div>
+          <p class="eyebrow">START SMALL. STAY ORGANIZED.</p>
+          <h2 id="get-started-title">Your next chapter,<br />a little more in order.</h2>
+          <p>One property is a good place to begin.</p>
+        </div>
+        <a class="button" href="/public/pmpo-signup"
+          >Create your workspace <span aria-hidden="true">&#8599;</span></a
+        >
+      </section>
+    </main>
+    <footer class="landing-footer section-width">
+      <div class="footer-brand">
+        <a class="wordmark" href="/landing.html">Handout</a>
+        <p>A clearer view of every property.</p>
+      </div>
+      <nav aria-label="Footer navigation">
+        <a href="/about.html">About</a><a href="/privacy.html">Privacy policy</a
+        ><a href="/terms.html">Terms of service</a
+        ><a href="/contact-support.html">Contact &amp; support</a>
+      </nav>
+      <p class="copyright">&copy; 2026 Magnates Solution LLC. All rights reserved.</p>
+    </footer>
     <script>
       ;(() => {
-        const params = new URLSearchParams(window.location.search)
-        const redirect = params.get('redirect')
+        const redirect = new URLSearchParams(window.location.search).get('redirect')
         if (!redirect) return
         document.querySelectorAll('[data-login-link]').forEach((link) => {
           const url = new URL(link.getAttribute('href'), window.location.origin)
           url.searchParams.set('redirect', redirect)
-          link.setAttribute('href', `${url.pathname}${url.search}`)
+          link.setAttribute('href', url.pathname + url.search)
         })
       })()
     </script>

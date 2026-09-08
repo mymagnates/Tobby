@@ -19,6 +19,8 @@
           v-model="selectedProperties"
           :options="propertyOptions"
           label="Properties"
+          :disable="Boolean(route.query.propertyId)"
+          :hint="route.query.propertyId ? 'Use the header to change property scope' : undefined"
           class="report-filter-control"
           outlined
           dense
@@ -1874,12 +1876,8 @@ watch(
       selectedProperties.value = []
       return
     }
-    const exists = propertyOptions.value.some((option) => String(option.value) === value)
-    if (exists) {
-      selectedProperties.value = [value]
-    } else {
-      selectedProperties.value = []
-    }
+    // Never turn a stale or inaccessible scoped link into an all-property report.
+    selectedProperties.value = [value]
   },
   { immediate: true },
 )

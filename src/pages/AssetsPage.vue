@@ -1261,9 +1261,7 @@ async function analyzeTagInput() {
 watch(
   () => route.params.propertyId || route.query.propertyId,
   (propertyId) => {
-    if (typeof propertyId === 'string') {
-      selectedPropertyFilter.value = propertyId
-    }
+    selectedPropertyFilter.value = typeof propertyId === 'string' ? propertyId : null
   },
   { immediate: true },
 )

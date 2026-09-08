@@ -36,7 +36,7 @@
             <q-icon name="home" size="100px" color="grey-4" />
             <div class="text-h6 q-mt-md text-grey-6">Select a Property</div>
             <div class="text-body2 text-grey-6 q-mt-sm">
-              Choose a property from the list to view detailed information
+              Choose an available property from the selector to view detailed information.
             </div>
           </div>
 
@@ -2595,7 +2595,7 @@ onMounted(() => {
     }
 
     // Auto-select first property if available
-    if (userProperties.value.length > 0 && !selectedProperty.value) {
+    if (userProperties.value.length > 0 && !selectedProperty.value && !route.query.propertyId) {
       selectedProperty.value = cloneProperty(userProperties.value[0])
     }
 
@@ -2652,7 +2652,7 @@ watch(
 watch(
   userProperties,
   (newProperties) => {
-    if (newProperties.length > 0 && !selectedProperty.value) {
+    if (newProperties.length > 0 && !selectedProperty.value && !route.query.propertyId) {
       selectedProperty.value = cloneProperty(newProperties[0])
     }
   },
@@ -2810,6 +2810,9 @@ const getAssetSubtitle = (asset) => {
 
 const selectProperty = (property) => {
   selectedProperty.value = cloneProperty(property)
+  if (!window.Capacitor?.isNativePlatform?.() && String(route.query.propertyId || '') !== String(property.id)) {
+    router.replace({ query: { ...route.query, propertyId: String(property.id) } })
+  }
   console.log('PropertyView - Selected property:', property)
 }
 
@@ -2819,6 +2822,10 @@ watch(
     const normalizedId = String(propertyId || '').trim()
     if (!normalizedId) return
     const property = (properties || []).find((item) => String(item?.id || '') === normalizedId)
+    if (!property) {
+      selectedProperty.value = null
+      return
+    }
     if (property && String(selectedProperty.value?.id || '') !== normalizedId) {
       selectProperty(property)
     }

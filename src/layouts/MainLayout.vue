@@ -2,29 +2,34 @@
   <q-layout
     view="hHh Lpr lFr"
     class="dashboard-layout"
-    :class="{ 'dashboard-layout--sp': isSpWorkspaceRoute }"
+    :class="{ 'dashboard-layout--sp': isSpWorkspaceRoute, 'web-workspace': !isNativePmOnlyLaunch }"
   >
     <!-- Console navigation rail -->
     <q-drawer
       v-model="leftDrawerOpen"
       side="left"
-      :width="248"
-      :mini-width="76"
+      :width="isNativePmOnlyLaunch ? 248 : 224"
+      :mini-width="isNativePmOnlyLaunch ? 76 : 72"
       :mini="drawerIsMini"
       class="dark-drawer"
-      :breakpoint="1024"
+      :breakpoint="1023"
       show-if-above
       bordered
     >
       <!-- Navigation -->
-      <div class="nav-grid-wrap">
+      <nav class="nav-grid-wrap" aria-label="Main navigation">
         <template v-for="(section, sectionIndex) in navSections" :key="section.key">
+          <div v-if="!isNativePmOnlyLaunch && !drawerIsMini" class="nav-section-label">
+            {{ section.label }}
+          </div>
           <div class="nav-grid">
             <button
               v-for="link in section.links"
               :key="`${section.key}-${link.link}`"
               class="nav-grid-item"
               :class="{ 'nav-grid-active': isNavActive(link.link) }"
+              :aria-label="link.title"
+              :aria-current="isNavActive(link.link) ? 'page' : undefined"
               @click="navigateTo(link.link)"
             >
               <div class="nav-grid-icon">
@@ -38,21 +43,42 @@
           </div>
           <q-separator v-if="sectionIndex < navSections.length - 1" class="q-my-sm" />
         </template>
-      </div>
+      </nav>
     </q-drawer>
 
     <!-- Top Header -->
     <q-header class="dashboard-header" :class="{ 'drawer-minimized': drawerIsMini }">
       <q-toolbar class="header-toolbar q-px-lg">
+        <q-btn
+          v-if="showWorkspaceNavButton && !isNativePmOnlyLaunch"
+          flat
+          round
+          dense
+          icon="menu"
+          class="header-action-btn workspace-nav-toggle"
+          aria-label="Toggle navigation"
+          :aria-expanded="leftDrawerOpen && !drawerIsMini"
+          @click="toggleLeftDrawer"
+        />
         <!-- Left: Logo -->
-        <div class="header-handout-logo" @click="goHome">
+        <button type="button" class="header-handout-logo" aria-label="Handout home" @click="goHome">
           <img src="/icons/favicon-128x128.png" alt="" class="header-brand-mark" />
           <span class="header-app-title">Handout</span>
-        </div>
-        <q-space />
+        </button>
+        <q-space v-if="isNativePmOnlyLaunch" />
 
         <!-- Center: Page title aligned with content -->
         <div class="header-center-title">{{ headerPageTitle }}</div>
+        <PropertyContextSwitcher
+          v-if="showPropertyContext"
+          v-model="activePropertyId"
+          :properties="userDataStore.userAccessibleProperties"
+          :include-all="!requiresSingleProperty(route.path)"
+          :show-create="userDataStore.isManagerCapableUser && !isOwnerWorkspaceOnly"
+          :user-id="userDataStore.userId || ''"
+          @create="goToCreatePropertyPage"
+          @manage="navigateTo('/my-properties')"
+        />
         <q-space />
 
         <!-- Right: Actions -->
@@ -60,7 +86,7 @@
         <!-- Header Actions: same-size buttons aligned in top bar -->
         <div class="header-actions">
           <q-btn
-            v-if="showWorkspaceNavButton"
+            v-if="showWorkspaceNavButton && isNativePmOnlyLaunch"
             flat
             round
             dense
@@ -102,6 +128,7 @@
               dense
               icon="add_circle"
               class="header-action-btn"
+              aria-label="Create a record"
               @click="showGlobalCreateDialog = true"
             >
               <q-tooltip>Create</q-tooltip>
@@ -113,6 +140,7 @@
               dense
               icon="smart_toy"
               class="header-action-btn"
+              aria-label="Ask Tobby"
               @click="showAssistantPanel = true"
             >
               <q-tooltip>Ask Tobby</q-tooltip>
@@ -149,6 +177,7 @@
             class="header-action-btn profile-btn"
             dropdown-icon="expand_more"
             no-icon-animation
+            aria-label="Account menu"
           >
             <q-list style="min-width: 180px">
               <q-item v-if="!isTenantUser" clickable v-close-popup @click="goToProfile">
@@ -191,6 +220,12 @@
         </aside>
 
         <div class="content-main" :class="{ 'content-main--workspace': showPropertyRail }">
+          <div
+            v-if="!isNativePmOnlyLaunch && !isIndexDashboard && !requiresSingleProperty(route.path)"
+            class="workspace-page-heading"
+          >
+            <h1>{{ headerPageTitle }}</h1>
+          </div>
           <router-view v-slot="{ Component, route: currentViewRoute }">
             <keep-alive>
               <component
@@ -550,6 +585,13 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { agentApi } from '../services/webApiClient'
 import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
+import PropertyContextSwitcher from '../components/PropertyContextSwitcher.vue'
+import {
+  propertyScopeLocation,
+  readPropertyScope,
+  requiresSingleProperty,
+  supportsPropertyScope,
+} from '../utils/workspaceScope'
 
 const createComponentMap = {
   property: defineAsyncComponent(() => import('components/CreateProperty.vue')),
@@ -659,6 +701,9 @@ const showFloatingAssistant = computed(() => {
 const showAssistantInRail = computed(() =>
   Boolean(showAdRail.value && isPmPo.value && showFloatingAssistant.value),
 )
+const showPropertyContext = computed(
+  () => !isNativePmOnlyLaunch.value && isPmPo.value && supportsPropertyScope(route.path),
+)
 const PROPERTY_RAIL_ROUTES = [
   '/my-properties',
   '/property-view',
@@ -683,6 +728,7 @@ const showPropertyRailCreate = computed(() =>
   ),
 )
 const showPropertyRail = computed(() => {
+  if (!isNativePmOnlyLaunch.value) return false
   const accountType = String(
     userDataStore.accountType || userDataStore.userCategory || '',
   ).toLowerCase()
@@ -690,6 +736,7 @@ const showPropertyRail = computed(() => {
   return isIndexDashboard.value || PROPERTY_RAIL_ROUTES.some((path) => route.path.startsWith(path))
 })
 const showAdRail = computed(() => {
+  if (!isNativePmOnlyLaunch.value) return false
   const accountType = String(
     userDataStore.accountType || userDataStore.userCategory || '',
   ).toLowerCase()
@@ -775,22 +822,26 @@ const contentShellClass = computed(() => ({
   'content-shell--with-property-rail-only': showPropertyRail.value && !showAdRail.value,
   'content-shell--with-compact-property-rail': showPropertyRail.value && isIndexDashboard.value,
   'content-shell--with-ad-rail': !showPropertyRail.value && showAdRail.value,
+  'content-shell--without-rails': !showPropertyRail.value && !showAdRail.value,
 }))
 const activePropertyId = computed({
   get() {
-    const value = String(route.query.propertyId || '').trim()
-    return value || null
+    return readPropertyScope(route)
   },
   set(value) {
-    const nextQuery = { ...route.query }
-    if (value) {
-      nextQuery.propertyId = value
-    } else {
-      delete nextQuery.propertyId
-    }
-    router.replace({ query: nextQuery }).catch(() => {})
+    router.replace(propertyScopeLocation(route, value)).catch(() => {})
   },
 })
+watch(
+  [() => route.path, () => route.query.propertyId, () => userDataStore.userAccessibleProperties],
+  () => {
+    if (!showPropertyContext.value || !requiresSingleProperty(route.path) || activePropertyId.value)
+      return
+    const first = userDataStore.userAccessibleProperties[0]
+    if (first) activePropertyId.value = String(first.id)
+  },
+  { immediate: true },
+)
 const showGlobalCreateDialog = ref(false)
 const showGlobalContactsDialog = ref(false)
 const showAssistantPanel = ref(false)
@@ -1889,13 +1940,25 @@ const navSections = computed(() => {
 
   return NAV_SECTION_ORDER.filter(
     (key) => Array.isArray(grouped[key]) && grouped[key].length > 0,
-  ).map((key) => ({ key, links: grouped[key] }))
+  ).map((key) => ({
+    key,
+    label:
+      {
+        dashboard: 'Overview',
+        propertyAssetDocuments: 'Portfolio',
+        taskTransactionReminderLeaseTenants: 'Operations',
+        spPortal: 'Workspace',
+        tenant: 'My home',
+      }[key] || 'More',
+    links: grouped[key],
+  }))
 })
 
 const leftDrawerOpen = ref(false)
-const drawerMini = ref(true)
+const drawerMini = ref(isNativePmOnlyLaunch.value)
 const drawerIsMini = computed(() => {
   if ($q.screen.lt.md) return false
+  if (!isNativePmOnlyLaunch.value) return drawerMini.value
   return $q.screen.lt.lg || drawerMini.value
 })
 const dataLoading = ref(false)
@@ -2031,7 +2094,7 @@ function toggleLeftDrawer() {
     return
   }
 
-  if ($q.screen.lt.lg) {
+  if (isNativePmOnlyLaunch.value && $q.screen.lt.lg) {
     drawerMini.value = true
     return
   }
@@ -2049,11 +2112,16 @@ function navigateTo(link) {
   if ($q.screen.lt.md) {
     leftDrawerOpen.value = false
   }
-  router.push(link)
+  const propertyId = activePropertyId.value
+  router.push(
+    !isNativePmOnlyLaunch.value && propertyId && supportsPropertyScope(link)
+      ? { path: link, query: { propertyId } }
+      : link,
+  )
 }
 
 function goHome() {
-  router.push('/')
+  navigateTo('/')
 }
 
 async function handleSignOut() {
@@ -2149,6 +2217,8 @@ watch(
 
 <style scoped>
 .dashboard-layout {
+  --workspace-rail-top: 88px;
+  --workspace-rail-bottom: 20px;
   background:
     radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%),
     radial-gradient(circle at top right, rgba(26, 22, 18, 0.05), transparent 24%),
@@ -2171,11 +2241,9 @@ watch(
 
 .dashboard-layout :deep(.q-drawer) {
   left: 20px !important;
-  top: 114px !important;
-}
-
-.dashboard-layout--sp :deep(.q-drawer) {
-  top: 82px !important;
+  top: var(--workspace-rail-top) !important;
+  height: calc(100dvh - var(--workspace-rail-top) - var(--workspace-rail-bottom)) !important;
+  max-height: calc(100dvh - var(--workspace-rail-top) - var(--workspace-rail-bottom)) !important;
 }
 
 .dark-drawer {
@@ -2350,6 +2418,9 @@ watch(
 
 /* Header Handout Logo - Shows when sidebar is closed */
 .header-handout-logo {
+  border: 0;
+  background: transparent;
+  font: inherit;
   display: flex;
   align-items: center;
   flex: 0 0 auto;
@@ -2589,10 +2660,17 @@ watch(
   align-items: start;
 }
 
+/* Reserve the mini navigation rail when a PM/PO page has no in-content rail. */
+.dashboard-layout:not(.dashboard-layout--sp) .content-shell--without-rails {
+  margin-left: 36px;
+}
+
 .property-rail {
   align-self: start;
   position: sticky;
   top: 0;
+  height: calc(100dvh - var(--workspace-rail-top) - var(--workspace-rail-bottom));
+  max-height: calc(100dvh - var(--workspace-rail-top) - var(--workspace-rail-bottom));
 }
 
 .ad-rail {
@@ -2616,6 +2694,11 @@ watch(
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.72);
   box-shadow: var(--shadow-md);
+}
+
+.mainlayout-property-picker {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .stats-rail-card {
@@ -2802,6 +2885,8 @@ watch(
   .dashboard-layout :deep(.q-drawer) {
     left: 0 !important;
     top: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
   }
 
   .nav-grid-wrap {
@@ -2881,6 +2966,10 @@ watch(
   .content-shell--with-compact-property-rail,
   .content-shell--with-ad-rail {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-layout:not(.dashboard-layout--sp) .content-shell--without-rails {
+    margin-left: 0;
   }
 
   .content-shell {
@@ -3381,3 +3470,5 @@ watch(
   -webkit-overflow-scrolling: touch;
 }
 </style>
+
+<style src="../css/web-workspace.scss" lang="scss"></style>

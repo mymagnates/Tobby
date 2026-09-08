@@ -55,6 +55,10 @@
       class="operations-dashboard"
       aria-label="Property operations dashboard"
     >
+      <div v-if="!isNativeWorkspace" class="workspace-page-heading">
+        <h1>Your properties, in focus.</h1>
+        <p>Track what needs attention and keep every property moving forward.</p>
+      </div>
       <div class="operations-dashboard__quick-actions" aria-label="Create a new record">
         <q-btn
           unelevated
@@ -1161,6 +1165,7 @@ const DetailShell = defineAsyncComponent(() => import('../components/details/Det
 
 const router = useRouter()
 const route = useRoute()
+const isNativeWorkspace = Boolean(window.Capacitor?.isNativePlatform?.())
 const { getCollectionData, updateDocument } = useFirebase()
 const isIndexHome = computed(() => route.path === '/' || route.path === '/pm-po-feed')
 const isPoUser = computed(() => !!userDataStore?.hasPoMembership && !userDataStore?.hasPmMembership)

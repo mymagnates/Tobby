@@ -6,11 +6,7 @@
     :class="{ 'property-sidebar-picker--compact': compact }"
   >
     <q-card-section class="property-picker-section">
-      <div class="property-picker-title">
-        <span v-if="!compact">Properties</span>
-        <q-icon v-else name="home_work" size="18px" />
-        <q-tooltip v-if="compact" anchor="center right" self="center left">Properties</q-tooltip>
-      </div>
+      <div v-if="!compact" class="property-picker-title">Properties</div>
       <div v-if="compact" class="property-picker-grid" aria-label="Property filter">
         <button
           v-if="showCreate"
@@ -156,7 +152,7 @@ const propertyShortCode = (property) => {
 }
 
 .property-sidebar-picker--compact .property-picker-section {
-  padding: 14px 10px !important;
+  padding: 12px 10px !important;
 }
 
 .property-picker-title {
@@ -166,12 +162,6 @@ const propertyShortCode = (property) => {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.property-sidebar-picker--compact .property-picker-title {
-  display: grid;
-  place-items: center;
-  margin-bottom: 12px;
 }
 
 .property-picker-list :deep(.q-item) {
