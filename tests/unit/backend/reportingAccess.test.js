@@ -12,6 +12,7 @@ function database() {
   })
   const query = (path, filters = [], limit = Infinity, group = false) => ({
     doc: (key) => ({
+      path: `${path}/${key}`,
       get: async () => snap(`${path}/${key}`),
       set: async (data) => records.set(`${path}/${key}`, data),
       collection: (child) => query(`${path}/${key}/${child}`),
@@ -38,6 +39,15 @@ function database() {
     records,
     collection: (path) => query(path),
     collectionGroup: (name) => query(name, [], Infinity, true),
+    runTransaction: async (fn) => {
+      const writes = []
+      const result = await fn({
+        get: async (ref) => snap(ref.path),
+        set: (ref, data) => writes.push(() => records.set(ref.path, data)),
+      })
+      writes.forEach((write) => write())
+      return result
+    },
   }
 }
 
@@ -83,6 +93,19 @@ beforeEach(() => {
 })
 
 describe('Server-authorized reporting', () => {
+  it('durably deduplicates transaction retries and rejects changed payload', async () => {
+    const input = {
+      ...context(), params: { propertyId: 'p1' }, body: transaction(),
+      req: { headers: { 'idempotency-key': 'transaction-retry-1' } },
+    }
+    const first = await reports.createTransaction(input)
+    const retry = await createReportingAccess({ getDb: () => db }).createTransaction(input)
+    expect(retry).toEqual(first)
+    expect([...db.records.keys()].filter((key) => key.startsWith('properties/p1/transactions/'))).toHaveLength(2)
+    await expect(reports.createTransaction({ ...input, body: transaction({ amount: 200 }) })).rejects.toMatchObject({ status: 409 })
+    db.records.set('properties/p1', property([], [], []))
+    await expect(reports.createTransaction(input)).rejects.toMatchObject({ status: 403 })
+  })
   it('requires verified identity on every new reporting operation', async () => {
     for (const key of ['options', 'workspace', 'participants', 'createTransaction']) {
       await expect(reports[key]({ ...context(), verified: false })).rejects.toMatchObject({

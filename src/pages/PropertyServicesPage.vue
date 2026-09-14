@@ -411,6 +411,7 @@ const serviceTypeOptions = [
   { label: 'Security / Alarm', value: 'security' },
   { label: 'Trash / Waste', value: 'trash' },
   { label: 'Snow Removal', value: 'snow_removal' },
+  { label: 'Other', value: 'other' },
 ]
 
 const serviceForm = ref({

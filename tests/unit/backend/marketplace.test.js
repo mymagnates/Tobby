@@ -24,7 +24,7 @@ const createBidPayload = (overrides = {}) => ({
   included_scope: 'Labor, materials, and final functional test.',
   estimated_start_date: '2026-08-12',
   estimated_duration: '1 day',
-  valid_until: '2026-08-20',
+  valid_until: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
   disclaimer_acknowledged: true,
   ...overrides,
 })

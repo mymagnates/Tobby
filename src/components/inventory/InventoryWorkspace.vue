@@ -627,7 +627,10 @@ const emit = defineEmits(['close'])
 const route = useRoute(),
   router = useRouter(),
   store = useUserDataStore()
-const leaseId = computed(() => props.leaseId || String(route.params.leaseId || '')),
+const leaseId = computed(() => {
+  const requested = props.leaseId || String(route.params.leaseId || '')
+  return (store.userAccessibleLeases || []).find(lease => lease.id === requested)?.inventory_source_lease_id || requested
+}),
   tenantReview = computed(() => !!route.meta.tenantReview)
 const workflowReady = ref(false)
 const state = ref(null),

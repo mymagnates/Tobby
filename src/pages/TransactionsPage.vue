@@ -183,10 +183,6 @@
               <div class="section-title">Transaction Information</div>
               <div class="details-grid transaction-info-grid">
                 <div class="detail-item">
-                  <div class="detail-label">Transaction ID</div>
-                  <div class="detail-value">{{ selectedTransaction.transac_id || 'N/A' }}</div>
-                </div>
-                <div class="detail-item">
                   <div class="detail-label">Type</div>
                   <div class="detail-value">
                     <q-chip
@@ -1245,37 +1241,46 @@ watch(
 }
 
 .dialog-content {
-  padding: 24px;
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
+  padding: 0;
+  max-height: none;
+  overflow: visible;
 }
 
 .transaction-details-full {
-  max-width: 800px;
+  width: 100%;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
 .details-section {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid var(--brand-border, #dbe3dc);
+  border-radius: 12px;
+  background: var(--brand-surface, #fff);
 }
 
 .section-title {
-  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 1rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--brand-ink, #243830);
   margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--brand-border, #dbe3dc);
 }
 
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 16px;
 }
 
 .transaction-info-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
 }
 
 .user-info-grid {
@@ -1285,7 +1290,11 @@ watch(
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--brand-canvas, #f7f8f4);
 }
 
 .detail-item.full-width {
@@ -1294,15 +1303,16 @@ watch(
 
 .detail-label {
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  color: var(--brand-muted, #61736a);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .detail-value {
   font-size: 1rem;
-  color: #1a1a1a;
+  color: var(--brand-ink, #243830);
+  font-weight: 500;
   word-break: break-word;
 }
 
@@ -1311,9 +1321,9 @@ watch(
   align-items: center;
   gap: 10px;
   padding: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--brand-border, #dbe3dc);
   border-radius: var(--border-radius-sm);
-  background: #f8fafc;
+  background: var(--brand-soft, #ecf3ed);
 }
 
 .flow-node {
@@ -1321,8 +1331,8 @@ watch(
   min-width: 0;
   padding: 10px 12px;
   border-radius: var(--border-radius-sm);
-  border: 1px solid #dbe3ef;
-  background: #ffffff;
+  border: 1px solid var(--brand-border, #dbe3dc);
+  background: var(--brand-surface, #fff);
 }
 
 .flow-node-label {
@@ -1337,7 +1347,7 @@ watch(
 .flow-node-value {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--brand-ink, #243830);
   word-break: break-word;
 }
 
@@ -1360,8 +1370,9 @@ watch(
 .flow-amount {
   font-size: 1rem;
   font-weight: 700;
-  color: #1976d2;
-  font-family: 'Roboto Mono', 'Courier New', monospace;
+  color: var(--brand-primary, #254b39);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -1381,11 +1392,11 @@ watch(
 }
 
 .activity-log {
-  background: #f8f9fa;
+  background: var(--brand-canvas, #f7f8f4);
   border-radius: var(--border-radius-sm);
   padding: 16px;
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .log-entry {
@@ -1457,8 +1468,10 @@ watch(
   }
 
   .dialog-content {
-    padding: 16px;
+    padding: 0;
   }
+
+  .details-section { padding: 14px; }
 
   .details-grid {
     grid-template-columns: 1fr;

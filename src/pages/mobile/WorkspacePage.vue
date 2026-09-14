@@ -79,6 +79,7 @@
       ></q-input>
       <section v-for="property in filteredProperties" :key="property.id" class="ios-property">
         <h2 class="q-ma-none">{{ property.nickname || property.address || property.id }}</h2>
+        <p class="ios-muted">{{ propertyLeasingStatus(store.userAccessibleLeases || [], property.id) }}</p>
         <p v-if="property.nickname" class="ios-muted q-mb-none">{{ property.address }}</p>
         <div class="ios-property-actions">
           <q-btn
@@ -224,6 +225,9 @@
     <q-dialog v-model="detailOpen" position="bottom"
       ><q-card class="ios-dialog">
         <h2>{{ selected ? recordTitle(selected) : 'Record' }}</h2>
+        <LeaseLifecyclePanel v-if="selected?.type === 'leases'" :lease="selected" can-manage @updated="updateLeaseDetail" @renewed="updateLeaseDetail" />
+        <q-btn v-if="selected?.type === 'leases'" outline no-caps label="Inventory List" @click="goToLease(selected)" />
+        <DepositWorkspace v-if="selected?.type === 'leases'" :property-id="leasePropertyId(selected)" :lease-id="selected.deposit_source_lease_id || selected.id" :lease-status="selected.status" />
         <template v-if="selected"
           ><p v-for="field in detailFields" :key="field.label">
             <span class="text-grey-7">{{ field.label }}</span
@@ -284,6 +288,9 @@ import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import { mobileRequest } from 'src/services/mobileApi'
 import WorkspaceHeader from 'src/components/mobile/WorkspaceHeader.vue'
+import LeaseLifecyclePanel from 'src/components/LeaseLifecyclePanel.vue'
+import DepositWorkspace from 'src/components/deposits/DepositWorkspace.vue'
+import { propertyLeasingStatus, leasePropertyId } from '../../../backend/leaseLifecycle.js'
 import {
   buildMobileAttention,
   mobileAttachmentUrl,
@@ -408,6 +415,7 @@ async function load() {
     await store.loadUserRoles()
     if (run !== generation) return
     await store.loadProperties()
+    if (mode.value === 'property') await store.loadLeases()
     if (run !== generation) return
     if (mode.value === 'home' || mode.value === 'manage') {
       const [taskRows, reminderRows] = await Promise.all([
@@ -470,7 +478,12 @@ async function openInventory(property) {
 }
 function goToLease(lease) {
   leaseOpen.value = false
-  router.push(`/mobile/pm/property/lease/${encodeURIComponent(lease.id)}/inventory`)
+  detailOpen.value = false
+  router.push(`/mobile/pm/property/lease/${encodeURIComponent(lease.inventory_source_lease_id || lease.id)}/inventory`)
+}
+async function updateLeaseDetail(lease) {
+  selected.value = { ...lease, type: 'leases' }
+  await store.loadLeases()
 }
 function currentReturnTo() {
   return safeMobileReturnTo(

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { leaseView } from '../../backend/leaseLifecycle.js'
 import { ref, computed } from 'vue'
 import {
   collection,
@@ -855,7 +856,7 @@ export const useUserDataStore = defineStore('userData', () => {
       debugLog('UserDataStore - All leases loaded:', allLeases.length)
       debugLog('UserDataStore - Sample lease data:', allLeases[0] || 'No leases')
 
-      leases.value = allLeases
+      leases.value = allLeases.map(leaseView)
       leases.value.sort((a, b) => {
         const dateA = a.created_datetime?.toDate?.() || new Date(a.created_datetime)
         const dateB = b.created_datetime?.toDate?.() || new Date(b.created_datetime)

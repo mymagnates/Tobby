@@ -6,7 +6,7 @@
           <div class="col">
             <div class="text-h6 text-weight-bold text-primary q-mb-sm">
               <q-icon name="home_work" class="q-mr-sm" />
-              Create New Lease
+              {{ renewalSource ? 'Renew Lease' : 'Create New Lease' }}
             </div>
             <div class="text-caption text-grey-7 q-mb-sm">
               Capture lease terms, pricing, and notes in one step.
@@ -78,11 +78,14 @@
           </section>
 
           <section class="lease-form-section" aria-label="Lease basics">
+            <p v-if="renewalSource">New draft based on {{ renewalSource.LSID || renewalSource.id }}. Existing deposit and inventory remain linked; transactions and signatures are not copied.</p>
             <div class="section-label q-mb-xs">Lease Basics</div>
             <div class="lease-field-grid">
               <q-select
                 v-model="leaseData.status"
                 :options="leaseStatusOptions"
+                :disable="!!renewalSource"
+                hint="Active is scheduled automatically when its start date is in the future."
                 label="Lease Status"
                 outlined
                 dense
@@ -94,6 +97,8 @@
                   <q-icon name="flag" color="primary" />
                 </template>
               </q-select>
+              <q-input v-model="leaseData.lease_start_date" outlined dense type="date" label="Lease start date" :rules="[value => (!!value || leaseData.status === 'Draft' && !renewalSource) || 'Start date is required']" />
+              <q-input v-model="leaseData.lease_end_date" outlined dense type="date" label="Lease end date" :rules="[value => (!value && leaseData.status === 'Draft' && !renewalSource || !!value && (!leaseData.lease_start_date || value >= leaseData.lease_start_date)) || 'Enter an end date on or after the start date']" />
               <q-input
                 v-model.number="leaseData.lease_term"
                 label="Lease Term (months)"
@@ -159,6 +164,7 @@
               </q-input>
               <q-input
                 v-model.number="leaseData.deposit"
+                :disable="!!renewalSource"
                 label="Required Deposit"
                 hint="Agreed amount, not money already received"
                 type="number"
@@ -288,6 +294,7 @@ import { useUserDataStore } from 'src/stores/userDataStore'
 import { createPropertyLeaseRequest } from 'src/services/leaseApi'
 
 const props = defineProps({
+  renewalSource: { type: Object, default: null },
   propertyId: {
     type: String,
     default: '',
@@ -313,7 +320,9 @@ const submitting = ref(false)
 const leaseData = ref({
   property_id: '',
   property: null,
-  status: '',
+  status: 'Draft',
+  lease_start_date: '',
+  lease_end_date: '',
   lease_term: null,
   lease_create_date: new Date().toISOString().split('T')[0],
   rate_type: '',
@@ -327,7 +336,7 @@ const leaseData = ref({
   additional_notes: '',
 })
 
-const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
+const leaseStatusOptions = ['Draft', 'Active']
 const rateTypeOptions = ['month', 'day', 'year']
 const utilitiesOptions = ['Electricity', 'Water', 'Gas', 'Internet', 'Cable TV', 'Trash', 'Sewer']
 const furnishedOptions = ['Yes', 'No', 'Partially']
@@ -475,6 +484,9 @@ const onSubmit = async () => {
       property_string_id: propertyId,
       LSID,
       status: leaseData.value.status,
+      lease_start_date: leaseData.value.lease_start_date,
+      lease_end_date: leaseData.value.lease_end_date,
+      ...(props.renewalSource ? { renews_lease_id: props.renewalSource.id } : {}),
       lease_term: toNumber(leaseData.value.lease_term, 0),
       lease_create_date: leaseData.value.lease_create_date,
       rate_type: leaseData.value.rate_type,
@@ -525,6 +537,20 @@ const onSubmit = async () => {
     submitting.value = false
   }
 }
+
+watch(() => props.renewalSource, source => {
+  if (!source) return
+  for (const key of ['lease_term', 'rate_type', 'rate_amount', 'deposit', 'pet_fee', 'application_fee_per_person', 'utilities_included', 'furnished', 'special_terms', 'additional_notes']) {
+    if (source[key] !== undefined) leaseData.value[key] = JSON.parse(JSON.stringify(source[key]))
+  }
+  leaseData.value.status = 'Draft'
+  const end = source.lease_end_date
+  if (end && !Number.isNaN(Date.parse(end))) {
+    const start = new Date(end.slice(0, 10) + 'T00:00:00Z')
+    start.setUTCDate(start.getUTCDate() + 1)
+    leaseData.value.lease_start_date = start.toISOString().slice(0, 10)
+  }
+}, { immediate: true })
 
 watch(
   [propertyOptions, fixedPropertyId],

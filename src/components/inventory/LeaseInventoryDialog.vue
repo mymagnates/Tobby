@@ -23,7 +23,10 @@ const props = defineProps({ leaseId: { type: String, default: '' }, propertyId: 
 const emit = defineEmits(['close'])
 const store = useUserDataStore()
 const selectedLeaseId = ref(''), search = ref('')
-const activeLeaseId = computed(() => props.leaseId || selectedLeaseId.value)
+const activeLeaseId = computed(() => {
+  const id = props.leaseId || selectedLeaseId.value
+  return (store.userAccessibleLeases || []).find(lease => lease.id === id)?.inventory_source_lease_id || id
+})
 const filteredLeases = computed(() => (store.userAccessibleLeases || []).filter(lease => {
   const pid = lease.property_string_id || (typeof lease.property_id === 'string' ? lease.property_id : lease.property_id?.id)
   return !props.propertyId || props.propertyId === pid

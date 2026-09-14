@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { leaseStatus, leaseView, leasePropertyId, leaseDates, propertyLeasingStatus, validateLeaseDates, assertLeaseDoesNotOverlap } from './leaseLifecycle.js'
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
@@ -990,7 +991,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const normalizedLeaseId = String(leaseId || '').trim()
     if (!normalizedLeaseId) return null
     const snapshot = await getDb().collection('leases').doc(normalizedLeaseId).get()
-    return snapshot.exists ? { id: snapshot.id, ...(snapshot.data() || {}) } : null
+    return snapshot.exists ? leaseView({ id: snapshot.id, ...(snapshot.data() || {}) }) : null
   }
 
   const requirePropertyManager = async ({ actor, verified, propertyId }) => {
@@ -1001,6 +1002,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
   }
 
   const LEASE_STATUSES = new Set([
+    'Draft', 'Scheduled', 'Active',
     'Available',
     'Rented',
     'Pending',
@@ -1041,6 +1043,58 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     return changes
   }
 
+  const persistLease = async ({ leaseId, changes, create = false, renewsLeaseId = '' }) => {
+    const db = getDb()
+    return db.runTransaction(async tx => {
+      const ref = db.collection('leases').doc(leaseId)
+      const current = await tx.get(ref)
+      if (!create && !current.exists) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found.')
+      let next = { ...(current.exists ? current.data() : {}), ...changes, id: leaseId }
+      const pid = leasePropertyId(next)
+      const propertyRef = db.collection('properties').doc(pid)
+      const property = await tx.get(propertyRef)
+      if (!property.exists) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+      const siblings = await tx.get(db.collection('leases').where('property_string_id', '==', pid))
+      const others = siblings.docs.map(doc => ({ ...doc.data(), id: doc.id }))
+      let source = null
+      let tenants = []
+      if (renewsLeaseId) {
+        source = others.find(row => row.id === renewsLeaseId)
+        if (!source || !['Active', 'Expired'].includes(leaseStatus(source))) throw createApiError(409, 'LEASE_NOT_RENEWABLE', 'Choose an active or expired lease to renew.')
+        if (others.some(row => row.renews_lease_id === source.id && !['Terminated', 'Archived'].includes(leaseStatus(row)))) throw createApiError(409, 'RENEWAL_EXISTS', 'A renewal already exists. Open that lease instead.')
+        const sourceEnd = leaseDates(source).end
+        if (!sourceEnd || !next.lease_start_date || !next.lease_end_date || next.lease_start_date <= sourceEnd) throw createApiError(400, 'RENEWAL_DATES', 'Provide new start and end dates; renewal must start after the original end date.')
+        if (Number(next.deposit || 0) !== Number(source.deposit || 0)) throw createApiError(400, 'DEPOSIT_CONTINUITY', 'Renewal retains the existing deposit requirement. Record any adjustment separately in deposit tracking.')
+        next = { ...sanitizeLeaseChanges(source), ...next, status: 'Draft', renews_lease_id: source.id,
+          tenancy_id: source.tenancy_id || source.id,
+          inventory_source_lease_id: source.inventory_source_lease_id || source.id,
+          deposit_source_lease_id: source.deposit_source_lease_id || source.id,
+          tenant_id: source.tenant_id || null, tenant_email: source.tenant_email || null }
+        const tenantRows = await tx.get(db.collection('tenants').where('lease_id', '==', source.id))
+        tenants = tenantRows.docs.filter(doc => !['inactive', 'archived', 'terminated'].includes(String(doc.data().status || '').toLowerCase())).map(doc => ({ ...doc.data(), original_id: doc.id }))
+      }
+      if (current.exists && current.data().renews_lease_id) {
+        const sourceLease = others.find(row => row.id === current.data().renews_lease_id)
+        if (!sourceLease || !leaseDates(sourceLease).end || leaseDates(next).start <= leaseDates(sourceLease).end) throw createApiError(400, 'RENEWAL_DATES', 'Renewal must begin after the original lease ends.')
+        if (Number(next.deposit || 0) !== Number(current.data().deposit || 0)) throw createApiError(400, 'DEPOSIT_CONTINUITY', 'Use the existing deposit account for adjustments.')
+      }
+      validateLeaseDates(next)
+      next.status = leaseStatus(next)
+      assertLeaseDoesNotOverlap(next, others)
+      // Lock the property as well as the lease to serialize concurrent confirmations.
+      tx.set(propertyRef, { lease_revision: Number(property.data().lease_revision || 0) + 1 }, { merge: true })
+      for (const tenant of tenants) {
+        const tenantRef = db.collection('tenants').doc()
+        const { original_id, id: ignoredId, ...profile } = tenant
+        void ignoredId
+        tx.set(tenantRef, { ...profile, lease_id: leaseId, source_tenant_id: original_id, created_at: next.created_at, updated_at: next.updated_at })
+        if (next.tenant_id === original_id) next.tenant_id = tenantRef.id
+      }
+      tx.set(ref, next)
+      return leaseView(next)
+    })
+  }
+
   const requireVerifiedActor = ({ verified, actor }) => {
     if (!verified || !String(actor?.id || '').trim()) {
       throw createApiError(401, 'UNAUTHENTICATED', 'Firebase authentication is required.')
@@ -1079,6 +1133,24 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
 
   const getPersistentStorageUrl = ({ bucketName, storagePath, downloadToken }) =>
     `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(storagePath)}?alt=media&token=${encodeURIComponent(downloadToken)}`
+
+  const requireUploadAccess = async ({ actor, verified, propertyId, storagePath, contentType }) => {
+    requireVerifiedActor({ actor, verified })
+    const property = await getFirestorePropertyById(propertyId)
+    if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
+    const member = field => Array.isArray(property[field]) && property[field].includes(actor.id)
+    if (actor.role === 'admin' || member('owner_user_ids') || member('manager_user_ids')) return
+    if (member('viewer_user_ids')) throw createApiError(403, 'PROPERTY_READ_ONLY', 'Your access to this property is view-only.')
+    // Preserve legacy PM membership until canonical member arrays are populated.
+    if (!Array.isArray(property.manager_user_ids) && await hasPmAccessToProperty({ actor, propertyId })) return
+    const match = String(storagePath || '').match(/^properties\/([^/]+)\/inventory\/([A-Za-z0-9_-]{1,128})\/([A-Za-z0-9_-]{1,100})\/[A-Za-z0-9_-]+$/)
+    if (!match || match[1] !== propertyId) throw createApiError(403, 'UPLOAD_ACCESS_DENIED', 'Editing access to this property is required. Tenants can upload only lease inventory photos.')
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(contentType)) throw createApiError(400, 'INVALID_INVENTORY_PHOTO', 'Choose a supported inventory image.')
+    const lease = await getLeaseById(match[2])
+    if (!lease || leasePropertyId(lease) !== propertyId || lease.archived || lease.status === 'Terminated') throw createApiError(403, 'UPLOAD_ACCESS_DENIED', 'This lease is not available for inventory uploads.')
+    // Reuse the inventory participant checks instead of trusting the account's role label.
+    await createInventoryService({ getDb }).get({ actor, verified, params: { leaseId: match[2] } })
+  }
 
   const isExpiredOwnerInvite = (invite, now = Date.now()) => {
     const expiresAt = asDate(invite?.expires_at)
@@ -4968,7 +5040,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       if (!lease)
         throw createApiError(404, 'LEASE_NOT_FOUND', 'This invitation is no longer available.')
       if (
-        !['available', 'pending', 'rented'].includes(
+        !['draft', 'scheduled', 'active', 'available', 'pending', 'rented'].includes(
           String(lease.status || '')
             .trim()
             .toLowerCase(),
@@ -5488,8 +5560,6 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             updated_at: now,
             ...(decision === 'approved' ? { approved_at: now } : { rejected_at: now }),
           }
-          transaction.set(applicationRef, reviewPatch, { merge: true })
-
           if (decision === 'approved') {
             const leaseId = String(summary.lease_id || '').trim()
             if (!leaseId)
@@ -5498,7 +5568,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
                 'LEASE_REQUIRED',
                 'A lease is required to approve an application.',
               )
-            const lease = await assertLeaseBelongsToProperty({ db, leaseId, propertyId })
+            const leaseRef = db.collection('leases').doc(leaseId)
+            const leaseSnap = await transaction.get(leaseRef)
+            if (!leaseSnap.exists || leasePropertyId(leaseSnap.data()) !== propertyId) throw createApiError(404, 'LEASE_NOT_FOUND', 'Lease not found for this property.')
+            const lease = { ref: leaseRef, data: leaseSnap.data() }
+            if (leaseStatus(lease.data) !== 'Draft') throw createApiError(409, 'LEASE_ALREADY_CONFIRMED', 'Only a draft lease can accept a new application.')
             const startDate = String(
               body?.lease_start_date || summary.desired_move_in_date || '',
             ).trim()
@@ -5508,6 +5582,15 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
                 'LEASE_START_DATE_REQUIRED',
                 'A lease start date is required.',
               )
+            const confirmed = { ...lease.data, id: leaseId, status: 'Active', lease_start_date: startDate,
+              lease_end_date: String(body?.lease_end_date || lease.data.lease_end_date || '') }
+            validateLeaseDates(confirmed)
+            const propertyRef = db.collection('properties').doc(propertyId)
+            const propertySnap = await transaction.get(propertyRef)
+            const leaseRows = await transaction.get(db.collection('leases').where('property_string_id', '==', propertyId))
+            assertLeaseDoesNotOverlap(confirmed, leaseRows.docs.map(doc => ({ ...doc.data(), id: doc.id })))
+            transaction.set(applicationRef, reviewPatch, { merge: true })
+            transaction.set(propertyRef, { lease_revision: Number(propertySnap.data()?.lease_revision || 0) + 1 }, { merge: true })
             const tenantRef = db.collection('tenants').doc()
             const tenant = normalizeTenantPayload({
               personal_info: privateData.applicant || summary.applicant || {},
@@ -5532,7 +5615,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             transaction.set(
               lease.ref,
               {
-                status: 'Rented',
+                status: leaseStatus(confirmed),
+                lease_end_date: confirmed.lease_end_date,
                 start_date: startDate,
                 lease_start_date: startDate,
                 move_in_date: startDate,
@@ -5564,6 +5648,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
               tenant_id: tenantRef.id,
             }
           }
+          transaction.set(applicationRef, reviewPatch, { merge: true })
           transaction.set(
             db
               .collection('properties')
@@ -6063,11 +6148,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           .where('property_string_id', '==', propertyId)
           .get()
         const leases = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+          .map((doc) => leaseView({ id: doc.id, ...(doc.data() || {}) }))
           .sort((left, right) =>
             String(right.created_at || '').localeCompare(String(left.created_at || '')),
           )
-        return ok(res, requestId, { leases })
+        return ok(res, requestId, { leases, leasing_status: propertyLeasingStatus(leases, propertyId) })
       } catch (error) {
         return sendError(
           res,
@@ -6130,25 +6215,9 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           created_datetime: now,
           updated_at: now,
         }
-        const inventory = {
-          id: 'primary',
-          property_id: propertyId,
-          property_address: String(property.address || ''),
-          lease_doc_id: leaseId,
-          lease_lsid: lease.LSID,
-          ktcs_items: {},
-          custom_items: [],
-          created_datetime: now,
-          updated_datetime: now,
-        }
-        await getDb().runTransaction(async (transaction) => {
-          transaction.set(getDb().collection('leases').doc(leaseId), lease)
-          transaction.set(
-            getDb().collection('leases').doc(leaseId).collection('inventories').doc('primary'),
-            inventory,
-          )
-        })
-        return ok(res, requestId, { lease })
+        const created = await persistLease({ leaseId, changes: lease, create: true, renewsLeaseId: String(input.renews_lease_id || '') })
+        // Inventory is initialized on first use; renewals keep the existing tenancy inventory.
+        return ok(res, requestId, { lease: created })
       } catch (error) {
         return sendError(
           res,
@@ -6174,11 +6243,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       if (!Object.keys(changes).length)
         throw createApiError(400, 'NO_LEASE_CHANGES', 'No editable lease fields were supplied.')
       const updatedAt = new Date().toISOString()
-      const updated = { ...lease, ...changes, updated_at: updatedAt }
-      await getDb()
-        .collection('leases')
-        .doc(lease.id)
-        .set({ ...changes, updated_at: updatedAt }, { merge: true })
+      const updated = await persistLease({ leaseId: lease.id, changes: { ...changes, updated_at: updatedAt } })
       return ok(res, requestId, { lease: updated })
     } catch (error) {
       return sendError(
@@ -6216,8 +6281,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           changes.archived = true
           changes.archived_at = now
         }
-        await getDb().collection('leases').doc(lease.id).set(changes, { merge: true })
-        return ok(res, requestId, { lease: { ...lease, ...changes } })
+        const updated = await persistLease({ leaseId: lease.id, changes })
+        return ok(res, requestId, { lease: updated })
       } catch (error) {
         return sendError(
           res,
@@ -9505,7 +9570,6 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     async ({ actor, verified, body, res, requestId }) => {
       try {
         requireVerifiedActor({ actor, verified })
-        if (!assertRole({ actor, allowed: ['pm_po', 'admin'], res, requestId })) return
         const storagePath = String(body?.storage_path || '').replace(/^\/+/, '')
         const sizeBytes = Number(body?.size_bytes || 0)
         const contentType = String(body?.content_type || 'application/octet-stream')
@@ -9528,7 +9592,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             'INVALID_STORAGE_PATH',
             'Uploads must target a property or lease path.',
           )
-        await assertPmPropertyAccess({ actor, propertyId })
+        await requireUploadAccess({ actor, verified, propertyId, storagePath, contentType })
         const sizeMb = sizeBytes / (1024 * 1024)
         if (
           Number(actor.billing.storage_used_mb || 0) + sizeMb >
@@ -9596,7 +9660,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         const reservation = snap.data() || {}
         if (reservation.user_id !== actor.id)
           throw createApiError(403, 'UPLOAD_RESERVATION_INVALID', 'Upload reservation is not available.')
-        await assertPmPropertyAccess({ actor, propertyId: reservation.property_id })
+        await requireUploadAccess({ actor, verified, propertyId: reservation.property_id, storagePath: reservation.storage_path, contentType: reservation.content_type })
         const committedResponse = (row) => ({
           storage_path: row.storage_path,
           size_bytes: row.actual_size_bytes,

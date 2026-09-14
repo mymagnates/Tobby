@@ -37,7 +37,10 @@ export function createRecordPhotoUpload({ propertyId, file, context = 'transacti
             'x-goog-meta-firebaseStorageDownloadTokens': reservation.download_token,
           },
         })
-        if (!response.ok) throw new Error('Photo upload failed. Please retry.')
+        if (!response.ok) {
+          if (response.status === 403) reservation = undefined
+          throw new Error(`Photo upload rejected (${response.status}). Retry to obtain a fresh upload link; if it still fails, contact support.`)
+        }
         uploaded = true
       } finally {
         clearTimeout(timer)

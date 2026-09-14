@@ -158,7 +158,7 @@ describe('PO/PM input -> SP credit production and consumption data flow', () => 
         included_scope: 'Inspect and repair the water heater.',
         estimated_start_date: '2026-08-12',
         estimated_duration: '1 day',
-        valid_until: '2026-08-20',
+        valid_until: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
         disclaimer_acknowledged: true,
       }),
     })

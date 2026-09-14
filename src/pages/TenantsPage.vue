@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <div class="page-container">
+    <div v-if="!showDetailDialog" class="page-container">
       <!-- Filter and Search -->
       <div class="page-toolbar page-toolbar--filters">
         <q-input
@@ -243,53 +243,25 @@
       </div>
     </div>
 
-    <!-- Tenant Detail Dialog -->
-    <q-dialog 
-      v-model="showDetailDialog" 
-      maximized 
-      transition-show="slide-up" 
-      transition-hide="slide-down"
-      @hide="onDialogHide"
+    <DetailShell
+      :model-value="showDetailDialog"
+      :title="selectedTenant ? `${selectedTenant.personal_info?.first_name || ''} ${selectedTenant.personal_info?.last_name || ''}`.trim() || 'Tenant Details' : 'Tenant Details'"
+      :subtitle="selectedTenant ? getPropertyName(selectedTenant.property_id) : ''"
+      @close="closeDetailDialog"
     >
-      <q-card class="tenant-detail-dialog tenant-detail-surface">
+      <template #actions>
+        <q-btn
+          v-if="selectedTenant && !isEditMode && canManageRecords"
+          flat no-caps icon="edit" label="Edit" aria-label="Edit tenant"
+          :ripple="false" @click="enterEditMode"
+        />
+      </template>
+      <div class="tenant-detail-page">
+      <q-linear-progress v-if="loading" indeterminate />
+      <p v-else-if="!selectedTenant" role="alert">{{ error || 'Tenant not found or access is unavailable.' }}</p>
         <template v-if="selectedTenant">
-        <!-- Dialog Header -->
-        <q-toolbar class="bg-primary text-white">
-          <q-avatar size="48px">
-            <q-icon name="person" size="32px" />
-          </q-avatar>
-          <q-toolbar-title class="q-ml-md">
-            <div class="text-h6">
-              {{ selectedTenant.personal_info?.first_name }} {{ selectedTenant.personal_info?.last_name }}
-            </div>
-            <div class="text-caption">{{ getPropertyName(selectedTenant.property_id) }}</div>
-          </q-toolbar-title>
-          <q-btn 
-            v-if="!isEditMode && canManageRecords"
-            flat 
-            no-caps
-            label="Edit"
-            aria-label="Edit tenant"
-            icon="edit" 
-            @click="enterEditMode" 
-            class="tenant-header-edit"
-            size="md"
-          >
-            <q-tooltip>Edit Tenant</q-tooltip>
-          </q-btn>
-          <q-btn 
-            flat 
-            round 
-            icon="close" 
-            aria-label="Close tenant details"
-            @click="closeDetailDialog" 
-            class="close-dialog-btn q-ml-xs"
-            size="md"
-          />
-        </q-toolbar>
-
         <!-- Dialog Content -->
-        <q-card-section class="q-pa-lg tenant-detail-scroll">
+        <div class="tenant-detail-scroll">
           <q-form v-if="isEditMode && canManageRecords" @submit.prevent="saveTenant" class="tenant-detail-content">
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
@@ -728,17 +700,18 @@
               </q-card-section>
             </q-card>
           </div>
-        </q-card-section>
+        </div>
         </template>
-      </q-card>
-    </q-dialog>
+      </div>
+    </DetailShell>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { useQuasar } from 'quasar'
+import DetailShell from '../components/details/DetailShell.vue'
 import { useUserDataStore } from '../stores/userDataStore'
 import {
   listPropertyTenantsRequest,
@@ -756,7 +729,7 @@ const loading = ref(true)
 const error = ref(null)
 
 // Dialog
-const showDetailDialog = ref(false)
+const showDetailDialog = computed(() => !!route.query.tenantId)
 const selectedTenant = ref(null)
 const isEditMode = ref(false)
 const editFormData = ref(null)
@@ -895,10 +868,9 @@ const openDocument = (url) => {
 
 const viewTenantDetails = (tenant) => {
   if (!tenant) return
-
-  selectedTenant.value = { ...tenant }
-  isEditMode.value = false
-  showDetailDialog.value = true
+  const query = { ...route.query, tenantId: tenant.id }
+  delete query.edit
+  return router.push({ path: '/tenants', query })
 }
 
 const enterEditMode = () => {
@@ -1002,22 +974,15 @@ const saveTenant = async () => {
 }
 
 const closeDetailDialog = () => {
-  showDetailDialog.value = false
-  isEditMode.value = false
-  editFormData.value = null
-}
-
-const onDialogHide = () => {
-  // Keep selectedTenant stable to avoid transition/unmount race conditions.
-  isEditMode.value = false
-  editFormData.value = null
+  const query = { ...route.query }
+  delete query.tenantId
+  delete query.edit
+  return router.push({ path: '/tenants', query })
 }
 
 const editTenant = async (tenant) => {
   if (!canManageRecords.value) return
-  viewTenantDetails(tenant)
-  await nextTick()
-  enterEditMode()
+  await router.push({ path: '/tenants', query: { ...route.query, tenantId: tenant.id, edit: '1' } })
 }
 
 const confirmDeleteTenant = (tenant) => {
@@ -1043,6 +1008,15 @@ const deleteTenant = async (tenant) => {
 }
 
 // Lifecycle
+watch([() => route.query.tenantId, () => route.query.edit, tenants], ([id, edit]) => {
+  selectedTenant.value = tenants.value.find(tenant => tenant.id === String(id || '')) || null
+  isEditMode.value = false
+  editFormData.value = null
+  if (selectedTenant.value && edit === '1') enterEditMode()
+}, { immediate: true })
+const canLeaveDetail = () => !saving.value && (!isEditMode.value || window.confirm('Discard unsaved tenant changes?'))
+onBeforeRouteLeave(canLeaveDetail)
+onBeforeRouteUpdate((to, from) => to.query.tenantId === from.query.tenantId && to.query.edit === from.query.edit || canLeaveDetail())
 onMounted(() => {
   fetchTenants()
 })
@@ -1059,6 +1033,10 @@ watch(
 
 <style src="../css/tenant-details.scss" lang="scss"></style>
 <style scoped>
+.tenant-detail-page { width: 100%; max-width: 1120px; margin: 0 auto; }
+.tenant-detail-page .tenant-detail-scroll { overflow: visible; height: auto; max-height: none; }
+.tenant-detail-page > .q-card { border-color: var(--brand-border, #dbe3dc); border-radius: 12px; }
+.tenant-detail-page :deep(.q-toolbar) { flex-wrap: wrap; gap: 8px; padding: 16px; background: var(--brand-surface, #fff) !important; color: var(--brand-ink, #243830) !important; }
 .page-container {
   max-width: 1400px;
   margin: 0 auto;

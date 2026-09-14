@@ -8,7 +8,7 @@ beforeEach(() => {
     where: () => collection(),
     limit: () => collection(),
     get: async () => ({ docs: [] }),
-    doc: () => ({ get: async () => ({ exists: true, data: () => ({ account_type: 'pm' }) }) }),
+    doc: () => ({ get: async () => ({ exists: true, data: () => ({ account_type: 'pm' }) }), collection }),
   })
   runtime = createApiServer({
     config: {
@@ -52,6 +52,17 @@ const request = async (url, { token = '', method = 'GET', body = {} } = {}) => {
   return { status, payload }
 }
 describe('Reporting HTTP boundary', () => {
+  it.each([
+    ['GET', '/leases/l1/inventory-workflow'],
+    ['GET', '/leases/l1/inventory-workflow/history'],
+    ['POST', '/leases/l1/inventory-workflow/commands'],
+  ])('protects inventory %s %s', async (method, path) => {
+    expect((await request(path, { method })).status).toBe(401)
+  })
+  it.each(['GET', 'POST'])('protects the canonical task comments %s route', async (method) => {
+    expect((await request('/properties/p1/mxrecords/t1/comments', { method })).status).toBe(401)
+    if (method === 'GET') expect((await request('/properties/p1/mxrecords/t1/comments', { method, token: 'valid-report-token' })).status).toBe(403)
+  })
   it.each(['/properties/p1/deposits', '/properties/p1/leases/l1/deposit'])(
     'protects the deposit read route %s',
     async (path) => {

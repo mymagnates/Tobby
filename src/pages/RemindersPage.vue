@@ -171,8 +171,8 @@
       "
       @close="closeReminderDetail"
     >
-      <div class="reminder-detail-body" v-if="selectedReminder">
-        <div v-if="canManageRecords" class="reminder-detail-actions">
+      <template #actions>
+        <div v-if="selectedReminder && canManageRecords" class="reminder-detail-actions">
           <q-btn
             color="positive"
             unelevated
@@ -217,6 +217,8 @@
             @click="deleteReminder(selectedReminder)"
           />
         </div>
+      </template>
+      <div class="reminder-detail-body" v-if="selectedReminder">
         <div class="reminder-detail-grid">
           <div class="detail-block">
             <div class="detail-label">Property</div>
@@ -1254,8 +1256,9 @@ watch(
 
 .reminder-detail-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: flex-end;
-  margin-bottom: 12px;
 }
 
 .reminder-detail-grid {

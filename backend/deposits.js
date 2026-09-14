@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { leaseStatus } from './leaseLifecycle.js'
 import { isValidReportAmount, parseReportPeriod } from './reporting.js'
 
 const fail = (status, code, message) => {
@@ -6,7 +7,7 @@ const fail = (status, code, message) => {
 }
 const validId = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id)
 const ended = (lease) =>
-  lease.archived || ['Archived', 'Expired', 'Terminated', 'Ended', 'Closed'].includes(lease.status)
+  lease.archived || ['Archived', 'Expired', 'Terminated'].includes(leaseStatus(lease))
 const finance = (p, uid) =>
   [p.owner_user_ids, p.manager_user_ids].some((ids) => Array.isArray(ids) && ids.includes(uid))
 const isDeposit = (row) =>
@@ -150,6 +151,8 @@ export function createDepositService({ getDb }) {
           r.propertyId,
         )
         const account = await tx.get(r.root.collection('accounts').doc(lease.id))
+        const continuation = await bounded(r.db.collection('leases').where('deposit_source_lease_id', '==', lease.id), 200, query => tx.get(query))
+        const continuing = continuation.some(row => leaseStatus(row) === 'Active' || leaseStatus(row) === 'Scheduled')
         const entries = await bounded(
           r.root.collection('entries').where('lease_id', '==', lease.id),
           1000,
@@ -159,7 +162,7 @@ export function createDepositService({ getDb }) {
           entries.filter((e) => e.action === 'reversal').map((e) => e.reverses_id),
         )
         return {
-          summary: depositSummary(lease, account.exists ? account.data() : zero()),
+          summary: depositSummary(continuing ? { ...lease, status: 'Active', lease_end_date: '' } : lease, account.exists ? account.data() : zero()),
           entries: entries
             .sort((a, b) => a.version - b.version)
             .map((e) => ({
@@ -183,7 +186,10 @@ export function createDepositService({ getDb }) {
     )
     const accounts = await bounded(r.root.collection('accounts'), 200)
     const byId = new Map(accounts.map((a) => [a.id, a]))
-    const rows = leases.map((lease) => depositSummary(lease, byId.get(lease.id)))
+    const rows = leases.filter(lease => !lease.deposit_source_lease_id || lease.deposit_source_lease_id === lease.id).map(lease => {
+      const continuing = leases.some(row => row.deposit_source_lease_id === lease.id && ['Active', 'Scheduled'].includes(leaseStatus(row)))
+      return depositSummary(continuing ? { ...lease, status: 'Active', lease_end_date: '' } : lease, byId.get(lease.id))
+    })
     for (const account of accounts)
       if (!leases.some((l) => l.id === account.id))
         rows.push({
@@ -393,5 +399,16 @@ export function createDepositService({ getDb }) {
     })
     return getLease(ctx)
   }
-  return { getLease, getProperty, postEntry }
+  const withTenancyAccount = operation => async ctx => {
+    actorId(ctx)
+    const r = refs(ctx)
+    if (!validId(ctx.params.leaseId)) fail(400, 'INVALID_LEASE', 'Choose a valid lease.')
+    const lease = verifyLease(await r.db.collection('leases').doc(ctx.params.leaseId).get(), r.propertyId)
+    const source = lease.deposit_source_lease_id
+    if (!source || source === lease.id) return operation(ctx)
+    if (!validId(source)) fail(409, 'INVALID_DEPOSIT_SOURCE', 'The deposit source needs review.')
+    verifyLease(await r.db.collection('leases').doc(source).get(), r.propertyId)
+    return operation({ ...ctx, params: { ...ctx.params, leaseId: source } })
+  }
+  return { getLease: withTenancyAccount(getLease), getProperty, postEntry: withTenancyAccount(postEntry) }
 }

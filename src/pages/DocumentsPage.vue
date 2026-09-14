@@ -114,13 +114,8 @@
     </div>
 
     <!-- Dialog: View document (preview or open link) -->
-    <q-dialog v-model="showViewDocument" position="standard" maximized>
+    <DetailShell v-model="showViewDocument" :title="selectedDocument?.name || 'Document'">
       <q-card class="view-doc-dialog">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ selectedDocument?.name || 'Document' }}</div>
-          <q-space />
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
         <q-card-section class="view-doc-content">
           <template v-if="selectedDocument">
             <div v-if="selectedDocumentUrl" class="doc-preview-shell">
@@ -181,10 +176,10 @@
           </template>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Close" color="primary" v-close-popup />
+          <q-btn flat no-caps label="Close" color="primary" @click="showViewDocument = false" />
         </q-card-actions>
       </q-card>
-    </q-dialog>
+    </DetailShell>
 
     <q-dialog
       v-if="canCreateDocuments"
@@ -215,6 +210,7 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { normalizeRoleValue, roleLabel } from '../utils/roleUtils'
 import CreateDocument from '../components/CreateDocument.vue'
+import DetailShell from '../components/details/DetailShell.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -843,8 +839,8 @@ watch(
 }
 
 .view-doc-dialog .view-doc-content {
-  height: calc(100vh - 112px);
-  min-height: 420px;
+  height: min(68dvh, 900px);
+  min-height: 240px;
   padding-top: 12px;
 }
 
@@ -956,8 +952,8 @@ watch(
   }
 
   .view-doc-dialog .view-doc-content {
-    height: calc(100vh - 104px);
-    min-height: 360px;
+    height: 60dvh;
+    min-height: 240px;
     padding: 10px;
   }
 

@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   getIdToken: vi.fn(),
   createDocument: vi.fn(),
   uploadImages: vi.fn(),
+  uploadPhoto: vi.fn(),
+  createPhotoUpload: vi.fn(),
   notify: vi.fn(),
   push: vi.fn(),
 }))
@@ -26,6 +28,9 @@ vi.mock('../../../src/boot/firebase', () => ({
 }))
 vi.mock('../../../src/composables/useFirebase', () => ({
   useFirebase: () => ({ createDocument: mocks.createDocument, uploadImages: mocks.uploadImages }),
+}))
+vi.mock('../../../src/services/recordPhotoUpload', () => ({
+  createRecordPhotoUpload: mocks.createPhotoUpload,
 }))
 vi.mock('../../../src/stores/userDataStore', () => ({ useUserDataStore: () => mocks.store }))
 vi.mock('vue-router', () => ({
@@ -65,6 +70,7 @@ function render(props = {}) {
         'q-select': input,
         'q-file': true,
         'q-img': true,
+        RecordPhotoPicker: true,
       },
     },
   })
@@ -99,6 +105,8 @@ beforeEach(() => {
   mocks.auth.currentUser = { uid: 'pm-creator', getIdToken: mocks.getIdToken }
   mocks.getIdToken.mockResolvedValue('verified-token')
   mocks.uploadImages.mockResolvedValue(['https://example.test/proof.jpg'])
+  mocks.uploadPhoto.mockReset().mockResolvedValue('https://example.test/proof.jpg')
+  mocks.createPhotoUpload.mockImplementation(() => ({ upload: mocks.uploadPhoto }))
   mocks.route = reactive({ params: {}, query: {}, path: '/' })
   mocks.store = reactive({
     userId: 'pm-creator',
@@ -421,17 +429,88 @@ describe('reporting transaction form', () => {
     const file = new File(['proof'], 'proof.png', { type: 'image/png' })
     wrapper.vm.selectedFile = file
     await wrapper.vm.onSubmit()
-    expect(mocks.uploadImages).toHaveBeenCalledWith([file], 'p1', 'transaction')
+    expect(mocks.createPhotoUpload).toHaveBeenCalledWith({ file, propertyId: 'p1' })
     expect(JSON.parse(posts()[0][1].body).picture_url).toBe('https://example.test/proof.jpg')
   })
 
-  it('preserves the warning-and-save behavior when image upload fails', async () => {
+  it('blocks save on upload failure and retains the photo and draft for retry', async () => {
     const wrapper = await validForm()
-    mocks.uploadImages.mockRejectedValueOnce(new Error('Upload failed'))
+    mocks.uploadPhoto.mockRejectedValueOnce(new Error('Upload failed'))
     wrapper.vm.selectedFile = new File(['proof'], 'proof.png', { type: 'image/png' })
     await wrapper.vm.onSubmit()
+    expect(posts()).toHaveLength(0)
+    expect(wrapper.vm.selectedFile).toBeInstanceOf(File)
+    expect(wrapper.vm.transactionData.amount).toBe(1200)
+    expect(wrapper.vm.uploadFailed).toBe(true)
+    await wrapper.vm.onSubmit()
+    expect(JSON.parse(posts()[0][1].body).picture_url).toBe('https://example.test/proof.jpg')
+    expect(mocks.createPhotoUpload).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires explicit save without photo after upload failure', async () => {
+    const wrapper = await validForm()
+    mocks.uploadPhoto.mockRejectedValueOnce(new Error('Storage quota reached'))
+    wrapper.vm.selectedFile = new File(['proof'], 'proof.png', { type: 'image/png' })
+    await wrapper.vm.onSubmit()
+    expect(posts()).toHaveLength(0)
+    await wrapper.vm.saveWithoutPhoto()
     expect(JSON.parse(posts()[0][1].body).picture_url).toBe('')
-    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'warning' }))
+    expect(mocks.uploadPhoto).toHaveBeenCalledTimes(1)
+  })
+
+  it('reuses the same upload instance, payload and key after an ambiguous save failure', async () => {
+    const wrapper = await validForm()
+    wrapper.vm.selectedFile = new File(['proof'], 'proof.png', { type: 'image/png' })
+    fetch.mockRejectedValueOnce(new Error('Connection lost'))
+    await wrapper.vm.onSubmit()
+    expect(wrapper.vm.transactionData.amount).toBe(1200)
+    await wrapper.vm.onSubmit()
+    expect(posts()).toHaveLength(2)
+    expect(posts()[0][1].headers['Idempotency-Key']).toBeTruthy()
+    expect(posts()[1][1].headers['Idempotency-Key']).toBe(posts()[0][1].headers['Idempotency-Key'])
+    expect(posts()[1][1].body).toBe(posts()[0][1].body)
+    expect(mocks.createPhotoUpload).toHaveBeenCalledTimes(1)
+    await wrapper.vm.onSubmit()
+    expect(posts()).toHaveLength(2)
+  })
+
+  it('changes the key only for an intentionally changed payload and retains the uploaded image', async () => {
+    const wrapper = await validForm()
+    wrapper.vm.selectedFile = new File(['proof'], 'proof.png', { type: 'image/png' })
+    fetch.mockResolvedValueOnce(response({ message: 'Invalid data' }, 400))
+    await wrapper.vm.onSubmit()
+    wrapper.vm.transactionData.note = 'Corrected note'
+    await wrapper.vm.onSubmit()
+    expect(posts()[1][1].headers['Idempotency-Key']).not.toBe(
+      posts()[0][1].headers['Idempotency-Key'],
+    )
+    expect(mocks.createPhotoUpload).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates property-bound uploads but retains the selected local photo', async () => {
+    const wrapper = await validForm()
+    const file = new File(['proof'], 'proof.png', { type: 'image/png' })
+    wrapper.vm.selectedFile = file
+    fetch.mockRejectedValueOnce(new Error('Connection lost'))
+    await wrapper.vm.onSubmit()
+    wrapper.vm.selectedPropertyId = 'p2'
+    await flushPromises()
+    wrapper.vm.transactionData.to_account_id = 'pm-actual'
+    expect(wrapper.vm.selectedFile).toBe(file)
+    await wrapper.vm.onSubmit()
+    expect(mocks.createPhotoUpload).toHaveBeenLastCalledWith({ propertyId: 'p2', file })
+    expect(posts()[1][1].headers['Idempotency-Key']).not.toBe(
+      posts()[0][1].headers['Idempotency-Key'],
+    )
+  })
+
+  it('does not save or navigate while a native picker is open', async () => {
+    const wrapper = await validForm()
+    wrapper.vm.pickerBusy = true
+    await wrapper.vm.onSubmit()
+    wrapper.vm.handleCancel()
+    expect(posts()).toHaveLength(0)
+    expect(wrapper.emitted('cancel')).toBeUndefined()
   })
 
   it('shows server rejection inline, retains the form, and never falls back to direct writes', async () => {

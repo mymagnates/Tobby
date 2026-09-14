@@ -21,7 +21,6 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { app, auth, authStateReady, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
 import { mobileApiBase } from '../services/mobileApi'
-import { isNativeMobileRuntime } from '../utils/mobileRuntime'
 
 const FIREBASE_DEBUG_LOGS_ENABLED = false
 const debugLog = (...args) => {
@@ -102,7 +101,7 @@ export function useFirebase() {
 
     if (quotaProtectedPath) {
       const token = await currentUser.getIdToken(true)
-      const uploadApiBase = isNativeMobileRuntime() ? mobileApiBase() : '/api'
+      const uploadApiBase = mobileApiBase()
       const reserveResponse = await fetch(`${uploadApiBase}/storage/upload-reservations`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -128,7 +127,7 @@ export function useFirebase() {
         },
         body: file,
       })
-      if (!uploadResponse.ok) throw new Error('Storage upload failed')
+      if (!uploadResponse.ok) throw new Error(`Storage upload rejected (${uploadResponse.status}). If 403, the upload link may have expired or the storage service account lacks access.`)
       const commitResponse = await fetch(
         `${uploadApiBase}/storage/upload-reservations/${encodeURIComponent(reservation.reservation_id)}/commit`,
         {

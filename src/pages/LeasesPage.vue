@@ -1,7 +1,14 @@
 <template>
   <q-page class="q-pa-md">
     <div class="page-toolbar page-toolbar--filters">
-      <q-input v-model="searchQuery" placeholder="Search leases" borderless dense clearable class="page-tool-field">
+      <q-input
+        v-model="searchQuery"
+        placeholder="Search leases"
+        borderless
+        dense
+        clearable
+        class="page-tool-field"
+      >
         <template v-slot:prepend>
           <q-icon name="search" size="18px" />
         </template>
@@ -63,37 +70,37 @@
 
       <q-card
         class="summary-card clickable-card"
-        :class="{ 'active-filter': statusFilter === 'Available' }"
+        :class="{ 'active-filter': statusFilter === 'Draft' }"
         clickable
-        @click="toggleStatusFilter('Available')"
+        @click="toggleStatusFilter('Draft')"
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-green">{{ availableCount }}</div>
-          <div class="text-caption">Available</div>
+          <div class="text-caption">Draft</div>
         </q-card-section>
       </q-card>
 
       <q-card
         class="summary-card clickable-card"
-        :class="{ 'active-filter': statusFilter === 'Rented' }"
+        :class="{ 'active-filter': statusFilter === 'Active' }"
         clickable
-        @click="toggleStatusFilter('Rented')"
+        @click="toggleStatusFilter('Active')"
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-blue">{{ rentedCount }}</div>
-          <div class="text-caption">Rented</div>
+          <div class="text-caption">Active</div>
         </q-card-section>
       </q-card>
 
       <q-card
         class="summary-card clickable-card"
-        :class="{ 'active-filter': statusFilter === 'Pending' }"
+        :class="{ 'active-filter': statusFilter === 'Scheduled' }"
         clickable
-        @click="toggleStatusFilter('Pending')"
+        @click="toggleStatusFilter('Scheduled')"
       >
         <q-card-section class="text-center">
           <div class="text-h6 text-orange">{{ pendingCount }}</div>
-          <div class="text-caption">Pending</div>
+          <div class="text-caption">Scheduled</div>
         </q-card-section>
       </q-card>
 
@@ -195,7 +202,10 @@
               </div>
               <div class="lease-spec-item">
                 <q-icon name="bed" size="14px" color="grey-6" class="q-mr-xs" />
-                <span>{{ lease.property_id?.spec?.bedroom || 0 }} bed / {{ lease.property_id?.spec?.full_bathroom || 0 }} bath</span>
+                <span
+                  >{{ lease.property_id?.spec?.bedroom || 0 }} bed /
+                  {{ lease.property_id?.spec?.full_bathroom || 0 }} bath</span
+                >
               </div>
               <div class="lease-spec-item">
                 <q-icon name="calendar_today" size="14px" color="grey-6" class="q-mr-xs" />
@@ -211,44 +221,52 @@
           <!-- Tenant / Footer Row -->
           <div class="lease-footer-row">
             <div class="lease-footer-context">
-            <div
-              v-if="lease.status === 'Rented' && leaseTenantsMap[lease.id]"
-              class="lease-tenant-compact"
-            >
-              <q-icon name="person" size="12px" color="grey-6" class="q-mr-xs" />
-              <span class="tenant-name-text">
-                {{ tenantCardContact(leaseTenantsMap[lease.id]).name }}
-              </span>
-              <span v-if="tenantCardContact(leaseTenantsMap[lease.id]).email" class="tenant-contact-text">
-                {{ tenantCardContact(leaseTenantsMap[lease.id]).email }}
-              </span>
+              <div v-if="leaseTenantsMap[lease.id]" class="lease-tenant-compact">
+                <q-icon name="person" size="12px" color="grey-6" class="q-mr-xs" />
+                <span class="tenant-name-text">
+                  {{ tenantCardContact(leaseTenantsMap[lease.id]).name }}
+                </span>
+                <span
+                  v-if="tenantCardContact(leaseTenantsMap[lease.id]).email"
+                  class="tenant-contact-text"
+                >
+                  {{ tenantCardContact(leaseTenantsMap[lease.id]).email }}
+                </span>
+              </div>
+              <div v-else-if="isLeaseAvailable(lease)" class="lease-share-compact">
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="primary"
+                  icon="share"
+                  label="Share Link"
+                  class="lease-share-btn"
+                  @click.stop="copyShareableLink(lease.id)"
+                />
+              </div>
             </div>
-            <div v-else-if="isLeaseAvailable(lease)" class="lease-share-compact">
+            <div class="lease-card-actions">
               <q-btn
                 flat
                 dense
                 size="sm"
                 color="primary"
-                icon="share"
-                label="Share Link"
-                class="lease-share-btn"
-                @click.stop="copyShareableLink(lease.id)"
+                label="View"
+                class="lease-view-btn"
+                no-caps
+                :ripple="false"
+                @click.stop="viewLease(lease)"
               />
-            </div>
-            </div>
-            <div class="lease-card-actions">
-            <q-btn
-              flat
-              dense
-              size="sm"
-              color="primary"
-              label="View"
-              class="lease-view-btn"
-              no-caps
-              :ripple="false"
-              @click.stop="viewLease(lease)"
-            />
-            <q-btn flat no-caps icon="inventory_2" label="Inventory List" class="lease-inventory-entry" :ripple="false" @click.stop="openInventoryDialog(lease)" />
+              <q-btn
+                flat
+                no-caps
+                icon="inventory_2"
+                label="Inventory List"
+                class="lease-inventory-entry"
+                :ripple="false"
+                @click.stop="openInventoryDialog(lease)"
+              />
             </div>
           </div>
         </q-card-section>
@@ -258,152 +276,122 @@
     <!-- Lease Details Panel -->
     <DetailShell
       v-model="showLeaseDialog"
-      title="Lease Details"
+      class="lease-detail-shell"
+      :title="`${selectedLease?.property_id?.nickname || selectedLease?.property_id?.displayName || 'Property'} Lease`"
       :subtitle="selectedLease?.property_id?.address || ''"
       @close="closeLeaseDialog"
     >
-      <q-card class="full-height lease-detail-card">
-        <!-- Dialog Header -->
-        <q-card-section class="dialog-header">
-          <div class="dialog-header-layout">
-            <div class="header-identity">
-              <div class="title-row">
-                <div class="dialog-title">
-                  {{
-                    selectedLease
-                      ? selectedLease.property_id?.nickname ||
-                        selectedLease.property_id?.displayName ||
-                        'Lease Details'
-                      : 'Lease Details'
-                  }}
-                </div>
-                <div v-if="selectedLease?.property_id?.address" class="title-address">
-                  {{ selectedLease.property_id.address }}
-                </div>
-              </div>
-              <div class="header-meta-row">
+      <template #actions>
+        <div v-if="selectedLease" class="lease-shell-actions">
+          <q-btn
+            v-if="!isEditMode"
+            outline
+            color="primary"
+            size="sm"
+            icon="inventory"
+            label="Inventory"
+            @click="openInventoryDialog(selectedLease)"
+            class="lease-action-btn"
+          />
+          <q-btn
+            v-if="!isEditMode"
+            outline
+            color="primary"
+            size="sm"
+            icon="folder"
+            label="Documents"
+            @click="openDocumentsDialog"
+            class="lease-action-btn"
+          />
+          <q-btn
+            v-if="canManageRecords && selectedLease && !isEditMode && isLeaseRented(selectedLease)"
+            outline
+            color="primary"
+            size="sm"
+            icon="person_add"
+            label="Invite Tenant"
+            @click="inviteTenantAccount(selectedLease)"
+            class="lease-action-btn"
+          />
+          <q-btn
+            v-if="canManageRecords && !isEditMode"
+            outline
+            color="primary"
+            size="sm"
+            label="Edit"
+            @click="toggleEditMode"
+            class="lease-action-btn"
+          />
+          <q-btn
+            v-if="canManageRecords && selectedLease && !isEditMode"
+            outline
+            color="primary"
+            size="sm"
+            icon="person_add"
+            label="Create Tenant"
+            @click="navigateToCreateTenant(selectedLease)"
+            class="lease-action-btn"
+          />
+          <q-btn
+            v-if="canManageRecords && selectedLease && !isEditMode"
+            outline
+            color="negative"
+            size="sm"
+            icon="archive"
+            label="Archive"
+            @click="confirmArchiveLease"
+            class="lease-action-btn"
+          />
 
-                <div v-if="selectedLease" class="header-meta-item">
-                  <span class="header-meta-label">Available Date</span>
-                  <span class="header-meta-value">{{ formatDate(selectedLease.lease_create_date) }}</span>
-                </div>
-              </div>
-            </div>
+          <q-btn
+            v-if="isEditMode"
+            unelevated
+            color="primary"
+            label="Save"
+            @click="saveLeaseChanges"
+            :loading="editLoading"
+            class="save-btn"
+          />
+          <q-btn
+            v-if="isEditMode"
+            outline
+            color="primary"
+            label="Cancel"
+            @click="cancelEdit"
+            class="cancel-btn"
+          />
+          <q-btn
+            v-if="selectedLease && !isEditMode && isLeaseAvailable(selectedLease)"
+            outline
+            color="primary"
+            size="sm"
+            icon="share"
+            label="Shareable Link"
+            @click="copyShareableLink(selectedLease.id)"
+            class="lease-action-btn"
+          />
+        </div>
+      </template>
+      <div class="lease-detail-card">
+        <div v-if="selectedLease" class="header-meta-row">
+          <div class="header-meta-item">
+            <span class="header-meta-label">Available Date</span>
+            <span class="header-meta-value">{{ formatDate(selectedLease.lease_create_date) }}</span>
           </div>
-
-          <div class="header-actions">
-              <q-btn
-                v-if="!isEditMode"
-                color="white"
-                text-color="secondary"
-                icon="inventory"
-                label="Inventory"
-                @click="openInventoryDialog(selectedLease)"
-                class="header-action-btn"
-              />
-              <q-btn
-                v-if="!isEditMode"
-                color="white"
-                text-color="secondary"
-                icon="folder"
-                label="Documents"
-                @click="openDocumentsDialog"
-                class="header-action-btn"
-              />
-              <q-btn
-                v-if="canManageRecords && selectedLease && !isEditMode && isLeaseRented(selectedLease)"
-                color="white"
-                text-color="secondary"
-                icon="person_add"
-                label="Invite Tenant"
-                @click="inviteTenantAccount(selectedLease)"
-                class="header-action-btn"
-              />
-              <q-btn
-                v-if="canManageRecords && !isEditMode"
-                color="white"
-                text-color="secondary"
-                label="Edit"
-                @click="toggleEditMode"
-                class="header-action-btn"
-              />
-              <q-btn
-                v-if="canManageRecords && selectedLease && !isEditMode"
-                color="white"
-                text-color="secondary"
-                icon="person_add"
-                label="Create Tenant"
-                @click="navigateToCreateTenant(selectedLease)"
-                class="header-action-btn"
-              />
-              <q-btn
-                v-if="canManageRecords && selectedLease && !isEditMode"
-                color="white"
-                text-color="negative"
-                icon="archive"
-                label="Archive"
-                @click="confirmArchiveLease"
-                class="header-action-btn"
-              />
-              <div v-if="canManageRecords && selectedLease && !isEditMode" class="header-status-control">
-                  
-                  <q-btn-dropdown
-                    :label="selectedLease.status || 'Unknown'"
-                    no-caps
-                    unelevated
-                    text-color="white"
-                    class="status-chip-dropdown"
-                    :style="{ backgroundColor: getHeaderStatusBg(selectedLease.status) }"
-                  >
-                    <q-list dense style="min-width: 180px">
-                      <q-item
-                        v-for="status in leaseStatusOptions"
-                        :key="status"
-                        clickable
-                        v-close-popup
-                        @click="quickChangeStatus(status)"
-                      >
-                        <q-item-section>{{ status }}</q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-btn-dropdown>
-                </div>
-              <q-btn
-                v-if="isEditMode"
-                color="green"
-                label="Save"
-                @click="saveLeaseChanges"
-                :loading="editLoading"
-                class="save-btn"
-              />
-              <q-btn
-                v-if="isEditMode"
-                color="green"
-                label="Cancel"
-                @click="cancelEdit"
-                class="cancel-btn"
-              />
-          </div>
-          <div class="header-corner-controls">
-            <q-btn
-              v-if="selectedLease && !isEditMode && isLeaseAvailable(selectedLease)"
-              color="white"
-              text-color="secondary"
-              icon="share"
-              label="Shareable Link"
-              @click="copyShareableLink(selectedLease.id)"
-              class="header-action-btn header-share-fixed"
-            />
-          </div>
-        </q-card-section>
-
+        </div>
         <!-- Dialog Content -->
         <q-card-section class="dialog-content">
           <div v-if="selectedLease" class="details-container">
+            <LeaseLifecyclePanel
+              :lease="selectedLease"
+              :can-manage="canManageRecords"
+              @updated="onLifecycleUpdated"
+              @renewed="onLifecycleRenewed"
+            />
             <DepositWorkspace
               v-if="!isEditMode && canViewDeposit"
               :property-id="getLeasePropertyId(selectedLease)"
-              :lease-id="getLeaseDocId(selectedLease)"
+              :lease-id="selectedLease.deposit_source_lease_id || getLeaseDocId(selectedLease)"
               :lease-status="selectedLease.status || ''"
               class="q-mb-md"
             />
@@ -416,7 +404,8 @@
                   <div v-if="!isEditMode" class="detail-value">
                     {{
                       selectedLease.rate_type
-                        ? selectedLease.rate_type.charAt(0).toUpperCase() + selectedLease.rate_type.slice(1)
+                        ? selectedLease.rate_type.charAt(0).toUpperCase() +
+                          selectedLease.rate_type.slice(1)
                         : 'N/A'
                     }}
                   </div>
@@ -530,7 +519,14 @@
                   <div v-if="!isEditMode" class="detail-value">
                     {{ formatDate(selectedLease.lease_end_date) }}
                   </div>
-                  <q-input v-else v-model="selectedLease.lease_end_date" type="date" outlined dense class="detail-input" />
+                  <q-input
+                    v-else
+                    v-model="selectedLease.lease_end_date"
+                    type="date"
+                    outlined
+                    dense
+                    class="detail-input"
+                  />
                 </div>
 
                 <div class="detail-item">
@@ -617,22 +613,31 @@
               <div class="section-title">
                 <q-icon name="people" class="q-mr-sm" />
                 Tenants
-                <q-badge color="secondary" :label="leaseTenants.length + leaseApplications.length" class="q-ml-sm" />
+                <q-badge
+                  color="secondary"
+                  :label="leaseTenants.length + leaseApplications.length"
+                  class="q-ml-sm"
+                />
               </div>
               <div class="text-caption text-grey-7 q-mb-md">
-                All tenants and applicants associated with this lease. Click on any entry to expand and view full details including application information.
+                All tenants and applicants associated with this lease. Click on any entry to expand
+                and view full details including application information.
               </div>
 
               <!-- Loading State -->
               <div v-if="tenantsLoading || applicationsLoading" class="text-center q-pa-md">
                 <q-spinner-dots size="40px" color="secondary" />
-                <div class="text-body2 text-grey-6 q-mt-sm">Loading tenants and applications...</div>
+                <div class="text-body2 text-grey-6 q-mt-sm">
+                  Loading tenants and applications...
+                </div>
               </div>
 
               <!-- Error State -->
               <div v-else-if="tenantsError || applicationsError" class="text-center q-pa-md">
                 <q-icon name="error_outline" size="48px" color="negative" />
-                <div class="text-body2 text-negative q-mt-sm">{{ tenantsError || applicationsError }}</div>
+                <div class="text-body2 text-negative q-mt-sm">
+                  {{ tenantsError || applicationsError }}
+                </div>
               </div>
 
               <!-- Empty State -->
@@ -644,9 +649,10 @@
                 <q-icon name="people_outline" size="64px" color="grey-4" />
                 <div class="text-body1 text-grey-6 q-mt-sm">No tenants or applications yet</div>
                 <div class="text-caption text-grey-5">
-                  Click "Create Tenant" button above or share the lease application link to get started
-                    </div>
-                  </div>
+                  Click "Create Tenant" button above or share the lease application link to get
+                  started
+                </div>
+              </div>
 
               <!-- Combined Tenants and Applications List -->
               <div v-else class="tenants-applications-list">
@@ -660,55 +666,56 @@
                   >
                     <!-- Collapsed Header -->
                     <template v-slot:header>
-                    <q-item-section avatar>
-                      <q-avatar color="primary" text-color="white">
+                      <q-item-section avatar>
+                        <q-avatar color="primary" text-color="white">
                           <q-icon name="description" />
-                      </q-avatar>
-                    </q-item-section>
+                        </q-avatar>
+                      </q-item-section>
 
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        {{
-                          application.applicant
-                            ? `${application.applicant.first_name} ${application.applicant.last_name}`
-                            : 'Unknown Applicant'
-                        }}
-                      </q-item-label>
-                      <q-item-label caption>
-                        <div class="row q-gutter-sm items-center">
-                          <span>
-                            <q-icon name="email" size="xs" />
-                            {{ application.applicant?.email || 'N/A' }}
-                          </span>
-                          <span>
-                            <q-icon name="phone" size="xs" />
-                            {{ application.applicant?.phone || 'N/A' }}
-                        </span>
-                      </div>
-                      </q-item-label>
-                      <q-item-label caption class="q-mt-xs">
-                          <span class="text-grey-7">Application submitted:</span> {{ formatDate(application.submitted_at) }}
-                      </q-item-label>
-                    </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">
+                          {{
+                            application.applicant
+                              ? `${application.applicant.first_name} ${application.applicant.last_name}`
+                              : 'Unknown Applicant'
+                          }}
+                        </q-item-label>
+                        <q-item-label caption>
+                          <div class="row q-gutter-sm items-center">
+                            <span>
+                              <q-icon name="email" size="xs" />
+                              {{ application.applicant?.email || 'N/A' }}
+                            </span>
+                            <span>
+                              <q-icon name="phone" size="xs" />
+                              {{ application.applicant?.phone || 'N/A' }}
+                            </span>
+                          </div>
+                        </q-item-label>
+                        <q-item-label caption class="q-mt-xs">
+                          <span class="text-grey-7">Application submitted:</span>
+                          {{ formatDate(application.submitted_at) }}
+                        </q-item-label>
+                      </q-item-section>
 
-                    <q-item-section side>
-                      <div class="column items-end q-gutter-xs">
-                        <q-chip
-                          :color="getApplicationStatusColor(application.status)"
-                          text-color="white"
-                          size="sm"
-                        >
-                          {{ application.status || 'Pending' }}
-                        </q-chip>
-                        <q-btn
-                          flat
-                          dense
+                      <q-item-section side>
+                        <div class="column items-end q-gutter-xs">
+                          <q-chip
+                            :color="getApplicationStatusColor(application.status)"
+                            text-color="white"
+                            size="sm"
+                          >
+                            {{ application.status || 'Pending' }}
+                          </q-chip>
+                          <q-btn
+                            flat
+                            dense
                             size="xs"
-                          color="primary"
+                            color="primary"
                             label="View Full App"
-                          @click.stop="viewApplicationDetail(application.id)"
+                            @click.stop="viewApplicationDetail(application.id)"
                           />
-                      </div>
+                        </div>
                       </q-item-section>
                     </template>
 
@@ -726,28 +733,34 @@
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Application Status</div>
                             <div class="text-body2 text-weight-medium">
-                        <q-chip
+                              <q-chip
                                 :color="getApplicationStatusColor(application.status)"
-                          text-color="white"
-                          size="sm"
-                        >
+                                text-color="white"
+                                size="sm"
+                              >
                                 {{ application.status || 'Pending' }}
-                        </q-chip>
-                      </div>
-                    </div>
+                              </q-chip>
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Submitted Date</div>
-                            <div class="text-body2">{{ formatDate(application.submitted_at) || 'N/A' }}</div>
-                  </div>
+                            <div class="text-body2">
+                              {{ formatDate(application.submitted_at) || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Desired Move-in</div>
-                            <div class="text-body2">{{ formatDate(application.desired_move_in_date) || 'N/A' }}</div>
-                      </div>
+                            <div class="text-body2">
+                              {{ formatDate(application.desired_move_in_date) || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Lease Term</div>
-                            <div class="text-body2">{{ application.lease_term_months || 'N/A' }} months</div>
-                      </div>
-                      </div>
+                            <div class="text-body2">
+                              {{ application.lease_term_months || 'N/A' }} months
+                            </div>
+                          </div>
+                        </div>
                       </q-card-section>
 
                       <!-- Personal Information from Application -->
@@ -756,7 +769,7 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="person" class="q-mr-sm" />
                           Applicant Personal Information
-                      </div>
+                        </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
@@ -766,33 +779,43 @@
                               {{ application.applicant?.first_name }}
                               {{ application.applicant?.middle_name }}
                               {{ application.applicant?.last_name }}
-                      </div>
-                      </div>
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Email</div>
-                            <div class="text-body2">{{ application.applicant?.email || 'N/A' }}</div>
-                    </div>
+                            <div class="text-body2">
+                              {{ application.applicant?.email || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Phone</div>
-                            <div class="text-body2">{{ application.applicant?.phone || 'N/A' }}</div>
-                  </div>
+                            <div class="text-body2">
+                              {{ application.applicant?.phone || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Date of Birth</div>
-                            <div class="text-body2">{{ formatDate(application.applicant?.date_of_birth) || 'N/A' }}</div>
-                    </div>
+                            <div class="text-body2">
+                              {{ formatDate(application.applicant?.date_of_birth) || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Gender</div>
-                            <div class="text-body2">{{ application.applicant?.gender || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ application.applicant?.gender || 'N/A' }}
                             </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">SSN</div>
                             <div class="text-body2">{{ application.applicant?.ssn || 'N/A' }}</div>
                           </div>
                           <div class="col-12 col-md-6">
                             <div class="text-caption text-grey-7">Marital Status</div>
-                            <div class="text-body2">{{ application.applicant?.marital_status || 'N/A' }}</div>
-                        </div>
+                            <div class="text-body2">
+                              {{ application.applicant?.marital_status || 'N/A' }}
+                            </div>
                           </div>
+                        </div>
                       </q-card-section>
 
                       <!-- Employment from Application -->
@@ -801,44 +824,59 @@
                         <div class="text-subtitle1 text-weight-bold text-positive q-mb-md">
                           <q-icon name="work" class="q-mr-sm" />
                           Employment Information
-                          </div>
+                        </div>
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employer</div>
-                            <div class="text-body2">{{ application.applicant.employment.employer_name || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ application.applicant.employment.employer_name || 'N/A' }}
+                            </div>
                           </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Position</div>
-                            <div class="text-body2">{{ application.applicant.employment.position || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ application.applicant.employment.position || 'N/A' }}
+                            </div>
                           </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Income</div>
                             <div class="text-body2 text-weight-bold text-positive">
                               ${{ application.applicant.employment.monthly_income || 'N/A' }}/mo
-                        </div>
-                      </div>
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employment Length</div>
-                            <div class="text-body2">{{ application.applicant.employment.years_employed || 'N/A' }} years</div>
-                    </div>
-                  </div>
+                            <div class="text-body2">
+                              {{ application.applicant.employment.years_employed || 'N/A' }} years
+                            </div>
+                          </div>
+                        </div>
                       </q-card-section>
 
-                  <!-- Vehicles -->
+                      <!-- Vehicles -->
                       <q-separator v-if="application.vehicles && application.vehicles.length > 0" />
-                      <q-card-section v-if="application.vehicles && application.vehicles.length > 0">
+                      <q-card-section
+                        v-if="application.vehicles && application.vehicles.length > 0"
+                      >
                         <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
                           <q-icon name="directions_car" class="q-mr-sm" />
                           Vehicles ({{ application.vehicles.length }})
-                    </div>
+                        </div>
                         <q-list bordered separator>
                           <q-item v-for="(vehicle, index) in application.vehicles" :key="index">
                             <q-item-section avatar>
                               <q-icon name="directions_car" color="indigo" size="md" />
                             </q-item-section>
                             <q-item-section>
-                              <q-item-label>{{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.year }})</q-item-label>
-                              <q-item-label caption>{{ vehicle.color }} • License: {{ vehicle.license_plate }}</q-item-label>
+                              <q-item-label
+                                >{{ vehicle.make }} {{ vehicle.model }} ({{
+                                  vehicle.year
+                                }})</q-item-label
+                              >
+                              <q-item-label caption
+                                >{{ vehicle.color }} • License:
+                                {{ vehicle.license_plate }}</q-item-label
+                              >
                             </q-item-section>
                           </q-item>
                         </q-list>
@@ -858,43 +896,66 @@
                             </q-item-section>
                             <q-item-section>
                               <q-item-label>{{ pet.name }} ({{ pet.type }})</q-item-label>
-                              <q-item-label caption>{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years old</q-item-label>
+                              <q-item-label caption
+                                >{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years
+                                old</q-item-label
+                              >
                             </q-item-section>
                           </q-item>
                         </q-list>
                       </q-card-section>
 
                       <!-- Co-Applicants -->
-                      <q-separator v-if="application.co_applicants && application.co_applicants.length > 0" />
-                      <q-card-section v-if="application.co_applicants && application.co_applicants.length > 0">
+                      <q-separator
+                        v-if="application.co_applicants && application.co_applicants.length > 0"
+                      />
+                      <q-card-section
+                        v-if="application.co_applicants && application.co_applicants.length > 0"
+                      >
                         <div class="text-subtitle1 text-weight-bold text-purple q-mb-md">
                           <q-icon name="group" class="q-mr-sm" />
                           Co-Applicants ({{ application.co_applicants.length }})
                         </div>
                         <q-list bordered separator>
-                          <q-item v-for="(coApplicant, index) in application.co_applicants" :key="index">
+                          <q-item
+                            v-for="(coApplicant, index) in application.co_applicants"
+                            :key="index"
+                          >
                             <q-item-section avatar>
                               <q-avatar color="purple" text-color="white">
                                 <q-icon name="person" />
                               </q-avatar>
                             </q-item-section>
                             <q-item-section>
-                              <q-item-label>{{ coApplicant.first_name }} {{ coApplicant.last_name }}</q-item-label>
+                              <q-item-label
+                                >{{ coApplicant.first_name }}
+                                {{ coApplicant.last_name }}</q-item-label
+                              >
                               <q-item-label caption>
                                 <div class="row q-gutter-sm">
-                                  <span><q-icon name="email" size="xs" /> {{ coApplicant.email }}</span>
-                                  <span><q-icon name="phone" size="xs" /> {{ coApplicant.phone }}</span>
+                                  <span
+                                    ><q-icon name="email" size="xs" /> {{ coApplicant.email }}</span
+                                  >
+                                  <span
+                                    ><q-icon name="phone" size="xs" /> {{ coApplicant.phone }}</span
+                                  >
                                 </div>
                               </q-item-label>
-                              <q-item-label caption>Relationship: {{ coApplicant.relationship || 'N/A' }}</q-item-label>
+                              <q-item-label caption
+                                >Relationship: {{ coApplicant.relationship || 'N/A' }}</q-item-label
+                              >
                             </q-item-section>
                           </q-item>
                         </q-list>
                       </q-card-section>
 
                       <!-- Documents -->
-                      <q-separator v-if="application.documents && application.documents.length > 0" />
-                      <q-card-section v-if="application.documents && application.documents.length > 0">
+                      <q-separator
+                        v-if="application.documents && application.documents.length > 0"
+                      />
+                      <q-card-section
+                        v-if="application.documents && application.documents.length > 0"
+                      >
                         <div class="text-subtitle1 text-weight-bold text-deep-purple q-mb-md">
                           <q-icon name="upload_file" class="q-mr-sm" />
                           Documents ({{ application.documents.length }})
@@ -902,21 +963,36 @@
                         <q-list bordered separator>
                           <q-item
                             v-for="(doc, index) in application.documents"
-                        :key="index"
+                            :key="index"
                             clickable
                             @click="window.open(doc.url, '_blank')"
                           >
                             <q-item-section avatar>
-                              <q-icon :name="getDocumentIcon(doc.name || doc.fileName)" color="primary" size="md" />
+                              <q-icon
+                                :name="getDocumentIcon(doc.name || doc.fileName)"
+                                color="primary"
+                                size="md"
+                              />
                             </q-item-section>
                             <q-item-section>
-                              <q-item-label>{{ doc.name || doc.fileName || 'Document' }}</q-item-label>
-                              <q-item-label caption>{{ doc.description || 'Application Document' }}</q-item-label>
+                              <q-item-label>{{
+                                doc.name || doc.fileName || 'Document'
+                              }}</q-item-label>
+                              <q-item-label caption>{{
+                                doc.description || 'Application Document'
+                              }}</q-item-label>
                             </q-item-section>
                             <q-item-section side>
-                              <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
+                              <q-btn
+                                flat
+                                dense
+                                round
+                                icon="download"
+                                color="primary"
+                                @click.stop="window.open(doc.url, '_blank')"
+                              >
                                 <q-tooltip>Download</q-tooltip>
-                        </q-btn>
+                              </q-btn>
                             </q-item-section>
                           </q-item>
                         </q-list>
@@ -932,8 +1008,14 @@
                           </div>
                           <div class="col-6">
                             <q-icon name="badge" size="xs" class="q-mr-xs" />
-                            Status: <q-chip :color="getApplicationStatusColor(application.status)" text-color="white" size="xs">{{ application.status || 'Pending' }}</q-chip>
-                        </div>
+                            Status:
+                            <q-chip
+                              :color="getApplicationStatusColor(application.status)"
+                              text-color="white"
+                              size="xs"
+                              >{{ application.status || 'Pending' }}</q-chip
+                            >
+                          </div>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -984,11 +1066,11 @@
                             size="sm"
                           >
                             {{ tenant.status || 'Active' }}
-                            </q-chip>
+                          </q-chip>
                           <div class="text-caption text-grey-7">
                             ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
                           </div>
-                          </div>
+                        </div>
                       </q-item-section>
                     </template>
 
@@ -1009,23 +1091,27 @@
                               {{ tenant.personal_info?.first_name }}
                               {{ tenant.personal_info?.middle_name }}
                               {{ tenant.personal_info?.last_name }}
-                      </div>
-                    </div>
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Email</div>
                             <div class="text-body2">{{ tenant.personal_info?.email || 'N/A' }}</div>
-                  </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Phone</div>
                             <div class="text-body2">{{ tenant.personal_info?.phone || 'N/A' }}</div>
-                    </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Date of Birth</div>
-                            <div class="text-body2">{{ formatDate(tenant.personal_info?.date_of_birth) || 'N/A' }}</div>
-                        </div>
+                            <div class="text-body2">
+                              {{ formatDate(tenant.personal_info?.date_of_birth) || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Gender</div>
-                            <div class="text-body2">{{ tenant.personal_info?.gender || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ tenant.personal_info?.gender || 'N/A' }}
+                            </div>
                           </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">SSN</div>
@@ -1033,9 +1119,11 @@
                           </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Marital Status</div>
-                            <div class="text-body2">{{ tenant.personal_info?.marital_status || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ tenant.personal_info?.marital_status || 'N/A' }}
+                            </div>
                           </div>
-                          </div>
+                        </div>
                       </q-card-section>
 
                       <!-- Current Address -->
@@ -1050,21 +1138,29 @@
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-6">
                             <div class="text-caption text-grey-7">Street Address</div>
-                            <div class="text-body2">{{ tenant.current_address?.street || 'N/A' }}</div>
-                      </div>
+                            <div class="text-body2">
+                              {{ tenant.current_address?.street || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">City</div>
-                            <div class="text-body2">{{ tenant.current_address?.city || 'N/A' }}</div>
-                    </div>
+                            <div class="text-body2">
+                              {{ tenant.current_address?.city || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">State</div>
-                            <div class="text-body2">{{ tenant.current_address?.state || 'N/A' }}</div>
-                  </div>
+                            <div class="text-body2">
+                              {{ tenant.current_address?.state || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-2">
                             <div class="text-caption text-grey-7">ZIP Code</div>
-                            <div class="text-body2">{{ tenant.current_address?.zipCode || 'N/A' }}</div>
-                    </div>
-                  </div>
+                            <div class="text-body2">
+                              {{ tenant.current_address?.zipCode || 'N/A' }}
+                            </div>
+                          </div>
+                        </div>
                       </q-card-section>
 
                       <!-- Employment Information -->
@@ -1073,14 +1169,16 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="work" class="q-mr-sm" />
                           Employment Information
-                    </div>
+                        </div>
                       </q-card-section>
                       <q-card-section v-if="tenant.employment">
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employer</div>
-                            <div class="text-body2">{{ tenant.employment.employer_name || 'N/A' }}</div>
-                        </div>
+                            <div class="text-body2">
+                              {{ tenant.employment.employer_name || 'N/A' }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Position</div>
                             <div class="text-body2">{{ tenant.employment.position || 'N/A' }}</div>
@@ -1089,17 +1187,21 @@
                             <div class="text-caption text-grey-7">Monthly Income</div>
                             <div class="text-body2 text-weight-bold text-positive">
                               ${{ tenant.employment.monthly_income || 'N/A' }}
+                            </div>
                           </div>
-                        </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Years Employed</div>
-                            <div class="text-body2">{{ tenant.employment.years_employed || 'N/A' }} years</div>
-                        </div>
+                            <div class="text-body2">
+                              {{ tenant.employment.years_employed || 'N/A' }} years
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Employer Phone</div>
-                            <div class="text-body2">{{ tenant.employment.employer_phone || 'N/A' }}</div>
-                      </div>
-                    </div>
+                            <div class="text-body2">
+                              {{ tenant.employment.employer_phone || 'N/A' }}
+                            </div>
+                          </div>
+                        </div>
                       </q-card-section>
 
                       <!-- Lease Information -->
@@ -1108,32 +1210,44 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="description" class="q-mr-sm" />
                           Lease Information
-                  </div>
+                        </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Start Date</div>
-                            <div class="text-body2">{{ formatDate(selectedLease.lease_start_date || selectedLease.start_date) }}</div>
-                </div>
+                            <div class="text-body2">
+                              {{
+                                formatDate(
+                                  selectedLease.lease_start_date || selectedLease.start_date,
+                                )
+                              }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">End Date</div>
-                            <div class="text-body2">{{ formatDate(selectedLease.lease_end_date) }}</div>
-              </div>
+                            <div class="text-body2">
+                              {{ formatDate(selectedLease.lease_end_date) }}
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
-                            <div class="text-caption text-grey-7">Lease Rent ({{ selectedLease.rate_type || 'Monthly' }})</div>
+                            <div class="text-caption text-grey-7">
+                              Lease Rent ({{ selectedLease.rate_type || 'Monthly' }})
+                            </div>
                             <div class="text-body2 text-weight-bold text-positive">
                               ${{ formatAmount(selectedLease.rate_amount) }}
-            </div>
-              </div>
+                            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Security Deposit</div>
                             <div class="text-body2">${{ formatAmount(selectedLease.deposit) }}</div>
-            </div>
+                          </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Payment Method</div>
-                            <div class="text-body2">{{ tenant.lease_info?.payment_method || 'N/A' }}</div>
-              </div>
+                            <div class="text-body2">
+                              {{ tenant.lease_info?.payment_method || 'N/A' }}
+                            </div>
+                          </div>
                         </div>
                       </q-card-section>
 
@@ -1143,21 +1257,27 @@
                         <div class="text-subtitle1 text-weight-bold">
                           <q-icon name="emergency" class="q-mr-sm" />
                           Emergency Contact
-              </div>
+                        </div>
                       </q-card-section>
                       <q-card-section>
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-4">
                             <div class="text-caption text-grey-7">Contact Name</div>
-                            <div class="text-body2">{{ tenant.emergency_contact?.name || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ tenant.emergency_contact?.name || 'N/A' }}
+                            </div>
                           </div>
                           <div class="col-12 col-md-4">
                             <div class="text-caption text-grey-7">Relationship</div>
-                            <div class="text-body2">{{ tenant.emergency_contact?.relationship || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ tenant.emergency_contact?.relationship || 'N/A' }}
+                            </div>
                           </div>
                           <div class="col-12 col-md-4">
                             <div class="text-caption text-grey-7">Phone Number</div>
-                            <div class="text-body2">{{ tenant.emergency_contact?.phone || 'N/A' }}</div>
+                            <div class="text-body2">
+                              {{ tenant.emergency_contact?.phone || 'N/A' }}
+                            </div>
                           </div>
                         </div>
                       </q-card-section>
@@ -1168,15 +1288,22 @@
                         <div class="text-subtitle1 text-weight-bold text-indigo q-mb-md">
                           <q-icon name="directions_car" class="q-mr-sm" />
                           Vehicles ({{ tenant.vehicles.length }})
-              </div>
+                        </div>
                         <q-list bordered separator>
                           <q-item v-for="(vehicle, index) in tenant.vehicles" :key="index">
                             <q-item-section avatar>
                               <q-icon name="directions_car" color="indigo" size="md" />
                             </q-item-section>
                             <q-item-section>
-                              <q-item-label>{{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.year }})</q-item-label>
-                              <q-item-label caption>{{ vehicle.color }} • License: {{ vehicle.license_plate }}</q-item-label>
+                              <q-item-label
+                                >{{ vehicle.make }} {{ vehicle.model }} ({{
+                                  vehicle.year
+                                }})</q-item-label
+                              >
+                              <q-item-label caption
+                                >{{ vehicle.color }} • License:
+                                {{ vehicle.license_plate }}</q-item-label
+                              >
                             </q-item-section>
                           </q-item>
                         </q-list>
@@ -1188,7 +1315,7 @@
                         <div class="text-subtitle1 text-weight-bold text-orange q-mb-md">
                           <q-icon name="pets" class="q-mr-sm" />
                           Pets ({{ tenant.pets.length }})
-                </div>
+                        </div>
                         <q-list bordered separator>
                           <q-item v-for="(pet, index) in tenant.pets" :key="index">
                             <q-item-section avatar>
@@ -1196,7 +1323,10 @@
                             </q-item-section>
                             <q-item-section>
                               <q-item-label>{{ pet.name }} ({{ pet.type }})</q-item-label>
-                              <q-item-label caption>{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years old</q-item-label>
+                              <q-item-label caption
+                                >{{ pet.breed }} • {{ pet.weight }} lbs • {{ pet.age }} years
+                                old</q-item-label
+                              >
                             </q-item-section>
                           </q-item>
                         </q-list>
@@ -1204,28 +1334,40 @@
 
                       <!-- Co-Applicants / Additional Occupants -->
                       <q-separator v-if="tenant.co_applicants && tenant.co_applicants.length > 0" />
-                      <q-card-section v-if="tenant.co_applicants && tenant.co_applicants.length > 0">
+                      <q-card-section
+                        v-if="tenant.co_applicants && tenant.co_applicants.length > 0"
+                      >
                         <div class="text-subtitle1 text-weight-bold text-purple q-mb-md">
                           <q-icon name="group" class="q-mr-sm" />
                           Additional Occupants ({{ tenant.co_applicants.length }})
                         </div>
                         <q-list bordered separator>
                           <q-item v-for="(occupant, index) in tenant.co_applicants" :key="index">
-                    <q-item-section avatar>
+                            <q-item-section avatar>
                               <q-avatar color="purple" text-color="white">
-                        <q-icon name="person" />
-                      </q-avatar>
-                    </q-item-section>
-                    <q-item-section>
-                              <q-item-label>{{ occupant.first_name }} {{ occupant.last_name }}</q-item-label>
-                      <q-item-label caption>
+                                <q-icon name="person" />
+                              </q-avatar>
+                            </q-item-section>
+                            <q-item-section>
+                              <q-item-label
+                                >{{ occupant.first_name }} {{ occupant.last_name }}</q-item-label
+                              >
+                              <q-item-label caption>
                                 <div class="row q-gutter-sm">
-                                  <span><q-icon name="email" size="xs" /> {{ occupant.email || 'N/A' }}</span>
-                                  <span><q-icon name="phone" size="xs" /> {{ occupant.phone || 'N/A' }}</span>
-                        </div>
-                      </q-item-label>
-                              <q-item-label caption>Relationship: {{ occupant.relationship || 'N/A' }}</q-item-label>
-                    </q-item-section>
+                                  <span
+                                    ><q-icon name="email" size="xs" />
+                                    {{ occupant.email || 'N/A' }}</span
+                                  >
+                                  <span
+                                    ><q-icon name="phone" size="xs" />
+                                    {{ occupant.phone || 'N/A' }}</span
+                                  >
+                                </div>
+                              </q-item-label>
+                              <q-item-label caption
+                                >Relationship: {{ occupant.relationship || 'N/A' }}</q-item-label
+                              >
+                            </q-item-section>
                           </q-item>
                         </q-list>
                       </q-card-section>
@@ -1245,19 +1387,32 @@
                             @click="window.open(doc.url, '_blank')"
                           >
                             <q-item-section avatar>
-                              <q-icon :name="getDocumentIcon(doc.fileName)" color="primary" size="md" />
+                              <q-icon
+                                :name="getDocumentIcon(doc.fileName)"
+                                color="primary"
+                                size="md"
+                              />
                             </q-item-section>
                             <q-item-section>
                               <q-item-label>{{ doc.fileName || doc.originalName }}</q-item-label>
-                              <q-item-label caption>{{ doc.documentType || 'Document' }}</q-item-label>
+                              <q-item-label caption>{{
+                                doc.documentType || 'Document'
+                              }}</q-item-label>
                             </q-item-section>
                             <q-item-section side>
-                              <q-btn flat dense round icon="download" color="primary" @click.stop="window.open(doc.url, '_blank')">
+                              <q-btn
+                                flat
+                                dense
+                                round
+                                icon="download"
+                                color="primary"
+                                @click.stop="window.open(doc.url, '_blank')"
+                              >
                                 <q-tooltip>Download</q-tooltip>
-                        </q-btn>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
+                              </q-btn>
+                            </q-item-section>
+                          </q-item>
+                        </q-list>
                       </q-card-section>
 
                       <!-- Notes -->
@@ -1266,7 +1421,7 @@
                         <div class="text-subtitle1 text-weight-bold q-mb-md">
                           <q-icon name="notes" class="q-mr-sm" />
                           Additional Notes
-              </div>
+                        </div>
                         <div class="text-body2 bg-grey-1 q-pa-md" style="border-radius: 8px">
                           {{ tenant.notes }}
                         </div>
@@ -1282,7 +1437,11 @@
                           </div>
                           <div class="col-6">
                             <q-icon name="badge" size="xs" class="q-mr-xs" />
-                            Status: <span :class="tenant.status === 'active' ? 'text-positive' : 'text-grey'">{{ tenant.status || 'Active' }}</span>
+                            Status:
+                            <span
+                              :class="tenant.status === 'active' ? 'text-positive' : 'text-grey'"
+                              >{{ tenant.status || 'Active' }}</span
+                            >
                           </div>
                         </div>
                       </q-card-section>
@@ -1293,9 +1452,8 @@
             </div>
           </div>
         </q-card-section>
-      </q-card>
+      </div>
     </DetailShell>
-
 
     <!-- Documents Dialog -->
     <q-dialog v-model="showDocumentsDialog" maximized>
@@ -1330,6 +1488,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import CreateLease from '../components/CreateLease.vue'
+import LeaseLifecyclePanel from '../components/LeaseLifecyclePanel.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import LeaseDocuments from '../components/LeaseDocuments.vue'
 import DepositWorkspace from '../components/deposits/DepositWorkspace.vue'
@@ -1337,10 +1496,7 @@ import { canAccessDeposit } from '../utils/depositAccess'
 import { Notify } from 'quasar'
 import { listLeaseApplicationsForLeaseRequest } from '../services/leaseApplicationApi'
 import { listPropertyTenantsRequest } from '../services/tenantApi'
-import {
-  updateLeaseRequest,
-  updateLeaseStatusRequest,
-} from '../services/leaseApi'
+import { updateLeaseRequest, updateLeaseStatusRequest } from '../services/leaseApi'
 
 // Router
 const router = useRouter()
@@ -1355,18 +1511,27 @@ const statusFilter = ref(null) // null means show all
 const selectedPropertyId = ref(null)
 const showLeaseDialog = ref(false)
 const selectedLease = ref(null)
-const canViewDeposit = computed(() => canAccessDeposit(
-  (userDataStore.userAccessibleProperties || []).find((p) => p.id === getLeasePropertyId(selectedLease.value)),
-  userDataStore.userId,
-))
+const canViewDeposit = computed(() =>
+  canAccessDeposit(
+    (userDataStore.userAccessibleProperties || []).find(
+      (p) => p.id === getLeasePropertyId(selectedLease.value),
+    ),
+    userDataStore.userId,
+  ),
+)
 const isEditMode = ref(false)
 const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
-const leaseStatusOptions = ['Available', 'Rented', 'Pending', 'Expired', 'Terminated']
-const leaseStatusFilterOptions = leaseStatusOptions.map((status) => ({ label: status, value: status }))
+const leaseStatusOptions = ['Draft', 'Scheduled', 'Active', 'Expired', 'Terminated']
+const leaseStatusFilterOptions = leaseStatusOptions.map((status) => ({
+  label: status,
+  value: status,
+}))
 const deepLinkHandled = ref(false)
 const canManageRecords = computed(() => {
-  const accountType = String(userDataStore.accountType || userDataStore.userCategory || '').toLowerCase()
+  const accountType = String(
+    userDataStore.accountType || userDataStore.userCategory || '',
+  ).toLowerCase()
   return ['pm', 'admin'].includes(accountType)
 })
 
@@ -1392,7 +1557,9 @@ function tenantCardContact(tenant) {
     String(tenant?.personal_info?.[key] || '').trim() ||
     String(tenant?.applicant?.[key] || '').trim()
   return {
-    name: [field('first_name'), field('last_name')].filter(Boolean).join(' ') || 'Tenant name not provided',
+    name:
+      [field('first_name'), field('last_name')].filter(Boolean).join(' ') ||
+      'Tenant name not provided',
     email: field('email'),
   }
 }
@@ -1480,9 +1647,9 @@ const getStatusCount = (status) => {
 }
 
 // Computed properties for status counts to ensure reactivity
-const availableCount = computed(() => getStatusCount('Available'))
-const rentedCount = computed(() => getStatusCount('Rented'))
-const pendingCount = computed(() => getStatusCount('Pending'))
+const availableCount = computed(() => getStatusCount('Draft'))
+const rentedCount = computed(() => getStatusCount('Active'))
+const pendingCount = computed(() => getStatusCount('Scheduled'))
 const expiredCount = computed(() => getStatusCount('Expired'))
 
 // Get rate type for display
@@ -1499,30 +1666,29 @@ const formatAmount = (amount) => {
 // Get color for lease status
 const getLeaseStatusColor = (status) => {
   const colors = {
-    Available: 'green',
-    Rented: 'blue',
-    Pending: 'orange',
+    Draft: 'grey',
+    Active: 'positive',
+    Scheduled: 'info',
     Expired: 'red',
     Terminated: 'purple',
   }
   return colors[status] || 'blue'
 }
 
-const getHeaderStatusBg = (status) => {
-  const colors = {
-    Available: '#2e7d32',
-    Rented: '#1565c0',
-    Pending: '#ef6c00',
-    Expired: '#c62828',
-    Terminated: '#6a1b9a',
-    Archived: '#546e7a',
-  }
-  return colors[status] || '#245773'
+const normalizeLeaseStatus = (lease) =>
+  String(lease?.status || '')
+    .trim()
+    .toLowerCase()
+const isLeaseAvailable = (lease) => normalizeLeaseStatus(lease) === 'draft'
+const isLeaseRented = (lease) => normalizeLeaseStatus(lease) === 'active'
+async function onLifecycleUpdated(lease) {
+  selectedLease.value = lease
+  await userDataStore.loadLeases()
 }
-
-const normalizeLeaseStatus = (lease) => String(lease?.status || '').trim().toLowerCase()
-const isLeaseAvailable = (lease) => normalizeLeaseStatus(lease) === 'available'
-const isLeaseRented = (lease) => normalizeLeaseStatus(lease) === 'rented'
+async function onLifecycleRenewed(lease) {
+  selectedLease.value = lease
+  await userDataStore.loadLeases()
+}
 
 // Fetch tenants for a lease
 const fetchLeaseTenants = async (leaseId) => {
@@ -1554,7 +1720,7 @@ const fetchLeaseTenants = async (leaseId) => {
 
 // Fetch tenants for all rented leases (for lease cards)
 const fetchAllLeaseTenants = async () => {
-  const rentedLeases = filteredLeases.value.filter((lease) => lease.status === 'Rented')
+  const rentedLeases = filteredLeases.value.filter((lease) => !lease.archived)
 
   for (const lease of rentedLeases) {
     try {
@@ -1601,9 +1767,11 @@ const fetchLeaseApplications = async (leaseId) => {
 const formatDate = (date) => {
   if (!date) return 'N/A'
   try {
-    const dateObj = date.toDate ? date.toDate() : new Date(
-      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date,
-    )
+    const dateObj = date.toDate
+      ? date.toDate()
+      : new Date(
+          typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date,
+        )
     return dateObj.toLocaleDateString()
   } catch {
     return 'Invalid Date'
@@ -1624,7 +1792,9 @@ const toDateInputValue = (date) => {
 const getSelectedLeaseMoveInDateInput = () => {
   if (!selectedLease.value) return ''
   return toDateInputValue(
-    selectedLease.value.start_date || selectedLease.value.lease_start_date || selectedLease.value.move_in_date
+    selectedLease.value.start_date ||
+      selectedLease.value.lease_start_date ||
+      selectedLease.value.move_in_date,
   )
 }
 
@@ -1669,7 +1839,7 @@ const viewApplicationDetail = async (applicationId) => {
   await nextTick()
   await new Promise((resolve) => setTimeout(resolve, 50))
 
-  router.push(`application-detail/${applicationId}`)  // Navigate to layout version (no leading slash)
+  router.push(`application-detail/${applicationId}`) // Navigate to layout version (no leading slash)
 }
 
 // Navigate to Create Tenant page with lease context
@@ -1783,8 +1953,11 @@ const saveLeaseChanges = async () => {
 
   editLoading.value = true
   try {
-    if (selectedLease.value.lease_end_date && getSelectedLeaseMoveInDateInput() &&
-      selectedLease.value.lease_end_date < getSelectedLeaseMoveInDateInput()) {
+    if (
+      selectedLease.value.lease_end_date &&
+      getSelectedLeaseMoveInDateInput() &&
+      selectedLease.value.lease_end_date < getSelectedLeaseMoveInDateInput()
+    ) {
       throw new Error('Lease end date cannot be before the start date.')
     }
     const canonicalStartDate =
@@ -1820,38 +1993,6 @@ const saveLeaseChanges = async () => {
     })
   } finally {
     editLoading.value = false
-  }
-}
-
-// Quick status change function
-const quickChangeStatus = async (newStatus) => {
-  if (!selectedLease.value || selectedLease.value.status === newStatus) return
-
-  try {
-    await updateLeaseStatusRequest({ leaseId: selectedLease.value.id, status: newStatus })
-    selectedLease.value.status = newStatus
-
-    // Refresh the leases data
-    await userDataStore.refreshLeases()
-
-    Notify.create({
-      type: 'positive',
-      message: ['Expired', 'Terminated', 'Archived'].includes(newStatus)
-        ? `Status changed to ${newStatus}. Review and settle the deposit separately; its balance was not cleared.`
-        : `Status changed to ${newStatus}`,
-      timeout: 1500,
-    })
-  } catch (error) {
-    console.error('Error changing status:', error)
-    // Revert on error
-    const originalLease = userAccessibleLeases.value.find((l) => l.id === selectedLease.value?.id)
-    if (originalLease) {
-      selectedLease.value.status = originalLease.status
-    }
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to change status',
-    })
   }
 }
 
@@ -1921,7 +2062,7 @@ const openInventoryDialog = async (lease = selectedLease.value) => {
     ('target' in lease || 'currentTarget' in lease || 'preventDefault' in lease)
   const targetLease = looksLikeDomEvent ? selectedLease.value : lease || selectedLease.value
   if (targetLease) {
-    const normalizedLeaseDocId = getLeaseDocId(targetLease)
+    const normalizedLeaseDocId = targetLease.inventory_source_lease_id || getLeaseDocId(targetLease)
     if (!normalizedLeaseDocId) {
       Notify.create({
         type: 'negative',
@@ -1944,7 +2085,6 @@ const openInventoryDialog = async (lease = selectedLease.value) => {
   }
 }
 
-
 // Documents dialog functions
 const openDocumentsDialog = (lease = selectedLease.value) => {
   const looksLikeDomEvent =
@@ -1966,10 +2106,10 @@ const openDocumentsDialog = (lease = selectedLease.value) => {
 
   const normalizedLeaseLsid = normalizeLeaseRefId(
     targetLease.LSID ||
-    targetLease.lease_lsid ||
-    targetLease.lease_id ||
-    targetLease.lsid ||
-    normalizedLeaseDocId,
+      targetLease.lease_lsid ||
+      targetLease.lease_id ||
+      targetLease.lsid ||
+      normalizedLeaseDocId,
   )
   selectedLease.value = {
     ...(selectedLease.value || {}),
@@ -2020,11 +2160,11 @@ const getLeasePropertyId = (lease) => {
   if (!lease || typeof lease !== 'object') return ''
   return normalizeLeaseRefId(
     lease.property_string_id ||
-    lease.property_id?.id ||
-    lease.property_id?.property_id ||
-    lease.property_id ||
-    lease.property?.id ||
-    '',
+      lease.property_id?.id ||
+      lease.property_id?.property_id ||
+      lease.property_id ||
+      lease.property?.id ||
+      '',
   )
 }
 
@@ -2032,13 +2172,13 @@ const getLeaseDocId = (lease) => {
   if (!lease || typeof lease !== 'object') return ''
   return normalizeLeaseRefId(
     lease.id ||
-    lease.lease_doc_id ||
-    lease.leaseId ||
-    lease.lease_id ||
-    lease.lease_lsid ||
-    lease.lsid ||
-    lease.LSID ||
-    '',
+      lease.lease_doc_id ||
+      lease.leaseId ||
+      lease.lease_id ||
+      lease.lease_lsid ||
+      lease.lsid ||
+      lease.LSID ||
+      '',
   )
 }
 
@@ -2166,7 +2306,7 @@ watch(
   async () => {
     deepLinkHandled.value = false
     await tryOpenDeepLinkedLease()
-  }
+  },
 )
 
 watch(
@@ -2181,8 +2321,15 @@ watch(
 
 <style src="../css/tenant-details.scss" lang="scss"></style>
 <style scoped>
-.lease-footer-row { flex-wrap: wrap; gap: 8px; }
-.lease-inventory-entry { min-height: 44px; flex-shrink: 0; text-transform: none; }
+.lease-footer-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lease-inventory-entry {
+  min-height: 44px;
+  flex-shrink: 0;
+  text-transform: none;
+}
 .summary-card {
   min-width: 0;
   transition: all 0.2s ease-in-out;
@@ -2399,10 +2546,26 @@ watch(
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
-.lease-footer-context { min-width: 0; height: 44px; }
-.lease-card-actions { display: grid; grid-template-columns: 80px minmax(0, 1fr); align-items: stretch; gap: 8px; width: 100%; }
-.lease-card-actions :deep(.q-btn) { min-height: 44px; margin: 0; transform: none !important; }
-.lease-card-actions :deep(.q-btn__content) { white-space: normal; text-align: center; }
+.lease-footer-context {
+  min-width: 0;
+  height: 44px;
+}
+.lease-card-actions {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.lease-card-actions :deep(.q-btn) {
+  min-height: 44px;
+  margin: 0;
+  transform: none !important;
+}
+.lease-card-actions :deep(.q-btn__content) {
+  white-space: normal;
+  text-align: center;
+}
 
 .lease-tenant-compact {
   display: grid;
@@ -2600,6 +2763,78 @@ watch(
   margin-top: 12px;
 }
 
+.lease-detail-shell :deep(.detail-shell-header) {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.lease-detail-shell :deep(.detail-shell-title-wrap) {
+  flex: 0 1 220px;
+  min-width: 80px;
+  max-width: 30%;
+  overflow-wrap: anywhere;
+}
+
+.lease-detail-shell :deep(.detail-shell-actions) {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.lease-detail-shell :deep(.detail-shell-actions > .q-btn) {
+  flex: 0 0 44px;
+}
+
+.lease-shell-actions {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  overscroll-behavior-x: contain;
+}
+
+.lease-shell-actions :deep(.q-btn) {
+  flex: 0 0 auto;
+  width: auto !important;
+  height: auto !important;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.lease-shell-actions :deep(.q-btn__content) {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  gap: 6px;
+}
+
+.lease-shell-actions :deep(.q-btn__content .block) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.lease-shell-actions .save-btn {
+  background: var(--brand-primary, #254b39) !important;
+  color: #fff !important;
+}
+
+.lease-shell-actions .cancel-btn {
+  background: var(--brand-surface, #fff) !important;
+  color: var(--brand-primary, #254b39) !important;
+}
+
 .header-action-btn {
   border-radius: var(--border-radius-btn);
   border: 1px solid rgba(36, 87, 115, 0.22);
@@ -2669,12 +2904,26 @@ watch(
 }
 
 .lease-detail-card {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   color: var(--brand-ink, #243830);
-  background: var(--brand-canvas, #f7f8f4);
-  overflow-y: auto;
+  background: transparent;
+  overflow: visible;
+}
+
+.lease-detail-card .dialog-content {
+  padding: 20px 0 0;
+  flex: none;
+  overflow: visible;
+}
+
+.lease-detail-card .details-section {
+  padding: 24px;
+  border-radius: 12px;
 }
 
 .lease-detail-card :deep(.q-btn) {
@@ -2728,8 +2977,16 @@ watch(
 
 @media (max-width: 600px) {
   .lease-detail-card .dialog-header,
-  .lease-detail-card .dialog-content { padding: 16px; }
-  .lease-detail-card .dialog-content { flex: none; overflow: visible; }
+  .lease-detail-card .dialog-content {
+    padding: 16px 0;
+  }
+  .lease-detail-card .details-section {
+    padding: 20px 16px;
+  }
+  .lease-detail-card .dialog-content {
+    flex: none;
+    overflow: visible;
+  }
 }
 
 .dialog-content {

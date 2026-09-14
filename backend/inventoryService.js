@@ -36,9 +36,17 @@ async function resolveLeaseTenant(tx, db, lease, leaseId, pid) {
 export function createInventoryService({ getDb }) {
   async function execute({ actor, verified, params, body }, operation) {
     if (!verified || !actor?.id) fail(401, 'AUTH_REQUIRED', 'Please sign in.')
-    const leaseId = params.leaseId
+    let leaseId = params.leaseId
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(leaseId || '')) fail(400, 'INVALID_LEASE', 'Invalid lease.')
     const db = getDb()
+    const requested = await db.collection('leases').doc(leaseId).get()
+    const sourceId = requested.data()?.inventory_source_lease_id
+    if (sourceId && sourceId !== leaseId) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(sourceId)) fail(409, 'INVALID_INVENTORY_SOURCE', 'The inventory source needs review.')
+      const source = await db.collection('leases').doc(sourceId).get()
+      if (!source.exists || propertyId(source.data().property_string_id || source.data().property_id) !== propertyId(requested.data().property_string_id || requested.data().property_id)) fail(403, 'PERMISSION_DENIED', 'Inventory source does not belong to this property.')
+      leaseId = sourceId
+    }
     const leaseRef = db.collection('leases').doc(leaseId)
     const stateRef = leaseRef.collection('inventories').doc('workflow')
     const historyRef = stateRef.collection('history')

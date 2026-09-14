@@ -1,0 +1,16 @@
+[
+  {
+    "origin": [
+      "http://localhost:9000",
+      "http://127.0.0.1:9000",
+      "https://tobbythebutler.web.app",
+      "https://tobbythebutler.firebaseapp.com",
+      "capacitor://localhost",
+      "http://localhost",
+      "https://localhost"
+    ],
+    "method": ["GET", "HEAD", "PUT"],
+    "responseHeader": ["Content-Type", "ETag", "x-goog-meta-firebaseStorageDownloadTokens"],
+    "maxAgeSeconds": 3600
+  }
+]

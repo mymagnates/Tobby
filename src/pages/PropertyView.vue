@@ -124,6 +124,7 @@
               <q-card flat bordered class="property-health-card">
                 <q-card-section>
                   <div class="property-overview-label">Property health</div>
+                  <p>Leasing: {{ propertyLeasingStatus(userDataStore.userAccessibleLeases || [], selectedProperty.id) }}</p>
                   <div class="property-health-card__status">
                     {{ propertyHealth.label }}
                     <span
@@ -1752,6 +1753,7 @@
 
 <script setup>
 import { onMounted, computed, watch, ref, onUnmounted, defineAsyncComponent } from 'vue'
+import { propertyLeasingStatus } from '../../backend/leaseLifecycle.js'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'

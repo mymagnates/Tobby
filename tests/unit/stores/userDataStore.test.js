@@ -6,10 +6,6 @@ import {
   doc,
   getDoc,
   query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
   getDocs,
 } from 'firebase/firestore'
 
@@ -66,6 +62,40 @@ describe('userDataStore', () => {
   })
 
   describe('initialization', () => {
+    it('waits for newly granted roles before fetching the new property during refresh', async () => {
+      store.user = { uid: 'creator' }
+      store.userRoles = []
+      store.properties = []
+      vi.mocked(collection).mockImplementation((_db, ...parts) => parts.join('/'))
+      vi.mocked(doc).mockImplementation((_db, ...parts) => parts.join('/'))
+      vi.mocked(query).mockImplementation((path) => path)
+      let releaseRoles
+      vi.mocked(getDocs).mockImplementation(async (path) => {
+        if (path === 'users/creator/roles') {
+          return new Promise((resolve) => { releaseRoles = resolve })
+        }
+        return { docs: [] }
+      })
+      vi.mocked(getDoc).mockImplementation(async (path) => ({
+        id: path.split('/').at(-1),
+        exists: () => true,
+        data: () => path.startsWith('properties/')
+          ? { nickname: 'Newly created', manager_user_ids: ['creator'] }
+          : { account_type: 'pm' },
+      }))
+      const pending = store.loadAllUserData()
+      await vi.waitFor(() => expect(releaseRoles).toBeTypeOf('function'))
+      expect(getDoc).not.toHaveBeenCalledWith('properties/new-property')
+      releaseRoles({ docs: [{ id: 'role-new', data: () => ({
+        property_id: 'new-property', user_id: 'creator', role: 'pm', status: 'active',
+      }) }] })
+      await pending
+      expect(getDoc).toHaveBeenCalledWith('properties/new-property')
+      expect(store.userAccessibleProperties.map((property) => property.id)).toEqual(['new-property'])
+      vi.mocked(getDoc).mockReset()
+      vi.mocked(getDocs).mockReset()
+    })
+
     it('should initialize with default values', () => {
       expect(store.user).toBeNull()
       expect(store.userProfile).toBeNull()

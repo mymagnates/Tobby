@@ -48,6 +48,8 @@ describe('deposit API transport', () => {
     expect(transactionReportRevision.value).toBe(version + 1)
   })
   it('does not present failure as a zero balance', async () => {
+    respond({ error_code: 'LEASE_NOT_FOUND', message: 'Lease not found.' }, 404)
+    await expect(getLeaseDeposit('p1', 'gone')).rejects.toThrow('Lease not found.')
     respond({ message: 'Access revoked' }, 403)
     await expect(getLeaseDeposit('p1', 'l1')).rejects.toThrow('Access revoked')
     respond({ message: 'API route not found' }, 404)
