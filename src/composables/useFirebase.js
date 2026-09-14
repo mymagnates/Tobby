@@ -20,6 +20,8 @@ import {
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { app, auth, authStateReady, db, storage, sessionManager } from '../boot/firebase'
 import { useUserDataStore } from '../stores/userDataStore'
+import { mobileApiBase } from '../services/mobileApi'
+import { isNativeMobileRuntime } from '../utils/mobileRuntime'
 
 const FIREBASE_DEBUG_LOGS_ENABLED = false
 const debugLog = (...args) => {
@@ -100,7 +102,8 @@ export function useFirebase() {
 
     if (quotaProtectedPath) {
       const token = await currentUser.getIdToken(true)
-      const reserveResponse = await fetch('/api/storage/upload-reservations', {
+      const uploadApiBase = isNativeMobileRuntime() ? mobileApiBase() : '/api'
+      const reserveResponse = await fetch(`${uploadApiBase}/storage/upload-reservations`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,7 +130,7 @@ export function useFirebase() {
       })
       if (!uploadResponse.ok) throw new Error('Storage upload failed')
       const commitResponse = await fetch(
-        `/api/storage/upload-reservations/${encodeURIComponent(reservation.reservation_id)}/commit`,
+        `${uploadApiBase}/storage/upload-reservations/${encodeURIComponent(reservation.reservation_id)}/commit`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },

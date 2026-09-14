@@ -1,5 +1,5 @@
 <template>
-  <q-page class="edit-property q-pa-md">
+  <q-page class="edit-property workspace-form q-pa-md">
     <div class="row justify-center">
       <div class="col-12 col-md-8">
         <q-card class="edit-property-card">

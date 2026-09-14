@@ -1,12 +1,13 @@
 <template>
-  <div class="owner-panel">
+  <div class="owner-panel owner-workspace-view">
     <div class="owner-panel__header">
       <div>
-        <div class="text-h6 text-weight-bold">Task History</div>
+        <h2 class="role-workspace-title">Task History</h2>
         <div class="text-caption text-grey-7">
           View-only task record for this property, including open work and historical resolutions.
         </div>
       </div>
+      <q-btn flat round icon="close" aria-label="Close task history" v-close-popup />
     </div>
 
     <div v-if="!items.length" class="owner-panel__empty text-body2 text-grey-6">
@@ -16,12 +17,7 @@
     <template v-else>
       <div class="owner-panel__section-label">Open / In Progress</div>
       <q-list v-if="openItems.length" separator class="owner-panel__list q-mb-md">
-        <q-item
-          v-for="item in openItems"
-          :key="item.id"
-          clickable
-          @click="$emit('select', item)"
-        >
+        <q-item v-for="item in openItems" :key="item.id" clickable @click="$emit('select', item)">
           <q-item-section>
             <q-item-label class="text-weight-medium">
               {{ item.task_title || item.description || item.category || 'Task' }}
@@ -102,40 +98,8 @@ const openItems = computed(() =>
 )
 
 const historicalItems = computed(() =>
-  props.items.filter((task) =>
-    !props.openTaskStatuses.includes(String(task.status || 'open').toLowerCase()),
+  props.items.filter(
+    (task) => !props.openTaskStatuses.includes(String(task.status || 'open').toLowerCase()),
   ),
 )
 </script>
-
-<style scoped>
-.owner-panel {
-  width: min(680px, 92vw);
-  max-width: 100%;
-  background: #fff;
-  min-height: 100%;
-  padding: 20px;
-}
-
-.owner-panel__header {
-  margin-bottom: 16px;
-}
-
-.owner-panel__empty {
-  padding: 24px 0;
-}
-
-.owner-panel__section-label {
-  margin-bottom: 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #6b7280;
-}
-
-.owner-panel__list {
-  max-height: 34vh;
-  overflow: auto;
-}
-</style>

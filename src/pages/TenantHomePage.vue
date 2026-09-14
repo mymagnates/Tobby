@@ -518,10 +518,10 @@
     </q-dialog>
 
     <q-dialog v-model="showLeaseTenantDialog">
-      <q-card class="lease-tenant-detail-dialog">
+      <q-card class="lease-tenant-detail-dialog tenant-detail-surface">
         <q-card-section class="row items-center justify-between q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Tenant Detail</div>
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round aria-label="Close tenant details" class="tenant-close" v-close-popup />
         </q-card-section>
         <q-separator class="q-mt-sm" />
         <q-card-section v-if="leaseTenantDialogLoading" class="text-center q-py-lg">
@@ -1038,6 +1038,7 @@ watch(
 )
 </script>
 
+<style src="../css/tenant-details.scss" lang="scss"></style>
 <style scoped>
 .tt-feed-page {
   padding: 10px;

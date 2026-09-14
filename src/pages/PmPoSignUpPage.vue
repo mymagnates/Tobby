@@ -1,130 +1,138 @@
 <template>
   <div class="public-auth-page">
     <div class="public-auth-frame">
-      <section class="public-auth-story">
-        <div class="public-auth-eyebrow">Property Manager workspace</div>
-        <h2>Operate every property with <em>one clear record.</em></h2>
-        <p class="public-auth-story-copy">
-          Set up your management workspace for leases, tasks, transactions, service partners, and
-          owner communication.
-        </p>
-        <div class="public-auth-benefits">
-          <div class="public-auth-benefit">
-            <q-icon name="apartment" size="19px" /> Centralized property operations
-          </div>
-          <div class="public-auth-benefit">
-            <q-icon name="description" size="19px" /> Leases and documents together
-          </div>
-          <div class="public-auth-benefit">
-            <q-icon name="handyman" size="19px" /> Track maintenance from request to close
-          </div>
-        </div>
-      </section>
-
       <section class="public-auth-card public-auth-card--form">
-        <q-btn
-          flat
-          dense
-          no-caps
-          icon="arrow_back"
-          label="Choose another workspace"
-          class="public-auth-back"
-          @click="router.push('/public/register')"
-        />
-        <p class="public-auth-card-label">Create account</p>
-        <h1>Create Your Property Manager Workspace</h1>
-        <p class="public-auth-card-intro">
-          Organize operations and invite owners to view relevant property records.
-        </p>
-
-        <div v-if="isCreatingProfile" class="public-auth-loading">
-          <q-spinner-dots size="60px" color="primary" />
+        <p class="public-auth-card-label">GET STARTED</p>
+        <h1>Create your account</h1>
+        <p class="public-auth-card-intro">A simpler workspace for your properties.</p>
+        <div v-if="isCreatingProfile" class="public-auth-loading" role="status" aria-live="polite">
+          <q-spinner-dots size="40px" color="primary" />
           <p class="loading-text">Setting up your account...</p>
         </div>
-
-        <q-form v-else @submit="handleSignUp" class="signup-form">
-          <div class="form-section-title">Account</div>
+        <q-form v-else data-testid="pm-signup-form" @submit="handleSignUp" class="signup-form">
+          <q-input
+            v-model="form.fullName"
+            name="name"
+            autocomplete="name"
+            label="Full name"
+            outlined
+            required
+            hide-bottom-space
+            lazy-rules
+            :disable="loading"
+            :rules="[(val) => !!val?.trim() || 'Full name is required']"
+          />
           <q-input
             v-model="form.email"
             type="email"
-            label="Email *"
+            name="email"
+            autocomplete="username"
+            inputmode="email"
+            autocapitalize="none"
+            spellcheck="false"
+            label="Email address"
             outlined
+            required
+            hide-bottom-space
+            lazy-rules
+            :disable="loading"
             :rules="[(val) => !!val || 'Email is required']"
-          >
-            <template v-slot:prepend><q-icon name="email" /></template>
-          </q-input>
-
+          />
           <q-input
             v-model="form.password"
-            type="password"
-            label="Password *"
+            :type="showPassword ? 'text' : 'password'"
+            name="password"
+            autocomplete="new-password"
+            label="Password"
             outlined
+            required
+            hide-bottom-space
+            lazy-rules
+            :disable="loading"
             :rules="[
               (val) => !!val || 'Password is required',
-              (val) => val.length >= 6 || 'At least 6 characters',
+              (val) => val.length >= 6 || 'Use at least 6 characters',
             ]"
           >
-            <template v-slot:prepend><q-icon name="lock" /></template>
+            <template #append>
+              <q-btn
+                type="button"
+                flat
+                round
+                dense
+                :icon="showPassword ? 'visibility_off' : 'visibility'"
+                :aria-label="showPassword ? 'Hide passwords' : 'Show passwords'"
+                :aria-pressed="showPassword"
+                class="auth-password-toggle"
+                @click="showPassword = !showPassword"
+              />
+            </template>
           </q-input>
-
           <q-input
             v-model="form.confirmPassword"
-            type="password"
-            label="Confirm Password *"
+            :type="showPassword ? 'text' : 'password'"
+            name="confirm-password"
+            autocomplete="new-password"
+            label="Confirm password"
             outlined
+            required
+            hide-bottom-space
+            lazy-rules
+            :disable="loading"
             :rules="[
               (val) => !!val || 'Please confirm your password',
               (val) => val === form.password || 'Passwords do not match',
             ]"
-          >
-            <template v-slot:prepend><q-icon name="lock" /></template>
-          </q-input>
-
-          <q-input
-            v-model="form.fullName"
-            label="Full Name *"
-            outlined
-            :rules="[(val) => !!val || 'Full name is required']"
-          >
-            <template v-slot:prepend><q-icon name="person" /></template>
-          </q-input>
-
-          <q-separator class="q-my-sm" />
-          <div class="form-section-title">Profile</div>
-
-          <q-input v-model="form.companyName" label="Company / Business Name" outlined>
-            <template v-slot:prepend><q-icon name="business" /></template>
-          </q-input>
-
-          <q-input v-model="form.phone" label="Phone Number" outlined type="tel">
-            <template v-slot:prepend><q-icon name="phone" /></template>
-          </q-input>
-
-          <div class="form-section-title q-mt-sm">About Your Portfolio</div>
-          <q-option-group
-            v-model="form.manageScope"
-            :options="manageScopeOptions"
-            type="checkbox"
-            color="primary"
-            class="manage-scope-options"
           />
-
-          <q-banner v-if="errorMessage" class="bg-negative text-white q-mt-sm" rounded>
-            <template v-slot:avatar><q-icon name="error" /></template>
-            {{ errorMessage }}
-          </q-banner>
-
+          <details class="auth-optional-details">
+            <summary>Additional details <span>Optional</span></summary>
+            <div class="auth-optional-fields">
+              <p>You can add these now or complete your profile later.</p>
+              <q-input
+                v-model="form.companyName"
+                name="organization"
+                autocomplete="organization"
+                label="Company name"
+                outlined
+                hide-bottom-space
+                :disable="loading"
+              />
+              <q-input
+                v-model="form.phone"
+                name="tel"
+                autocomplete="tel"
+                label="Phone number"
+                outlined
+                type="tel"
+                hide-bottom-space
+                :disable="loading"
+              />
+              <fieldset class="auth-scope-fieldset" :disabled="loading">
+                <legend>I manage</legend>
+                <q-option-group
+                  v-model="form.manageScope"
+                  :options="manageScopeOptions"
+                  type="checkbox"
+                  color="primary"
+                  class="manage-scope-options"
+                  :disable="loading"
+                />
+              </fieldset>
+            </div>
+          </details>
+          <q-banner v-if="errorMessage" class="auth-error" role="alert">{{
+            errorMessage
+          }}</q-banner>
           <q-btn
+            data-testid="pm-signup-submit"
             type="submit"
-            color="primary"
-            label="Create Account"
+            label="Create account"
             unelevated
             no-caps
             :loading="loading"
-            class="public-auth-button full-width q-mt-md"
+            class="public-auth-button full-width"
           />
         </q-form>
-
         <div class="public-auth-switch">
           <span>Already have an account?</span>
           <q-btn
@@ -132,23 +140,30 @@
             dense
             no-caps
             class="public-auth-text-link"
-            label="Sign In"
-            @click="router.push('/public/login')"
+            label="Sign in"
+            :to="{
+              path: '/public/login',
+              query: route.query.redirect ? { redirect: route.query.redirect } : {},
+            }"
           />
         </div>
       </section>
+      <AuthWorkspaceStory />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
 import { Notify } from 'quasar'
+import AuthWorkspaceStory from '../components/AuthWorkspaceStory.vue'
 
 const router = useRouter()
+const route = useRoute()
+const showPassword = ref(false)
 const { signUp, createDocument } = useFirebase()
 const userDataStore = useUserDataStore()
 
@@ -207,7 +222,12 @@ const handleSignUp = async () => {
       message: 'Manager account created successfully.',
       position: 'top',
     })
-    router.push('/loading')
+    const target = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    router.push(
+      target.startsWith('/') && !target.startsWith('//')
+        ? { path: '/loading', query: { redirect: target } }
+        : '/loading',
+    )
   } catch (err) {
     errorMessage.value = err.message || 'Failed to create account.'
   } finally {
@@ -224,14 +244,6 @@ const handleSignUp = async () => {
   gap: 12px;
 }
 
-.form-section-title {
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--auth-ink-soft);
-}
-
 .loading-text {
   margin-top: 16px;
   color: var(--auth-ink-soft);
@@ -239,11 +251,5 @@ const handleSignUp = async () => {
 
 .manage-scope-options {
   padding: 4px 0 2px;
-}
-
-@media (max-width: 600px) {
-  .public-auth-card {
-    padding: 28px 20px;
-  }
 }
 </style>

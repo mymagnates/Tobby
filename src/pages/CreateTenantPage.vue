@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="workspace-form">
     <div class="page-container" style="max-width: 1200px; margin: 0 auto;">
       <!-- Page Header -->
       <div class="page-header q-mb-lg">
@@ -16,7 +16,7 @@
               color="primary"
               text-color="white"
               label="Cancel"
-              class="top-action-btn"
+              class="top-action-btn workspace-form-cancel"
               :disable="submitting"
               @click="$router.back()"
             />
@@ -62,6 +62,9 @@
             <div v-if="selectedLeasePropertySummary" class="text-caption text-grey-7 q-mt-sm">
               {{ selectedLeasePropertySummary }}
             </div>
+            <p class="text-body2 q-mt-sm q-mb-none">
+              Lease start date, end date and rent are managed in the lease, not in the tenant profile.
+            </p>
             <div
               v-if="selectedLeasePropertyType === 'property'"
               class="text-warning text-caption q-mt-xs"
@@ -1106,6 +1109,7 @@ const removeCoApplicant = (index) => {
 
 // Handle Submit
 const handleSubmit = async () => {
+  if (submitting.value) return
   try {
     submitting.value = true
 
@@ -1118,12 +1122,6 @@ const handleSubmit = async () => {
     }
     if (!formData.value.email || !formData.value.phone) {
       throw new Error('Email and phone number are required')
-    }
-    if (!formData.value.leaseStartDate || !formData.value.leaseEndDate) {
-      throw new Error('Lease start and end dates are required')
-    }
-    if (!formData.value.monthlyRent) {
-      throw new Error('Monthly rent is required')
     }
 
     // Upload documents first

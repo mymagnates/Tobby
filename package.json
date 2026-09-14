@@ -29,10 +29,14 @@
     "postinstall": "quasar prepare"
   },
   "dependencies": {
+    "@capacitor/camera": "^7.0.5",
+    "@capacitor/core": "^7.6.9",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "chart.js": "^4.5.0",
     "firebase": "^12.1.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.4.18",

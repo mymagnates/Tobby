@@ -1,8 +1,11 @@
 <template>
-  <q-page class="q-pa-sm">
+  <q-page class="role-workspace-page q-pa-sm">
     <q-card flat bordered>
-      <q-card-section class="row items-center q-py-sm q-px-md">
-        <div class="text-subtitle1 text-weight-medium">Invoices</div>
+      <q-card-section class="role-workspace-heading row items-center q-py-sm q-px-md">
+        <div>
+          <h2 class="role-workspace-title">Invoices</h2>
+          <p class="role-workspace-subtitle">Create drafts and track invoices for your projects.</p>
+        </div>
         <q-space />
         <q-btn flat no-caps icon="arrow_back" label="Back" class="q-mr-sm" @click="goBack" />
         <q-btn color="primary" dense label="Create Invoice" @click="openCreateDialog" />
@@ -19,6 +22,7 @@
           row-key="invoice_id"
           :loading="loading"
           :pagination="{ rowsPerPage: 10 }"
+          no-data-label="No invoices created yet"
         >
           <template #body-cell-actions="props">
             <q-td :props="props" class="text-right">
@@ -38,7 +42,7 @@
     </q-card>
 
     <q-dialog v-model="createDialog">
-      <q-card style="min-width: 380px">
+      <q-card class="workspace-form role-workspace-dialog">
         <q-card-section class="text-subtitle1">Create Invoice</q-card-section>
         <q-card-section class="q-gutter-sm">
           <q-select
@@ -52,8 +56,21 @@
             dense
             outlined
           />
-          <q-input v-model.number="invoiceForm.amount" type="number" label="Total Amount" dense outlined />
-          <q-input v-model="invoiceForm.note" type="textarea" autogrow label="Note" dense outlined />
+          <q-input
+            v-model.number="invoiceForm.amount"
+            type="number"
+            label="Total Amount"
+            dense
+            outlined
+          />
+          <q-input
+            v-model="invoiceForm.note"
+            type="textarea"
+            autogrow
+            label="Note"
+            dense
+            outlined
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
@@ -89,13 +106,20 @@ const invoiceForm = ref({
 const columns = [
   { name: 'invoice_id', label: 'Invoice', field: 'invoice_id', align: 'left' },
   { name: 'project_id', label: 'Project', field: 'project_id', align: 'left' },
-  { name: 'amount', label: 'Amount', field: (row) => `$${Number(row.amount || 0).toFixed(2)}`, align: 'left' },
+  {
+    name: 'amount',
+    label: 'Amount',
+    field: (row) => `$${Number(row.amount || 0).toFixed(2)}`,
+    align: 'left',
+  },
   { name: 'status', label: 'Status', field: 'status', align: 'left' },
   { name: 'updated_at', label: 'Updated', field: 'updated_at', align: 'left' },
   { name: 'actions', label: 'Action', field: 'actions', align: 'right' },
 ]
 
-const projectOptions = computed(() => projects.value.map((row) => ({ label: row.title, value: row.project_id })))
+const projectOptions = computed(() =>
+  projects.value.map((row) => ({ label: row.title, value: row.project_id })),
+)
 
 const goBack = () => {
   if (window.history.length > 1) {
@@ -115,7 +139,11 @@ const loadData = async () => {
     projects.value = projectRows
     rows.value = invoiceRows
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to load invoices.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to load invoices.',
+      position: 'top',
+    })
   } finally {
     loading.value = false
   }
@@ -144,7 +172,11 @@ const createInvoice = async () => {
     Notify.create({ type: 'positive', message: 'Draft invoice created.', position: 'top' })
     await loadData()
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Create invoice failed.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Create invoice failed.',
+      position: 'top',
+    })
   } finally {
     creating.value = false
   }

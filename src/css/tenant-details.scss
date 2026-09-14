@@ -1,0 +1,155 @@
+@use './workspace-palette' as palette;
+
+.tenant-detail-surface {
+  @include palette.light;
+  color: var(--brand-ink) !important;
+  background: var(--brand-canvas) !important;
+  text-align: left;
+  box-shadow: none !important;
+  .q-card {
+    border: 1px solid var(--brand-border) !important;
+    box-shadow: none !important;
+    background: var(--brand-surface) !important;
+  }
+  .q-card__section {
+    padding: 20px;
+    min-width: 0;
+  }
+  .q-card__section:is([class*='bg-'], .tenant-section-header),
+  .tenant-section-header {
+    background: var(--brand-soft) !important;
+    color: var(--brand-ink) !important;
+    border-bottom: 1px solid var(--brand-border) !important;
+  }
+  :is(.text-h6, .text-subtitle1, .text-subtitle2) {
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 600;
+    color: var(--brand-ink) !important;
+  }
+  :is(.text-caption, .q-item__label--caption) {
+    font-size: 13px !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    line-height: 1.5;
+    color: var(--brand-muted);
+  }
+  :is(.text-body1, .text-body2, .q-item__label) {
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .q-item__section {
+    min-width: 0;
+  }
+  .row.q-col-gutter-md {
+    row-gap: 8px;
+  }
+  .row.q-col-gutter-md > div[class*='col-'] {
+    width: 50%;
+  }
+  .row.q-col-gutter-md > .col-12:not([class*='col-md-']):not([class*='col-sm-']) {
+    width: 100%;
+  }
+  .q-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    text-transform: none;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .q-btn__content {
+    white-space: normal;
+    text-align: center;
+  }
+  .q-btn .q-icon {
+    color: inherit !important;
+  }
+  .q-btn:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 3px;
+  }
+  .q-avatar {
+    background: var(--brand-soft) !important;
+    color: var(--brand-primary) !important;
+  }
+}
+
+// Teleported dialogs must not inherit the legacy dark-header/720px overrides.
+.q-dialog .tenant-detail-surface > :is(.q-toolbar, .q-card__section:first-child) {
+  flex-shrink: 0;
+  padding: 20px 24px !important;
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink) !important;
+  border-bottom: 1px solid var(--brand-border) !important;
+}
+.q-dialog
+  .tenant-detail-surface
+  :is(.q-toolbar, .tenant-section-header, .q-card__section:first-child)
+  :is(.text-h6, .text-subtitle1, .q-icon) {
+  color: var(--brand-ink) !important;
+}
+.q-dialog .tenant-detail-surface .q-toolbar {
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.q-dialog .tenant-detail-surface .q-toolbar__title {
+  min-width: 100px;
+  padding: 0;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.q-dialog .tenant-detail-surface .q-btn {
+  border-color: var(--brand-border) !important;
+}
+.q-dialog .tenant-detail-surface .q-card__section.tenant-section-header {
+  background: var(--brand-soft) !important;
+  color: var(--brand-ink) !important;
+}
+.q-dialog .tenant-detail-surface .q-btn.bg-primary {
+  background: var(--brand-primary) !important;
+  color: var(--brand-on-primary) !important;
+}
+.q-dialog .tenant-detail-surface :is(.close-dialog-btn, .tenant-header-edit, .tenant-close) {
+  background: var(--brand-soft) !important;
+  color: var(--brand-primary) !important;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.q-dialog .tenant-detail-surface .tenant-header-edit {
+  width: auto !important;
+  padding: 0 14px;
+}
+.q-dialog__inner > .tenant-detail-dialog.tenant-detail-surface {
+  max-width: 1040px !important;
+  height: calc(100dvh - 48px) !important;
+  max-height: calc(100dvh - 48px) !important;
+  min-height: 0;
+}
+.tenant-detail-dialog.tenant-detail-surface > .tenant-detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+}
+@media (max-width: 640px) {
+  .tenant-detail-surface .row.q-col-gutter-md > div[class*='col-'] {
+    width: 100%;
+  }
+  .tenant-detail-surface .q-card__section {
+    padding: 16px;
+  }
+  .q-dialog .tenant-detail-surface > :is(.q-toolbar, .q-card__section:first-child) {
+    padding: 16px !important;
+  }
+  .q-dialog__inner > .tenant-detail-dialog.tenant-detail-surface {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+}
+body.body--dark .tenant-detail-surface {
+  @include palette.dark;
+}

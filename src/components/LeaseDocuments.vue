@@ -2,7 +2,7 @@
   <div class="lease-documents">
     <div class="documents-shell">
       <div class="documents-header">
-        <div class="row items-center justify-between">
+        <div class="documents-title-row">
           <div>
             <div class="text-h6 text-weight-bold text-primary">
               <q-icon name="folder" class="q-mr-sm" />
@@ -12,7 +12,7 @@
               Upload and manage documents and pictures related to this lease
             </div>
           </div>
-          <q-btn flat round dense icon="close" @click="emit('close')" class="dialog-close-btn" />
+          <q-btn flat round icon="close" aria-label="Close lease documents" @click="emit('close')" class="dialog-close-btn" />
         </div>
       </div>
 
@@ -576,6 +576,10 @@ onMounted(() => {
 
 <style scoped>
 .lease-documents {
+  color: var(--brand-ink, #243830);
+  --bg-surface: var(--brand-surface, #fff);
+  --bg-secondary: var(--brand-canvas, #f7f8f4);
+  --neutral-200: var(--brand-border, #e0e6df);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -597,6 +601,18 @@ onMounted(() => {
   background: var(--bg-secondary);
   padding: 16px 20px;
   flex-shrink: 0;
+}
+.documents-title-row { display: flex; align-items: flex-start; gap: 16px; }
+.documents-title-row > div { flex: 1; min-width: 0; }
+.documents-title-row > .q-btn { flex-shrink: 0; }
+.lease-documents .section-header {
+  background: var(--brand-canvas, #f7f8f4);
+  border: 0;
+  border-radius: 8px;
+  color: var(--brand-ink, #243830);
+}
+.lease-documents :deep(.q-btn), .lease-documents :deep(.q-icon) {
+  color: var(--brand-primary, #254b39);
 }
 
 .documents-content {
@@ -642,7 +658,7 @@ onMounted(() => {
 
 .documents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 20px;
 }
 
@@ -656,8 +672,8 @@ onMounted(() => {
 
 .document-card:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: none;
+  box-shadow: none;
 }
 
 .document-header {
@@ -673,8 +689,19 @@ onMounted(() => {
 
 .document-actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+.lease-documents :deep(.q-btn) {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 14px;
+  text-transform: none;
+}
+
+.lease-documents :deep(.q-btn__content) { text-align: center; white-space: normal; }
+.document-name, .document-description { min-width: 0; overflow-wrap: anywhere; }
 
 .document-content {
   margin-bottom: 12px;

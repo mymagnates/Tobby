@@ -1,5 +1,5 @@
 <template>
-  <div class="create-reminder animate-fade-in">
+  <div class="create-reminder workspace-form animate-fade-in">
     <div class="create-reminder-buffer create-reminder-buffer--top"></div>
     <q-card class="elevated">
       <q-btn
@@ -27,7 +27,7 @@
             <div v-else class="section-label q-mb-xs">Property Context</div>
           </div>
           <div class="col-auto row items-center q-gutter-sm">
-            <q-btn unelevated color="primary" text-color="white" label="Cancel" class="top-action-btn" @click="emit('cancel')" />
+            <q-btn unelevated color="primary" text-color="white" label="Cancel" class="top-action-btn workspace-form-cancel" @click="emit('cancel')" />
             <q-btn type="submit" form="create-reminder-form" class="top-action-btn" color="primary" text-color="white" :loading="saving" label="Save" unelevated />
           </div>
         </div>

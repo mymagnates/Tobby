@@ -1,5 +1,5 @@
 <template>
-  <div class="create-transaction animate-fade-in">
+  <div class="create-transaction workspace-form animate-fade-in">
     <q-card class="elevated">
       <q-card-section class="q-pa-md composer-head">
         <div class="row items-start justify-between q-col-gutter-sm">
@@ -18,7 +18,8 @@
               color="primary"
               text-color="white"
               label="Cancel"
-              class="top-action-btn"
+              class="top-action-btn workspace-form-cancel"
+              :disable="loading || pickerBusy"
               @click="handleCancel"
             />
             <q-btn
@@ -28,15 +29,33 @@
               color="primary"
               text-color="white"
               :loading="loading"
-              label="Save"
+              :disable="pickerBusy || completed"
+              :label="submitError ? 'Retry save' : 'Save'"
               unelevated
             />
           </div>
         </div>
       </q-card-section>
 
+      <div v-if="saveStage" role="status" aria-live="polite" class="q-px-md q-pb-sm">
+        {{ saveStage }}
+      </div>
+
       <q-card-section class="q-pt-none">
-        <q-form id="create-transaction-form" @submit="onSubmit" class="q-gutter-sm">
+        <q-form
+          id="create-transaction-form"
+          @submit="onSubmit"
+          class="q-gutter-sm"
+          :inert="loading || completed"
+        >
+          <div v-if="submitError" role="alert" class="text-negative">{{ submitError }}</div>
+          <div v-if="uploadFailed" class="q-mb-md">
+            <p>
+              Your draft and photo are still here. Retry save, or explicitly continue without the
+              photo.
+            </p>
+            <q-btn outline no-caps label="Save without photo" @click="saveWithoutPhoto" />
+          </div>
           <div class="section-label q-mb-xs">Transaction Context</div>
           <div class="row q-gutter-sm">
             <div v-if="propertyId && !showPropertySelect" class="col-12 col-md-6">
@@ -86,6 +105,36 @@
                 <q-icon name="category" color="primary" />
               </template>
             </q-select>
+          </div>
+
+          <q-select
+            v-model="transactionData.financial_category"
+            :options="financialCategoryOptions"
+            emit-value
+            map-options
+            label="Financial Category"
+            outlined
+            dense
+            bg-color="grey-1"
+            :rules="[(val) => isFinancialCategory(val) || 'Please choose a financial category']"
+            hint="Used to categorize this transaction in financial reports."
+          />
+          <div
+            v-if="transactionData.financial_category === 'security_deposit'"
+            role="status"
+            class="text-caption q-mb-sm"
+          >
+            For lease balances and refunds, use Lease Deposit tracking. A deposit entered here must
+            be linked to a lease from Property &gt; Deposits before it appears in that lease's
+            balance.
+          </div>
+          <div
+            v-if="transactionData.financial_category === 'unclassified'"
+            role="status"
+            class="text-warning q-mb-sm"
+          >
+            Choose a financial category for accurate reporting. You may save as Unclassified, but
+            this transaction will need review before it can be categorized in reports.
           </div>
 
           <div
@@ -146,6 +195,44 @@
             </q-select>
           </div>
 
+          <div v-if="hasPmParty" class="row q-gutter-sm">
+            <q-select
+              v-for="side in pmSides"
+              :key="side"
+              v-model="transactionData[`${side}_account_id`]"
+              :options="managerOptions"
+              emit-value
+              map-options
+              :label="
+                side === 'from'
+                  ? 'From: Property Manager Account *'
+                  : 'To: Property Manager Account *'
+              "
+              outlined
+              dense
+              bg-color="grey-1"
+              class="col-12 col-md-6"
+              :loading="participantsLoading"
+              :disable="!validPropertyId || participantsLoading || !!participantsError"
+              :rules="[
+                (val) => isManagerAccount(val) || 'Select the actual property manager account',
+              ]"
+              hint="Choose the manager involved, not necessarily the person recording this transaction."
+            />
+            <div v-if="participantsError" role="alert" class="col-12 text-negative">
+              {{ participantsError }}
+              <q-btn flat dense label="Retry loading managers" @click="loadParticipants" />
+            </div>
+            <div
+              v-else-if="!participantsLoading && !managerOptions.length"
+              role="status"
+              class="col-12 text-negative"
+            >
+              No property manager accounts are available. Select a valid property with an assigned
+              manager.
+            </div>
+          </div>
+
           <div class="row q-gutter-sm">
             <q-input
               v-model.number="transactionData.amount"
@@ -157,7 +244,12 @@
               step="0.01"
               :rules="[
                 (val) => !!val || 'Amount is required',
-                (val) => val > 0 || 'Amount must be positive',
+                (val) =>
+                  (Number.isFinite(Number(val)) && Number(val) > 0) ||
+                  'Amount must be a finite number greater than zero',
+                (val) =>
+                  hasValidCents(val) ||
+                  'Use at most two decimal places within the supported amount range',
               ]"
               class="col-12 col-md-6"
               bg-color="grey-1"
@@ -174,7 +266,7 @@
               dense
               required
               type="date"
-              :rules="[(val) => !!val || 'Transaction date is required']"
+              :rules="[(val) => isValidDate(val) || 'Enter a valid date in YYYY-MM-DD format']"
               class="col-12 col-md-6"
               bg-color="grey-1"
             >
@@ -194,49 +286,11 @@
             bg-color="grey-1"
           />
 
-          <!-- Picture Upload Section -->
-          <div class="picture-upload-section">
-            <div class="text-subtitle2 q-mb-sm">
-              <q-icon name="photo_camera" class="q-mr-xs" />
-              Attach Picture (Optional)
-            </div>
-
-            <q-file
-              v-model="selectedFile"
-              accept="image/*"
-              outlined
-              dense
-              label="Choose picture"
-              bg-color="grey-1"
-              class="q-mb-sm"
-              @update:model-value="onFileSelected"
-            >
-              <template v-slot:prepend>
-                <q-icon name="attach_file" />
-              </template>
-            </q-file>
-
-            <!-- Image Preview -->
-            <div v-if="imagePreview" class="image-preview q-mb-sm">
-              <div class="text-caption q-mb-xs">Preview:</div>
-              <q-img
-                :src="imagePreview"
-                style="max-width: 300px; max-height: 200px"
-                class="rounded-borders"
-                fit="contain"
-              />
-              <q-btn
-                flat
-                dense
-                round
-                icon="close"
-                color="negative"
-                class="absolute-top-right q-ma-xs"
-                @click="removeImage"
-              />
-            </div>
-          </div>
-
+          <RecordPhotoPicker
+            v-model="selectedFile"
+            :disabled="loading || completed"
+            @busy="pickerBusy = $event"
+          />
         </q-form>
       </q-card-section>
     </q-card>
@@ -244,46 +298,52 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref, onMounted, watch } from 'vue'
+import { reactive, computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
+import { comparePropertyIds, extractPropertyId } from '../utils/propertyIdUtils'
+import RecordPhotoPicker from './RecordPhotoPicker.vue'
+import { createRecordPhotoUpload } from '../services/recordPhotoUpload'
 import {
-  normalizePropertyId,
-  comparePropertyIds,
-  extractPropertyId,
-} from '../utils/propertyIdUtils'
-import { useFirebase } from '../composables/useFirebase'
+  createReportTransaction,
+  getReportParticipants,
+  financialCategoryOptions,
+  defaultFinancialCategory,
+  isFinancialCategory,
+} from '../services/reportTransactionApi'
 import { Notify } from 'quasar'
+import { localCalendarDate } from '../utils/reportingDates'
 
 const props = defineProps({
-  propertyId: {
-    type: String,
-    required: false,
-  },
-  propertyName: {
-    type: String,
-    default: '',
-  },
-  allowPropertyEdit: {
-    type: Boolean,
-    default: true,
-  },
-  prefill: {
-    type: Object,
-    default: null,
-  },
+  propertyId: { type: String, required: false },
+  propertyName: { type: String, default: '' },
+  allowPropertyEdit: { type: Boolean, default: true },
+  prefill: { type: Object, default: null },
 })
 
 const route = useRoute()
-const propertyId = computed(() => props.propertyId || route.params.propertyId)
-const propertyName = computed(() => props.propertyName || route.query.propertyName || 'Unknown Property')
-
-const emit = defineEmits(['transaction-created', 'cancel'])
 const router = useRouter()
+const emit = defineEmits(['transaction-created', 'cancel', 'busy-change', 'draft-change'])
 const userDataStore = useUserDataStore()
-const { createDocument, loading, uploadImages } = useFirebase()
-
+const loading = ref(false)
+const pickerBusy = ref(false)
+const completed = ref(false)
+const saveStage = ref('')
+const uploadFailed = ref(false)
+const submitError = ref('')
+const propertyId = computed(() => props.propertyId || route.params.propertyId)
+const propertyName = computed(
+  () => props.propertyName || route.query.propertyName || 'Unknown Property',
+)
+const showPropertySelect = computed(() => props.allowPropertyEdit || !propertyId.value)
+const selectedPropertyId = ref(
+  extractPropertyId(props.prefill?.property_id || propertyId.value) || '',
+)
+const effectivePropertyId = computed(() =>
+  extractPropertyId(showPropertySelect.value ? selectedPropertyId.value : propertyId.value),
+)
 const availableProperties = computed(() => userDataStore.userAccessibleProperties || [])
+const propertiesLoading = computed(() => userDataStore.propertiesLoading)
 const propertyOptions = computed(() =>
   availableProperties.value.map((property) => ({
     label:
@@ -294,14 +354,20 @@ const propertyOptions = computed(() =>
       property.name ||
       property.id ||
       property.property_id,
-    value: property.id || property.property_id,
+    value: extractPropertyId(property),
   })),
 )
-const selectedPropertyId = ref('')
-const propertiesLoading = computed(() => userDataStore.propertiesLoading)
-const showPropertySelect = computed(() => props.allowPropertyEdit || !propertyId.value)
+const validPropertyId = computed(() => {
+  const id = effectivePropertyId.value
+  return id && !id.includes('/') && propertyOptions.value.some((option) => option.value === id)
+    ? id
+    : ''
+})
+const getUserRoleForProperty = (id) =>
+  (userDataStore.userRoles || []).find((role) =>
+    comparePropertyIds(extractPropertyId(role.property_id), id),
+  )
 
-// Role options for from/to fields
 const roleOptions = [
   'Property Owner',
   'Property Manager',
@@ -310,220 +376,18 @@ const roleOptions = [
   'Government',
   'HOA',
 ]
-
-// Transaction data - declare early so it can be used in computed properties
-const transactionData = reactive({
-  role: '',
-  transac_from: '',
-  transac_to: '',
-  amount: null,
-  transac_date: new Date().toISOString().split('T')[0],
-  transac_type: '',
-  note: '',
-  picture_url: '', // Will store the uploaded image URL
-})
-
-// Computed options for "From" field (all available options)
-const fromRoleOptions = computed(() => roleOptions)
-
-// Computed options for "To" field (exclude selected "from" option)
-const toRoleOptions = computed(() => {
-  if (!transactionData.transac_from) return []
-  return roleOptions.filter((option) => option !== transactionData.transac_from)
-})
-
-// Watcher to clear "to" field when "from" changes
-watch(
-  () => transactionData.transac_from,
-  (newFromValue, oldFromValue) => {
-    if (newFromValue !== oldFromValue) {
-      // Clear the "to" field when "from" changes
-      transactionData.transac_to = ''
-    }
-  },
-)
-
-watch(
-  () => props.prefill,
-  (value) => {
-    if (!value) return
-    if (typeof value.transac_type === 'string') transactionData.transac_type = value.transac_type
-    if (typeof value.transac_from === 'string') transactionData.transac_from = value.transac_from
-    if (typeof value.transac_to === 'string') transactionData.transac_to = value.transac_to
-    if (value.amount !== undefined && value.amount !== null) transactionData.amount = value.amount
-    if (typeof value.transac_date === 'string') transactionData.transac_date = value.transac_date
-    if (typeof value.note === 'string') transactionData.note = value.note
-    if (value.property_id) selectedPropertyId.value = String(value.property_id)
-  },
-  { immediate: true },
-)
-
-// Property ID utilities are now imported from ../utils/propertyIdUtils.js
-
-// Debug function to test property ID matching - call from browser console: window.testPropertyMatching()
-const testPropertyMatching = () => {
-  console.log('=== PROPERTY ID MATCHING TEST ===')
-  const currentPropertyId = propertyId.value || selectedPropertyId.value
-
-  console.log('Current Property Info:')
-  console.log('  From route:', propertyId.value)
-  console.log('  From selection:', selectedPropertyId.value)
-  console.log('  Final property ID:', currentPropertyId)
-  console.log('  Property ID type:', typeof currentPropertyId)
-
-  console.log('Available Properties:')
-  userDataStore.userAccessibleProperties.forEach((prop, index) => {
-    console.log(`  Property ${index + 1}:`)
-    console.log('    ID:', prop.id)
-    console.log('    Type:', typeof prop.id)
-    console.log('    Nickname:', prop.nickname)
-    console.log('    Address:', prop.address)
-  })
-
-  console.log('User Roles:')
-  userDataStore.userRoles.forEach((role, index) => {
-    console.log(`  Role ${index + 1}:`)
-    console.log('    Role ID:', role.id)
-    console.log('    Property ID:', role.property_id)
-    console.log('    Property ID Type:', typeof role.property_id)
-    console.log('    Role:', role.role)
-  })
-
-  if (currentPropertyId) {
-    console.log('Testing role lookup for current property...')
-    const result = getUserRoleForProperty(currentPropertyId)
-    console.log('Result:', result)
-  }
-
-  console.log('=== END PROPERTY ID MATCHING TEST ===')
+const roleLabels = {
+  po: 'Property Owner',
+  pm: 'Property Manager',
+  tt: 'Tenant',
+  sp: 'Service Provider',
+  government: 'Government',
+  hoa: 'HOA',
 }
-
-// Make function available globally
-window.testPropertyMatching = testPropertyMatching
-
-// File upload functions
-const onFileSelected = (file) => {
-  console.log('File selected:', file)
-  if (file) {
-    // Create preview URL
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target.result
-    }
-    reader.readAsDataURL(file)
-  } else {
-    imagePreview.value = null
-  }
-}
-
-const removeImage = () => {
-  selectedFile.value = null
-  imagePreview.value = null
-  transactionData.picture_url = ''
-}
-
-// Function to upload image to Firebase Storage
-const uploadImage = async (file) => {
-  try {
-    console.log('Uploading transaction image:', file.name)
-
-    // Get the property ID for the upload context
-    const propertyIdForUpload = extractPropertyId(selectedPropertyId.value || propertyId.value)
-
-    if (!propertyIdForUpload) {
-      throw new Error('Property ID is required for image upload')
-    }
-
-    // Upload using the uploadImages function with 'transaction' context
-    const uploadedUrls = await uploadImages([file], propertyIdForUpload, 'transaction')
-
-    if (uploadedUrls && uploadedUrls.length > 0) {
-      console.log('Transaction image uploaded successfully:', uploadedUrls[0])
-      return uploadedUrls[0]
-    } else {
-      throw new Error('Failed to upload image - no URL returned')
-    }
-  } catch (error) {
-    console.error('Error uploading transaction image:', error)
-    throw error
-  }
-}
-
-// Enhanced getUserRoleForProperty function for CreateTransaction
-const getUserRoleForProperty = (propertyId) => {
-  console.log('=== CreateTransaction - getUserRoleForProperty (Universal) ===')
-  console.log('Step 1: Retrieving all roles of current user')
-  console.log('All user roles:', userDataStore.userRoles)
-  console.log('Total roles count:', userDataStore.userRoles.length)
-
-  const normalizedSearchId = normalizePropertyId(propertyId)
-  if (!normalizedSearchId) {
-    console.log('No valid property ID provided:', propertyId)
-    return null
-  }
-
-  console.log('Step 2: Searching for property ID in accessible roles')
-  console.log('Looking for property ID:', propertyId, 'Type:', typeof propertyId)
-  console.log('Normalized search ID:', normalizedSearchId)
-
-  // Enhanced debugging for property ID matching
-  console.log('=== DETAILED PROPERTY ID MATCHING DEBUG ===')
-  console.log('Search Property ID Details:')
-  console.log('  Raw:', propertyId)
-  console.log('  Type:', typeof propertyId)
-  console.log('  String representation:', String(propertyId))
-  console.log('  Length:', String(propertyId).length)
-  console.log('  Trimmed:', String(propertyId).trim())
-  console.log('  Normalized:', normalizedSearchId)
-
-  console.log('Available User Roles:')
-  userDataStore.userRoles.forEach((role, index) => {
-    const rolePropertyId = extractPropertyId(role.property_id)
-    const rolePropertyIdString = String(rolePropertyId)
-    const searchPropertyIdString = String(propertyId)
-
-    console.log(`  Role ${index + 1}:`)
-    console.log('    Role ID:', role.id)
-    console.log('    Role Name:', role.role)
-    console.log('    Original property_id:', role.property_id)
-    console.log('    Extracted property_id:', rolePropertyId)
-    console.log('    Property ID type:', typeof role.property_id)
-    console.log('    Property ID string:', rolePropertyIdString)
-    console.log('    Property ID length:', rolePropertyIdString.length)
-    console.log('    Search ID string:', searchPropertyIdString)
-    console.log('    Search ID length:', searchPropertyIdString.length)
-    console.log('    Exact equality (===):', rolePropertyId === propertyId)
-    console.log('    String equality:', rolePropertyIdString === searchPropertyIdString)
-    console.log(
-      '    Trimmed equality:',
-      rolePropertyIdString.trim() === searchPropertyIdString.trim(),
-    )
-    console.log('    ComparePropertyIds result:', comparePropertyIds(rolePropertyId, propertyId))
-    console.log('    ---')
-  })
-
-  // Search through all user roles to find matching property_id
-  const matchingRole = userDataStore.userRoles.find((role) => {
-    const rolePropertyId = extractPropertyId(role.property_id)
-    const isMatch = comparePropertyIds(rolePropertyId, propertyId)
-    return isMatch
-  })
-
-  console.log('Step 3: Return matching role')
-  if (matchingRole) {
-    console.log('✅ CreateTransaction - Found matching role:', matchingRole.role)
-    return matchingRole
-  } else {
-    console.log('❌ CreateTransaction - No matching role found for property ID:', propertyId)
-    console.log('=== END DETAILED PROPERTY ID MATCHING DEBUG ===')
-    return null
-  }
-}
-
-// File upload related data
-const selectedFile = ref(null)
-const imagePreview = ref(null)
-
+const partyLabel = (role) => roleLabels[String(role || '').toLowerCase()] || role
+const isPm = (role) => partyLabel(role) === 'Property Manager'
+const reportParty = (role) =>
+  ['Government', 'HOA'].includes(partyLabel(role)) ? 'other' : partyLabel(role)
 const transactionTypeOptions = [
   'Rent',
   'Deposit',
@@ -533,283 +397,308 @@ const transactionTypeOptions = [
   'Maintenance',
   'Labor',
   'HOA',
+  'Management Fee',
   'Fee',
   'Refund',
   'Other',
 ]
+const emptyTransaction = () => ({
+  role: '',
+  transac_from: '',
+  transac_to: '',
+  from_account_id: '',
+  to_account_id: '',
+  financial_category: 'unclassified',
+  amount: null,
+  transac_date: localCalendarDate(),
+  transac_type: '',
+  note: '',
+  picture_url: '',
+})
+const transactionData = reactive(emptyTransaction())
+const fromRoleOptions = computed(() => roleOptions)
+const toRoleOptions = computed(() =>
+  transactionData.transac_from
+    ? roleOptions.filter((option) => option !== partyLabel(transactionData.transac_from))
+    : [],
+)
+const pmSides = computed(() =>
+  ['from', 'to'].filter((side) => isPm(transactionData['transac_' + side])),
+)
+const hasPmParty = computed(() => pmSides.value.length > 0)
+const participants = ref([])
+const participantsLoading = ref(false)
+const participantsError = ref('')
+const managerOptions = computed(() =>
+  participants.value.map((participant) => ({
+    label: (participant.label || 'Property Manager') + ' (' + participant.id + ')',
+    value: participant.id,
+  })),
+)
+const isManagerAccount = (id) =>
+  !!validPropertyId.value &&
+  !participantsLoading.value &&
+  !participantsError.value &&
+  managerOptions.value.some((option) => option.value === id)
 
-// Watch for property selection to auto-fill user role
-watch(selectedPropertyId, (newPropertyId) => {
-  console.log('Property selected via dropdown (raw):', newPropertyId, 'Type:', typeof newPropertyId)
-
-  // Extract property ID from object if needed
-  const extractedPropertyId = extractPropertyId(newPropertyId)
-  console.log('Extracted property ID:', extractedPropertyId, 'Type:', typeof extractedPropertyId)
-
-  if (extractedPropertyId) {
-    console.log('=== CreateTransaction - Property Selection ===')
-
-    if (userDataStore.userRoles.length > 0) {
-      console.log('Step 1: Retrieve all roles of current user')
-      console.log('All user roles:', userDataStore.userRoles)
-
-      console.log('Step 2: Search property ID in accessible roles')
-      const userRole = getUserRoleForProperty(extractedPropertyId)
-
-      console.log('Step 3: Fill with matching role name')
-      if (userRole) {
-        transactionData.role = userRole.role
-        console.log('✅ Auto-filled user role:', userRole.role)
-      } else {
-        console.warn('❌ No user role found for property:', extractedPropertyId)
-        transactionData.role = ''
-      }
-    } else {
-      console.log('⏳ User roles not loaded yet, will auto-fill when roles are loaded')
+// An obsolete property request must never repopulate another property's account choices.
+let participantsRequest = 0
+const loadParticipants = async () => {
+  const request = ++participantsRequest
+  const id = validPropertyId.value
+  participants.value = []
+  participantsError.value = ''
+  participantsLoading.value = !!id
+  if (!id) return
+  try {
+    const result = await getReportParticipants(id)
+    if (request !== participantsRequest) return
+    participants.value = result
+    for (const side of ['from', 'to']) {
+      const key = side + '_account_id'
+      if (!result.some((participant) => participant.id === transactionData[key]))
+        transactionData[key] = ''
     }
+  } catch (error) {
+    if (request !== participantsRequest) return
+    participantsError.value = error.message || 'Unable to load property manager accounts.'
+  } finally {
+    if (request === participantsRequest) participantsLoading.value = false
   }
+}
+onBeforeUnmount(() => {
+  participantsRequest += 1
 })
 
-// Watch for route propertyId to auto-fill user role
-watch(propertyId, (newPropertyId) => {
-  console.log('Property selected via route (raw):', newPropertyId, 'Type:', typeof newPropertyId)
-
-  // Extract property ID from object if needed
-  const extractedPropertyId = extractPropertyId(newPropertyId)
-  console.log(
-    'Extracted property ID from route:',
-    extractedPropertyId,
-    'Type:',
-    typeof extractedPropertyId,
-  )
-
-  if (extractedPropertyId) {
-    console.log('=== CreateTransaction - Route Property Selection ===')
-
-    if (userDataStore.userRoles.length > 0) {
-      console.log('Step 1: Retrieve all roles of current user')
-      console.log('All user roles:', userDataStore.userRoles)
-
-      console.log('Step 2: Search property ID in accessible roles')
-      const userRole = getUserRoleForProperty(extractedPropertyId)
-
-      console.log('Step 3: Fill with matching role name')
-      if (userRole) {
-        transactionData.role = userRole.role
-        console.log('✅ Auto-filled user role:', userRole.role)
-      } else {
-        console.warn('❌ No user role found for property:', extractedPropertyId)
-        transactionData.role = ''
-      }
-    } else {
-      console.log('⏳ User roles not loaded yet, will auto-fill when roles are loaded')
-    }
-  }
+watch(propertyId, (id) => {
+  selectedPropertyId.value = extractPropertyId(id) || ''
 })
-
-// Watch for when user roles are loaded and auto-fill role if property is already selected
 watch(
-  () => userDataStore.userRoles.length,
-  (newRolesCount) => {
-    console.log('=== CreateTransaction - User Roles Loaded ===')
-    console.log('User roles count changed to:', newRolesCount)
-
-    if (newRolesCount > 0) {
-      // Get current property ID (either from route or selected)
-      const currentPropertyId = propertyId.value || selectedPropertyId.value
-      console.log(
-        'User roles loaded, current property ID (raw):',
-        currentPropertyId,
-        'Type:',
-        typeof currentPropertyId,
-      )
-
-      // Extract property ID from object if needed
-      const extractedPropertyId = extractPropertyId(currentPropertyId)
-      console.log(
-        'Extracted property ID for roles loaded:',
-        extractedPropertyId,
-        'Type:',
-        typeof extractedPropertyId,
-      )
-
-      if (extractedPropertyId && !transactionData.role) {
-        console.log('Auto-filling role for property:', extractedPropertyId)
-        const userRole = getUserRoleForProperty(extractedPropertyId)
-
-        if (userRole) {
-          transactionData.role = userRole.role
-          console.log('✅ Auto-filled user role after roles loaded:', userRole.role)
-        } else {
-          console.warn(
-            '❌ No user role found for property after roles loaded:',
-            extractedPropertyId,
-          )
-        }
-      }
-    }
+  effectivePropertyId,
+  () => {
+    transactionData.from_account_id = ''
+    transactionData.to_account_id = ''
+    submitError.value = ''
   },
+  { flush: 'sync' },
+)
+watch(validPropertyId, loadParticipants, { immediate: true, flush: 'sync' })
+watch(
+  () => getUserRoleForProperty(effectivePropertyId.value)?.role || '',
+  (role) => {
+    transactionData.role = role
+  },
+  { immediate: true },
+)
+watch(
+  () => transactionData.transac_from,
+  () => {
+    transactionData.from_account_id = ''
+    transactionData.transac_to = ''
+    transactionData.to_account_id = ''
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => transactionData.transac_to,
+  () => {
+    transactionData.to_account_id = ''
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => transactionData.transac_type,
+  (type) => {
+    transactionData.financial_category = defaultFinancialCategory(type)
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => props.prefill,
+  (value) => {
+    if (!value) return
+    if (value.property_id && showPropertySelect.value)
+      selectedPropertyId.value = extractPropertyId(value.property_id) || ''
+    if (typeof value.transac_type === 'string') transactionData.transac_type = value.transac_type
+    if (typeof value.transac_from === 'string')
+      transactionData.transac_from = partyLabel(value.transac_from)
+    if (typeof value.transac_to === 'string')
+      transactionData.transac_to = partyLabel(value.transac_to)
+    if (value.amount !== undefined && value.amount !== null) transactionData.amount = value.amount
+    if (typeof value.transac_date === 'string') transactionData.transac_date = value.transac_date
+    if (typeof value.note === 'string') transactionData.note = value.note
+    if (isFinancialCategory(value.financial_category))
+      transactionData.financial_category = value.financial_category
+    // PM identity is deliberately not inferred from the creator or prefilled role.
+  },
+  { immediate: true },
 )
 
-onMounted(() => {
-  console.log('CreateTransaction mounted, propertyId:', propertyId.value)
-  console.log('Available properties:', availableProperties.value)
-  console.log('User accessible properties:', userDataStore.userAccessibleProperties)
-  console.log('User roles loaded on mount:', userDataStore.userRoles.length)
-  console.log('User roles loading state:', userDataStore.userRolesLoading)
-
-  // Auto-fill user role if property is already selected and roles are loaded
-  if (propertyId.value) {
-    console.log('=== CreateTransaction - OnMount Property Selection ===')
-    console.log('Property ID on mount (raw):', propertyId.value, 'Type:', typeof propertyId.value)
-
-    // Extract property ID from object if needed
-    const extractedPropertyId = extractPropertyId(propertyId.value)
-    console.log(
-      'Extracted property ID on mount:',
-      extractedPropertyId,
-      'Type:',
-      typeof extractedPropertyId,
+const selectedFile = ref(null)
+let photoUpload = null
+let saveAttempt = null
+watch(
+  [effectivePropertyId, selectedFile],
+  () => {
+    // Keep the local photo/draft, but never reuse an upload across properties or replacements.
+    photoUpload = null
+    uploadFailed.value = false
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => loading.value || pickerBusy.value,
+  (busy) => emit('busy-change', busy),
+  { flush: 'sync' },
+)
+watch(
+  [transactionData, selectedFile],
+  () => {
+    emit(
+      'draft-change',
+      !completed.value &&
+        Boolean(
+          selectedFile.value ||
+            transactionData.amount !== null ||
+            transactionData.note ||
+            transactionData.transac_type ||
+            transactionData.transac_from ||
+            transactionData.transac_to,
+        ),
     )
+  },
+  { deep: true, flush: 'sync' },
+)
+async function saveWithoutPhoto() {
+  if (loading.value || pickerBusy.value || !uploadFailed.value) return
+  selectedFile.value = null
+  await onSubmit()
+}
 
-    if (userDataStore.userRoles.length > 0 && extractedPropertyId) {
-      console.log('Step 1: Retrieve all roles of current user')
-      console.log('All user roles on mount:', userDataStore.userRoles)
-
-      console.log('Step 2: Search property ID in accessible roles')
-      const userRole = getUserRoleForProperty(extractedPropertyId)
-
-      console.log('Step 3: Fill with matching role name')
-      if (userRole) {
-        transactionData.role = userRole.role
-        console.log('✅ Auto-filled user role on mount:', userRole.role)
-      } else {
-        console.warn('❌ No user role found for property on mount:', extractedPropertyId)
-        transactionData.role = ''
-      }
-    } else {
-      console.log(
-        '⏳ User roles not loaded yet on mount or no valid property ID, will auto-fill when roles are loaded',
-      )
+const hasValidCents = (value) => {
+  const amount = Number(value)
+  return (
+    Number.isFinite(amount) &&
+    Number.isSafeInteger(Math.round(amount * 100)) &&
+    Number(amount.toFixed(2)) === amount
+  )
+}
+const isValidDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(value + 'T00:00:00Z')
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
+const validateTransaction = () => {
+  if (!validPropertyId.value) return 'Please select a valid, accessible property.'
+  if (!transactionTypeOptions.includes(transactionData.transac_type))
+    return 'Please select a transaction type.'
+  if (!isFinancialCategory(transactionData.financial_category))
+    return 'Please choose a financial category.'
+  if (
+    !roleOptions.includes(partyLabel(transactionData.transac_from)) ||
+    !roleOptions.includes(partyLabel(transactionData.transac_to))
+  )
+    return 'Please select both transaction parties.'
+  if (partyLabel(transactionData.transac_from) === partyLabel(transactionData.transac_to))
+    return 'From and To cannot be the same.'
+  for (const side of pmSides.value) {
+    if (!isManagerAccount(transactionData[side + '_account_id'])) {
+      return 'Select the actual property manager account for the ' + side + ' party.'
     }
   }
-})
-
+  if (!Number.isFinite(Number(transactionData.amount)) || Number(transactionData.amount) <= 0) {
+    return 'Amount must be a finite number greater than zero.'
+  }
+  if (!hasValidCents(transactionData.amount))
+    return 'Use at most two decimal places within the supported amount range.'
+  if (!isValidDate(transactionData.transac_date)) return 'Enter a valid date in YYYY-MM-DD format.'
+  return ''
+}
 const onSubmit = async () => {
+  if (loading.value || pickerBusy.value || completed.value) return
+  submitError.value = validateTransaction()
+  if (submitError.value) {
+    Notify.create({ type: 'negative', message: submitError.value, position: 'top' })
+    return
+  }
+  loading.value = true
+  uploadFailed.value = false
   try {
-    const rawPropertyId = propertyId.value || selectedPropertyId.value
-    const finalPropertyId = extractPropertyId(rawPropertyId)
-    console.log('CreateTransaction onSubmit - propertyId.value:', propertyId.value)
-    console.log('CreateTransaction onSubmit - selectedPropertyId.value:', selectedPropertyId.value)
-    console.log(
-      'CreateTransaction onSubmit - rawPropertyId:',
-      rawPropertyId,
-      'Type:',
-      typeof rawPropertyId,
-    )
-    console.log(
-      'CreateTransaction onSubmit - finalPropertyId (extracted):',
-      finalPropertyId,
-      'Type:',
-      typeof finalPropertyId,
-    )
-    console.log('CreateTransaction onSubmit - availableProperties:', availableProperties.value)
-
-    if (!finalPropertyId) {
-      console.error('No property selected')
-      Notify.create({
-        type: 'negative',
-        message: 'Please select a property',
-        position: 'top',
-      })
-      return
-    }
-
-    const currentTimestamp = new Date()
-
-    // Handle image upload if a file is selected
-    let pictureUrl = ''
-    if (selectedFile.value) {
-      try {
-        console.log('Uploading image...')
-        pictureUrl = await uploadImage(selectedFile.value)
-        console.log('Image uploaded successfully:', pictureUrl)
-      } catch (error) {
-        console.error('Error uploading image:', error)
-        Notify.create({
-          type: 'warning',
-          message: 'Image upload failed, but transaction will be saved without the image.',
-          position: 'top',
-        })
-      }
-    }
-
-    const transactionDataToSave = {
-      transac_id: `txn_${Date.now()}`,
-      property_id: finalPropertyId,
-      role: transactionData.role,
-      created_by_role: getUserRoleForProperty(finalPropertyId)?.role || transactionData.role || '',
-      transac_from: transactionData.transac_from,
-      transac_to: transactionData.transac_to,
-      amount: parseFloat(transactionData.amount),
-      transac_date: transactionData.transac_date,
-      transac_type: transactionData.transac_type,
-      note: transactionData.note || '',
-      picture_url: pictureUrl, // Add the uploaded image URL
+    const id = validPropertyId.value
+    const file = selectedFile.value
+    const payload = {
+      ...transactionData,
+      property_id: id,
+      role: getUserRoleForProperty(id)?.role || '',
+      created_by_role: getUserRoleForProperty(id)?.role || '',
+      transac_from: reportParty(transactionData.transac_from),
+      transac_to: reportParty(transactionData.transac_to),
+      from_account_id: isPm(transactionData.transac_from) ? transactionData.from_account_id : '',
+      to_account_id: isPm(transactionData.transac_to) ? transactionData.to_account_id : '',
+      amount: Number(transactionData.amount),
       created_by: userDataStore.userId,
       created_by_user_id: userDataStore.userId,
-      created_datetime: currentTimestamp,
+      picture_url: '',
     }
-
-    console.log('CreateTransaction onSubmit - transactionDataToSave:', transactionDataToSave)
-
-    // Save to property subcollection: properties/{propertyId}/transactions
-    const transactionId = await createDocument(
-      `properties/${finalPropertyId}/transactions`,
-      transactionDataToSave,
-    )
-    console.log('CreateTransaction onSubmit - transactionId created:', transactionId)
-
-    // Reset form
-    transactionData.role = ''
-    transactionData.transac_from = ''
-    transactionData.transac_to = ''
-    transactionData.amount = null
-    transactionData.transac_date = new Date().toISOString().split('T')[0]
-    transactionData.transac_type = ''
-    transactionData.note = ''
-    transactionData.picture_url = ''
-
-    // Reset image upload fields
+    const fingerprint = JSON.stringify(payload)
+    if (!saveAttempt || saveAttempt.fingerprint !== fingerprint || saveAttempt.file !== file) {
+      const key = crypto.randomUUID()
+      saveAttempt = {
+        key,
+        fingerprint,
+        file,
+        payload: {
+          ...payload,
+          transac_id: 'txn_' + key,
+          created_datetime: new Date().toISOString(),
+        },
+      }
+    }
+    const transactionDataToSave = saveAttempt.payload
+    if (file) {
+      try {
+        photoUpload ||= createRecordPhotoUpload({ propertyId: id, file })
+        transactionDataToSave.picture_url = await photoUpload.upload((stage) => {
+          saveStage.value = stage
+        })
+      } catch (error) {
+        uploadFailed.value = true
+        throw new Error(`Photo was not saved. ${error.message || 'Please retry.'}`)
+      }
+    }
+    if (validPropertyId.value !== id || selectedFile.value !== file)
+      throw new Error('The property or photo changed. Review your draft and save again.')
+    saveStage.value = 'Saving transaction...'
+    const result = await createReportTransaction(id, transactionDataToSave, {
+      idempotencyKey: saveAttempt.key,
+    })
+    completed.value = true
+    saveAttempt = null
+    Object.assign(transactionData, emptyTransaction(), {
+      role: getUserRoleForProperty(effectivePropertyId.value)?.role || '',
+    })
     selectedFile.value = null
-    imagePreview.value = null
-
-    emit('transaction-created', { id: transactionId, ...transactionData })
-
+    photoUpload = null
+    emit('draft-change', false)
+    emit('transaction-created', { ...transactionDataToSave, ...result.transaction, id: result.id })
     Notify.create({
       type: 'positive',
       message: 'Transaction created successfully!',
       position: 'top',
     })
-
-    if (String(route.path || '').startsWith('/create-transaction')) {
-      router.push('/transactions')
-    }
+    if (String(route.path || '').startsWith('/create-transaction')) router.push('/transactions')
   } catch (error) {
-    console.error('Error creating transaction:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Failed to create transaction. Please try again.',
-      position: 'top',
-    })
+    submitError.value = error.message || 'Failed to create transaction. Please try again.'
+    Notify.create({ type: 'negative', message: submitError.value, position: 'top' })
+  } finally {
+    loading.value = false
+    saveStage.value = ''
   }
 }
-
 const handleCancel = () => {
+  if (loading.value || pickerBusy.value) return
   emit('cancel')
-  if (String(route.path || '').startsWith('/create-transaction')) {
-    router.back()
-  }
+  if (String(route.path || '').startsWith('/create-transaction')) router.back()
 }
 </script>
 
@@ -821,7 +710,7 @@ const handleCancel = () => {
 
 .top-action-btn {
   min-width: 112px;
-  height: 36px;
+  min-height: 48px;
 }
 
 .composer-head {

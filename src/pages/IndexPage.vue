@@ -101,6 +101,12 @@
           @click="openCreateDocumentDialog"
         />
         <q-btn
+          unelevated dense no-caps color="primary" icon="assignment"
+          label="+Lease" class="operations-dashboard__quick-action"
+          @click="openCreateLeaseDialog"
+        />
+        <q-btn flat no-caps icon="inventory_2" label="Inventory List" class="operations-dashboard__quick-action" :ripple="false" @click="openInventoryBrowser" />
+        <q-btn
           unelevated
           dense
           no-caps
@@ -401,6 +407,9 @@
                   class="create-inline-btn"
                   @click="openCreateDocumentDialog"
                 />
+                <q-btn unelevated dense no-caps color="primary" icon="assignment"
+                  label="+Lease" class="create-inline-btn" @click="openCreateLeaseDialog" />
+                <q-btn flat no-caps icon="inventory_2" label="Inventory List" class="create-inline-btn" :ripple="false" @click="openInventoryBrowser" />
                 <div class="feed-controls-right">
                   <div class="feed-sort-group">
                     <span class="feed-sort-label"></span>
@@ -917,7 +926,7 @@
           @click="showCreateLeaseDialog = false"
         />
         <div class="create-lease-dialog-scroll">
-          <CreateLease @lease-created="onLeaseCreated" @cancel="showCreateLeaseDialog = false" />
+          <CreateLease :property-id="dashboardPropertyId" @lease-created="onLeaseCreated" @cancel="showCreateLeaseDialog = false" />
         </div>
       </q-card>
     </q-dialog>
@@ -1281,6 +1290,9 @@ const contacts = []
 const showCreateTaskDialog = ref(false)
 const showCreateTransactionDialog = ref(false)
 const showCreateLeaseDialog = ref(false)
+function openInventoryBrowser() {
+  router.push({ path: '/inventory', query: { from: 'home', ...(dashboardPropertyId.value ? { propertyId: dashboardPropertyId.value } : {}) } })
+}
 const showCreateAssetDialog = ref(false)
 const showCreateDocumentDialog = ref(false)
 const showCreateReminderDialog = ref(false)
@@ -2644,6 +2656,10 @@ const openCreateDocumentDialog = () => {
   showCreateDocumentDialog.value = true
   showQuickActions.value = false
 }
+const openCreateLeaseDialog = () => {
+  showCreateLeaseDialog.value = true
+  showQuickActions.value = false
+}
 
 const openTobbyAssistant = () => {
   window.dispatchEvent(new CustomEvent('open-global-assistant'))
@@ -2770,8 +2786,9 @@ const onTransactionCreated = () => {
   })
 }
 
-const onLeaseCreated = () => {
+const onLeaseCreated = async () => {
   showCreateLeaseDialog.value = false
+  await userDataStore.loadLeases()
   Notify.create({
     type: 'positive',
     message: 'Lease created successfully!',

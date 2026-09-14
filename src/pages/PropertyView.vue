@@ -58,6 +58,10 @@
                       <q-item-section avatar><q-icon name="open_in_new" /></q-item-section>
                       <q-item-section>Manage property</q-item-section>
                     </q-item>
+                    <q-item v-if="canAccessDeposit(selectedProperty, userDataStore.userId)" clickable v-close-popup @click="showDepositDialog = true">
+                      <q-item-section avatar><q-icon name="account_balance_wallet" /></q-item-section>
+                      <q-item-section>Deposits</q-item-section>
+                    </q-item>
                     <q-item
                       v-if="selectedProperty && canInviteOwner(selectedProperty)"
                       clickable
@@ -332,6 +336,15 @@
                 </q-card-section>
               </q-card>
 
+              <q-card v-if="!propertyLeases.length" flat bordered class="property-history-card">
+                <q-card-section>
+                  <div class="history-card-title">Connect this property to a lease</div>
+                  <p class="history-card-caption">Add a lease to connect tenants, rent, deposits and move-in records.</p>
+                  <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create lease"
+                    :ripple="false" @click="openPropertyRecord('lease')" />
+                </q-card-section>
+              </q-card>
+
               <q-card id="property-money" class="property-history-card">
                 <q-card-section>
                   <div class="history-card-header">
@@ -344,6 +357,8 @@
                         {{ propertyTransactions.length }} records
                       </div>
                     </div>
+                    <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create transaction"
+                      :ripple="false" @click="openPropertyRecord('transaction')" />
                     <q-btn
                       flat
                       round
@@ -394,6 +409,8 @@
                       </div>
                       <div class="history-card-caption">{{ propertyTasks.length }} records</div>
                     </div>
+                    <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create task"
+                      :ripple="false" @click="openPropertyRecord('task')" />
                     <q-btn
                       flat
                       round
@@ -435,6 +452,8 @@
                       </div>
                       <div class="history-card-caption">{{ propertyLeases.length }} records</div>
                     </div>
+                    <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create lease"
+                      :ripple="false" @click="openPropertyRecord('lease')" />
                     <q-btn
                       flat
                       round
@@ -488,6 +507,8 @@
                       </div>
                       <div class="history-card-caption">{{ propertyReminders.length }} records</div>
                     </div>
+                    <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create reminder"
+                      :ripple="false" @click="openPropertyRecord('reminder')" />
                     <q-btn
                       flat
                       round
@@ -541,6 +562,8 @@
                 >
                   <q-card-section>
                     <div class="row items-center justify-end q-mb-sm">
+                      <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create service"
+                        :ripple="false" @click="openPropertyRecord('service')" />
                       <q-btn
                         flat
                         round
@@ -609,6 +632,8 @@
                 >
                   <q-card-section>
                     <div class="row items-center justify-end q-mb-sm">
+                      <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create document"
+                        :ripple="false" @click="openPropertyRecord('document')" />
                       <q-btn
                         flat
                         round
@@ -675,6 +700,8 @@
                 >
                   <q-card-section>
                     <div class="row items-center justify-end q-mb-sm">
+                      <q-btn v-if="canCreatePropertyRecords" flat no-caps icon="add" label="Create asset"
+                        :ripple="false" @click="openPropertyRecord('asset')" />
                       <q-btn
                         flat
                         round
@@ -960,6 +987,12 @@
     </div>
 
     <!-- Property Detail Dialog (kept from original) -->
+    <q-dialog v-model="showDepositDialog">
+      <q-card style="width: 1100px; max-width: 96vw;">
+        <q-card-section class="row justify-end"><q-btn flat round icon="close" aria-label="Close deposits" v-close-popup /></q-card-section>
+        <DepositWorkspace v-if="showDepositDialog && selectedProperty?.id" :key="selectedProperty.id" :property-id="selectedProperty.id" />
+      </q-card>
+    </q-dialog>
     <q-dialog v-model="showPropertySelectorDialog">
       <q-card class="property-selector-dialog">
         <q-card-section class="row items-center justify-between">
@@ -1325,9 +1358,24 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="showExtraRecordDialog">
+      <q-card class="property-record-dialog">
+        <q-card-section class="row items-center justify-between">
+          <h2 class="text-h6 q-ma-none">Create {{ extraRecordKind }}</h2>
+          <q-btn flat round icon="close" aria-label="Close create record" v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <component :is="extraRecordForms[extraRecordKind]" v-if="showExtraRecordDialog"
+            :property-id="selectedProperty?.id" :property-name="selectedProperty?.nickname"
+            @cancel="showExtraRecordDialog = false" @document-created="onExtraRecordCreated"
+            @service-created="onExtraRecordCreated" @reminder-saved="onExtraRecordCreated" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Create Task Dialog -->
     <q-dialog v-model="showCreateMxRecordDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
+      <q-card class="property-record-dialog">
         <q-card-section class="dialog-header">
           <div class="row items-center justify-between">
             <div class="text-h6">Create Task</div>
@@ -1345,6 +1393,7 @@
           <CreateMxRecord
             :property-id="selectedProperty?.id"
             :property-name="selectedProperty?.nickname"
+            :allow-property-edit="false"
             @mxrecord-created="onMxRecordCreated"
             @cancel="closeCreateMxRecordDialog"
           />
@@ -1354,7 +1403,7 @@
 
     <!-- Create Transaction Dialog -->
     <q-dialog v-model="showCreateTransactionDialog" persistent>
-      <q-card style="min-width: 600px; max-width: 800px">
+      <q-card class="property-record-dialog">
         <q-card-section class="dialog-header">
           <div class="row items-center justify-between">
             <div class="text-h6">Create Transaction</div>
@@ -1409,7 +1458,7 @@
 
     <!-- Create Asset Dialog -->
     <q-dialog v-model="showCreateAssetDialog" persistent>
-      <q-card style="min-width: 700px; max-width: 980px">
+      <q-card class="property-record-dialog">
         <q-card-section class="dialog-header">
           <div class="row items-center justify-between">
             <div class="text-h6">Add Asset</div>
@@ -1702,7 +1751,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed, watch, ref, onUnmounted } from 'vue'
+import { onMounted, computed, watch, ref, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
@@ -1713,6 +1762,8 @@ import CreateTransaction from '../components/CreateTransaction.vue'
 import CreateLease from '../components/CreateLease.vue'
 import CreateAsset from '../components/CreateAsset.vue'
 import PropertyAccessManager from '../components/PropertyAccessManager.vue'
+import DepositWorkspace from '../components/deposits/DepositWorkspace.vue'
+import { canAccessDeposit } from '../utils/depositAccess'
 
 const router = useRouter()
 const route = useRoute()
@@ -1724,9 +1775,34 @@ const {
   uploadImagesWithDetails,
   deleteFile,
   getAllDocuments,
-  getDocument,
 } = useFirebase()
 const canManageRecords = computed(() => userDataStore.isManagerCapableUser)
+const canCreatePropertyRecords = computed(() => Boolean(selectedProperty.value?.id) &&
+  userDataStore.canManageProperty(selectedProperty.value.id))
+const extraRecordForms = {
+  document: defineAsyncComponent(() => import('../components/CreateDocument.vue')),
+  reminder: defineAsyncComponent(() => import('../components/CreateReminder.vue')),
+  service: defineAsyncComponent(() => import('../components/CreateService.vue')),
+}
+const extraRecordKind = ref('document')
+const showExtraRecordDialog = ref(false)
+function openPropertyRecord(kind) {
+  if (!canCreatePropertyRecords.value) return
+  const dialogs = { task: showCreateMxRecordDialog, transaction: showCreateTransactionDialog,
+    lease: showCreateLeaseDialog, asset: showCreateAssetDialog }
+  if (dialogs[kind]) dialogs[kind].value = true
+  else if (extraRecordForms[kind]) {
+    extraRecordKind.value = kind
+    showExtraRecordDialog.value = true
+  }
+}
+async function onExtraRecordCreated() {
+  showExtraRecordDialog.value = false
+  await refreshData()
+  await loadPropertyDocuments()
+  await loadPropertyServices()
+  await loadPropertyReminders()
+}
 const canInviteOwner = (property) => {
   if (!property?.id) return false
   return userDataStore.canShareProperty(property.id)
@@ -1800,6 +1876,7 @@ const cloneProperty = (property) => {
 // Dialog state
 const showPropertyDialog = ref(false)
 const showPropertySelectorDialog = ref(false)
+const showDepositDialog = ref(false)
 const showPropertyAccessDialog = ref(false)
 const selectedProperty = ref(null)
 const activePropertyTab = ref('overview')
@@ -2162,11 +2239,6 @@ const loadPropertyAssets = async () => {
 const loadPropertyServices = async () => {
   if (!selectedProperty.value) return
   try {
-    const primary = await getDocument(`properties/${selectedProperty.value.id}/services/primary`)
-    if (primary) {
-      propertyServices.value = [{ id: primary.id || 'primary', ...primary }]
-      return
-    }
     const list = await getAllDocuments(`properties/${selectedProperty.value.id}/services`)
     if (list && list.length > 0) {
       propertyServices.value = list
@@ -3328,10 +3400,11 @@ const onLeaseCreated = () => {
   }
 }
 
-const onAssetCreated = () => {
+const onAssetCreated = async () => {
   try {
     closeCreateAssetDialog()
-    refreshData()
+    await refreshData()
+    await loadPropertyAssets()
     Notify.create({
       type: 'positive',
       message: 'Asset created successfully.',
@@ -4004,12 +4077,20 @@ const cancelEdit = () => {
 
 .history-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
 }
 
+.history-card-header > div:first-child {
+  flex: 1 1 150px;
+}
+.property-record-dialog {
+  width: min(800px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
 .history-card-title {
   display: flex;
   align-items: center;

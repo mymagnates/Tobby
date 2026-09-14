@@ -1,10 +1,17 @@
+@use './workspace-palette' as palette;
+
 // Web-only shell. Let Quasar own header/drawer offsets instead of manual reservations.
 .dashboard-layout.web-workspace {
-  --workspace-ink: #243830;
-  --workspace-muted: #65756c;
-  --workspace-border: #e0e6df;
-  --workspace-surface: #fff;
-  --workspace-canvas: #f7f8f4;
+  @include palette.light;
+  --workspace-ink: var(--brand-ink);
+  --workspace-muted: var(--brand-muted);
+  --workspace-border: var(--brand-border);
+  --workspace-surface: var(--brand-surface);
+  --workspace-canvas: var(--brand-canvas);
+  --workspace-brand: var(--brand-primary);
+  --workspace-on-brand: var(--brand-on-primary);
+  --workspace-brand-hover: var(--brand-hover);
+  --workspace-soft: var(--brand-soft);
   --bg-primary: var(--workspace-canvas);
   --bg-surface: var(--workspace-surface);
   --border-radius-card: 12px;
@@ -200,6 +207,100 @@
   .content-main {
     margin: 0;
     min-width: 0;
+  }
+  // Quasar renders a label as a direct .block child. Leave icon-only, custom-slot,
+  // grouped and navigation controls to their own sizing/alignment contracts.
+  .content-main
+    .q-btn:not(
+      :where(
+        .workspace-form .q-btn,
+        .reports-workspace .q-btn,
+        .report-pdf-dialog .q-btn,
+        nav .q-btn,
+        .q-tabs .q-btn,
+        .q-btn-group .q-btn,
+        .q-pagination .q-btn,
+        [role='tab'],
+        .q-btn--round,
+        .q-btn--fab,
+        .q-btn--fab-mini,
+        .q-btn--rounded,
+        .q-btn--square
+      )
+    ):has(> .q-btn__content > .block):not(
+      :has(
+        > .q-btn__content:is(
+            .justify-start,
+            .justify-end,
+            .justify-between,
+            .justify-around,
+            .justify-evenly
+          )
+      )
+    ) {
+    --primary-color: var(--workspace-brand);
+    --primary-dark: var(--workspace-brand-hover);
+    --primary-glow: var(--workspace-soft);
+    min-width: min(88px, 100%);
+    max-width: 100%;
+    min-height: 44px;
+    height: auto;
+    padding: 8px 16px;
+    border-radius: 8px !important;
+    font-size: 13px;
+    line-height: 1.4;
+    transform: none !important;
+
+    > .q-btn__content {
+      min-width: 0;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      white-space: normal;
+      > .block {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+      > .q-icon {
+        flex-shrink: 0;
+        color: inherit !important;
+      }
+    }
+    &.bg-primary:not(.q-btn--flat):not(.q-btn--outline) {
+      background: var(--workspace-brand) !important;
+      color: var(--workspace-on-brand) !important;
+      border-color: var(--workspace-brand) !important;
+      &:hover:not(.disabled):not([aria-busy='true']):not([role='progressbar']) {
+        background: var(--workspace-brand-hover) !important;
+        border-color: var(--workspace-brand-hover) !important;
+      }
+    }
+    &.text-primary:not(.bg-primary) {
+      color: var(--workspace-brand) !important;
+      border-color: var(--workspace-brand) !important;
+    }
+    // Flat/outline QBtn colors are text-* classes, not bg-* classes.
+    @each $tone, $token in (negative: error, positive: success, warning: warning, info: info) {
+      &.text-#{$tone}:not(.bg-#{$tone}) {
+        color: var(--#{$token}-color) !important;
+        border-color: var(--#{$token}-color) !important;
+        background: transparent !important;
+        &:hover:not(.disabled):not([aria-busy='true']):not([role='progressbar']) {
+          background: var(--#{$token}-glow) !important;
+        }
+      }
+    }
+    &:focus-visible {
+      outline: 2px solid var(--workspace-brand) !important;
+      outline-offset: 3px;
+    }
+  }
+  .content-main .q-btn--round:not(:where(.reports-workspace .q-btn, .report-pdf-dialog .q-btn)) {
+    border-radius: 50% !important;
+    padding: 0;
+    aspect-ratio: 1;
+    align-self: center;
   }
   .content-main > .q-page,
   .content-main > .q-page > .q-page {
@@ -521,11 +622,7 @@
   }
 }
 body.body--dark .dashboard-layout.web-workspace {
-  --workspace-ink: #e4efe7;
-  --workspace-muted: #aec0b3;
-  --workspace-border: #3a4c40;
-  --workspace-surface: #202d26;
-  --workspace-canvas: #19251e;
+  @include palette.dark;
   background: var(--workspace-canvas);
   .nav-grid-active,
   .header-action-btn:hover {

@@ -251,7 +251,7 @@
       transition-hide="slide-down"
       @hide="onDialogHide"
     >
-      <q-card class="tenant-detail-dialog" style="width: 100%; height: 100%;">
+      <q-card class="tenant-detail-dialog tenant-detail-surface">
         <template v-if="selectedTenant">
         <!-- Dialog Header -->
         <q-toolbar class="bg-primary text-white">
@@ -267,10 +267,12 @@
           <q-btn 
             v-if="!isEditMode && canManageRecords"
             flat 
-            round 
+            no-caps
+            label="Edit"
+            aria-label="Edit tenant"
             icon="edit" 
             @click="enterEditMode" 
-            class="edit-dialog-btn close-dialog-btn"
+            class="tenant-header-edit"
             size="md"
           >
             <q-tooltip>Edit Tenant</q-tooltip>
@@ -279,6 +281,7 @@
             flat 
             round 
             icon="close" 
+            aria-label="Close tenant details"
             @click="closeDetailDialog" 
             class="close-dialog-btn q-ml-xs"
             size="md"
@@ -286,7 +289,7 @@
         </q-toolbar>
 
         <!-- Dialog Content -->
-        <q-card-section class="q-pa-lg scroll">
+        <q-card-section class="q-pa-lg tenant-detail-scroll">
           <q-form v-if="isEditMode && canManageRecords" @submit.prevent="saveTenant" class="tenant-detail-content">
             <!-- Personal Information -->
             <q-card flat bordered class="q-mb-md">
@@ -1054,6 +1057,7 @@ watch(
 )
 </script>
 
+<style src="../css/tenant-details.scss" lang="scss"></style>
 <style scoped>
 .page-container {
   max-width: 1400px;

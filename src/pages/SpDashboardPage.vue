@@ -1,5 +1,5 @@
 <template>
-  <q-page class="sp-feed-page q-pa-sm">
+  <q-page class="sp-feed-page role-workspace-page q-pa-sm">
     <!-- Loading State -->
     <div v-if="!dataLoaded" class="data-loading-page">
       <div class="loading-content">
@@ -846,10 +846,17 @@
     <SpBidDialog v-model="showBidDialog" :lead="bidTargetLead" @submitted="handleBidSubmitted" />
 
     <q-dialog v-model="showCreatePostDialog">
-      <q-card style="min-width: 420px; max-width: 520px">
+      <q-card class="workspace-form role-workspace-dialog">
         <q-card-section class="row items-center justify-between q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Create Post</div>
-          <q-btn icon="close" flat round dense @click="closeCreatePostDialog" />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            aria-label="Close create post"
+            @click="closeCreatePostDialog"
+          />
         </q-card-section>
         <q-separator class="q-mt-sm" />
         <q-card-section>
@@ -1578,18 +1585,6 @@ onMounted(loadDashboard)
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
-}
-
-.create-new-actions > .q-btn {
-  font-size: 0.8rem;
-  color: var(--neutral-700) !important;
-  border: none !important;
-  background: transparent !important;
-}
-
-.create-new-actions > .q-btn:hover {
-  background: var(--neutral-100) !important;
-  color: var(--primary-color) !important;
 }
 
 .feed-sort-group {

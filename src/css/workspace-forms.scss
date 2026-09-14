@@ -1,0 +1,506 @@
+// Web-only theme: the body marker also reaches Quasar's teleported dialogs.
+body.workspace-forms-theme {
+  --form-canvas: #f7f8f4;
+  --form-surface: #fff;
+  --form-soft: #eef3eb;
+  --form-ink: #243830;
+  --form-muted: #65756c;
+  --form-border: #dfe6dc;
+  --form-brand: #254b39;
+  --form-brand-hover: #1e3e2f;
+  --form-on-brand: #fff;
+  --form-error: #b54035;
+  --form-font: 'Avenir Next', 'Sora', 'Trebuchet MS', sans-serif;
+
+  .workspace-form {
+    width: 100%;
+    max-width: 1040px;
+    min-width: 0;
+    min-height: 0 !important;
+    margin: 0 auto;
+    padding: 0;
+    color: var(--form-ink);
+    font-family: var(--form-font);
+    animation: none;
+
+    .q-card,
+    .q-card__section:not(.bg-negative):not(.bg-warning) {
+      background: var(--form-surface) !important;
+      color: var(--form-ink);
+      border-color: var(--form-border) !important;
+      font-family: inherit;
+    }
+    .q-card {
+      border: 1px solid var(--form-border) !important;
+      border-radius: 12px !important;
+      box-shadow: none !important;
+    }
+    .q-card__section {
+      padding: 24px;
+    }
+    .q-card__section.q-pt-none {
+      padding-top: 20px;
+    }
+    .composer-head,
+    .page-header,
+    .edit-property-header,
+    .q-card__section.workspace-form-heading {
+      background: var(--form-surface) !important;
+      padding: 24px !important;
+      border-bottom: 1px solid var(--form-border) !important;
+      color: var(--form-ink) !important;
+    }
+    .page-header {
+      border: 1px solid var(--form-border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    :is(.composer-head, .page-header) > .row {
+      row-gap: 16px;
+    }
+    :is(h1, h2, h3, h4, .text-h4, .text-h5, .text-h6) {
+      font-family: var(--form-font) !important;
+      color: var(--form-ink) !important;
+      line-height: 1.35;
+      letter-spacing: -0.035em;
+      font-weight: 600;
+    }
+    :is(.composer-head, .page-header, .edit-property-header) :is(.text-h4, .text-h5, .text-h6) {
+      font-size: 22px;
+    }
+    .q-card__section.bg-primary,
+    .q-card__section.bg-secondary,
+    .q-card__section.bg-info {
+      padding: 16px 24px;
+      background: var(--form-soft) !important;
+      color: var(--form-ink) !important;
+      border-bottom: 1px solid var(--form-border);
+      .text-h6 {
+        font-size: 15px;
+      }
+      .q-icon {
+        color: var(--form-brand) !important;
+      }
+    }
+    .text-grey-6,
+    .text-grey-7,
+    .text-subtitle1,
+    .text-caption {
+      color: var(--form-muted) !important;
+    }
+    .page-header .text-subtitle1 {
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 0;
+    }
+    .section-label,
+    .form-section-title {
+      font-family: var(--form-font);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.065em;
+      color: var(--form-muted);
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+    .section-label:first-child {
+      margin-top: 0;
+    }
+    .q-form.q-gutter-md:not(.row),
+    .q-form.q-gutter-sm:not(.row) {
+      margin-left: 0;
+      margin-right: 0;
+      > :not(.row) {
+        margin-left: 0;
+        margin-right: 0;
+      }
+    }
+    .asset-create-panel,
+    .service-create-panel,
+    .property-summary,
+    .picture-upload-section {
+      background: var(--form-canvas) !important;
+      border: 1px solid var(--form-border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .q-separator {
+      background: var(--form-border);
+    }
+    .q-field {
+      min-width: 0;
+      font-family: var(--form-font);
+      transform: none !important;
+      background: transparent !important;
+    }
+    .q-field__control {
+      background: var(--form-surface) !important;
+      border-radius: 8px !important;
+      border-bottom: 0 !important;
+      color: var(--form-brand);
+    }
+    .q-field--outlined .q-field__control::before {
+      border: 1px solid var(--form-border) !important;
+    }
+    .q-field--filled .q-field__control::before {
+      background: none;
+      border: 1px solid var(--form-border);
+      opacity: 1;
+    }
+    .q-field--focused .q-field__control::after {
+      border-color: var(--form-brand) !important;
+    }
+    .q-field--error .q-field__control::before,
+    .q-field--error .q-field__control::after {
+      border-color: var(--form-error) !important;
+    }
+    .q-field--error .q-field__bottom {
+      color: var(--form-error);
+    }
+    .q-field--dense:not(.q-textarea) .q-field__control,
+    .q-field--dense:not(.q-textarea) .q-field__marginal {
+      min-height: 48px;
+      height: 48px;
+    }
+    .q-field--auto-height.q-field--dense .q-field__control {
+      height: auto;
+    }
+    .q-field__native,
+    .q-field__input {
+      font-family: var(--form-font) !important;
+      font-size: 16px !important;
+      color: var(--form-ink);
+    }
+    .q-field__label {
+      font-family: var(--form-font) !important;
+      color: var(--form-muted);
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    .q-field__marginal {
+      color: var(--form-muted);
+    }
+    .q-field__marginal .q-icon.text-primary {
+      color: var(--form-muted) !important;
+    }
+    .q-field--readonly .q-field__control,
+    .q-field--disabled .q-field__control {
+      background: var(--form-soft) !important;
+    }
+    .q-field__bottom {
+      padding-top: 6px;
+    }
+    .q-textarea textarea {
+      min-height: 96px;
+    }
+    .q-btn {
+      font-family: var(--form-font);
+      text-transform: none;
+      transform: none !important;
+    }
+    .q-btn.bg-primary:not(.q-btn--flat):not(.q-btn--outline):not(.workspace-form-cancel) {
+      background: var(--form-brand) !important;
+      color: var(--form-on-brand) !important;
+      border: 1px solid var(--form-brand) !important;
+      &:hover:not(.disabled):not([aria-busy='true']):not([role='progressbar']) {
+        background: var(--form-brand-hover) !important;
+        border-color: var(--form-brand-hover) !important;
+      }
+    }
+    .q-btn.text-primary:not(.bg-primary) {
+      color: var(--form-brand) !important;
+    }
+    .q-btn.workspace-form-cancel {
+      background: var(--form-surface) !important;
+      color: var(--form-ink) !important;
+      border: 1px solid var(--form-border) !important;
+    }
+    // Only ordinary labeled actions get a minimum text width, never close icons,
+    // calendar controls, segmented toggles or explicitly aligned navigation.
+    .q-btn:not(
+        :where(
+          nav .q-btn,
+          .reports-workspace .q-btn,
+          .report-pdf-dialog .q-btn,
+          .q-tabs .q-btn,
+          .q-btn-group .q-btn,
+          .q-pagination .q-btn,
+          [role='tab'],
+          .q-btn--round,
+          .q-btn--fab,
+          .q-btn--fab-mini,
+          .q-btn--rounded,
+          .q-btn--square
+        )
+      ):has(> .q-btn__content > .block):not(
+        :has(
+          > .q-btn__content:is(
+              .justify-start,
+              .justify-end,
+              .justify-between,
+              .justify-around,
+              .justify-evenly
+            )
+        )
+      ) {
+      --primary-color: var(--form-brand);
+      --primary-dark: var(--form-brand-hover);
+      --primary-glow: var(--form-soft);
+      min-height: 44px;
+      height: auto;
+      min-width: min(88px, 100%);
+      max-width: 100%;
+      padding: 8px 16px;
+      border-radius: 8px !important;
+      font-size: 13px;
+      line-height: 1.4;
+      > .q-btn__content {
+        min-width: 0;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        white-space: normal;
+        > .block {
+          min-width: 0;
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        > .q-icon {
+          flex-shrink: 0;
+          color: inherit !important;
+        }
+      }
+      @each $tone, $token in (negative: error, positive: success, warning: warning, info: info) {
+        &.text-#{$tone}:not(.bg-#{$tone}) {
+          color: var(--#{$token}-color) !important;
+          border-color: var(--#{$token}-color) !important;
+          background: transparent !important;
+          &:hover:not(.disabled):not([aria-busy='true']):not([role='progressbar']) {
+            background: var(--#{$token}-glow) !important;
+          }
+        }
+      }
+    }
+    .workspace-form-inline-actions .q-btn:has(> .q-btn__content > .block) {
+      min-height: 48px;
+    }
+    .q-btn--round {
+      min-height: 44px;
+      min-width: 44px;
+      border-radius: 50% !important;
+      padding: 0;
+      aspect-ratio: 1;
+      align-self: center;
+    }
+    .q-btn .q-icon {
+      color: inherit !important;
+    }
+    :is(.q-checkbox, .q-radio, .q-toggle) {
+      min-height: 44px;
+    }
+    :is(
+      .q-checkbox__inner--truthy,
+      .q-checkbox__inner--indet,
+      .q-radio__inner--truthy,
+      .q-toggle__inner--truthy
+    ) {
+      color: var(--form-brand) !important;
+    }
+    .q-btn:focus-visible {
+      outline: 2px solid var(--form-brand) !important;
+      outline-offset: 3px;
+    }
+    .q-card__actions,
+    .workspace-form-actions {
+      padding: 16px 24px;
+      background: var(--form-canvas);
+      border-top: 1px solid var(--form-border);
+      gap: 8px;
+      flex-wrap: wrap;
+      > .q-btn {
+        margin-left: 0;
+      }
+    }
+    // Margin-based Quasar gutters plus percentage columns otherwise exceed 100%.
+    .row.q-gutter-sm,
+    .row.q-gutter-md {
+      margin: 0;
+      gap: 16px;
+      > * {
+        margin: 0;
+        min-width: 0;
+      }
+      > .col-12 {
+        width: 100%;
+      }
+      @media (min-width: 1024px) {
+        > .col-md-6 {
+          width: calc((100% - 16px) / 2);
+        }
+        > .col-md-4 {
+          width: calc((100% - 32px) / 3);
+        }
+      }
+    }
+  }
+
+  .q-card.workspace-form {
+    background: var(--form-surface) !important;
+    color: var(--form-ink);
+  }
+  .workspace-form .dialog-header {
+    background: var(--form-surface) !important;
+    color: var(--form-ink) !important;
+    border-bottom: 1px solid var(--form-border) !important;
+    :is(.text-h5, .text-h6, .q-btn, .q-icon) {
+      color: var(--form-ink) !important;
+    }
+    .profile-contact-dialog__subtitle {
+      color: var(--form-muted);
+    }
+  }
+  .workspace-form .workspace-form-heading,
+  .property-access-manager .workspace-form-heading {
+    font-family: var(--form-font);
+    color: var(--form-ink);
+  }
+  .owner-invite-card.workspace-form,
+  .property-access-invite-card.workspace-form {
+    max-width: 560px;
+    padding: 28px;
+    border: 1px solid var(--form-border);
+    border-radius: 12px;
+    background: var(--form-surface);
+  }
+
+  // Keep existing popup forms aligned; do not recolor destructive confirmations or viewers.
+  .q-dialog .workspace-form {
+    max-height: none !important;
+    overflow: visible;
+    font-family: var(--form-font);
+    .q-card {
+      display: block !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+  }
+  .q-dialog__inner > :is(.create-form-dialog, .create-fullscreen-card, .asset-form-dialog),
+  .q-dialog__inner > .q-card:has(.workspace-form) {
+    width: calc(100vw - 48px) !important;
+    min-width: 0 !important;
+    max-width: 1040px !important;
+    height: auto !important;
+    max-height: calc(100dvh - 48px) !important;
+    margin: auto !important;
+    border: 1px solid var(--form-border) !important;
+    border-radius: 14px !important;
+    background: var(--form-canvas) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    font-family: var(--form-font);
+  }
+  .q-dialog__inner > .workspace-form {
+    width: calc(100vw - 48px) !important;
+    max-width: 680px !important;
+    max-height: calc(100dvh - 48px) !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+  }
+  .create-fullscreen-body,
+  .create-form-dialog-body,
+  .create-lease-dialog-scroll {
+    flex: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 20px !important;
+    background: var(--form-canvas) !important;
+  }
+  .create-form-dialog-header {
+    background: var(--form-surface) !important;
+    color: var(--form-muted);
+    border-bottom: 1px solid var(--form-border);
+    padding: 8px 16px !important;
+    .q-btn {
+      min-height: 44px;
+      min-width: 44px;
+      color: var(--form-ink) !important;
+    }
+  }
+  .q-menu.q-position-engine {
+    font-family: var(--form-font);
+    border: 1px solid var(--form-border);
+    border-radius: 10px;
+    .q-item {
+      min-height: 44px;
+    }
+    .q-item--active {
+      color: var(--form-brand);
+      background: var(--form-soft);
+    }
+  }
+
+  @media (max-width: 599px) {
+    .workspace-form {
+      .q-card__section {
+        padding: 18px 16px;
+      }
+      .composer-head,
+      .page-header,
+      .edit-property-header,
+      .q-card__section.workspace-form-heading {
+        padding: 18px 16px !important;
+      }
+      :is(.composer-head, .page-header) > .row > .col {
+        flex-basis: 100%;
+      }
+      :is(.composer-head, .page-header) > .row > .row {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      :is(.composer-head, .page-header) :is(.text-h4, .text-h5, .text-h6) {
+        font-size: 20px;
+      }
+      .asset-create-panel,
+      .service-create-panel,
+      .picture-upload-section {
+        padding: 14px;
+      }
+      .q-card__actions,
+      .workspace-form-actions {
+        padding: 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      .create-reminder-buffer {
+        display: none;
+      }
+    }
+    .q-dialog__inner
+      > :is(.create-form-dialog, .create-fullscreen-card, .asset-form-dialog, .workspace-form),
+    .q-dialog__inner > .q-card:has(.workspace-form) {
+      width: 100% !important;
+      max-width: 100% !important;
+      max-height: 100dvh !important;
+      border-radius: 0 !important;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .create-fullscreen-body,
+    .create-form-dialog-body,
+    .create-lease-dialog-scroll {
+      padding: 12px !important;
+    }
+  }
+}
+
+body.body--dark.workspace-forms-theme {
+  --form-canvas: #19251e;
+  --form-surface: #202d26;
+  --form-soft: #2b3c30;
+  --form-ink: #e4efe7;
+  --form-muted: #aec0b3;
+  --form-border: #3a4c40;
+  --form-brand: #b8dec5;
+  --form-brand-hover: #ccebd6;
+  --form-on-brand: #19251e;
+  --form-error: #ffaaa0;
+}

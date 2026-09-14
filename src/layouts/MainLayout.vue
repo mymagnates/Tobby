@@ -221,7 +221,7 @@
 
         <div class="content-main" :class="{ 'content-main--workspace': showPropertyRail }">
           <div
-            v-if="!isNativePmOnlyLaunch && !isIndexDashboard && !requiresSingleProperty(route.path)"
+            v-if="!isNativePmOnlyLaunch && !isIndexDashboard && !requiresSingleProperty(route.path) && !route.meta.ownsPageHeading"
             class="workspace-page-heading"
           >
             <h1>{{ headerPageTitle }}</h1>
@@ -450,30 +450,26 @@
     >
       <q-card class="create-form-dialog">
         <q-card-section class="create-form-dialog-header">
-          <q-btn icon="close" flat round dense @click="showCreateFormDialog = false" />
+          <q-btn icon="close" aria-label="Close create form" flat round dense @click="showCreateFormDialog = false" />
           <div class="text-subtitle1 text-weight-bold">{{ activeCreateLabel }}</div>
           <div style="width: 36px" />
         </q-card-section>
         <q-separator />
         <div class="create-form-dialog-body">
-          <q-layout view="lHh lpr lFf" container>
-            <q-page-container>
-              <component
-                :is="activeCreateComponent"
-                v-if="activeCreateComponent"
-                v-bind="activeCreateProps"
-                @cancel="showCreateFormDialog = false"
-                @property-created="handlePropertyCreated"
-                @mxrecord-created="handleCreateRecordSaved('Task created successfully.')"
-                @transaction-created="handleCreateRecordSaved('Transaction created successfully.')"
-                @reminder-saved="handleCreateRecordSaved('Reminder created successfully.')"
-                @lease-created="handleCreateRecordSaved('Lease created successfully.')"
-                @asset-created="handleCreateRecordSaved('Asset created successfully.')"
-                @document-created="handleCreateRecordSaved('Document saved successfully.')"
-                @service-created="handleCreateRecordSaved('Service saved successfully.')"
-              />
-            </q-page-container>
-          </q-layout>
+          <component
+            :is="activeCreateComponent"
+            v-if="activeCreateComponent"
+            v-bind="activeCreateProps"
+            @cancel="showCreateFormDialog = false"
+            @property-created="handlePropertyCreated"
+            @mxrecord-created="handleCreateRecordSaved('Task created successfully.')"
+            @transaction-created="handleCreateRecordSaved('Transaction created successfully.')"
+            @reminder-saved="handleCreateRecordSaved('Reminder created successfully.')"
+            @lease-created="handleCreateRecordSaved('Lease created successfully.')"
+            @asset-created="handleCreateRecordSaved('Asset created successfully.')"
+            @document-created="handleCreateRecordSaved('Document saved successfully.')"
+            @service-created="handleCreateRecordSaved('Service saved successfully.')"
+          />
         </div>
       </q-card>
     </q-dialog>
@@ -577,6 +573,7 @@
 </template>
 
 <script setup>
+import '../css/workspace-forms.scss'
 import { ref, watch, computed, onMounted, defineAsyncComponent, shallowRef, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -584,8 +581,10 @@ import { useI18n } from 'vue-i18n'
 import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { agentApi } from '../services/webApiClient'
+import { localCalendarDate } from '../utils/reportingDates'
 import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
 import PropertyContextSwitcher from '../components/PropertyContextSwitcher.vue'
+import { useWebFormTheme } from '../composables/useWebFormTheme'
 import {
   propertyScopeLocation,
   readPropertyScope,
@@ -671,6 +670,8 @@ const isNativePmOnlyLaunch = computed(() => {
     capacitor && typeof capacitor.isNativePlatform === 'function' && capacitor.isNativePlatform(),
   )
 })
+useWebFormTheme(() => !isNativePmOnlyLaunch.value)
+
 const nativePmOnlyBlockedPrefixes = [
   '/po-dashboard',
   '/tenant-home',
@@ -995,19 +996,9 @@ const addAssistantMessage = async (message) => {
   await scrollAssistantToBottom()
 }
 
-const handlePropertyCreated = async () => {
+const handlePropertyCreated = () => {
+  // CreateProperty has already refreshed memberships and the shared list.
   showCreateFormDialog.value = false
-  try {
-    await Promise.all([
-      userDataStore.loadUserRoles(),
-      userDataStore.loadProperties(),
-      userDataStore.loadMxRecords(),
-      userDataStore.loadTransactions(),
-      userDataStore.loadLeases(),
-    ])
-  } catch (error) {
-    console.error('Failed to refresh data after property creation:', error)
-  }
 }
 
 const handleCreateRecordSaved = async (message) => {
@@ -1053,7 +1044,7 @@ const openTransactionCreateWithDraft = (draft) => {
       transac_from: draft?.transac_from || '',
       transac_to: draft?.transac_to || '',
       amount: draft?.amount ?? null,
-      transac_date: draft?.transac_date || new Date().toISOString().split('T')[0],
+      transac_date: draft?.transac_date || localCalendarDate(),
       note: draft?.note || '',
     },
   }
@@ -1852,12 +1843,6 @@ const allLinksList = computed(() => [
   },
 ])
 
-const hasReportsData = computed(() => {
-  const transactionCount = userDataStore.userAccessibleTransactions.length
-  const taskCount = userDataStore.userAccessibleMxRecords.length
-  return transactionCount + taskCount > 0
-})
-
 // Computed property to filter links based on user category
 const linksList = computed(() => {
   const userCategory = String(userDataStore.userCategory || '').toLowerCase()
@@ -1871,9 +1856,6 @@ const linksList = computed(() => {
   // Filter links based on user category
   const filtered = allLinksList.value.filter((link) => {
     if (isNativePmOnlyLaunch.value && isNativePmOnlyBlockedPath(link.link)) {
-      return false
-    }
-    if (link.link === '/reports' && !hasReportsData.value && !hasOwnerWorkspaceAccess.value) {
       return false
     }
     if (isOwnerWorkspaceOnly.value) {
@@ -1974,15 +1956,8 @@ const loadAllUserData = async () => {
   dataLoading.value = true
 
   try {
-    // Load all user data in parallel
-    await Promise.all([
-      userDataStore.loadUserProfile(),
-      userDataStore.loadUserRoles(),
-      userDataStore.loadProperties(),
-      userDataStore.loadMxRecords(),
-      userDataStore.loadTransactions(),
-      userDataStore.loadLeases(),
-    ])
+    // Property IDs depend on memberships; records depend on loaded properties.
+    await userDataStore.loadAllUserData()
 
     console.log('MainLayout - Universal data loading completed successfully')
     console.log(
@@ -3472,3 +3447,4 @@ watch(
 </style>
 
 <style src="../css/web-workspace.scss" lang="scss"></style>
+<style src="../css/role-workspace.scss" lang="scss"></style>

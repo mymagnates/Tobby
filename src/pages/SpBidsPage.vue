@@ -1,7 +1,12 @@
 <template>
-  <q-page class="q-pa-sm">
+  <q-page class="role-workspace-page q-pa-sm">
     <q-card flat bordered>
-      <q-card-section class="q-py-sm q-px-md text-subtitle1 text-weight-medium">My Bids</q-card-section>
+      <q-card-section class="role-workspace-heading q-py-sm q-px-md">
+        <h2 class="role-workspace-title">My Bids</h2>
+        <p class="role-workspace-subtitle">
+          Track submitted scopes, bid status, and accepted work.
+        </p>
+      </q-card-section>
       <q-separator />
       <q-card-section class="q-px-md q-py-sm">
         <q-table
@@ -12,12 +17,14 @@
           row-key="bid_id"
           :loading="loading"
           :pagination="{ rowsPerPage: 10 }"
+          no-data-label="No bids submitted yet"
         >
           <template #body-cell-title="props">
             <q-td :props="props">
               <div class="text-weight-medium">{{ props.row.title || 'Untitled Lead' }}</div>
               <div class="text-caption text-grey-7">
-                Version {{ props.row.version_number || 1 }} · {{ pricingTypeLabel(props.row.pricing_type) }}
+                Version {{ props.row.version_number || 1 }} ·
+                {{ pricingTypeLabel(props.row.pricing_type) }}
               </div>
               <div v-if="props.row.project_title" class="text-caption text-grey-6">
                 Project: {{ props.row.project_title }}
@@ -35,12 +42,7 @@
 
           <template #body-cell-status="props">
             <q-td :props="props">
-              <q-chip
-                dense
-                size="sm"
-                :color="statusColor(props.row.status)"
-                text-color="white"
-              >
+              <q-chip dense size="sm" :color="statusColor(props.row.status)" text-color="white">
                 {{ statusLabel(props.row.status) }}
               </q-chip>
             </q-td>
@@ -90,7 +92,12 @@ const rows = ref([])
 
 const columns = [
   { name: 'title', label: 'Lead', field: 'title', align: 'left' },
-  { name: 'amount', label: 'Amount', field: (row) => `$${Number(row.amount || 0).toFixed(2)}`, align: 'left' },
+  {
+    name: 'amount',
+    label: 'Amount',
+    field: (row) => `$${Number(row.amount || 0).toFixed(2)}`,
+    align: 'left',
+  },
   { name: 'included_scope', label: 'Included Scope', field: 'included_scope', align: 'left' },
   { name: 'status', label: 'Status', field: 'status', align: 'left' },
   { name: 'valid_until', label: 'Valid Until', field: 'valid_until', align: 'left' },
@@ -105,13 +112,19 @@ const toTimestamp = (value) => {
 
 const sortedRows = computed(() =>
   [...rows.value].sort((a, b) => {
-    const aAccepted = String(a?.status || '').trim().toLowerCase() === 'accepted'
-    const bAccepted = String(b?.status || '').trim().toLowerCase() === 'accepted'
+    const aAccepted =
+      String(a?.status || '')
+        .trim()
+        .toLowerCase() === 'accepted'
+    const bAccepted =
+      String(b?.status || '')
+        .trim()
+        .toLowerCase() === 'accepted'
     if (aAccepted !== bAccepted) return bAccepted ? 1 : -1
     const aTime = toTimestamp(a?.accepted_at || a?.created_at)
     const bTime = toTimestamp(b?.accepted_at || b?.created_at)
     return bTime - aTime
-  })
+  }),
 )
 
 const formatDate = (value) => {
@@ -129,17 +142,27 @@ const pricingTypeLabel = (value) => {
     per_visit: 'Per visit',
     per_phase: 'Per phase',
   }
-  return labels[String(value || '').trim().toLowerCase()] || 'One-time'
+  return (
+    labels[
+      String(value || '')
+        .trim()
+        .toLowerCase()
+    ] || 'One-time'
+  )
 }
 
 const statusLabel = (value) => {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
   if (!normalized) return 'Submitted'
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
 const statusColor = (value) => {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
   if (normalized === 'accepted') return 'positive'
   if (normalized === 'expired') return 'orange'
   if (normalized === 'rejected' || normalized === 'withdrawn') return 'negative'
@@ -157,7 +180,11 @@ const loadBids = async () => {
   try {
     rows.value = await spPortalApi.listBids(userStore.userId)
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to load bids.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to load bids.',
+      position: 'top',
+    })
   } finally {
     loading.value = false
   }

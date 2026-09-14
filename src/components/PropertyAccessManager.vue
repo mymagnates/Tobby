@@ -1,7 +1,7 @@
 <template>
   <q-dialog v-model="visible">
-    <q-card class="property-access-manager">
-      <q-card-section class="row items-start justify-between q-pb-sm">
+    <q-card class="property-access-manager workspace-form">
+      <q-card-section class="row items-start justify-between q-pb-sm workspace-form-heading">
         <div>
           <div class="text-h6">Manage property access</div>
           <div class="text-body2 text-grey-7 q-mt-xs">
@@ -44,7 +44,7 @@
               label="Access type"
             />
           </div>
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-md-3 workspace-form-inline-actions">
             <q-btn
               type="submit"
               color="primary"

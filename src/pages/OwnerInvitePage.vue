@@ -1,7 +1,7 @@
 <template>
   <div class="owner-invite-page">
-    <div class="owner-invite-card">
-      <div class="text-h5 text-weight-bold">Owner Invitation</div>
+    <div class="owner-invite-card workspace-form">
+      <div class="text-h5 text-weight-bold workspace-form-heading">Owner Invitation</div>
       <div class="text-body2 text-grey-7 q-mt-sm">
         Accept owner or co-owner access for this property and open Handout.
       </div>
@@ -84,7 +84,7 @@
           </q-form>
         </div>
 
-        <div v-else class="q-mt-lg">
+        <div v-else class="q-mt-lg workspace-form-actions">
           <q-btn
             color="primary"
             unelevated
@@ -104,14 +104,18 @@
 </template>
 
 <script setup>
+import '../css/workspace-forms.scss'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
+import { useWebFormTheme } from '../composables/useWebFormTheme'
 import { useUserDataStore } from '../stores/userDataStore'
 import { OWNER_WORKSPACE_PATH } from '../utils/ownerInviteUtils'
 import { normalizeAccountType } from '../utils/roleUtils'
 import { acceptOwnerInviteRequest, getOwnerInviteByToken } from '../services/ownerInviteApi'
+
+useWebFormTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -266,6 +270,7 @@ onMounted(() => {
   loadInvite()
 })
 </script>
+
 
 <style scoped>
 .owner-invite-page {

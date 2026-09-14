@@ -44,15 +44,13 @@ describe('API boundary contract v0.1', () => {
     })
   })
 
-  it('returns gate fields when a gated report is blocked', async () => {
+  it('retires the sample annual report instead of returning fictitious financial data', async () => {
     const { response, payload } = await call('/reports/annual-tax-finance?year=2026', {
       headers: { 'X-User-Id': 'u-tt-1' },
     })
-    expect(response.status).toBe(403)
-    expect(payload.error_code).toBe('PLAN_NOT_ELIGIBLE')
-    expect(payload.gate_status).toBe('blocked')
-    expect(payload.plan_required).toBe('pro')
-    expect(typeof payload.upgrade_hint).toBe('string')
+    expect(response.status).toBe(410)
+    expect(payload.error_code).toBe('REPORT_RETIRED')
+    expect(payload).not.toHaveProperty('revenue_total')
   })
 
   it('returns backend-owned AI and storage usage fields', async () => {

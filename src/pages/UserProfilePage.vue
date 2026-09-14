@@ -271,15 +271,23 @@
     </q-dialog>
 
     <q-dialog v-model="showContactEditDialog">
-      <q-card class="profile-contact-dialog">
-        <q-card-section class="dialog-header profile-contact-dialog__header">
+      <q-card class="profile-contact-dialog workspace-form">
+        <q-card-section class="dialog-header profile-contact-dialog__header workspace-form-heading">
           <div>
             <div class="text-h6">Update Contact Info</div>
             <div class="profile-contact-dialog__subtitle">
               Keep your public account details current.
             </div>
           </div>
-          <q-btn icon="close" flat round dense class="dialog-close-btn" v-close-popup />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            class="dialog-close-btn"
+            aria-label="Close contact editing"
+            v-close-popup
+          />
         </q-card-section>
         <q-card-section class="profile-contact-dialog__body">
           <div class="profile-contact-dialog__grid">
@@ -312,8 +320,15 @@
             />
           </div>
         </q-card-section>
-        <q-card-actions align="right" class="profile-contact-dialog__actions">
-          <q-btn outline no-caps label="Cancel" color="primary" v-close-popup />
+        <q-card-actions align="right" class="profile-contact-dialog__actions workspace-form-actions">
+          <q-btn
+            outline
+            no-caps
+            label="Cancel"
+            color="primary"
+            class="workspace-form-cancel"
+            v-close-popup
+          />
           <q-btn
             color="primary"
             unelevated

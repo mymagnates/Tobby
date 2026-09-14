@@ -1,5 +1,5 @@
 <template>
-  <div class="create-lease animate-fade-in">
+  <div class="create-lease workspace-form">
     <q-card class="elevated">
       <q-card-section class="q-pa-md composer-head">
         <div class="row items-start justify-between q-col-gutter-sm">
@@ -18,7 +18,7 @@
               color="primary"
               text-color="white"
               label="Cancel"
-              class="top-action-btn"
+              class="top-action-btn workspace-form-cancel"
               @click="handleCancel"
             />
             <q-btn
@@ -37,232 +37,243 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none create-lease-body">
-        <q-form id="create-lease-form" @submit="onSubmit" class="create-lease-form q-gutter-sm">
-          <div v-if="hasMatchedFixedProperty && !showPropertySelect" class="text-caption text-grey-6 q-mb-xs">
-            Property: {{ resolvedFixedPropertyName }}
-          </div>
-          <div v-else class="section-label q-mb-xs">Property Context</div>
-          <q-select
-            v-if="showPropertySelect"
-            v-model="selectedPropertyId"
-            :options="propertyOptions"
-            option-value="id"
-            option-label="displayName"
-            emit-value
-            map-options
-            label="Select Property"
-            outlined
-            dense
-            bg-color="grey-1"
-            clearable
-            :loading="propertiesLoading"
-            :disable="propertiesLoading"
-          >
-            <template v-slot:prepend>
-              <q-icon name="home" color="primary" />
-            </template>
-            <template v-slot:no-option>
-              <q-item>
-                <q-item-section class="text-grey">No properties available</q-item-section>
-              </q-item>
-            </template>
-          </q-select>
-
-          <div v-if="selectedPropertyInfo" class="property-summary">
-            <div class="property-summary-item">
-              <div class="property-summary-label">Type</div>
-              <div class="property-summary-value">{{ selectedPropertyInfo.property_type || 'N/A' }}</div>
+        <q-form id="create-lease-form" @submit="onSubmit" class="create-lease-form">
+          <section class="lease-property-context" aria-label="Property">
+            <div
+              v-if="hasMatchedFixedProperty && !showPropertySelect"
+              class="text-caption text-grey-6 q-mb-xs"
+            >
+              Property: {{ resolvedFixedPropertyName }}
             </div>
-            <div class="property-summary-item">
-              <div class="property-summary-label">Beds</div>
-              <div class="property-summary-value">{{ selectedPropertyInfo.bedrooms || 'N/A' }}</div>
-            </div>
-            <div class="property-summary-item">
-              <div class="property-summary-label">Baths</div>
-              <div class="property-summary-value">{{ selectedPropertyInfo.bathrooms || 'N/A' }}</div>
-            </div>
-            <div class="property-summary-item">
-              <div class="property-summary-label">Size</div>
-              <div class="property-summary-value">{{ selectedPropertyInfo.size || 'N/A' }}</div>
-            </div>
-          </div>
-
-          <div class="section-label q-mb-xs">Lease Basics</div>
-          <div class="row q-gutter-sm">
             <q-select
-              v-model="leaseData.status"
-              :options="leaseStatusOptions"
-              label="Lease Status"
+              v-if="showPropertySelect"
+              v-model="selectedPropertyId"
+              :options="propertyOptions"
+              option-value="id"
+              option-label="displayName"
+              emit-value
+              map-options
+              label="Select Property"
               outlined
               dense
               bg-color="grey-1"
-              class="col-12 col-md-4"
-              :rules="[(val) => !!val || 'Status is required']"
+              clearable
+              :loading="propertiesLoading"
+              :disable="propertiesLoading"
             >
               <template v-slot:prepend>
-                <q-icon name="flag" color="primary" />
+                <q-icon name="home" color="primary" />
+              </template>
+              <template v-slot:no-option>
+                <q-item>
+                  <q-item-section class="text-grey">No properties available</q-item-section>
+                </q-item>
               </template>
             </q-select>
-            <q-input
-              v-model.number="leaseData.lease_term"
-              label="Lease Term (months)"
-              type="number"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-              :rules="[(val) => !!val || 'Lease term is required']"
-            >
-              <template v-slot:prepend>
-                <q-icon name="schedule" color="primary" />
-              </template>
-            </q-input>
-            <q-input
-              v-model="leaseData.lease_create_date"
-              label="Lease Create Date"
-              type="date"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-              :rules="[(val) => !!val || 'Create date is required']"
-            >
-              <template v-slot:prepend>
-                <q-icon name="event" color="primary" />
-              </template>
-            </q-input>
-          </div>
 
-          <div class="section-label q-mb-xs">Pricing and Fees</div>
-          <div class="row q-gutter-sm">
-            <q-select
-              v-model="leaseData.rate_type"
-              :options="rateTypeOptions"
-              label="Rate Type"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-              :rules="[(val) => !!val || 'Rate type is required']"
-            >
-              <template v-slot:prepend>
-                <q-icon name="payments" color="primary" />
-              </template>
-            </q-select>
-            <q-input
-              v-model.number="leaseData.rate_amount"
-              label="Rate Amount"
-              type="number"
-              step="0.01"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-              :rules="[(val) => !!val || 'Rate amount is required']"
-            >
-              <template v-slot:prepend>
-                <q-icon name="attach_money" color="primary" />
-              </template>
-            </q-input>
-            <q-input
-              v-model.number="leaseData.deposit"
-              label="Deposit Amount"
-              type="number"
-              step="0.01"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-            >
-              <template v-slot:prepend>
-                <q-icon name="savings" color="primary" />
-              </template>
-            </q-input>
-            <q-input
-              v-model.number="leaseData.pet_fee"
-              label="Pet Fee"
-              type="number"
-              step="0.01"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-6"
-            >
-              <template v-slot:prepend>
-                <q-icon name="pets" color="primary" />
-              </template>
-            </q-input>
-            <q-input
-              v-model.number="leaseData.application_fee_per_person"
-              label="Application Fee per Person"
-              type="number"
-              step="0.01"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-6"
-            >
-              <template v-slot:prepend>
-                <q-icon name="request_quote" color="primary" />
-              </template>
-            </q-input>
-          </div>
+            <details v-if="selectedPropertyInfo" class="lease-property-details">
+              <summary>Property details</summary>
+              <p>{{ propertySummaryText || 'No additional property details recorded.' }}</p>
+            </details>
+          </section>
 
-          <div class="section-label q-mb-xs">Property Features</div>
-          <div class="row q-gutter-sm">
-            <q-select
-              v-model="leaseData.utilities_included"
-              :options="utilitiesOptions"
-              label="Utilities Included"
-              multiple
-              use-chips
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-8"
-            />
-            <q-select
-              v-model="leaseData.furnished"
-              :options="furnishedOptions"
-              label="Furnished Status"
-              outlined
-              dense
-              bg-color="grey-1"
-              class="col-12 col-md-4"
-            />
-          </div>
+          <section class="lease-form-section" aria-label="Lease basics">
+            <div class="section-label q-mb-xs">Lease Basics</div>
+            <div class="lease-field-grid">
+              <q-select
+                v-model="leaseData.status"
+                :options="leaseStatusOptions"
+                label="Lease Status"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+                :rules="[(val) => !!val || 'Status is required']"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="flag" color="primary" />
+                </template>
+              </q-select>
+              <q-input
+                v-model.number="leaseData.lease_term"
+                label="Lease Term (months)"
+                type="number"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+                :rules="[(val) => !!val || 'Lease term is required']"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="schedule" color="primary" />
+                </template>
+              </q-input>
+              <q-input
+                v-model="leaseData.lease_create_date"
+                label="Lease Create Date"
+                type="date"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+                :rules="[(val) => !!val || 'Create date is required']"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="event" color="primary" />
+                </template>
+              </q-input>
+            </div>
+          </section>
 
-          <div class="section-label q-mb-xs">Notes</div>
-          <div class="row q-gutter-sm">
-            <q-input
-              v-model="leaseData.special_terms"
-              label="Special Terms"
-              type="textarea"
-              autogrow
-              outlined
-              bg-color="grey-1"
-              class="col-12 col-md-6"
-              :input-style="{ minHeight: '100px' }"
-            >
-              <template v-slot:prepend>
-                <q-icon name="article" color="primary" />
-              </template>
-            </q-input>
-            <q-input
-              v-model="leaseData.additional_notes"
-              label="Additional Notes"
-              type="textarea"
-              autogrow
-              outlined
-              bg-color="grey-1"
-              class="col-12 col-md-6"
-              :input-style="{ minHeight: '100px' }"
-            >
-              <template v-slot:prepend>
-                <q-icon name="note_alt" color="primary" />
-              </template>
-            </q-input>
-          </div>
+          <section class="lease-form-section" aria-label="Rent and deposit">
+            <div class="section-label q-mb-xs">Rent and Deposit</div>
+            <div class="lease-field-grid">
+              <q-select
+                v-model="leaseData.rate_type"
+                :options="rateTypeOptions"
+                label="Rate Type"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+                :rules="[(val) => !!val || 'Rate type is required']"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="payments" color="primary" />
+                </template>
+              </q-select>
+              <q-input
+                v-model.number="leaseData.rate_amount"
+                label="Rate Amount"
+                type="number"
+                step="0.01"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+                :rules="[(val) => !!val || 'Rate amount is required']"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="attach_money" color="primary" />
+                </template>
+              </q-input>
+              <q-input
+                v-model.number="leaseData.deposit"
+                label="Required Deposit"
+                hint="Agreed amount, not money already received"
+                type="number"
+                step="0.01"
+                outlined
+                dense
+                bg-color="grey-1"
+                class="col-12 col-md-4"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="savings" color="primary" />
+                </template>
+              </q-input>
+            </div>
+          </section>
+
+          <details class="lease-optional-settings">
+            <summary>
+              <span>Optional settings</span>
+              <span class="lease-optional-hint">Extra fees, utilities and notes</span>
+            </summary>
+            <div class="lease-form-section">
+              <div class="section-label">Additional Fees</div>
+              <div class="lease-field-grid lease-field-grid--two">
+                <q-input
+                  v-model.number="leaseData.pet_fee"
+                  label="Pet Fee"
+                  type="number"
+                  step="0.01"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  class="col-12 col-md-6"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="pets" color="primary" />
+                  </template>
+                </q-input>
+                <q-input
+                  v-model.number="leaseData.application_fee_per_person"
+                  label="Application Fee per Person"
+                  type="number"
+                  step="0.01"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  class="col-12 col-md-6"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="request_quote" color="primary" />
+                  </template>
+                </q-input>
+              </div>
+            </div>
+
+            <div class="lease-form-section">
+              <div class="section-label q-mb-xs">Property Features</div>
+              <div class="lease-field-grid lease-field-grid--two">
+                <q-select
+                  v-model="leaseData.utilities_included"
+                  :options="utilitiesOptions"
+                  label="Utilities Included"
+                  multiple
+                  use-chips
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  class="col-12 col-md-8"
+                />
+                <q-select
+                  v-model="leaseData.furnished"
+                  :options="furnishedOptions"
+                  label="Furnished Status"
+                  outlined
+                  dense
+                  bg-color="grey-1"
+                  class="col-12 col-md-4"
+                />
+              </div>
+            </div>
+
+            <div class="lease-form-section">
+              <div class="section-label q-mb-xs">Notes</div>
+              <div class="lease-field-grid lease-field-grid--two">
+                <q-input
+                  v-model="leaseData.special_terms"
+                  label="Special Terms"
+                  type="textarea"
+                  autogrow
+                  outlined
+                  bg-color="grey-1"
+                  class="col-12 col-md-6"
+                  :input-style="{ minHeight: '100px' }"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="article" color="primary" />
+                  </template>
+                </q-input>
+                <q-input
+                  v-model="leaseData.additional_notes"
+                  label="Additional Notes"
+                  type="textarea"
+                  autogrow
+                  outlined
+                  bg-color="grey-1"
+                  class="col-12 col-md-6"
+                  :input-style="{ minHeight: '100px' }"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="note_alt" color="primary" />
+                  </template>
+                </q-input>
+              </div>
+            </div>
+          </details>
         </q-form>
       </q-card-section>
     </q-card>
@@ -345,18 +356,20 @@ const fixedPropertyId = computed(() =>
 const matchedFixedProperty = computed(
   () =>
     availableProperties.value.find(
-      (property) => String(property.id || property.property_id || '').trim() === fixedPropertyId.value,
+      (property) =>
+        String(property.id || property.property_id || '').trim() === fixedPropertyId.value,
     ) || null,
 )
 
 const hasMatchedFixedProperty = computed(() => Boolean(matchedFixedProperty.value))
 const showPropertySelect = computed(() => props.allowPropertyEdit || !hasMatchedFixedProperty.value)
-const resolvedFixedPropertyName = computed(() =>
-  matchedFixedProperty.value?.nickname ||
-  matchedFixedProperty.value?.name ||
-  matchedFixedProperty.value?.address ||
-  props.propertyName ||
-  'Unknown Property',
+const resolvedFixedPropertyName = computed(
+  () =>
+    matchedFixedProperty.value?.nickname ||
+    matchedFixedProperty.value?.name ||
+    matchedFixedProperty.value?.address ||
+    props.propertyName ||
+    'Unknown Property',
 )
 
 const selectedProperty = computed(() => {
@@ -381,16 +394,28 @@ const selectedPropertyInfo = computed(() => {
   }
 })
 
-const isFormValid = computed(
-  () =>
-    Boolean(
-      selectedPropertyId.value &&
-        leaseData.value.status &&
-        leaseData.value.lease_term &&
-        leaseData.value.lease_create_date &&
-        leaseData.value.rate_type &&
-        leaseData.value.rate_amount,
-    ),
+const propertySummaryText = computed(() => {
+  const info = selectedPropertyInfo.value
+  if (!info) return ''
+  return [
+    info.property_type,
+    info.bedrooms !== '' ? `${info.bedrooms} beds` : '',
+    info.bathrooms !== '' ? `${info.bathrooms} baths` : '',
+    info.size,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+})
+
+const isFormValid = computed(() =>
+  Boolean(
+    selectedPropertyId.value &&
+      leaseData.value.status &&
+      leaseData.value.lease_term &&
+      leaseData.value.lease_create_date &&
+      leaseData.value.rate_type &&
+      leaseData.value.rate_amount,
+  ),
 )
 
 const toNumber = (value, fallback = 0) => {
@@ -537,7 +562,7 @@ watch(
 <style scoped>
 .create-lease {
   width: 100%;
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
@@ -594,60 +619,106 @@ watch(
   color: var(--neutral-600);
 }
 
-.property-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 6px;
-  padding: 10px;
-  border: 1px solid var(--neutral-200);
-  border-radius: var(--border-radius-card);
-  background: #fafcff;
-}
-
-.property-summary-item {
-  padding: 8px;
-  border-radius: var(--border-radius-sm);
-  border-left: 3px solid var(--primary-color);
-  background: rgba(36, 87, 115, 0.04);
-}
-
-.property-summary-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--neutral-600);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.property-summary-value {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--neutral-800);
-  margin-top: 2px;
-}
-
 .q-btn {
   transition: var(--transition);
 }
 
 .q-btn:hover {
-  transform: translateY(-2px);
+  transform: none;
 }
 
-@media (max-width: 900px) {
-  .property-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.create-lease .create-lease-body {
+  padding: 24px;
+}
+.create-lease .composer-head {
+  padding: 24px !important;
+}
+.create-lease .lease-property-context {
+  margin-bottom: 28px;
+}
+.lease-property-details {
+  margin-top: 4px;
+}
+.lease-property-details summary {
+  display: list-item;
+  width: fit-content;
+  padding: 12px 0;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--form-muted, #65756c);
+  font-size: 13px;
+}
+.lease-property-details p {
+  margin: 0;
+  padding-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.create-lease .lease-form-section {
+  margin-bottom: 28px;
+}
+.create-lease .section-label {
+  padding: 0;
+  margin: 0 0 16px;
+  border: 0;
+  background: none;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 16px;
+  color: var(--form-ink, #243830);
+}
+.create-lease .lease-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.create-lease .lease-field-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.create-lease .lease-field-grid > * {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.lease-optional-settings {
+  border-top: 1px solid var(--form-border, #e0e6df);
+}
+.lease-optional-settings > summary {
+  cursor: pointer;
+  padding: 18px 0;
+  min-height: 48px;
+  color: var(--form-ink, #243830);
+  font-weight: 600;
+}
+.lease-optional-hint {
+  margin-left: 12px;
+  color: var(--form-muted, #65756c);
+  font-size: 13px;
+  font-weight: 400;
+}
+.create-lease summary:focus-visible {
+  outline: 2px solid var(--form-brand, #254b39);
+  outline-offset: 3px;
 }
 
-@media (max-width: 600px) {
-  .create-lease {
-    padding: 0;
+@media (max-width: 640px) {
+  .create-lease .create-lease-body,
+  .create-lease .composer-head {
+    padding: 16px !important;
   }
-
-  .property-summary {
-    grid-template-columns: 1fr;
+  .create-lease .lease-field-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .lease-optional-hint {
+    display: block;
+    margin: 4px 0 0 18px;
+  }
+  .create-lease .composer-head > .row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .create-lease .composer-head .col-auto {
+    align-self: flex-end;
   }
 }
 </style>

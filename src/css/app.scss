@@ -3747,8 +3747,8 @@ body.body--dark {
     background: var(--bg-secondary) !important;
   }
 
-  // Buttons - Dark mode: NO fill, outline only
-  .q-btn:not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not(
+  // Legacy surfaces use outline-only buttons. The Web workspace owns its semantic colors.
+  .q-btn:not(:where(.web-workspace .q-btn, body.workspace-forms-theme .workspace-form .q-btn)):not(.bg-primary):not(.bg-positive):not(.bg-negative):not(.bg-warning):not(.bg-info):not(
       [color='primary']
     ):not([color='positive']):not([color='negative']):not([color='warning']):not([color='info']) {
     background: transparent !important;
@@ -3756,7 +3756,7 @@ body.body--dark {
     border-color: var(--primary-color) !important;
   }
 
-  .q-btn--flat:not(.bg-primary):not([color='primary']) {
+  .q-btn--flat:not(:where(.web-workspace .q-btn, body.workspace-forms-theme .workspace-form .q-btn)):not(.bg-primary):not([color='primary']) {
     background: transparent !important;
     color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-sm sp-credits-page">
+  <q-page class="q-pa-sm sp-credits-page role-workspace-page">
     <q-card flat bordered class="hero-card q-mb-sm">
       <q-card-section class="row items-start justify-between q-col-gutter-md">
         <div class="col-12 col-md">
@@ -13,7 +13,14 @@
         <div class="col-12 col-md-auto">
           <div class="hero-actions">
             <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
-            <q-btn flat dense icon="refresh" @click="refreshAll" :loading="loading" />
+            <q-btn
+              flat
+              dense
+              icon="refresh"
+              aria-label="Refresh credits"
+              @click="refreshAll"
+              :loading="loading"
+            />
           </div>
         </div>
       </q-card-section>

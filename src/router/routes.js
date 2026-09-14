@@ -1,4 +1,7 @@
+import mobileRoutes from './mobileRoutes'
+
 const routes = [
+  ...mobileRoutes,
   // ============================================
   // PUBLIC ROUTES (GuestLayout - No Sidebar)
   // ============================================
@@ -172,11 +175,16 @@ const routes = [
           { path: '/mx-records', component: () => import('pages/MxRecordsPage.vue') },
           { path: '/transactions', component: () => import('pages/TransactionsPage.vue') },
           { path: '/leases', component: () => import('pages/LeasesPage.vue') },
+          { path: '/inventory/:leaseId?', component: () => import('pages/InventoryListPage.vue'), meta: { ownsPageHeading: true } },
           { path: '/tenants', component: () => import('pages/TenantsPage.vue') },
           { path: '/reminders', component: () => import('pages/RemindersPage.vue') },
           { path: '/documents', component: () => import('pages/DocumentsPage.vue') },
           { path: '/assets/:propertyId?', component: () => import('pages/AssetsPage.vue') },
-          { path: '/reports', component: () => import('pages/ReportsPage.vue') },
+          {
+            path: '/reports',
+            component: () => import('pages/ReportsPage.vue'),
+            meta: { ownsPageHeading: true },
+          },
           {
             path: '/account-type-setup',
             component: () => import('pages/AccountTypeSetupPage.vue'),

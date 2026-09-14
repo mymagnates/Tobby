@@ -1,5 +1,5 @@
 <template>
-  <q-page class="owner-view q-pa-md">
+  <q-page class="owner-view role-workspace-page owner-workspace-page q-pa-md">
     <div class="owner-view__hero q-mb-md">
       <div class="text-body2 text-grey-7">
         Review property performance, activity history, lease occupancy, and tax-ready summaries.
@@ -490,7 +490,7 @@
     </template>
 
     <q-dialog v-model="transactionDialogOpen">
-      <q-card class="detail-dialog">
+      <q-card class="detail-dialog role-workspace-dialog">
         <q-card-section class="row items-center">
           <div class="text-h6">Transaction Detail</div>
           <q-space />
@@ -554,7 +554,7 @@
     </q-dialog>
 
     <q-dialog v-model="propertyPickerDialogOpen">
-      <q-card class="property-picker-dialog">
+      <q-card class="property-picker-dialog role-workspace-dialog">
         <q-card-section class="row items-center">
           <div class="text-h6">Choose Property</div>
           <q-space />
@@ -609,7 +609,7 @@
     </q-dialog>
 
     <q-dialog v-model="taskDialogOpen">
-      <q-card class="detail-dialog">
+      <q-card class="detail-dialog role-workspace-dialog">
         <q-card-section class="row items-center">
           <div class="text-h6">Task Detail</div>
           <q-space />
@@ -699,7 +699,7 @@
     </q-dialog>
 
     <q-dialog v-model="leaseDialogOpen">
-      <q-card class="detail-dialog">
+      <q-card class="detail-dialog role-workspace-dialog">
         <q-card-section class="row items-center">
           <div class="text-h6">Tenant & Lease Detail</div>
           <q-space />

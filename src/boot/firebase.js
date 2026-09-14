@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
+import { getAuth, initializeAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
+import { isNativeMobileRuntime } from '../utils/mobileRuntime'
 
 // Your Firebase configuration
 // Replace these values with your actual Firebase project configuration
@@ -47,7 +48,11 @@ let auth, db, storage
 let authPersistenceReady = Promise.resolve()
 let authStateReady = Promise.resolve(null)
 try {
-  auth = getAuth(app)
+  // getAuth eagerly initializes the browser redirect iframe on iOS. That iframe
+  // can stall under capacitor://, blocking auth readiness and the first render.
+  auth = isNativeMobileRuntime()
+    ? initializeAuth(app, { persistence: browserLocalPersistence })
+    : getAuth(app)
 
   // Keep users signed in using LOCAL persistence
   authPersistenceReady = setPersistence(auth, browserLocalPersistence)

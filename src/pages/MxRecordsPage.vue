@@ -1673,6 +1673,7 @@ import ReportContentDialog from '../components/ReportContentDialog.vue'
 import { Notify } from 'quasar'
 import { listBlockedUsers } from '../services/contentModeration'
 import { agentApi, marketplaceApi, spCardsApi } from '../services/webApiClient'
+import { appendTaskComment } from '../services/taskCommentsApi'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, createDocument, uploadImages, getCollectionData } = useFirebase()
@@ -1726,6 +1727,8 @@ const selectedTaskBidDetail = ref(null)
 const showCreateMxRecordComposer = ref(false)
 const showCommentDialog = ref(false)
 const submittingComment = ref(false)
+let commentSubmission = null
+let commentUploadCache = new Map()
 const newComment = ref({
   comment: '',
   action_type: '',
@@ -3081,6 +3084,8 @@ const addCommentFromDialog = () => {
 }
 
 const closeCommentDialog = () => {
+  commentSubmission = null
+  commentUploadCache = new Map()
   showCommentDialog.value = false
   newComment.value = {
     comment: '',
@@ -3751,6 +3756,7 @@ const handleResolutionCostFlow = async () => {
 }
 
 const submitComment = async () => {
+  if (submittingComment.value) return
   console.log('submitComment called with:', {
     comment: newComment.value.comment,
     action_type: newComment.value.action_type,
@@ -3789,103 +3795,30 @@ const submitComment = async () => {
   submittingComment.value = true
 
   try {
-    // Handle comment image uploads if files are selected
-    let commentImageUrls = []
+    // Reuse completed uploads on retry and never silently discard a selected photo.
+    const commentImageUrls = []
     const commentFilesToUpload = commentImagePreviews.value.map((preview) => preview.file)
-    if (commentFilesToUpload.length > 0) {
-      try {
-        console.log(`Uploading ${commentFilesToUpload.length} comment images...`)
-        commentImageUrls = await uploadImages(
-          commentFilesToUpload,
-          selectedMxRecord.value.property_id,
-          'comment',
-        )
-        console.log('Comment images uploaded successfully to Firebase Storage:', commentImageUrls)
-      } catch (error) {
-        console.error('Error uploading comment images to Firebase Storage:', error)
-        // Continue with comment submission even if image upload fails
-        import('quasar').then(({ Notify }) => {
-          Notify.create({
-            type: 'warning',
-            message: 'Images could not be uploaded, but comment will still be added',
-            position: 'top',
-          })
-        })
-      }
-    }
-
-    // Create new log entry
-    const newLogEntry = {
-      log_timestamp: new Date(),
-      comment: newComment.value.comment,
-      user_id: userDataStore.userId,
-      user_name: userDataStore.user?.displayName || userDataStore.user?.email || 'Unknown User',
-      user_role:
-        normalizeRoleValue(
-          userDataStore.getUserRoleForProperty(selectedMxRecord.value.property_id)?.role,
-        ) ||
-        'Unknown Role',
-      action_type: newComment.value.action_type,
-      image_urls: commentImageUrls, // Add uploaded comment image URLs
-    }
-
-    // Add the log entry to the task
-    const updatedLogs = [...selectedMxRecordLogs.value, newLogEntry]
-
-    // Validate IDs before constructing path
     const propertyId = selectedMxRecord.value.property_id
     const mxRecordId = selectedMxRecord.value.id
-
-    console.log('Validating IDs for Firebase update:', {
-      propertyId: propertyId,
-      propertyIdType: typeof propertyId,
-      mxRecordId: mxRecordId,
-      mxRecordIdType: typeof mxRecordId,
-      selectedMxRecord: selectedMxRecord.value,
-    })
-
     if (!propertyId || !mxRecordId) {
       throw new Error(`Missing required IDs: propertyId=${propertyId}, mxRecordId=${mxRecordId}`)
     }
-
-    // Ensure IDs are strings
-    const propertyIdStr = String(propertyId)
-    const mxRecordIdStr = String(mxRecordId)
-    const documentPath = `properties/${propertyIdStr}/mxrecords/${mxRecordIdStr}`
-
-    // Prepare update data
-    const updateData = {
-      logs: updatedLogs,
-      updatedAt: new Date(),
+    if (commentFilesToUpload.length > 5) throw new Error('Attach up to five photos.')
+    for (const file of commentFilesToUpload) {
+      const cached = commentUploadCache.get(file)
+      const url = cached?.propertyId === propertyId ? cached.url :
+        (await uploadImages([file], propertyId, 'comment'))[0]
+      if (!url) throw new Error('Photo upload failed. Please retry before sending.')
+      commentUploadCache.set(file, { propertyId, url })
+      commentImageUrls.push(url)
     }
-
-    // If action type is 'resolution', automatically change status to 'closed'
-    if (newComment.value.action_type === 'resolution') {
-      updateData.status = 'closed'
-      console.log('Resolution comment detected - automatically setting status to closed')
-    }
-
-    console.log('Updating task with new comment...', {
-      documentPath,
-      newLogEntry,
-      totalLogs: updatedLogs.length,
-      updateData,
-      willAutoClose: newComment.value.action_type === 'resolution',
-    })
-
-    await updateDocument(`properties/${propertyIdStr}/mxrecords`, mxRecordIdStr, updateData)
-
-    console.log('Task updated successfully with new comment')
-
-    // Update the local selected record
-    selectedMxRecord.value.logs = updatedLogs
-
-    // Update local status if it was changed
-    if (newComment.value.action_type === 'resolution') {
-      selectedMxRecord.value.status = 'closed'
-      console.log('Local task status updated to closed')
-    }
-
+    const payload = { comment: newComment.value.comment, action_type: newComment.value.action_type, image_urls: commentImageUrls }
+    const signature = JSON.stringify([propertyId, mxRecordId, payload])
+    if (!commentSubmission || commentSubmission.signature !== signature)
+      commentSubmission = { signature, key: crypto.randomUUID() }
+    const result = await appendTaskComment(propertyId, mxRecordId, payload, { idempotencyKey: commentSubmission.key })
+    selectedMxRecord.value.logs = result.task.logs
+    selectedMxRecord.value.status = result.task.status
     const isResolution = newComment.value.action_type === 'resolution'
 
     // Close comment dialog first, then continue resolution cost flow if needed.

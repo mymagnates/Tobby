@@ -1,5 +1,5 @@
 <template>
-  <div class="create-document">
+  <div class="create-document workspace-form">
     <q-card class="elevated">
       <q-card-section class="q-pa-md composer-head">
         <div class="row items-start justify-between q-col-gutter-sm">
@@ -22,7 +22,7 @@
               color="primary"
               text-color="white"
               label="Cancel"
-              class="top-action-btn"
+              class="top-action-btn workspace-form-cancel"
               @click="emit('cancel')"
             />
             <q-btn

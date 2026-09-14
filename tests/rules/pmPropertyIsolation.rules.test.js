@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
@@ -89,6 +89,37 @@ describe('PM property isolation', () => {
       }),
     )
     await assertFails(getDoc(doc(viewer, 'properties', properties.pmB)))
+  })
+
+  it('keeps financial transactions private from viewers while allowing task history', async () => {
+    await seedPropertyAccessFixture(testEnv)
+    const { users, properties } = emulatorPropertyFixture
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore()
+      await setDoc(doc(db, 'properties', properties.pmA, 'transactions', 'fee'), { amount: 100 })
+      await setDoc(doc(db, 'properties', properties.pmA, 'mxrecords', 'task'), { description: 'Repair tap' })
+      await setDoc(doc(db, 'properties', properties.pmA), { owner_user_ids: ['owner-a'] }, { merge: true })
+    })
+    const viewer = testEnv.authenticatedContext(users.viewer).firestore()
+    const pm = testEnv.authenticatedContext(users.pmA).firestore()
+    const owner = testEnv.authenticatedContext('owner-a').firestore()
+    await assertFails(getDoc(doc(viewer, 'properties', properties.pmA, 'transactions', 'fee')))
+    await assertSucceeds(getDoc(doc(viewer, 'properties', properties.pmA, 'mxrecords', 'task')))
+    await assertSucceeds(getDoc(doc(pm, 'properties', properties.pmA, 'transactions', 'fee')))
+    await assertSucceeds(getDoc(doc(owner, 'properties', properties.pmA, 'transactions', 'fee')))
+  })
+
+  it('denies client access to canonical deposit accounts, entries and deduplication markers', async () => {
+    await seedPropertyAccessFixture(testEnv)
+    const { users, properties } = emulatorPropertyFixture
+    for (const uid of [users.pmA, users.viewer, 'owner-a']) {
+      const db = testEnv.authenticatedContext(uid).firestore()
+      for (const collection of ['accounts', 'entries', 'sources', 'reversals']) {
+        const ref = doc(db, 'property_deposits', properties.pmA, collection, 'test')
+        await assertFails(getDoc(ref))
+        await assertFails(setDoc(ref, { balance_cents: 100000 }))
+      }
+    }
   })
 
   it('requires server-signed uploads for property Storage paths', async () => {

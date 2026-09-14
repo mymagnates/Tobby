@@ -1,12 +1,14 @@
 <template>
-  <q-page class="q-pa-sm sp-profile-page">
+  <q-page class="q-pa-sm sp-profile-page role-workspace-page">
     <q-card flat bordered class="sp-profile-card q-mb-sm">
-      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
+      <q-card-section
+        class="role-workspace-heading row items-center justify-between q-py-sm q-px-md"
+      >
         <div>
-          <div class="text-subtitle1 text-weight-medium">Account</div>
+          <h2 class="role-workspace-title">Account</h2>
           <div class="text-caption text-grey-7">Core account information</div>
         </div>
-        <div class="row items-center q-gutter-sm">
+        <div class="role-workspace-actions row items-center q-gutter-sm">
           <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
           <q-btn
             outline
@@ -32,21 +34,53 @@
               <span>Business</span>
               <strong>{{ accountBusinessName }}</strong>
             </div>
-            <div class="account-row account-row-editable" @click="openContactEditDialog('contact')">
+            <div
+              class="account-row account-row-editable"
+              role="button"
+              tabindex="0"
+              aria-label="Edit contact name"
+              @click="openContactEditDialog('contact')"
+              @keydown.enter.prevent="openContactEditDialog('contact')"
+              @keydown.space.prevent="openContactEditDialog('contact')"
+            >
               <span>Contact</span>
               <strong class="account-value-edit">{{ accountContactName }}</strong>
             </div>
-            <div class="account-row account-row-editable" @click="openContactEditDialog('email')">
+            <div
+              class="account-row account-row-editable"
+              role="button"
+              tabindex="0"
+              aria-label="Edit email"
+              @click="openContactEditDialog('email')"
+              @keydown.enter.prevent="openContactEditDialog('email')"
+              @keydown.space.prevent="openContactEditDialog('email')"
+            >
               <span>Email</span>
               <strong class="account-value-edit">{{ accountEmail }}</strong>
             </div>
           </div>
           <div class="col-12 col-md-6">
-            <div class="account-row account-row-editable" @click="openContactEditDialog('phone')">
+            <div
+              class="account-row account-row-editable"
+              role="button"
+              tabindex="0"
+              aria-label="Edit phone"
+              @click="openContactEditDialog('phone')"
+              @keydown.enter.prevent="openContactEditDialog('phone')"
+              @keydown.space.prevent="openContactEditDialog('phone')"
+            >
               <span>Phone</span>
               <strong class="account-value-edit">{{ accountPhone }}</strong>
             </div>
-            <div class="account-row account-row-editable" @click="openContactEditDialog('address')">
+            <div
+              class="account-row account-row-editable"
+              role="button"
+              tabindex="0"
+              aria-label="Edit address"
+              @click="openContactEditDialog('address')"
+              @keydown.enter.prevent="openContactEditDialog('address')"
+              @keydown.space.prevent="openContactEditDialog('address')"
+            >
               <span>Address</span>
               <strong class="account-value-edit">{{ accountAddress }}</strong>
             </div>
@@ -84,13 +118,27 @@
             <q-input v-model="form.service_area" outlined dense label="Service Area" readonly />
           </div>
           <div class="col-12">
-            <q-input v-model="form.services" outlined dense label="Services (comma separated)" readonly />
+            <q-input
+              v-model="form.services"
+              outlined
+              dense
+              label="Services (comma separated)"
+              readonly
+            />
           </div>
           <div class="col-12">
             <q-input v-model="form.address" outlined dense label="Business Address" readonly />
           </div>
           <div class="col-12">
-            <q-input v-model="form.bio" outlined dense type="textarea" autogrow label="Business Bio" readonly />
+            <q-input
+              v-model="form.bio"
+              outlined
+              dense
+              type="textarea"
+              autogrow
+              label="Business Bio"
+              readonly
+            />
           </div>
         </q-form>
       </q-card-section>
@@ -107,13 +155,24 @@
               <div class="text-subtitle2">AI Tokens</div>
               <div class="quota-status-copy">{{ aiTokensStatusLabel }}</div>
             </div>
-            <div class="quota-usage-copy">{{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}</div>
+            <div class="quota-usage-copy">
+              {{ aiTokensUsedDisplay }} / {{ aiTokensLimitDisplay }}
+            </div>
           </div>
-          <q-linear-progress rounded size="8px" :value="aiTokensRatio" :color="quotaColor(aiTokensStatus)" />
+          <q-linear-progress
+            rounded
+            size="8px"
+            :value="aiTokensRatio"
+            :color="quotaColor(aiTokensStatus)"
+          />
           <div class="quota-card-foot q-mt-xs">
             <span>{{ aiTokensRemainingDisplay }} left this month</span>
           </div>
-          <div v-if="aiTokensMessage" class="quota-message" :class="`text-${quotaColor(aiTokensStatus)}`">
+          <div
+            v-if="aiTokensMessage"
+            class="quota-message"
+            :class="`text-${quotaColor(aiTokensStatus)}`"
+          >
             {{ aiTokensMessage }}
           </div>
         </div>
@@ -126,11 +185,20 @@
             </div>
             <div class="quota-usage-copy">{{ storageUsedDisplay }} / {{ storageLimitDisplay }}</div>
           </div>
-          <q-linear-progress rounded size="8px" :value="storageRatio" :color="quotaColor(storageStatus)" />
+          <q-linear-progress
+            rounded
+            size="8px"
+            :value="storageRatio"
+            :color="quotaColor(storageStatus)"
+          />
           <div class="quota-card-foot q-mt-xs">
             <span>{{ storageRemainingDisplay }} remaining</span>
           </div>
-          <div v-if="storageMessage" class="quota-message" :class="`text-${quotaColor(storageStatus)}`">
+          <div
+            v-if="storageMessage"
+            class="quota-message"
+            :class="`text-${quotaColor(storageStatus)}`"
+          >
             {{ storageMessage }}
           </div>
         </div>
@@ -138,7 +206,7 @@
     </q-card>
 
     <q-dialog v-model="showContactEditDialog">
-      <q-card class="profile-contact-dialog">
+      <q-card class="profile-contact-dialog workspace-form role-workspace-dialog">
         <q-card-section class="dialog-header profile-contact-dialog__header">
           <div>
             <div class="text-h6">Update Contact Info</div>
@@ -146,30 +214,21 @@
               Keep your service provider contact details current.
             </div>
           </div>
-          <q-btn icon="close" flat round dense class="dialog-close-btn" v-close-popup />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            class="dialog-close-btn"
+            aria-label="Close contact editor"
+            v-close-popup
+          />
         </q-card-section>
         <q-card-section class="profile-contact-dialog__body">
           <div class="profile-contact-dialog__grid">
-            <q-input
-              v-model="contactForm.contact"
-              label="Contact"
-              outlined
-              dense
-            />
-            <q-input
-              v-model="contactForm.email"
-              label="Email"
-              type="email"
-              outlined
-              dense
-            />
-            <q-input
-              v-model="contactForm.phone"
-              label="Phone"
-              type="tel"
-              outlined
-              dense
-            />
+            <q-input v-model="contactForm.contact" label="Contact" outlined dense />
+            <q-input v-model="contactForm.email" label="Email" type="email" outlined dense />
+            <q-input v-model="contactForm.phone" label="Phone" type="tel" outlined dense />
             <q-input
               v-model="contactForm.address"
               label="Address"
@@ -195,7 +254,7 @@
     </q-dialog>
 
     <q-dialog v-model="showDeleteAccountDialog" persistent>
-      <q-card class="delete-account-dialog">
+      <q-card class="delete-account-dialog role-workspace-dialog">
         <q-card-section>
           <div class="text-h6 text-negative">Request Account Deletion</div>
           <p class="text-body2 q-mt-sm q-mb-none">
@@ -216,7 +275,12 @@
             v-model="deleteAccountConfirmText"
             outlined
             label="Type DELETE to confirm"
-            :rules="[(val) => String(val || '').trim().toUpperCase() === 'DELETE' || 'Type DELETE to confirm']"
+            :rules="[
+              (val) =>
+                String(val || '')
+                  .trim()
+                  .toUpperCase() === 'DELETE' || 'Type DELETE to confirm',
+            ]"
           />
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md">
@@ -331,7 +395,8 @@ const hydrateForm = () => {
   const profile = userStore.userProfile || {}
   accountBusinessName.value =
     profile.business_name || profile.sp_business_name || profile.display_name || 'Not set'
-  accountContactName.value = profile.contact_name || profile.full_name || profile.user_name || 'Not set'
+  accountContactName.value =
+    profile.contact_name || profile.full_name || profile.user_name || 'Not set'
   accountEmail.value = profile.email || userStore.user?.email || 'Not set'
   accountPhone.value =
     profile.mobile_phone || profile.phone || profile.contact_phone || profile.cellphone || 'Not set'
@@ -423,7 +488,8 @@ const submitAccountDeletionRequest = async () => {
     await requestAccountDeletion({
       userId: userStore.user?.uid || userStore.userId,
       email: userStore.userProfile?.email || userStore.user?.email || '',
-      accountType: userStore.userProfile?.account_type || userStore.userProfile?.user_category || 'sp',
+      accountType:
+        userStore.userProfile?.account_type || userStore.userProfile?.user_category || 'sp',
       source: 'web_sp_profile',
       reason: deleteAccountReason.value,
     })

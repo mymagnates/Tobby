@@ -1,7 +1,7 @@
 <template>
   <div class="property-access-invite-page">
-    <div class="property-access-invite-card">
-      <div class="text-h5 text-weight-bold">Property access invitation</div>
+    <div class="property-access-invite-card workspace-form">
+      <div class="text-h5 text-weight-bold workspace-form-heading">Property access invitation</div>
       <div class="text-body2 text-grey-7 q-mt-sm">
         Review the access level before joining this Property Account.
       </div>
@@ -94,7 +94,7 @@
             />
           </q-form>
         </div>
-        <div v-else class="q-mt-lg">
+        <div v-else class="q-mt-lg workspace-form-actions">
           <q-btn
             color="primary"
             unelevated
@@ -113,16 +113,20 @@
 </template>
 
 <script setup>
+import '../css/workspace-forms.scss'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
+import { useWebFormTheme } from '../composables/useWebFormTheme'
 import { useUserDataStore } from '../stores/userDataStore'
 import { normalizeAccountType } from '../utils/roleUtils'
 import {
   acceptPropertyAccessInviteRequest,
   getPropertyAccessInviteByToken,
 } from '../services/propertyAccessApi'
+
+useWebFormTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -245,6 +249,7 @@ const loadInvite = async () => {
 
 onMounted(loadInvite)
 </script>
+
 
 <style scoped>
 .property-access-invite-page {

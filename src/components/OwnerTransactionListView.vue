@@ -1,12 +1,13 @@
 <template>
-  <div class="owner-panel">
+  <div class="owner-panel owner-workspace-view">
     <div class="owner-panel__header">
       <div>
-        <div class="text-h6 text-weight-bold">All Transactions</div>
+        <h2 class="role-workspace-title">All Transactions</h2>
         <div class="text-caption text-grey-7">
           View-only ledger for this property. Newest transactions appear first.
         </div>
       </div>
+      <q-btn flat round icon="close" aria-label="Close transaction history" v-close-popup />
     </div>
 
     <div v-if="!items.length" class="owner-panel__empty text-body2 text-grey-6">
@@ -14,12 +15,7 @@
     </div>
 
     <q-list v-else separator class="owner-panel__list">
-      <q-item
-        v-for="item in items"
-        :key="item.id"
-        clickable
-        @click="$emit('select', item)"
-      >
+      <q-item v-for="item in items" :key="item.id" clickable @click="$emit('select', item)">
         <q-item-section>
           <q-item-label class="text-weight-medium">
             {{ item.transac_type || item.type || 'Transaction' }}
@@ -59,26 +55,3 @@ defineProps({
 
 defineEmits(['select'])
 </script>
-
-<style scoped>
-.owner-panel {
-  width: min(640px, 92vw);
-  max-width: 100%;
-  background: #fff;
-  min-height: 100%;
-  padding: 20px;
-}
-
-.owner-panel__header {
-  margin-bottom: 16px;
-}
-
-.owner-panel__empty {
-  padding: 24px 0;
-}
-
-.owner-panel__list {
-  max-height: 75vh;
-  overflow: auto;
-}
-</style>

@@ -210,17 +210,17 @@
 
           <!-- Tenant / Footer Row -->
           <div class="lease-footer-row">
+            <div class="lease-footer-context">
             <div
               v-if="lease.status === 'Rented' && leaseTenantsMap[lease.id]"
               class="lease-tenant-compact"
             >
               <q-icon name="person" size="12px" color="grey-6" class="q-mr-xs" />
               <span class="tenant-name-text">
-                {{ leaseTenantsMap[lease.id].applicant?.first_name }}
-                {{ leaseTenantsMap[lease.id].applicant?.last_name }}
+                {{ tenantCardContact(leaseTenantsMap[lease.id]).name }}
               </span>
-              <span class="tenant-contact-text">
-                {{ leaseTenantsMap[lease.id].applicant?.email }}
+              <span v-if="tenantCardContact(leaseTenantsMap[lease.id]).email" class="tenant-contact-text">
+                {{ tenantCardContact(leaseTenantsMap[lease.id]).email }}
               </span>
             </div>
             <div v-else-if="isLeaseAvailable(lease)" class="lease-share-compact">
@@ -235,6 +235,8 @@
                 @click.stop="copyShareableLink(lease.id)"
               />
             </div>
+            </div>
+            <div class="lease-card-actions">
             <q-btn
               flat
               dense
@@ -242,8 +244,12 @@
               color="primary"
               label="View"
               class="lease-view-btn"
+              no-caps
+              :ripple="false"
               @click.stop="viewLease(lease)"
             />
+            <q-btn flat no-caps icon="inventory_2" label="Inventory List" class="lease-inventory-entry" :ripple="false" @click.stop="openInventoryDialog(lease)" />
+            </div>
           </div>
         </q-card-section>
       </q-card>
@@ -262,7 +268,7 @@
           <div class="dialog-header-layout">
             <div class="header-identity">
               <div class="title-row">
-                <div class="dialog-title ellipsis">
+                <div class="dialog-title">
                   {{
                     selectedLease
                       ? selectedLease.property_id?.nickname ||
@@ -271,7 +277,7 @@
                       : 'Lease Details'
                   }}
                 </div>
-                <div v-if="selectedLease?.property_id?.address" class="title-address ellipsis">
+                <div v-if="selectedLease?.property_id?.address" class="title-address">
                   {{ selectedLease.property_id.address }}
                 </div>
               </div>
@@ -394,6 +400,13 @@
         <!-- Dialog Content -->
         <q-card-section class="dialog-content">
           <div v-if="selectedLease" class="details-container">
+            <DepositWorkspace
+              v-if="!isEditMode && canViewDeposit"
+              :property-id="getLeasePropertyId(selectedLease)"
+              :lease-id="getLeaseDocId(selectedLease)"
+              :lease-status="selectedLease.status || ''"
+              class="q-mb-md"
+            />
             <!-- Financial Information -->
             <div class="details-section">
               <div class="section-title">Financial Information</div>
@@ -434,7 +447,7 @@
                 </div>
 
                 <div class="detail-item">
-                  <div class="detail-label">Deposit</div>
+                  <div class="detail-label">Required Deposit</div>
                   <div v-if="!isEditMode" class="detail-value">
                     ${{ formatAmount(selectedLease.deposit) }}
                   </div>
@@ -497,7 +510,7 @@
                 </div>
 
                 <div class="detail-item">
-                  <div class="detail-label">Move-in Date</div>
+                  <div class="detail-label">Lease Start Date</div>
                   <div v-if="!isEditMode" class="detail-value">
                     {{ formatDate(selectedLease.start_date || selectedLease.lease_start_date) }}
                   </div>
@@ -510,6 +523,14 @@
                     class="detail-input"
                     @update:model-value="setSelectedLeaseMoveInDate"
                   />
+                </div>
+
+                <div class="detail-item">
+                  <div class="detail-label">Lease End Date</div>
+                  <div v-if="!isEditMode" class="detail-value">
+                    {{ formatDate(selectedLease.lease_end_date) }}
+                  </div>
+                  <q-input v-else v-model="selectedLease.lease_end_date" type="date" outlined dense class="detail-input" />
                 </div>
 
                 <div class="detail-item">
@@ -692,7 +713,7 @@
                     </template>
 
                     <!-- Expanded Application Details -->
-                    <q-card flat bordered class="tenant-details-card q-ma-md">
+                    <q-card flat bordered class="tenant-details-card tenant-detail-surface q-ma-md">
                       <!-- Application Info -->
                       <q-card-section class="bg-primary text-white">
                         <div class="text-subtitle1 text-weight-bold">
@@ -972,7 +993,7 @@
                     </template>
 
                     <!-- Expanded Details -->
-                    <q-card flat bordered class="tenant-details-card q-ma-md">
+                    <q-card flat bordered class="tenant-details-card tenant-detail-surface q-ma-md">
                       <!-- Personal Information -->
                       <q-card-section class="bg-secondary text-white">
                         <div class="text-subtitle1 text-weight-bold">
@@ -1093,21 +1114,21 @@
                         <div class="row q-col-gutter-md">
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Start Date</div>
-                            <div class="text-body2">{{ formatDate(tenant.lease_info?.start_date) || 'N/A' }}</div>
+                            <div class="text-body2">{{ formatDate(selectedLease.lease_start_date || selectedLease.start_date) }}</div>
                 </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">End Date</div>
-                            <div class="text-body2">{{ formatDate(tenant.lease_info?.end_date) || 'N/A' }}</div>
+                            <div class="text-body2">{{ formatDate(selectedLease.lease_end_date) }}</div>
               </div>
                           <div class="col-12 col-md-3">
-                            <div class="text-caption text-grey-7">Monthly Rent</div>
+                            <div class="text-caption text-grey-7">Lease Rent ({{ selectedLease.rate_type || 'Monthly' }})</div>
                             <div class="text-body2 text-weight-bold text-positive">
-                              ${{ tenant.lease_info?.monthly_rent || 'N/A' }}
+                              ${{ formatAmount(selectedLease.rate_amount) }}
             </div>
               </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Security Deposit</div>
-                            <div class="text-body2">${{ tenant.lease_info?.security_deposit || 'N/A' }}</div>
+                            <div class="text-body2">${{ formatAmount(selectedLease.deposit) }}</div>
             </div>
                           <div class="col-12 col-md-3">
                             <div class="text-caption text-grey-7">Payment Method</div>
@@ -1275,16 +1296,6 @@
       </q-card>
     </DetailShell>
 
-    <!-- Inventory Dialog -->
-    <q-dialog v-model="showInventoryDialog" maximized>
-      <InventoryList
-        v-if="showInventoryDialog && currentInventoryData"
-        :key="`inventory-${currentInventoryData?.id || 'inventory'}-${inventoryDialogOpenKey}`"
-        :initial-data="currentInventoryData"
-        @saved="onInventorySaved"
-        @cancel="closeInventoryDialog"
-      />
-    </q-dialog>
 
     <!-- Documents Dialog -->
     <q-dialog v-model="showDocumentsDialog" maximized>
@@ -1320,13 +1331,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import CreateLease from '../components/CreateLease.vue'
 import DetailShell from '../components/details/DetailShell.vue'
-import InventoryList from '../components/InventoryList.vue'
 import LeaseDocuments from '../components/LeaseDocuments.vue'
+import DepositWorkspace from '../components/deposits/DepositWorkspace.vue'
+import { canAccessDeposit } from '../utils/depositAccess'
 import { Notify } from 'quasar'
 import { listLeaseApplicationsForLeaseRequest } from '../services/leaseApplicationApi'
 import { listPropertyTenantsRequest } from '../services/tenantApi'
 import {
-  getLeaseInventoryRequest,
   updateLeaseRequest,
   updateLeaseStatusRequest,
 } from '../services/leaseApi'
@@ -1344,6 +1355,10 @@ const statusFilter = ref(null) // null means show all
 const selectedPropertyId = ref(null)
 const showLeaseDialog = ref(false)
 const selectedLease = ref(null)
+const canViewDeposit = computed(() => canAccessDeposit(
+  (userDataStore.userAccessibleProperties || []).find((p) => p.id === getLeasePropertyId(selectedLease.value)),
+  userDataStore.userId,
+))
 const isEditMode = ref(false)
 const editLoading = ref(false)
 const showCreateLeaseDialog = ref(false)
@@ -1356,9 +1371,6 @@ const canManageRecords = computed(() => {
 })
 
 // Inventory dialog states
-const showInventoryDialog = ref(false)
-const currentInventoryData = ref(null)
-const inventoryDialogOpenKey = ref(0)
 
 // Documents dialog states
 const showDocumentsDialog = ref(false)
@@ -1375,6 +1387,15 @@ const tenantsError = ref(null)
 
 // Tenants map for lease cards (leaseId -> tenant info)
 const leaseTenantsMap = ref({})
+function tenantCardContact(tenant) {
+  const field = (key) =>
+    String(tenant?.personal_info?.[key] || '').trim() ||
+    String(tenant?.applicant?.[key] || '').trim()
+  return {
+    name: [field('first_name'), field('last_name')].filter(Boolean).join(' ') || 'Tenant name not provided',
+    email: field('email'),
+  }
+}
 
 // Get leases the user has access to
 const userAccessibleLeases = computed(() => userDataStore.userAccessibleLeases)
@@ -1580,7 +1601,9 @@ const fetchLeaseApplications = async (leaseId) => {
 const formatDate = (date) => {
   if (!date) return 'N/A'
   try {
-    const dateObj = date.toDate ? date.toDate() : new Date(date)
+    const dateObj = date.toDate ? date.toDate() : new Date(
+      typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date,
+    )
     return dateObj.toLocaleDateString()
   } catch {
     return 'Invalid Date'
@@ -1589,6 +1612,7 @@ const formatDate = (date) => {
 
 const toDateInputValue = (date) => {
   if (!date) return ''
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date
   const dateObj = date.toDate ? date.toDate() : new Date(date)
   if (isNaN(dateObj.getTime())) return ''
   const year = dateObj.getFullYear()
@@ -1759,6 +1783,10 @@ const saveLeaseChanges = async () => {
 
   editLoading.value = true
   try {
+    if (selectedLease.value.lease_end_date && getSelectedLeaseMoveInDateInput() &&
+      selectedLease.value.lease_end_date < getSelectedLeaseMoveInDateInput()) {
+      throw new Error('Lease end date cannot be before the start date.')
+    }
     const canonicalStartDate =
       selectedLease.value.start_date ||
       selectedLease.value.lease_start_date ||
@@ -1800,17 +1828,17 @@ const quickChangeStatus = async (newStatus) => {
   if (!selectedLease.value || selectedLease.value.status === newStatus) return
 
   try {
-    // Update status locally first for immediate feedback
-    selectedLease.value.status = newStatus
-
     await updateLeaseStatusRequest({ leaseId: selectedLease.value.id, status: newStatus })
+    selectedLease.value.status = newStatus
 
     // Refresh the leases data
     await userDataStore.refreshLeases()
 
     Notify.create({
       type: 'positive',
-      message: `Status changed to ${newStatus}`,
+      message: ['Expired', 'Terminated', 'Archived'].includes(newStatus)
+        ? `Status changed to ${newStatus}. Review and settle the deposit separately; its balance was not cleared.`
+        : `Status changed to ${newStatus}`,
       timeout: 1500,
     })
   } catch (error) {
@@ -1833,7 +1861,7 @@ const confirmArchiveLease = () => {
 
   Notify.create({
     type: 'warning',
-    message: `Archive this lease? You can keep the history without deleting records.`,
+    message: `Archive this lease? History is preserved. Archiving does not refund or settle the deposit; review its balance separately.`,
     actions: [
       {
         label: 'Cancel',
@@ -1904,20 +1932,7 @@ const openInventoryDialog = async (lease = selectedLease.value) => {
     }
 
     try {
-      let inventoryRecord = await getLeaseInventoryRequest({ leaseId: normalizedLeaseDocId })
-
-      if (!inventoryRecord) {
-        Notify.create({
-          type: 'negative',
-          message: 'No inventory record found for this lease.',
-          position: 'top',
-        })
-        return
-      }
-
-      currentInventoryData.value = { ...inventoryRecord }
-      inventoryDialogOpenKey.value += 1
-      showInventoryDialog.value = true
+      await router.push(`/inventory/${encodeURIComponent(normalizedLeaseDocId)}`)
     } catch (error) {
       console.error('Error loading inventory:', error)
       Notify.create({
@@ -1929,20 +1944,6 @@ const openInventoryDialog = async (lease = selectedLease.value) => {
   }
 }
 
-const closeInventoryDialog = () => {
-  showInventoryDialog.value = false
-  currentInventoryData.value = null
-}
-
-const onInventorySaved = (inventoryData) => {
-  console.log('Inventory saved:', inventoryData)
-  closeInventoryDialog()
-  Notify.create({
-    type: 'positive',
-    message: 'Inventory saved successfully!',
-    position: 'top',
-  })
-}
 
 // Documents dialog functions
 const openDocumentsDialog = (lease = selectedLease.value) => {
@@ -2178,7 +2179,10 @@ watch(
 )
 </script>
 
+<style src="../css/tenant-details.scss" lang="scss"></style>
 <style scoped>
+.lease-footer-row { flex-wrap: wrap; gap: 8px; }
+.lease-inventory-entry { min-height: 44px; flex-shrink: 0; text-transform: none; }
 .summary-card {
   min-width: 0;
   transition: all 0.2s ease-in-out;
@@ -2242,7 +2246,7 @@ watch(
 
 .lease-card {
   min-height: 190px;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease;
   border-radius: var(--border-radius-card);
   overflow: hidden;
   border: 1px solid rgba(20, 28, 45, 0.08) !important;
@@ -2253,8 +2257,8 @@ watch(
 }
 
 .lease-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: none;
+  box-shadow: none;
   border-color: var(--q-primary);
 }
 
@@ -2391,16 +2395,21 @@ watch(
 
 /* Footer Row */
 .lease-footer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
+.lease-footer-context { min-width: 0; height: 44px; }
+.lease-card-actions { display: grid; grid-template-columns: 80px minmax(0, 1fr); align-items: stretch; gap: 8px; width: 100%; }
+.lease-card-actions :deep(.q-btn) { min-height: 44px; margin: 0; transform: none !important; }
+.lease-card-actions :deep(.q-btn__content) { white-space: normal; text-align: center; }
 
 .lease-tenant-compact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-content: center;
+  height: 44px;
+  gap: 2px 4px;
   flex: 1;
   min-width: 0;
   font-size: 12px;
@@ -2415,6 +2424,7 @@ watch(
 }
 
 .tenant-contact-text {
+  grid-column: 2;
   font-size: 11px;
   color: var(--neutral-600);
   overflow: hidden;
@@ -2428,13 +2438,13 @@ watch(
 
 .lease-share-btn {
   font-size: 12px;
-  min-height: 28px;
+  min-height: 44px;
 }
 
 .lease-view-btn {
   font-size: 12px;
   padding: 4px 10px;
-  min-height: 24px;
+  min-height: 44px;
   flex-shrink: 0;
 }
 
@@ -2455,10 +2465,10 @@ watch(
 }
 
 .dialog-header {
-  background: var(--q-secondary);
-  color: white;
+  background: var(--brand-surface, #fff);
+  color: var(--brand-ink, #243830);
+  border-bottom: 1px solid var(--brand-border, #e0e6df);
   padding: 16px 24px;
-  padding-right: 260px;
   position: relative;
 }
 
@@ -2501,7 +2511,7 @@ watch(
 }
 
 .header-identity {
-  min-width: 260px;
+  min-width: 0;
   flex: 1 1 100%;
   display: flex;
   flex-direction: column;
@@ -2516,6 +2526,7 @@ watch(
 }
 
 .dialog-title {
+  overflow-wrap: anywhere;
   font-family: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.65rem;
   font-weight: 700;
@@ -2524,6 +2535,7 @@ watch(
 }
 
 .title-address {
+  overflow-wrap: anywhere;
   font-size: 0.86rem;
   font-weight: 500;
   opacity: 0.9;
@@ -2592,14 +2604,18 @@ watch(
   border-radius: var(--border-radius-btn);
   border: 1px solid rgba(36, 87, 115, 0.22);
   font-weight: 600;
-  min-height: 36px;
+  min-height: 44px;
+  max-width: 100%;
+  text-transform: none;
+  color: var(--brand-primary, #254b39) !important;
+  box-shadow: none;
   opacity: 1 !important;
   filter: none !important;
 }
 
 .header-action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(12, 24, 36, 0.12);
+  transform: none;
+  box-shadow: none;
 }
 
 .header-close-fixed {
@@ -2618,9 +2634,8 @@ watch(
 }
 
 .header-corner-controls {
-  position: absolute;
-  top: 12px;
-  right: 14px;
+  position: static;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2628,8 +2643,7 @@ watch(
 }
 
 .header-share-fixed {
-  height: 34px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 12px;
 }
 
@@ -2651,13 +2665,71 @@ watch(
 }
 
 .header-action-btn :deep(.q-focus-helper) {
-  opacity: 1 !important;
+  opacity: 0;
 }
 
 .lease-detail-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  color: var(--brand-ink, #243830);
+  background: var(--brand-canvas, #f7f8f4);
+  overflow-y: auto;
+}
+
+.lease-detail-card :deep(.q-btn) {
+  min-height: 44px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.lease-detail-card :deep(.q-btn__content) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.lease-detail-card .dialog-header {
+  flex-shrink: 0;
+  background: var(--brand-surface, #fff) !important;
+  color: var(--brand-ink, #243830) !important;
+  border-bottom: 1px solid var(--brand-border, #e0e6df) !important;
+}
+.lease-detail-card .dialog-header :deep(.header-action-btn.q-btn) {
+  width: auto !important;
+  height: auto !important;
+  padding: 8px 12px;
+  border: 1px solid var(--brand-border, #e0e6df) !important;
+  background: var(--brand-surface, #fff) !important;
+  color: var(--brand-primary, #254b39) !important;
+}
+.lease-detail-card .dialog-header :deep(.status-chip-dropdown.q-btn),
+.lease-detail-card .dialog-header :deep(.save-btn.q-btn) {
+  background: var(--brand-primary, #254b39) !important;
+  color: #fff !important;
+  border: 1px solid var(--brand-primary, #254b39) !important;
+}
+.lease-detail-card .dialog-header :deep(.cancel-btn.q-btn) {
+  background: var(--brand-surface, #fff) !important;
+  color: var(--brand-primary, #254b39) !important;
+  border: 1px solid var(--brand-border, #e0e6df) !important;
+}
+.lease-detail-card .dialog-header :deep(.header-action-btn .q-icon) {
+  color: inherit !important;
+}
+.lease-detail-card .dialog-header :deep(.header-action-btn.text-negative) {
+  color: var(--q-negative) !important;
+}
+.lease-detail-card .dialog-header :deep(.q-btn:focus-visible) {
+  outline: 2px solid var(--brand-primary, #254b39);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .lease-detail-card .dialog-header,
+  .lease-detail-card .dialog-content { padding: 16px; }
+  .lease-detail-card .dialog-content { flex: none; overflow: visible; }
 }
 
 .dialog-content {
@@ -2690,11 +2762,13 @@ watch(
 
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 16px;
 }
 
 .detail-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
 }
@@ -2747,7 +2821,7 @@ watch(
 .dialog-close-btn:hover {
   color: var(--primary-color);
   background: rgba(36, 87, 115, 0.1);
-  transform: scale(1.1);
+  transform: none;
 }
 
 /* Applications Section Styling */
@@ -2776,7 +2850,6 @@ watch(
 
   .dialog-header {
     padding: 12px 16px;
-    padding-right: 160px;
   }
 
   .dialog-content {

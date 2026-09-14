@@ -46,3 +46,6 @@ DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+
+# Local editor configuration may contain credentials.
+/.vscode/settings.json

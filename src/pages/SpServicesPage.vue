@@ -1,14 +1,16 @@
 <template>
-  <q-page class="sp-services-page q-pa-sm">
+  <q-page class="sp-services-page role-workspace-page q-pa-sm">
     <q-card flat bordered class="services-card q-mb-sm">
-      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
+      <q-card-section
+        class="role-workspace-heading row items-center justify-between q-py-sm q-px-md"
+      >
         <div>
-          <div class="text-subtitle1 text-weight-medium">Services</div>
+          <h2 class="role-workspace-title">Services</h2>
           <div class="text-caption text-grey-7">
             Maintain your service scope for matching and marketplace discovery.
           </div>
         </div>
-        <div class="row items-center q-gutter-sm">
+        <div class="role-workspace-actions row items-center q-gutter-sm">
           <q-btn flat no-caps icon="arrow_back" label="Back" @click="goBack" />
           <q-btn
             color="primary"
@@ -40,9 +42,7 @@
               :error-message="'Maximum 20 words per description.'"
               label="Service description"
             />
-            <div class="text-caption text-grey-6 q-mt-xs">
-              {{ descriptionWordCount }}/20 words
-            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">{{ descriptionWordCount }}/20 words</div>
           </div>
           <div class="col-auto">
             <q-btn
@@ -62,7 +62,15 @@
               <q-item-label>{{ desc }}</q-item-label>
             </q-item-section>
             <q-item-section side>
-              <q-btn flat round dense icon="delete" color="negative" @click="removeDescription(index)" />
+              <q-btn
+                flat
+                round
+                dense
+                icon="delete"
+                color="negative"
+                aria-label="Remove service description"
+                @click="removeDescription(index)"
+              />
             </q-item-section>
           </q-item>
         </q-list>
@@ -76,14 +84,16 @@
       <q-card-section class="q-px-md q-py-sm">
         <div class="text-subtitle2 text-weight-medium q-mb-sm">Service Area</div>
         <div class="text-caption text-grey-7 q-mb-sm">
-          ZIP codes are generated automatically from your drawn service area and stored in background.
+          ZIP codes are generated automatically from your drawn service area and stored in
+          background.
         </div>
 
         <div class="row items-center justify-between q-mb-xs">
           <div>
             <div class="text-subtitle2 text-weight-medium">Coverage Map</div>
             <div class="text-caption text-grey-7">
-              Draw a circle, polygon, or rectangle on the map. ZIP codes inside the selected area are detected automatically.
+              Draw a circle, polygon, or rectangle on the map. ZIP codes inside the selected area
+              are detected automatically.
             </div>
           </div>
           <q-btn
@@ -150,7 +160,7 @@ const LOCAL_STORAGE_MAPS_KEY = 'handout_google_maps_api_key'
 const localGoogleMapsApiKey = ref('')
 
 const effectiveGoogleMapsApiKey = computed(() =>
-  String(localGoogleMapsApiKey.value || ENV_GOOGLE_MAPS_API_KEY || '').trim()
+  String(localGoogleMapsApiKey.value || ENV_GOOGLE_MAPS_API_KEY || '').trim(),
 )
 
 const goBack = () => {
@@ -210,7 +220,9 @@ const captureCurrentMapView = () => {
 const loadGoogleMaps = async () => {
   const key = effectiveGoogleMapsApiKey.value
   if (!key) {
-    throw new Error('Google Maps API key missing. Set VITE_GOOGLE_MAPS_API_KEY to enable map drawing.')
+    throw new Error(
+      'Google Maps API key missing. Set VITE_GOOGLE_MAPS_API_KEY to enable map drawing.',
+    )
   }
 
   if (window.google?.maps?.drawing && window.google?.maps?.geometry) return window.google
@@ -239,8 +251,8 @@ const loadGoogleMaps = async () => {
 
 const extractPostalCode = (results = []) => {
   for (const result of results) {
-    const postalComponent = (result.address_components || []).find((component) =>
-      Array.isArray(component.types) && component.types.includes('postal_code')
+    const postalComponent = (result.address_components || []).find(
+      (component) => Array.isArray(component.types) && component.types.includes('postal_code'),
     )
     if (postalComponent?.long_name && /^\d{5}$/.test(postalComponent.long_name)) {
       return postalComponent.long_name
@@ -272,7 +284,8 @@ const containsPointInOverlay = (latLng, overlay, overlayType) => {
   }
   if (overlayType === 'circle') {
     return (
-      google.maps.geometry.spherical.computeDistanceBetween(latLng, overlay.getCenter()) <= overlay.getRadius()
+      google.maps.geometry.spherical.computeDistanceBetween(latLng, overlay.getCenter()) <=
+      overlay.getRadius()
     )
   }
   if (overlayType === 'rectangle') {
@@ -314,7 +327,8 @@ const samplePointsFromOverlay = (overlay, overlayType) => {
 
   if (overlayType === 'circle') points.push(overlay.getCenter())
   if (overlayType === 'rectangle') points.push(bounds.getCenter())
-  if (overlayType === 'polygon' && overlay.getPath().getLength() > 0) points.push(overlay.getPath().getAt(0))
+  if (overlayType === 'polygon' && overlay.getPath().getLength() > 0)
+    points.push(overlay.getPath().getAt(0))
 
   return points.slice(0, 28)
 }
@@ -524,10 +538,16 @@ const initGoogleMap = async () => {
 }
 
 const addDescription = () => {
-  const text = String(newDescription.value || '').trim().replace(/\s+/g, ' ')
+  const text = String(newDescription.value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
   if (!text) return
   if (wordCount(text) > 20) {
-    Notify.create({ type: 'warning', message: 'Each description supports up to 20 words.', position: 'top' })
+    Notify.create({
+      type: 'warning',
+      message: 'Each description supports up to 20 words.',
+      position: 'top',
+    })
     return
   }
   serviceDescriptions.value.push(text)
@@ -547,9 +567,10 @@ const loadProfile = async () => {
     const fallbackCategories = Array.isArray(userProfile?.service_categories)
       ? userProfile.service_categories
       : []
-    const seededDescriptions = Array.isArray(profile?.service_descriptions) && profile.service_descriptions.length
-      ? profile.service_descriptions
-      : fallbackCategories
+    const seededDescriptions =
+      Array.isArray(profile?.service_descriptions) && profile.service_descriptions.length
+        ? profile.service_descriptions
+        : fallbackCategories
     serviceDescriptions.value = seededDescriptions.filter((item) => wordCount(item) <= 20)
     serviceZipCodes.value = Array.isArray(profile?.service_zip_codes)
       ? profile.service_zip_codes.filter((item) => /^\d{5}$/.test(String(item)))
@@ -567,7 +588,11 @@ const loadProfile = async () => {
       }
     }
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to load services profile.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to load services profile.',
+      position: 'top',
+    })
   }
 }
 
@@ -577,10 +602,15 @@ const saveProfile = async () => {
   try {
     const now = new Date().toISOString()
     const sanitizedDescriptions = serviceDescriptions.value
-      .map((item) => String(item || '').trim().replace(/\s+/g, ' '))
+      .map((item) =>
+        String(item || '')
+          .trim()
+          .replace(/\s+/g, ' '),
+      )
       .filter((item) => item && wordCount(item) <= 20)
-    const sanitizedZipCodes = [...new Set(serviceZipCodes.value.map((item) => String(item || '').trim()))]
-      .filter((item) => /^\d{5}$/.test(item))
+    const sanitizedZipCodes = [
+      ...new Set(serviceZipCodes.value.map((item) => String(item || '').trim())),
+    ].filter((item) => /^\d{5}$/.test(item))
 
     const existingUser = await getDocument(`users/${userStore.userId}`)
     const existingProfile = existingUser?.sp_service_profile || {}
@@ -605,7 +635,7 @@ const saveProfile = async () => {
           id: userStore.userId,
           sp_service_profile: nextProfile,
         },
-        userStore.userId
+        userStore.userId,
       )
     }
     serviceDescriptions.value = sanitizedDescriptions
@@ -615,7 +645,11 @@ const saveProfile = async () => {
     await userStore.loadUserProfile()
     Notify.create({ type: 'positive', message: 'Service scope saved.', position: 'top' })
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to save services profile.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to save services profile.',
+      position: 'top',
+    })
   } finally {
     saving.value = false
   }

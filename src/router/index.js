@@ -8,6 +8,7 @@ import {
 import routes from './routes'
 import { useUserDataStore } from '../stores/userDataStore'
 import { auth, authStateReady } from '../boot/firebase'
+import { isNativeMobileRuntime } from '../utils/mobileRuntime'
 
 /*
  * If not building with SSR mode, you can
@@ -86,13 +87,32 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   Router.beforeEach(async (to, from, next) => {
     const userDataStore = useUserDataStore()
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-    const needsSettledAuth = requiresAuth || to.path === '/loading' || to.path === '/public/login'
+    const needsSettledAuth = requiresAuth || to.path === '/loading' || to.path === '/public/login' || to.path.startsWith('/mobile')
 
     if (needsSettledAuth) {
       await authStateReady
       if (auth.currentUser && !userDataStore.user) {
         await userDataStore.setUser(auth.currentUser)
       }
+    }
+
+    if (isNativeMobileRuntime() && !to.path.startsWith('/mobile/')) {
+      next(auth.currentUser ? '/mobile/pm/home' : '/mobile/login')
+      return
+    }
+    if (to.path.startsWith('/mobile/') || to.meta.tenantReview) {
+      if (to.meta.mobileGuest) { next(); return }
+      if (!auth.currentUser) {
+        next({ path: '/mobile/login', query: { redirect: to.fullPath } })
+        return
+      }
+      if (!userDataStore.userProfile) await userDataStore.loadUserProfile()
+      if (to.meta.mobilePm && !userDataStore.isManagerCapableUser) {
+        next('/mobile/unavailable')
+        return
+      }
+      next()
+      return
     }
 
     const userCategory = userDataStore.userCategory

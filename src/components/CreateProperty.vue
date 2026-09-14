@@ -1,5 +1,5 @@
 <template>
-  <div class="create-property animate-fade-in" :class="{ 'create-property--dialog': inDialog }">
+  <div class="create-property workspace-form animate-fade-in" :class="{ 'create-property--dialog': inDialog }">
     <div class="page-header q-mb-lg">
       <div class="row items-center justify-between">
         <div>
@@ -14,7 +14,7 @@
             color="primary"
             text-color="white"
             label="Cancel"
-            class="top-action-btn"
+            class="top-action-btn workspace-form-cancel"
             @click="emit('cancel')"
           />
           <q-btn
@@ -25,8 +25,8 @@
             text-color="white"
             label="Save"
             class="top-action-btn"
-            :loading="loading"
-            :disable="Boolean(gateBlockMessage)"
+            :loading="submitting || loading"
+            :disable="submitting || Boolean(gateBlockMessage)"
           />
         </div>
       </div>
@@ -237,18 +237,6 @@
                 </template>
               </q-input>
             </div>
-            <div v-if="showSpecField('restroom')" class="col-12 col-md-4">
-              <q-input
-                v-model.number="propertyData.spec.restroom"
-                label="Restrooms"
-                type="number"
-                outlined
-              >
-                <template v-slot:prepend>
-                  <q-icon name="wc" />
-                </template>
-              </q-input>
-            </div>
             <div v-if="showSpecField('half_bathroom')" class="col-12 col-md-4">
               <q-input
                 v-model.number="propertyData.spec.half_bathroom"
@@ -395,6 +383,7 @@ const $q = useQuasar()
 const userDataStore = useUserDataStore()
 
 const { createDocument, loading, userId } = useFirebase()
+const submitting = ref(false)
 const gateBlockMessage = ref('')
 
 const propertyData = reactive({
@@ -411,7 +400,6 @@ const propertyData = reactive({
     story: 1,
     bedroom: 3,
     full_bathroom: 2,
-    restroom: 2,
     kitchen: 1,
     living_room: 0,
     dinning_area: 0,
@@ -459,7 +447,6 @@ const showSpecField = (field) => {
   ) {
     return isResidential
   }
-  if (field === 'restroom') return !isLand
   if (field === 'office') return isCommercial
   if (field === 'kitchen') return isResidential || isCommercial
   if (field === 'hoa') return isResidential
@@ -490,6 +477,8 @@ onMounted(() => {
 })
 
 const onSubmit = async () => {
+  if (submitting.value) return
+  submitting.value = true
   try {
     await refreshPropertyGate()
     if (gateBlockMessage.value) {
@@ -573,6 +562,23 @@ const onSubmit = async () => {
       }
     }
 
+    // Both dialog and route entry points must hydrate new memberships before
+    // loading properties. Keep refresh failures distinct from failed creation.
+    try {
+      await userDataStore.loadAllUserData()
+      if (!userDataStore.userAccessibleProperties.some((property) => property.id === propertyId)) {
+        throw new Error('Created property was not returned by the refreshed property list.')
+      }
+    } catch (refreshError) {
+      console.error('Property saved, but list refresh failed:', refreshError)
+      $q.notify({
+        type: 'warning',
+        message: 'Property saved, but the list could not be refreshed. Do not create it again.',
+        caption: 'Refresh My Properties to retry loading it.',
+        position: 'top',
+      })
+    }
+
     // Reset form
     propertyData.address = ''
     propertyData.city = ''
@@ -586,7 +592,6 @@ const onSubmit = async () => {
       story: 1,
       bedroom: 3,
       full_bathroom: 2,
-      restroom: 2,
       kitchen: 1,
       living_room: 0,
       dinning_area: 0,
@@ -622,6 +627,8 @@ const onSubmit = async () => {
       caption: error?.upgrade_hint || '',
       position: 'top',
     })
+  } finally {
+    submitting.value = false
   }
 }
 </script>

@@ -5,6 +5,10 @@ import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { createInMemoryStore } from './store.js'
+import { createReportingAccess } from './reportingAccess.js'
+import { createDepositService } from './deposits.js'
+import { createInventoryService } from './inventoryService.js'
+import { createTaskCommentsService } from './taskComments.js'
 import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_LLM_PROVIDER,
@@ -160,20 +164,6 @@ const assertRole = ({ actor, allowed, res, requestId }) => {
   if (allowed.includes(actor.role)) return true
   sendError(res, requestId, 403, 'PERMISSION_DENIED', 'Role is not allowed for this action')
   return false
-}
-
-const checkPlanGate = ({ actor, action }) => {
-  if (action === 'advanced_reports' && actor.billing.plan_name !== 'pro') {
-    return {
-      blocked: true,
-      response: {
-        gate_status: 'blocked',
-        plan_required: 'pro',
-        upgrade_hint: 'Upgrade to Pro to access advanced reports.',
-      },
-    }
-  }
-  return { blocked: false, response: { gate_status: 'ok' } }
 }
 
 const getQuotaStatus = (used, limit) => {
@@ -1765,16 +1755,6 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       return { id: doc.id, ...(doc.data() || {}) }
     } catch {
       return null
-    }
-  }
-
-  const listFirestoreTasks = async () => {
-    try {
-      const db = getDb()
-      const snap = await db.collection(TASKS_COLLECTION).get()
-      return snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
-    } catch {
-      return []
     }
   }
 
@@ -9614,8 +9594,20 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         if (!snap.exists)
           throw createApiError(404, 'UPLOAD_RESERVATION_NOT_FOUND', 'Upload reservation not found.')
         const reservation = snap.data() || {}
+        if (reservation.user_id !== actor.id)
+          throw createApiError(403, 'UPLOAD_RESERVATION_INVALID', 'Upload reservation is not available.')
+        await assertPmPropertyAccess({ actor, propertyId: reservation.property_id })
+        const committedResponse = (row) => ({
+          storage_path: row.storage_path,
+          size_bytes: row.actual_size_bytes,
+          url: getPersistentStorageUrl({
+            bucketName: getStorageBucket().name,
+            storagePath: row.storage_path,
+            downloadToken: row.download_token,
+          }),
+        })
+        if (reservation.status === 'committed') return ok(res, requestId, committedResponse(reservation))
         if (
-          reservation.user_id !== actor.id ||
           reservation.status !== 'reserved' ||
           Date.parse(reservation.expires_at) < Date.now()
         )
@@ -9638,31 +9630,31 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           Number(actor.billing.storage_limit_mb || 0)
         )
           throw createApiError(402, 'STORAGE_CREDIT_EXHAUSTED', 'Storage limit reached.')
-        actor.billing.storage_used_mb = Number(actor.billing.storage_used_mb || 0) + sizeMb
-        actor.billing.history.push({
-          id: `hist-${randomUUID()}`,
-          type: 'storage_usage',
-          size_bytes: sizeBytes,
-          storage_path: reservation.storage_path,
-          created_at: new Date().toISOString(),
-        })
-        await ref.set(
-          {
+        // A lost commit response must not charge or commit the same reservation twice.
+        const commit = await getDb().runTransaction(async (tx) => {
+          const current = await tx.get(ref)
+          const row = current.exists ? current.data() : null
+          if (!row || row.user_id !== actor.id)
+            throw createApiError(403, 'UPLOAD_RESERVATION_INVALID', 'Upload reservation is not available.')
+          if (row.status === 'committed') return { row, fresh: false }
+          if (row.status !== 'reserved' || Date.parse(row.expires_at) < Date.now())
+            throw createApiError(403, 'UPLOAD_RESERVATION_INVALID', 'Upload reservation is no longer valid.')
+          const changes = {
             status: 'committed',
             committed_at: new Date().toISOString(),
             actual_size_bytes: sizeBytes,
-          },
-          { merge: true },
-        )
-        return ok(res, requestId, {
-          storage_path: reservation.storage_path,
-          size_bytes: sizeBytes,
-          url: getPersistentStorageUrl({
-            bucketName: getStorageBucket().name,
-            storagePath: reservation.storage_path,
-            downloadToken: reservation.download_token,
-          }),
+          }
+          tx.set(ref, changes, { merge: true })
+          return { row: { ...row, ...changes }, fresh: true }
         })
+        if (commit.fresh) {
+          actor.billing.storage_used_mb = Number(actor.billing.storage_used_mb || 0) + sizeMb
+          actor.billing.history.push({
+            id: `hist-${params.id}`, type: 'storage_usage', size_bytes: sizeBytes,
+            storage_path: reservation.storage_path, created_at: commit.row.committed_at,
+          })
+        }
+        return ok(res, requestId, committedResponse(commit.row))
       } catch (error) {
         return sendError(
           res,
@@ -10339,67 +10331,52 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       })
   })
 
-  route('GET', '/reports/task-status', async ({ res, requestId }) => {
-    const firestoreTasks = await listFirestoreTasks()
-    const source = firestoreTasks.length ? firestoreTasks : [...store.tasks.values()]
-    const rows = source.map((task) => ({
-      task_id: task.id,
-      status: task.status,
-      updated_at: task.updated_at,
-    }))
-    ok(res, requestId, { rows })
-  })
-
-  route('GET', '/reports/occupancy-lease', async ({ res, requestId }) => {
-    ok(res, requestId, {
-      rows: [
-        { property_id: 'prop-1', occupied_units: 9, total_units: 10 },
-        { property_id: 'prop-2', occupied_units: 14, total_units: 20 },
-      ],
-    })
-  })
-
-  route('GET', '/reports/income-expense', async ({ actor, res, requestId }) => {
-    const gate = checkPlanGate({ actor, action: 'advanced_reports' })
-    if (gate.blocked) {
-      return sendError(
-        res,
-        requestId,
-        403,
-        'PLAN_NOT_ELIGIBLE',
-        'Current plan cannot access this report.',
-        false,
-        gate.response,
+  const reporting = createReportingAccess({ getDb })
+  const reportRoute = (fn, resource = 'Reports') => async (context) => {
+    try {
+      ok(context.res, context.requestId, await fn(context))
+    } catch (error) {
+      const status = Number(error.status) || 503
+      if (status >= 500) console.error('Resource request failed', { requestId, resource, code: error.code || null, name: error.name || 'Error' })
+      sendError(
+        context.res, context.requestId, status, error.code || 'REPORT_UNAVAILABLE',
+        status < 500 ? error.message : `${resource} could not be confirmed. Please refresh before retrying or contact support.`,
+        status >= 500,
       )
     }
-    ok(res, requestId, {
-      gate_status: gate.response.gate_status,
-      rows: [{ period: '2026-01', income: 12000, expense: 4600 }],
-    })
-  })
-
-  route('GET', '/reports/annual-tax-finance', async ({ actor, query, res, requestId }) => {
-    const gate = checkPlanGate({ actor, action: 'advanced_reports' })
-    if (gate.blocked) {
-      return sendError(
-        res,
-        requestId,
-        403,
-        'PLAN_NOT_ELIGIBLE',
-        'Current plan cannot access annual tax finance report.',
-        false,
-        gate.response,
-      )
-    }
-    const year = Number(query.get('year') || new Date().getFullYear())
-    ok(res, requestId, {
-      gate_status: gate.response.gate_status,
-      year,
-      revenue_total: 146000,
-      expense_total: 61200,
-      net_total: 84800,
-    })
-  })
+  }
+  route('GET', '/reports/options', reportRoute(reporting.options))
+  const taskComments = createTaskCommentsService({ getDb })
+  route('GET', '/properties/:propertyId/mxrecords/:taskId/comments', reportRoute(taskComments.get, 'Task comments'))
+  route('POST', '/properties/:propertyId/mxrecords/:taskId/comments', reportRoute(taskComments.append, 'Task comments'))
+  const deposits = createDepositService({ getDb })
+  const inventoryWorkflow = createInventoryService({ getDb })
+  route('GET', '/leases/:leaseId/inventory-workflow', reportRoute(inventoryWorkflow.get, 'Inventory'))
+  route('GET', '/leases/:leaseId/inventory-workflow/history', reportRoute(inventoryWorkflow.history, 'Inventory'))
+  route('POST', '/leases/:leaseId/inventory-workflow/commands', reportRoute(inventoryWorkflow.command, 'Inventory'))
+  route('GET', '/properties/:propertyId/deposits', reportRoute(deposits.getProperty, 'Deposits'))
+  route('GET', '/properties/:propertyId/leases/:leaseId/deposit', reportRoute(deposits.getLease, 'Deposits'))
+  route('POST', '/properties/:propertyId/leases/:leaseId/deposit/entries', reportRoute(deposits.postEntry, 'Deposits'))
+  route('GET', '/reports/workspace', reportRoute(reporting.workspace))
+  route('GET', '/reports/participants', reportRoute(reporting.participants))
+  route('POST', '/properties/:propertyId/report-transactions', reportRoute(reporting.createTransaction))
+  // Preserve useful legacy URLs, but never return sample or unscoped production data.
+  for (const [path, type] of [
+    ['/reports/task-status', 'tasks'],
+    ['/reports/income-expense', 'pnl'],
+  ]) {
+    route('GET', path, reportRoute((context) => {
+        const query = new URLSearchParams(context.query)
+        query.set('type', type)
+        return reporting.workspace({ ...context, query })
+      }),
+    )
+  }
+  for (const path of ['/reports/occupancy-lease', '/reports/annual-tax-finance']) {
+    route('GET', path, async ({ res, requestId }) =>
+      sendError(res, requestId, 410, 'REPORT_RETIRED', 'This report has been retired. Use the property reporting workspace.'),
+    )
+  }
 
   const handler = async (req, res) => {
     const requestId = withRequestId(req)

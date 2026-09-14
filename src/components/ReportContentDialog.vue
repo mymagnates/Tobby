@@ -1,9 +1,11 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
-    <q-card class="moderation-dialog">
-      <q-card-section class="row items-start justify-between q-pb-sm">
+    <q-card class="moderation-dialog" :class="{ 'workspace-form': mode === 'report' }">
+      <q-card-section class="row items-start justify-between q-pb-sm workspace-form-heading">
         <div>
-          <div class="text-h6">{{ mode === 'block' ? 'Block User' : 'Report Content' }}</div>
+          <div class="text-h6">
+            {{ mode === 'block' ? 'Block User' : 'Report Content' }}
+          </div>
           <div class="text-caption text-grey-7">
             {{
               mode === 'block'
@@ -12,7 +14,7 @@
             }}
           </div>
         </div>
-        <q-btn flat round dense icon="close" v-close-popup />
+        <q-btn flat round dense icon="close" aria-label="Close report or block dialog" v-close-popup />
       </q-card-section>
 
       <q-separator />
@@ -44,8 +46,15 @@
         />
       </q-card-section>
 
-      <q-card-actions align="right" class="q-pa-md">
-        <q-btn flat color="grey-7" label="Cancel" :disable="submitting" v-close-popup />
+      <q-card-actions align="right" class="q-pa-md workspace-form-actions">
+        <q-btn
+          flat
+          color="grey-7"
+          label="Cancel"
+          class="workspace-form-cancel"
+          :disable="submitting"
+          v-close-popup
+        />
         <q-btn
           :color="mode === 'block' ? 'negative' : 'primary'"
           :label="mode === 'block' ? 'Block User' : 'Submit Report'"

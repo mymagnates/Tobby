@@ -1,0 +1,24 @@
+// Shared colors only: mobile retains its native typography and layout.
+@mixin light {
+  --brand-ink: #243830;
+  --brand-muted: #65756c;
+  --brand-border: #e0e6df;
+  --brand-surface: #fff;
+  --brand-canvas: #f7f8f4;
+  --brand-primary: #254b39;
+  --brand-on-primary: #fff;
+  --brand-hover: #1e3e2f;
+  --brand-soft: #eef3eb;
+}
+
+@mixin dark {
+  --brand-ink: #e4efe7;
+  --brand-muted: #aec0b3;
+  --brand-border: #3a4c40;
+  --brand-surface: #202d26;
+  --brand-canvas: #19251e;
+  --brand-primary: #b8dec5;
+  --brand-on-primary: #19251e;
+  --brand-hover: #ccebd6;
+  --brand-soft: #2b3c30;
+}

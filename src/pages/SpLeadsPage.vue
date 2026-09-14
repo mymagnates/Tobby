@@ -1,8 +1,15 @@
 <template>
-  <q-page class="q-pa-sm">
+  <q-page class="role-workspace-page q-pa-sm">
     <q-card flat bordered>
-      <q-card-section class="row items-center justify-between q-py-sm q-px-md">
-        <div class="text-subtitle1 text-weight-medium">Leads</div>
+      <q-card-section
+        class="role-workspace-heading row items-center justify-between q-py-sm q-px-md"
+      >
+        <div>
+          <h2 class="role-workspace-title">Leads</h2>
+          <p class="role-workspace-subtitle">
+            Review published work, task details, and bid opportunities.
+          </p>
+        </div>
       </q-card-section>
 
       <q-separator />
@@ -16,6 +23,7 @@
           row-key="id"
           :loading="loading"
           :pagination="{ rowsPerPage: 8 }"
+          no-data-label="No leads available yet"
         >
           <template #body-cell-property="props">
             <q-td :props="props">
@@ -73,18 +81,14 @@
                 class="q-mr-sm"
                 @click="openLeadDetail(props.row)"
               />
-              <q-btn
-                size="sm"
-                color="primary"
-                label="Bid"
-                @click="openBidDialog(props.row)"
-              />
+              <q-btn size="sm" color="primary" label="Bid" @click="openBidDialog(props.row)" />
               <q-btn
                 size="sm"
                 flat
                 dense
                 color="grey-7"
                 icon="flag"
+                aria-label="Report lead"
                 class="q-ml-xs"
                 @click="openReportLead(props.row)"
               />
@@ -95,20 +99,26 @@
     </q-card>
 
     <q-dialog v-model="leadDetailDialog">
-      <q-card style="min-width: 720px; max-width: 980px">
+      <q-card class="role-workspace-dialog role-workspace-dialog--wide">
         <q-card-section class="row items-center justify-between">
           <div>
-            <div class="text-subtitle1 text-weight-medium">{{ selectedLeadDetail?.title || 'Lead Details' }}</div>
+            <div class="text-subtitle1 text-weight-medium">
+              {{ selectedLeadDetail?.title || 'Lead Details' }}
+            </div>
             <div class="text-caption text-grey-6">{{ getLeadTaskLabel(selectedLeadDetail) }}</div>
           </div>
-          <q-btn flat round dense icon="close" v-close-popup />
+          <q-btn flat round dense icon="close" aria-label="Close lead details" v-close-popup />
         </q-card-section>
         <q-separator />
 
         <q-card-section v-if="selectedLeadDetail">
           <div class="lead-detail-summary q-mb-md">
-            <q-chip color="primary" text-color="white" dense>{{ selectedLeadDetail.status || 'open' }}</q-chip>
-            <q-chip color="grey-8" text-color="white" dense>{{ getCommentCountLabel(selectedLeadDetail) }}</q-chip>
+            <q-chip color="primary" text-color="white" dense>{{
+              selectedLeadDetail.status || 'open'
+            }}</q-chip>
+            <q-chip color="grey-8" text-color="white" dense>{{
+              getCommentCountLabel(selectedLeadDetail)
+            }}</q-chip>
             <q-chip v-if="selectedLeadDetail.urgency" color="orange" text-color="white" dense>
               {{ selectedLeadDetail.urgency }}
             </q-chip>
@@ -172,12 +182,19 @@
             </div>
             <div class="lead-detail-item full-width">
               <div class="lead-detail-label">Scope</div>
-              <div class="lead-detail-value">{{ selectedLeadDetail.scope || 'No scope provided.' }}</div>
+              <div class="lead-detail-value">
+                {{ selectedLeadDetail.scope || 'No scope provided.' }}
+              </div>
             </div>
             <div class="lead-detail-item full-width">
               <div class="lead-detail-label">Semantic Tags</div>
               <div class="lead-detail-value">
-                {{ Array.isArray(selectedLeadDetail.semantic_tags) && selectedLeadDetail.semantic_tags.length ? selectedLeadDetail.semantic_tags.join(', ') : 'N/A' }}
+                {{
+                  Array.isArray(selectedLeadDetail.semantic_tags) &&
+                  selectedLeadDetail.semantic_tags.length
+                    ? selectedLeadDetail.semantic_tags.join(', ')
+                    : 'N/A'
+                }}
               </div>
             </div>
           </div>
@@ -185,16 +202,26 @@
           <div class="lead-comments-panel">
             <div class="row items-center justify-between q-mb-sm">
               <div class="text-subtitle2 text-weight-medium">Task Comments</div>
-              <div class="text-caption text-grey-6">{{ getCommentCountLabel(selectedLeadDetail) }}</div>
+              <div class="text-caption text-grey-6">
+                {{ getCommentCountLabel(selectedLeadDetail) }}
+              </div>
             </div>
-            <div v-if="!getLeadComments(selectedLeadDetail).length" class="text-caption text-grey-6">
+            <div
+              v-if="!getLeadComments(selectedLeadDetail).length"
+              class="text-caption text-grey-6"
+            >
               No task comments were published with this lead.
             </div>
             <q-list v-else separator bordered class="lead-comments-list">
-              <q-item v-for="(comment, index) in getLeadComments(selectedLeadDetail)" :key="comment.id || `${comment.created_at || 'comment'}-${index}`">
+              <q-item
+                v-for="(comment, index) in getLeadComments(selectedLeadDetail)"
+                :key="comment.id || `${comment.created_at || 'comment'}-${index}`"
+              >
                 <q-item-section>
                   <q-item-label class="text-weight-medium">
-                    {{ comment.user_name || comment.author_name || comment.user_id || 'Task Comment' }}
+                    {{
+                      comment.user_name || comment.author_name || comment.user_id || 'Task Comment'
+                    }}
                   </q-item-label>
                   <q-item-label caption>
                     {{ comment.action_type || 'comment' }} · {{ formatDate(comment.created_at) }}
@@ -238,11 +265,7 @@
       </q-card>
     </q-dialog>
 
-    <SpBidDialog
-      v-model="bidDialog"
-      :lead="selectedLead"
-      @submitted="handleBidSubmitted"
-    />
+    <SpBidDialog v-model="bidDialog" :lead="selectedLead" @submitted="handleBidSubmitted" />
 
     <ReportContentDialog
       v-model="moderationDialog"
@@ -289,7 +312,9 @@ const columns = [
 const loadBlockedUsers = async () => {
   try {
     const response = await listBlockedUsers()
-    const ids = (response?.items || []).map((item) => String(item.blocked_user_id || '').trim()).filter(Boolean)
+    const ids = (response?.items || [])
+      .map((item) => String(item.blocked_user_id || '').trim())
+      .filter(Boolean)
     blockedUserIds.value = new Set(ids)
   } catch {
     blockedUserIds.value = new Set()
@@ -302,7 +327,11 @@ const loadLeads = async () => {
     const leads = await spPortalApi.listLeads(userStore.userId)
     rows.value = leads.filter((lead) => !blockedUserIds.value.has(getLeadReporterId(lead)))
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.message || 'Failed to load leads.', position: 'top' })
+    Notify.create({
+      type: 'negative',
+      message: error.message || 'Failed to load leads.',
+      position: 'top',
+    })
   } finally {
     loading.value = false
   }
@@ -351,8 +380,16 @@ const getLeadPropertyName = (lead) => {
 
 const getLeadCityStateZip = (lead) => {
   if (!lead) return 'N/A'
-  const city = String(lead.property_city || lead.city || lead.property?.address?.city || lead.property?.city || '').trim()
-  const state = String(lead.property_state || lead.state || lead.property?.address?.state || lead.property?.state || '').trim()
+  const city = String(
+    lead.property_city || lead.city || lead.property?.address?.city || lead.property?.city || '',
+  ).trim()
+  const state = String(
+    lead.property_state ||
+      lead.state ||
+      lead.property?.address?.state ||
+      lead.property?.state ||
+      '',
+  ).trim()
   const zip = String(
     lead.property_zip ||
       lead.zip ||
@@ -374,28 +411,37 @@ const getLeadComments = (lead) => {
   return (Array.isArray(lead.comments) ? lead.comments : [])
     .filter(Boolean)
     .map((comment, index) =>
-      typeof comment === 'string'
-        ? { id: `comment-${index}`, comment, created_at: null }
-        : comment,
+      typeof comment === 'string' ? { id: `comment-${index}`, comment, created_at: null } : comment,
     )
-    .filter((comment, index) => !reportedContentIds.value.has(`task_comment:${getCommentId(comment, index)}`))
+    .filter(
+      (comment, index) =>
+        !reportedContentIds.value.has(`task_comment:${getCommentId(comment, index)}`),
+    )
     .filter((comment) => !blockedUserIds.value.has(getCommentAuthorId(comment)))
     .sort((a, b) =>
-      String(b.created_at || b.updated_at || '').localeCompare(String(a.created_at || a.updated_at || '')),
+      String(b.created_at || b.updated_at || '').localeCompare(
+        String(a.created_at || a.updated_at || ''),
+      ),
     )
 }
 
 const getLeadReporterId = (lead) =>
-  String(lead?.creator_id || lead?.created_by || lead?.pm_user_id || lead?.owner_user_id || '').trim()
+  String(
+    lead?.creator_id || lead?.created_by || lead?.pm_user_id || lead?.owner_user_id || '',
+  ).trim()
 
 const getLeadReporterName = (lead) =>
-  String(lead?.creator_name || lead?.pm_name || lead?.owner_name || lead?.created_by_name || '').trim()
+  String(
+    lead?.creator_name || lead?.pm_name || lead?.owner_name || lead?.created_by_name || '',
+  ).trim()
 
 const getCommentId = (comment, index = 0) =>
   String(comment?.id || comment?.comment_id || comment?.created_at || `comment-${index}`)
 
 const getCommentAuthorId = (comment) =>
-  String(comment?.user_id || comment?.author_id || comment?.created_by || comment?.creator_id || '').trim()
+  String(
+    comment?.user_id || comment?.author_id || comment?.created_by || comment?.creator_id || '',
+  ).trim()
 
 const getCommentAuthorName = (comment) =>
   String(comment?.user_name || comment?.author_name || comment?.created_by_name || '').trim()
@@ -426,7 +472,8 @@ const openReportComment = (comment, index = 0) => {
     content_id: commentId,
     content_path: leadId ? `marketplace_leads/${leadId}/comments/${commentId}` : '',
     reported_user_id: getCommentAuthorId(comment) || getLeadReporterId(selectedLeadDetail.value),
-    reported_user_display_name: getCommentAuthorName(comment) || getLeadReporterName(selectedLeadDetail.value),
+    reported_user_display_name:
+      getCommentAuthorName(comment) || getLeadReporterName(selectedLeadDetail.value),
     source: 'sp_leads',
   }
   moderationDialog.value = true
@@ -445,7 +492,9 @@ const openBlockCommentAuthor = (comment) => {
 const handleContentReported = () => {
   const content = moderationContent.value || {}
   if (content.content_type && content.content_id) {
-    reportedContentIds.value = new Set(reportedContentIds.value).add(`${content.content_type}:${content.content_id}`)
+    reportedContentIds.value = new Set(reportedContentIds.value).add(
+      `${content.content_type}:${content.content_id}`,
+    )
   }
 }
 
@@ -491,13 +540,15 @@ const formatDate = (value) => {
 }
 
 const handleBidSubmitted = (res) => {
-  const leadDocId = selectedLead.value?.id || selectedLead.value?.lead_doc_id || selectedLead.value?.lead_id
+  const leadDocId =
+    selectedLead.value?.id || selectedLead.value?.lead_doc_id || selectedLead.value?.lead_id
   rows.value = rows.value.filter((row) => (row.id || row.lead_doc_id || row.lead_id) !== leadDocId)
   selectedLead.value = null
   const remaining = res?.credits_balance
   Notify.create({
     type: 'positive',
-    message: remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
+    message:
+      remaining === undefined ? 'Bid submitted.' : `Bid submitted. Credits left: ${remaining}`,
     position: 'top',
   })
 }

@@ -1,0 +1,394 @@
+@use './workspace-palette' as palette;
+
+.ios-workspace,
+.ios-dialog {
+  @include palette.light;
+  --ios-bg: var(--brand-canvas);
+  --ios-text: var(--brand-ink);
+  --ios-muted: var(--brand-muted);
+  --ios-line: var(--brand-border);
+  --ios-accent: var(--brand-primary);
+}
+body.body--dark .ios-workspace,
+body.body--dark .ios-dialog {
+  @include palette.dark;
+}
+.ios-workspace {
+  background: var(--ios-bg);
+  color: var(--ios-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 0;
+  font-size: 16px;
+  .q-page {
+    padding: max(12px, env(safe-area-inset-top)) 20px 24px;
+    max-width: 760px;
+    margin: auto;
+  }
+  .q-btn {
+    letter-spacing: 0;
+    min-height: 44px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .q-field {
+    font-size: 16px;
+  }
+  h1 {
+    font-size: 24px;
+    line-height: 1.3;
+    margin: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  h2 {
+    font-size: 18px;
+    line-height: 1.4;
+    margin: 24px 0 12px;
+    font-weight: 500;
+  }
+  h3 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 500;
+  }
+  p {
+    line-height: 1.5;
+  }
+  .ios-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    margin-bottom: 16px;
+  }
+  .ios-header-action {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .ios-context {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ios-muted);
+    margin-bottom: 16px;
+  }
+  .ios-context span {
+    overflow-wrap: anywhere;
+  }
+  .ios-muted {
+    color: var(--ios-muted);
+    font-size: 14px;
+  }
+  .ios-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0;
+    border: 0;
+    border-bottom: 1px solid var(--ios-line);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    text-decoration: none;
+  }
+  button.ios-row,
+  a.ios-row {
+    cursor: pointer;
+    min-height: 48px;
+    &:active {
+      background: var(--brand-soft);
+    }
+  }
+  a.ios-support-link {
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover,
+    &:active {
+      background: transparent;
+      box-shadow: none;
+      transform: none;
+    }
+    &:focus:not(:focus-visible) {
+      outline: none;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--ios-accent);
+      outline-offset: 3px;
+    }
+  }
+  .ios-row-body {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .ios-row-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.45;
+  }
+  .ios-row-meta {
+    display: block;
+    color: var(--ios-muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .ios-tag {
+    font-size: 12px;
+    color: #865718;
+    white-space: nowrap;
+  }
+  .ios-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 20px;
+    h2 {
+      margin: 0;
+    }
+  }
+  .ios-attention-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ios-accent);
+  }
+  .ios-property-select {
+    margin-bottom: 16px;
+  }
+  .q-field__native,
+  .q-field__input,
+  .q-field__label,
+  .q-field__marginal {
+    color: var(--ios-text);
+  }
+  .q-field--outlined .q-field__control:before {
+    border-color: var(--ios-line);
+  }
+  .ios-property {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--ios-line);
+  }
+  .ios-property-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .ios-primary {
+    background: var(--ios-accent);
+    color: var(--brand-on-primary);
+  }
+  // Isolate this action from global animated buttons and Quasar's focus overlay.
+  .q-btn.ios-new-record {
+    background: transparent !important;
+    color: var(--ios-accent) !important;
+    border: 1px solid var(--ios-accent) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &:active {
+      background: var(--brand-soft) !important;
+    }
+    &:focus:not(:focus-visible) {
+      outline: none;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--ios-accent) !important;
+      outline-offset: 3px;
+    }
+    &::before {
+      box-shadow: none !important;
+    }
+    .q-icon {
+      color: inherit !important;
+    }
+    .q-focus-helper {
+      outline: none !important;
+      box-shadow: none !important;
+      opacity: 0 !important;
+    }
+  }
+  .ios-error {
+    padding: 12px;
+    border-left: 3px solid #bd4b4b;
+    background: #fff7f7;
+    color: #893c3c;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+  }
+  .ios-empty {
+    padding: 36px 0;
+    text-align: center;
+    color: var(--ios-muted);
+  }
+  .ios-tabs {
+    background: var(--brand-surface);
+    color: var(--ios-muted);
+    border-top: 1px solid var(--ios-line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ios-tabs nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 760px;
+    margin: auto;
+  }
+  .ios-tabs a {
+    color: inherit;
+    text-decoration: none;
+    min-height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+  }
+  .ios-tabs a[aria-current='page'] {
+    color: var(--ios-accent);
+    background: var(--brand-soft);
+  }
+  .ios-actions {
+    position: sticky;
+    bottom: var(--ios-actions-bottom, 0px);
+    padding: 12px 0;
+    background: var(--ios-bg);
+    display: flex;
+    gap: 10px;
+    z-index: 2;
+  }
+  .ios-actions > .q-btn {
+    flex: 1;
+  }
+  .ios-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .ios-photo {
+    width: 84px;
+    position: relative;
+  }
+  .ios-photo img {
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+  .ios-photo button {
+    min-height: 32px;
+  }
+  .ios-note {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--ios-line);
+  }
+  .ios-note p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 6px 0;
+  }
+  .ios-review-entry {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--ios-line);
+  }
+  .ios-form {
+    display: grid;
+    gap: 16px;
+  }
+  .ios-shared-form .q-card {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .ios-shared-form .composer-head {
+    display: none;
+  }
+  .ios-shared-form .q-card__section {
+    padding-inline: 0;
+  }
+  .ios-shared-form .text-h6 {
+    font-size: 18px;
+    font-weight: 500;
+  }
+  .ios-shared-form .text-weight-bold {
+    font-weight: 500;
+  }
+  .ios-segments {
+    display: flex;
+    border-bottom: 1px solid var(--ios-line);
+    gap: 20px;
+  }
+  .ios-segments button {
+    border: 0;
+    background: none;
+    color: var(--ios-muted);
+    min-height: 44px;
+    font: inherit;
+    padding: 8px 0;
+    cursor: pointer;
+  }
+  .ios-segments button[aria-selected='true'] {
+    color: var(--ios-accent);
+    border-bottom: 2px solid currentColor;
+  }
+  .ios-signature {
+    width: 100%;
+    height: 160px;
+    display: block;
+    background: white;
+    border: 1px solid var(--ios-line);
+    border-radius: 8px;
+    touch-action: none;
+  }
+  .ios-login {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 420px;
+  }
+  .ios-login h1 {
+    margin-bottom: 28px;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ios-accent);
+    outline-offset: 3px;
+  }
+}
+.ios-dialog {
+  width: min(100%, 520px);
+  max-width: 100%;
+  border-radius: 8px !important;
+  padding: 20px;
+  color: var(--ios-text);
+  background: var(--brand-surface);
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  .q-btn,
+  .q-item {
+    min-height: 48px;
+  }
+  .ios-receipt {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    object-fit: contain;
+    margin-block: 16px;
+    border-radius: 8px;
+  }
+}
+@media (max-width: 360px) {
+  .ios-workspace .q-page {
+    padding-inline: 14px;
+  }
+}

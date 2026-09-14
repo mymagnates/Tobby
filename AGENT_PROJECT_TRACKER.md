@@ -26,6 +26,10 @@ Use it to track current priorities, assigned work, execution results, and blocke
 
 ## Current Focus
 
+- Web buttons, active SP/Owner visual alignment and report PDF export completed locally; see `docs/WEB_STYLE_AND_REPORT_PDF_UPDATE.md`. Build, 357 targeted tests, mocked browser checks and PDF startup-splitting check passed. Deployment/commit remain pending.
+- Property/Lease deposit tracking implemented locally; see `docs/DEPOSIT_TRACKING_V01.md`. API deployment and authenticated release smoke remain pending. No live financial test records created.
+- Reporting rebuild implemented locally: three property reports, Owner portfolio scope, and actual PM account statement. See `docs/REPORTING_REBUILD.md`; rules emulator and production smoke verification remain release gates.
+- Unify Web/iOS lease inventory around one list per lease, item-level evidence, bilateral batch signatures, and bilateral closure. See `docs/INVENTORY_SHARED_WORKFLOW_V02.md`; shared API integration is not deployed.
 - Stabilize the product for launch.
 - Keep the mobile path aligned with the current Quasar/Capacitor direction.
 - Keep the SP lead flow simple: task -> confirmed publish -> lead -> bid.
@@ -48,6 +52,9 @@ Use it to track current priorities, assigned work, execution results, and blocke
 
 | Priority | Task | Status | Owner | Notes |
 | --- | --- | --- | --- | --- |
+| P1 | Property-based lease deposit balances, refunds and settlement | implemented_local | Web/backend coordinator | Lease details + Property more menu > Deposits; backend-only canonical ledger, reversal/idempotency/overdraft guards, legacy links and CSV. See `docs/DEPOSIT_TRACKING_V01.md`; deployment pending. |
+| P1 | Rebuild Reporting around property and actual PM account scopes | api_deployed_web_local | Reporting coordinator | 261 tests and responsive offline browser checks passed. User-approved mkpl/API and index deployment completed; both account-ID indexes verified READY. Hosting/rules unchanged. Java/rules emulator and authenticated release checks remain pending; see `docs/REPORTING_REBUILD.md`. |
+| P0 | Share redesigned inventory flow between Web and iOS | in_progress | iOS / Shared Frontend Agent | Shared InventoryWorkspace wired to Web lease dialog and mobile route; local fixture verified. API registration, tenant uploads, persistence, and production rollout remain blocked pending explicit backend authorization. |
 | P0 | Stabilize marketplace lead/bid/assignment flow | completed | Backend Agent | Core monetization path stabilized in `/Users/MacAirEZ/.codex/worktrees/e4cc/projectTobby`; focused backend suite passing |
 | P0 | Confirm mobile app structure and Capacitor readiness | complete | iOS Agent | Verified active Capacitor native project under `src-capacitor/ios/App`; iOS build/sync passed |
 | P0 | Fix auth/session issues in Firebase boot/composables | completed | Frontend Agent | Verified current boot/auth observer flow and aligned tests with always-on LOCAL persistence behavior |
@@ -228,6 +235,17 @@ Use it to track current priorities, assigned work, execution results, and blocke
 
 ## Execution Log
 
+### 2026-09-10 - Property / Lease Deposit Tracking
+
+- Added a backend-only deposit ledger and owner/manager-authorized APIs, Lease detail panel and Property Deposits summary with filters/CSV. Required deposit is distinct from actual funds received.
+- Receipts, refunds, deductions, reconciliation, reopen and append-only reversals are versioned and idempotent. Ending or archiving a lease never clears its balance. Existing receipts/refunds can be linked without duplicate General Ledger transactions; mistaken links can be reversed and reassigned.
+- Deposit movements remain outside P&L; any deduction income classification requires separate bookkeeping. No bank payouts or financial record migration performed.
+- Verification: 289 focused tests, targeted ESLint, SPA build and isolated Playwright desktop/390px/320px flows passed. Added rules denial coverage, not run without Java/emulator. Screenshots in `/private/tmp/handout-deposit-qa/`.
+- Pending: explicit deployment approval/source-scope review and production authenticated smoke test. No new deposit API/Hosting/rules/index deployment, commit or push. Details: `docs/DEPOSIT_TRACKING_V01.md`.
+
+- 2026-09-09: Fixed missing newly created rent in Reports. Read-only source check confirmed valid 2700 rental income dated September 10, excluded by local September 9 cutoff. Forms now default to local calendar dates; `This month` covers the full month. Confirmed transaction saves invalidate the report and a manual Refresh action is available. Source data unchanged. Real-data recomputation gave income 2700 / expenses 200 / net 2500; 219 focused tests, Chicago-evening offline browser auto-refresh regression, lint and Web build passed. This follow-up changes local Web source only; no additional deployment or commit.
+- 2026-09-09: Fixed live dev Reports 404: localhost `/api` was proxying to the undeployed old mkpl service. With explicit approval deployed only `functions:mkpl,firestore:indexes`; all four unauthenticated endpoint probes now return 401 rather than 404. Both account-ID indexes verified READY. Added route-owned heading metadata to remove duplicate Reports title and a specific missing-deployment error; 261 tests, targeted lint, production build and offline browser regression passed. Hosting and rules not released; no commit. Real authenticated data verification remains pending.
+- 2026-09-09: Reporting coordinator integrated the three reporting subagents' partial work after usage-limit interruptions. Implemented canonical property reports, Owner portfolio selection, current PM account flows/earned fees, explicit manager attribution in transaction creation, verified-token APIs, viewer finance denial, CSV metadata and responsive UX. Verification: 252 focused tests and 6 local HTTP contract tests; Playwright desktop/390/320px plus failure/retry, stale-result and viewer cases; production Web build. No deployment or commit. Rules emulator is pending because Java is missing; production Firebase account/index checks remain mandatory. Details: `docs/REPORTING_REBUILD.md`.
 ### 2026-06-14 - Frontend Agent Privacy, Deletion, and Mobile Quota Fixes
 
 - Added a real `/privacy` SPA page and redirected `/public/privacy` to it so the web privacy policy link no longer falls into 404.
@@ -417,7 +435,16 @@ Use it to track current priorities, assigned work, execution results, and blocke
 
 ## Blockers
 
-- None at the moment.
+- Inventory v2: permission review rejected shared API/primary-tenant upload authorization changes. Explicit user approval is still required. New UI uses read-only legacy fallback when workflow endpoints are absent; do not deploy it as a completed replacement.
+- Inventory v2 release gates: transactional version/history persistence, participant authorization, old PUT compatibility, tenant notes moderation, real authenticated cross-device tests, and iPhone photo/signature checks remain unverified.
+
+### 2026-09-08 - Shared Web/iOS Inventory Frontend
+
+- Restored the Vue/Capacitor source in the main checkout and added the minimal PM Home / Property / Account shell. Existing Swift source was not modified.
+- Web `LeasesPage` and iOS use `components/inventory/InventoryWorkspace.vue`: move-in/inspection/move-out, item-level photos/notes, closure requests, batch review, and historical signatures.
+- Preserved legacy move-in/move-out evidence and keys as read-only records, without inventing signatures. Fixed responsive sticky actions, reactive draft cloning, and stale lease-response handling.
+- Verification: 23 focused unit tests passed; targeted ESLint, Web build, Capacitor UI build and iOS sync passed. CUA checked a 390x844 mobile viewport and 1280x800 Web fixture, including move-out draft save and stored signature rendering.
+- These are local fixture/state tests, not production end-to-end evidence. The backend reducer is not connected to API routes; no deployment, Xcode archive, or device installation was performed. AI and full profile editing remain outside the newly rebuilt shell.
 
 ### 2026-07-29 - Security and Tenant Access Completion
 
@@ -463,6 +490,14 @@ Use it to track current priorities, assigned work, execution results, and blocke
 - Deployed `functions:mkpl`, `storage.rules`, and `hosting:main` to `tobbythebutler`; function state verified as `ACTIVE`.
 - Production smoke test confirmed `POST https://tobbythebutler.web.app/api/storage/upload-reservations` resolves to the new endpoint and correctly returns `UNAUTHENTICATED` without a Firebase token.
 - Remaining manual verification: sign in as a PM with an active property role, upload a small image, confirm storage usage increments, then verify a full quota returns `STORAGE_CREDIT_EXHAUSTED` before upload.
+
+### 2026-09-10 - Web Buttons, Role Views and Report PDF
+
+- Subagent work integrated in the main checkout: shared button sizing/alignment and light/dark palette; seven active SP pages plus Owner dashboard/history visual consistency. Existing access rules and launch hiding preserved.
+- Added report PDF export with user-editable company/property title, full loaded report rows, totals, caveats and page numbers. Non-Latin content uses explicit Print / Save PDF fallback. Optional backend company prefill field added locally.
+- Isolated PDF dependencies from startup and fixed shared helper placement; production build and static import graph check pass. Shared form stylesheet imports also repaired for production compilation.
+- Verified 357 targeted tests, targeted ESLint, build and diff check; mocked browser checks cover six button scenarios plus native scope, 24 role-view scenarios, and reporting with a real PDF download. Rendered the downloaded PDF for visual inspection. No authenticated production workflow or live financial writes performed.
+- Not deployed, committed or pushed. Review other in-progress checkout changes before release. See `docs/WEB_STYLE_AND_REPORT_PDF_UPDATE.md` for file scope, commands and limitations.
 
 ## Notes for Next Agent
 

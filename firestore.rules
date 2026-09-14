@@ -106,10 +106,13 @@ service cloud.firestore {
     }
 
     // View-only members can inspect the Property Account but cannot change any
-    // operational record. Owner and manager writes remain compatible with the
+    // operational record. Financial reads require owner/manager access; task
+    // reads remain available to viewers. Owner and manager writes preserve the
     // existing PM/PO workflow.
     match /properties/{propertyId}/{collectionId}/{document=**} {
-      allow read: if isPropertyMember(propertyId);
+      allow read: if collectionId == 'transactions'
+        ? canWriteProperty(propertyId)
+        : isPropertyMember(propertyId);
       allow write: if canWriteProperty(propertyId);
     }
 

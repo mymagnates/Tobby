@@ -2,16 +2,27 @@
   <q-layout view="hHh lpr fFf" class="guest-layout">
     <q-header class="guest-header">
       <q-toolbar class="guest-toolbar">
-        <div class="logo-container" @click="goHome">
-          <span class="guest-brand-mark">H</span>
+        <a
+          class="logo-container"
+          href="/landing.html"
+          aria-label="Handout home"
+          @click.prevent="goHome"
+        >
+          <img
+            src="/icons/favicon-32x32.png"
+            class="guest-brand-mark"
+            width="28"
+            height="28"
+            alt=""
+          />
           <span>Handout</span>
-        </div>
+        </a>
         <div class="guest-actions">
           <q-btn
             v-if="isLoginPage"
             unelevated
             no-caps
-            label="Get Started"
+            label="Create account"
             color="primary"
             class="primary-action"
             @click="goToRegister"
@@ -20,7 +31,7 @@
             v-else
             outline
             no-caps
-            label="Sign In"
+            label="Sign in"
             color="primary"
             class="secondary-action"
             @click="goToLogin"
@@ -69,11 +80,17 @@ const currentYear = computed(() => {
 
 // Navigate to login
 const goToLogin = () => {
-  router.push('/public/login')
+  router.push({
+    path: '/public/login',
+    query: route.query.redirect ? { redirect: route.query.redirect } : {},
+  })
 }
 
 const goToRegister = () => {
-  router.push('/public/register')
+  router.push({
+    path: '/public/register',
+    query: route.query.redirect ? { redirect: route.query.redirect } : {},
+  })
 }
 
 const goHome = () => {
@@ -84,139 +101,131 @@ const goHome = () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
-
 .guest-layout {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(39, 194, 164, 0.08), transparent 26%), #f4f7f9;
-  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100dvh;
+  background: #f7f8f4;
+  color: #243830;
+  font-family: 'Avenir Next', 'Sora', 'Trebuchet MS', sans-serif;
 }
-
 .guest-header {
-  background: rgba(16, 34, 52, 0.96);
-  backdrop-filter: blur(12px);
+  background: #f7f8f4f5;
+  color: #243830;
+  border-bottom: 1px solid #dfe6dc;
   box-shadow: none;
-  border-bottom: 1px solid rgba(162, 238, 220, 0.14);
-  color: #f8fcff;
+  backdrop-filter: blur(12px);
 }
-
 .guest-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(1280px, 100%);
-  min-height: 78px;
+  width: min(1200px, 100%);
+  min-height: 72px;
   margin: 0 auto;
-  padding: 0 48px;
+  padding: 0 36px;
+  font-family: inherit;
 }
-
 .logo-container {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-family: 'Sora', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  cursor: pointer;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  color: inherit;
+  text-decoration: none;
 }
-
 .guest-brand-mark {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: #15364a;
-  background: #27c2a4;
-  font-family: var(--font-title);
-  font-size: 0.8rem;
-  font-weight: 800;
+  display: block;
+  border-radius: 7px;
 }
-
-.primary-action,
-.secondary-action {
-  font-weight: 600;
-  padding: 8px 20px;
-  border-radius: 10px !important;
+.guest-layout .guest-header .q-btn.primary-action,
+.guest-layout .guest-header .q-btn.secondary-action {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px !important;
+  font-family: inherit;
+  font-size: 13px;
+  box-shadow: none;
 }
-
-body .guest-layout .q-btn.primary-action {
-  background: #16786a !important;
-  color: #fff !important;
-  box-shadow: 0 8px 18px rgba(22, 120, 106, 0.16);
+.guest-layout .guest-header .q-btn.primary-action {
+  background: #254b39 !important;
+  color: white !important;
+  border: 1px solid #254b39 !important;
 }
-
-body .guest-layout .q-btn.secondary-action {
-  border-color: #16786a !important;
-  color: #16786a !important;
+.guest-layout .guest-header .q-btn.secondary-action {
   background: transparent !important;
+  color: #254b39 !important;
+  border: 1px solid #dfe6dc !important;
 }
-
 .guest-footer {
   position: static;
-  background: #10283c;
+  border-top: 1px solid #dfe6dc;
+  background: #f7f8f4;
 }
-
 .footer-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 20px;
-  max-width: 1280px;
+  gap: 14px 24px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 48px;
+  padding: 22px 36px;
 }
-
 .footer-logo {
-  font-family: 'Sora', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  color: #fff;
+  display: none;
 }
-
 .footer-links {
   display: flex;
   align-items: center;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 8px 20px;
 }
-
 .footer-link {
-  color: rgba(255, 255, 255, 0.5);
+  color: #65756c;
+  font-size: 11px;
   text-decoration: none;
-  font-size: 13px;
-  transition: color 0.2s ease;
+  padding-block: 10px;
 }
-
 .footer-link:hover {
-  color: var(--accent-light);
+  color: #254b39;
+  text-decoration: underline;
 }
-
 .footer-copy {
-  color: rgba(255, 255, 255, 0.36);
-  font-size: 12px;
+  margin-left: auto;
+  color: #65756c;
+  font-size: 10px;
 }
-
-@media (max-width: 768px) {
+.logo-container:focus-visible,
+.footer-link:focus-visible {
+  outline: 2px solid #14806d;
+  outline-offset: 4px;
+}
+@media (max-width: 760px) {
   .guest-toolbar {
-    min-height: 70px;
+    min-height: 64px;
     padding: 0 20px;
+    padding-top: env(safe-area-inset-top, 0px);
   }
-
   .logo-container {
-    font-size: 20px;
+    font-size: 19px;
   }
-
+  .guest-layout .guest-header .q-btn.primary-action {
+    font-size: 12px;
+    padding-inline: 12px;
+  }
   .footer-content {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 30px 24px;
+    padding: 16px 20px max(16px, env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+  .footer-links {
+    gap: 4px 16px;
+  }
+  .footer-copy {
+    width: 100%;
+    margin: 0;
+    font-size: 9px;
   }
 }
-
-/* Print Styles */
 @media print {
   .guest-header,
   .guest-footer {

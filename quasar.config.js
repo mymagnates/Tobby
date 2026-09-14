@@ -65,7 +65,11 @@ export default defineConfig((ctx) => {
         viteConf.build.rollupOptions ??= {}
         viteConf.build.rollupOptions.output ??= {}
         viteConf.build.rollupOptions.output.manualChunks = (id) => {
+          // Shared runtime helpers cannot live in an export-only chunk: every lazy route uses them.
+          if (id === '\0vite/preload-helper.js' || id === '\0commonjsHelpers.js') return 'vendor'
           if (!id.includes('node_modules')) return undefined
+          // The export-only dependencies must not be folded into the startup vendor bundle.
+          if (/\/node_modules\/(?:jspdf|jspdf-autotable|fflate|fast-png|iobuffer|pako|canvg|core-js|dompurify|html2canvas|rgbcolor|stackblur-canvas|svg-pathdata|css-line-break|text-segmentation|utrie|base64-arraybuffer|raf|performance-now|regenerator-runtime|@babel\/runtime)\//.test(id)) return 'pdf-vendor'
           if (id.includes('/firebase/')) return 'firebase-vendor'
           if (id.includes('/chart.js/')) return 'chart-vendor'
           if (id.includes('/vue-i18n/')) return 'i18n-vendor'

@@ -1,180 +1,165 @@
 <template>
   <div class="public-auth-page">
     <div class="public-auth-frame">
-      <section class="public-auth-story">
-        <div class="public-auth-eyebrow">Property operations platform</div>
-        <h2>Welcome back to work with <em>clarity.</em></h2>
-        <p class="public-auth-story-copy">
-          Keep properties, service work, documents, and transactions connected in one operational
-          workspace.
-        </p>
-        <div class="public-auth-benefits">
-          <div class="public-auth-benefit">
-            <q-icon name="check_circle" size="19px" /> Tasks and leases stay in sync
-          </div>
-          <div class="public-auth-benefit">
-            <q-icon name="check_circle" size="19px" /> Service partners work from one record
-          </div>
-          <div class="public-auth-benefit">
-            <q-icon name="check_circle" size="19px" /> Every update remains visible
-          </div>
-        </div>
-      </section>
-
       <section class="public-auth-card auth-login-card">
-        <div v-if="!isAuthenticated">
-          <p class="public-auth-card-label">Welcome back</p>
-          <h1>Sign In to Handout</h1>
-          <p class="public-auth-card-intro">
-            Enter your account details to continue to your workspace.
-          </p>
-
+        <template v-if="!isAuthenticated && showForgotPassword">
+          <p class="public-auth-card-label">ACCOUNT RECOVERY</p>
+          <h1>Reset your password</h1>
+          <p class="public-auth-card-intro">We'll email you a link to choose a new password.</p>
+          <q-form
+            class="auth-form"
+            data-testid="reset-password-form"
+            @submit="handleForgotPassword"
+          >
+            <q-input
+              v-model="resetEmail"
+              type="email"
+              name="email"
+              autocomplete="email"
+              inputmode="email"
+              autocapitalize="none"
+              spellcheck="false"
+              label="Email address"
+              outlined
+              required
+              hide-bottom-space
+              lazy-rules
+              :disable="loading"
+              :rules="[(val) => !!val || 'Email is required']"
+            />
+            <q-banner v-if="resetError" class="auth-error" role="alert">{{ resetError }}</q-banner>
+            <q-btn
+              type="submit"
+              label="Send reset link"
+              no-caps
+              unelevated
+              :loading="loading"
+              class="public-auth-button full-width"
+            />
+            <q-btn
+              flat
+              no-caps
+              label="Back to sign in"
+              icon="arrow_back"
+              class="public-auth-text-link"
+              :disable="loading"
+              @click="showForgotPassword = false"
+            />
+          </q-form>
+        </template>
+        <template v-else-if="!isAuthenticated">
+          <p class="public-auth-card-label">WELCOME BACK</p>
+          <h1>Sign in</h1>
+          <p class="public-auth-card-intro">Your properties, right where you left them.</p>
           <q-form data-testid="pm-login-form" @submit="handleSignIn" class="auth-form">
             <q-input
               v-model="email"
               data-testid="pm-login-email"
               type="email"
+              name="email"
+              autocomplete="username"
+              inputmode="email"
+              autocapitalize="none"
+              spellcheck="false"
               label="Email address"
               required
               outlined
+              hide-bottom-space
+              lazy-rules
+              :disable="loading"
               :rules="[(val) => !!val || 'Email is required']"
             />
-
             <q-input
               v-model="password"
               data-testid="pm-login-password"
-              type="password"
+              :type="showPassword ? 'text' : 'password'"
+              name="password"
+              autocomplete="current-password"
               label="Password"
               required
               outlined
+              hide-bottom-space
+              lazy-rules
+              :disable="loading"
               :rules="[(val) => !!val || 'Password is required']"
-            />
-
+            >
+              <template #append>
+                <q-btn
+                  type="button"
+                  flat
+                  round
+                  dense
+                  :icon="showPassword ? 'visibility_off' : 'visibility'"
+                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                  :aria-pressed="showPassword"
+                  class="auth-password-toggle"
+                  @click="showPassword = !showPassword"
+                />
+              </template>
+            </q-input>
             <div class="forgot-password-row">
               <q-btn
                 flat
                 dense
                 no-caps
                 class="public-auth-text-link"
-                label="Forgot password"
+                label="Forgot password?"
+                :disable="loading"
                 @click="openForgotPasswordDialog"
               />
             </div>
-
+            <q-banner v-if="error" class="auth-error" role="alert">{{
+              formatErrorMessage(error)
+            }}</q-banner>
             <q-btn
               data-testid="pm-login-submit"
-              color="primary"
-              text-color="white"
               unelevated
               no-caps
               :loading="loading"
-              label="Sign In"
+              label="Sign in"
               type="submit"
               class="public-auth-button full-width"
             />
-
-            <div class="public-auth-switch">
-              <span>Don't have an account?</span>
-              <q-btn
-                flat
-                dense
-                no-caps
-                class="public-auth-text-link"
-                label="Get Started"
-                @click="router.push('/public/register')"
-              />
-            </div>
           </q-form>
-        </div>
-
-        <div v-else class="user-info">
-          <p class="public-auth-card-label">Signed in</p>
-          <h1>Continue to Handout</h1>
-          <p><strong>Email:</strong> {{ userEmail }}</p>
-          <p v-if="userDisplayName"><strong>Name:</strong> {{ userDisplayName }}</p>
-
-          <div class="q-gutter-sm q-mt-md">
+          <div class="public-auth-switch">
+            <span>New to Handout?</span>
             <q-btn
-              color="primary"
-              label="Continue to Home"
-              icon="home"
+              flat
+              dense
+              no-caps
+              class="public-auth-text-link"
+              label="Create account"
+              :to="{
+                path: '/public/register',
+                query: route.query.redirect ? { redirect: route.query.redirect } : {},
+              }"
+            />
+          </div>
+        </template>
+        <div v-else class="user-info">
+          <p class="public-auth-card-label">SIGNED IN</p>
+          <h1>Welcome back</h1>
+          <p>{{ userEmail }}</p>
+          <div class="auth-form">
+            <q-btn
+              label="Open workspace"
+              no-caps
               @click="goToIndex"
               class="public-auth-button full-width"
             />
             <q-btn
+              flat
+              no-caps
               @click="handleLogout"
-              color="negative"
               :loading="loading"
-              label="Sign Out"
-              class="full-width"
+              label="Sign out"
+              class="public-auth-text-link"
             />
           </div>
         </div>
-
-        <q-banner v-if="error" rounded class="bg-negative text-white q-mt-md">
-          <template v-slot:avatar>
-            <q-icon name="error" />
-          </template>
-          {{ formatErrorMessage(error) }}
-        </q-banner>
       </section>
+      <AuthWorkspaceStory />
     </div>
-
-    <q-dialog v-model="showSignUp">
-      <q-card style="min-width: 350px">
-        <q-card-section>
-          <div class="text-h6">Sign Up</div>
-        </q-card-section>
-
-        <q-card-section>
-          <q-form @submit="handleSignUp" class="q-gutter-md">
-            <q-input v-model="signUpEmail" type="email" label="Email" required outlined />
-
-            <q-input v-model="signUpPassword" type="password" label="Password" required outlined />
-
-            <q-input v-model="displayName" label="Display Name" outlined />
-
-            <div class="row q-gutter-sm">
-              <q-btn
-                type="submit"
-                color="primary"
-                :loading="loading"
-                label="Create Account"
-                class="col"
-              />
-              <q-btn @click="showSignUp = false" color="secondary" label="Cancel" class="col" />
-            </div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="showForgotPassword">
-      <q-card style="min-width: 360px">
-        <q-card-section>
-          <div class="text-h6">Reset Password</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input
-            v-model="resetEmail"
-            type="email"
-            label="Email"
-            outlined
-            :rules="[(val) => !!val || 'Email is required']"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" v-close-popup />
-          <q-btn
-            color="primary"
-            text-color="white"
-            label="Send Reset Link"
-            :loading="loading"
-            @click="handleForgotPassword"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </div>
 </template>
 
@@ -185,28 +170,17 @@ import { Notify } from 'quasar'
 import { useFirebase } from '../composables/useFirebase'
 import { useUserDataStore } from '../stores/userDataStore'
 import { auth, authStateReady } from '../boot/firebase'
+import AuthWorkspaceStory from './AuthWorkspaceStory.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
-const {
-  loading,
-  error,
-  isAuthenticated,
-  userEmail,
-  userDisplayName,
-  signIn,
-  signUp,
-  resetPassword,
-  logout,
-} = useFirebase()
+const { loading, error, isAuthenticated, userEmail, signIn, resetPassword, logout } = useFirebase()
 
 const email = ref('')
 const password = ref('')
-const signUpEmail = ref('')
-const signUpPassword = ref('')
-const displayName = ref('')
-const showSignUp = ref(false)
+const showPassword = ref(false)
+const resetError = ref('')
 const showForgotPassword = ref(false)
 const resetEmail = ref('')
 const redirectingAfterAuth = ref(false)
@@ -270,25 +244,14 @@ const handleSignIn = async () => {
   }
 }
 
-const handleSignUp = async () => {
-  try {
-    await signUp(signUpEmail.value, signUpPassword.value, displayName.value)
-    signUpEmail.value = ''
-    signUpPassword.value = ''
-    displayName.value = ''
-    showSignUp.value = false
-    goToLoadingOnce()
-  } catch (err) {
-    console.error('Sign up error:', err)
-  }
-}
-
 const openForgotPasswordDialog = () => {
   resetEmail.value = email.value || ''
+  resetError.value = ''
   showForgotPassword.value = true
 }
 
 const handleForgotPassword = async () => {
+  resetError.value = ''
   if (!resetEmail.value) {
     Notify.create({
       type: 'warning',
@@ -307,6 +270,9 @@ const handleForgotPassword = async () => {
       position: 'top',
     })
   } catch (err) {
+    resetError.value = formatErrorMessage(
+      err.message || 'Unable to send a reset link. Please try again.',
+    )
     console.error('Password reset error:', err)
   }
 }
