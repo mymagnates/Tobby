@@ -964,6 +964,11 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     const actorId = String(actor?.id || '').trim()
     if (!actorId) return false
     try {
+      const property = await getFirestorePropertyById(normalizedPropertyId)
+      if (!property) return false
+      if (['owner_user_ids', 'manager_user_ids', 'viewer_user_ids'].some((key) => Array.isArray(property[key]))) {
+        return [property.owner_user_ids, property.manager_user_ids].some((ids) => Array.isArray(ids) && ids.includes(actorId))
+      }
       const rolesSnap = await getDb().collection('users').doc(actorId).collection('roles').get()
       return rolesSnap.docs.some((doc) => {
         const data = doc.data() || {}
@@ -999,6 +1004,17 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     if (!(await hasPmAccessToProperty({ actor, propertyId }))) {
       throw createApiError(403, 'PERMISSION_DENIED', 'PM access to this property is required.')
     }
+  }
+
+  const requirePropertyRecordWriter = async ({ actor, verified, propertyId }) => {
+    requireVerifiedActor({ verified, actor })
+    if (actor.role === 'admin') return
+    const property = await getFirestorePropertyById(propertyId)
+    const canonical = property && ['owner_user_ids', 'manager_user_ids', 'viewer_user_ids'].some((key) => Array.isArray(property[key]))
+    const allowed = canonical
+      ? [property.owner_user_ids, property.manager_user_ids].some((ids) => Array.isArray(ids) && ids.includes(actor.id))
+      : await hasShareAccessToProperty({ actor, propertyId })
+    if (!allowed) throw createApiError(403, 'PROPERTY_READ_ONLY', 'Owner or manager access to this property is required.')
   }
 
   const LEASE_STATUSES = new Set([
@@ -1474,6 +1490,29 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       throw createApiError(403, 'PERMISSION_DENIED', 'PM access to this property is required.')
     }
     return normalizedPropertyId
+  }
+
+  const withTenantLease = async (tenant, cache = new Map()) => {
+    const leaseId = String(tenant.lease_id || '').trim()
+    if (!leaseId) return { ...tenant, lease_status: 'Not linked', lease_info: null }
+    if (!cache.has(leaseId)) cache.set(leaseId, getLeaseById(leaseId))
+    const lease = await cache.get(leaseId)
+    if (!lease || String(leasePropertyId(lease)) !== String(tenant.property_id)) {
+      return { ...tenant, lease_status: 'Unavailable', lease_info: null }
+    }
+    const dates = leaseDates(lease)
+    return {
+      ...tenant,
+      lease_status: leaseStatus(lease),
+      lease_info: {
+        start_date: dates.start,
+        end_date: dates.end,
+        monthly_rent: lease.rate_amount ?? null,
+        rate_type: lease.rate_type || '',
+        security_deposit: lease.deposit ?? null,
+        payment_method: lease.payment_method || tenant.lease_info?.payment_method || '',
+      },
+    }
   }
 
   const assertLeaseBelongsToProperty = async ({ db, leaseId, propertyId }) => {
@@ -4898,7 +4937,8 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
         const rows = snap.docs
           .map((row) => ({ id: row.id, ...(row.data() || {}) }))
           .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
-        return ok(res, requestId, { rows })
+        const leaseCache = new Map()
+        return ok(res, requestId, { rows: await Promise.all(rows.map((tenant) => withTenantLease(tenant, leaseCache))) })
       } catch (error) {
         return sendError(
           res,
@@ -4956,7 +4996,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             actor_id: actor.id,
             created_at: now,
           })
-        return ok(res, requestId, { tenant: { id: tenantRef.id, ...record } })
+        return ok(res, requestId, { tenant: await withTenantLease({ id: tenantRef.id, ...record }) })
       } catch (error) {
         return sendError(
           res,
@@ -4993,7 +5033,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           updated_at: now,
         }
         await tenantRef.set(record, { merge: true })
-        return ok(res, requestId, { tenant: { id: tenantRef.id, ...existing, ...record } })
+        return ok(res, requestId, { tenant: await withTenantLease({ id: tenantRef.id, ...existing, ...record }) })
       } catch (error) {
         return sendError(
           res,
@@ -6140,7 +6180,10 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
       try {
         requireVerifiedActor({ verified, actor })
         const propertyId = String(params.propertyId || '').trim()
-        if (!(await hasShareAccessToProperty({ actor, propertyId }))) {
+        const property = await getFirestorePropertyById(propertyId)
+        const canManage = await hasShareAccessToProperty({ actor, propertyId })
+        const isViewer = Array.isArray(property?.viewer_user_ids) && property.viewer_user_ids.includes(actor.id)
+        if (!canManage && !isViewer) {
           throw createApiError(403, 'PERMISSION_DENIED', 'You do not have access to this property.')
         }
         const snapshot = await getDb()
@@ -6148,7 +6191,14 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           .where('property_string_id', '==', propertyId)
           .get()
         const leases = snapshot.docs
-          .map((doc) => leaseView({ id: doc.id, ...(doc.data() || {}) }))
+          .map((doc) => {
+            const lease = leaseView({ id: doc.id, ...(doc.data() || {}) })
+            if (canManage) return lease
+            // Shared viewers receive lease context, not tenant or financial details.
+            return { id: lease.id, property_string_id: propertyId, status: lease.status,
+              lease_start_date: lease.lease_start_date, lease_end_date: lease.lease_end_date,
+              created_at: lease.created_at }
+          })
           .sort((left, right) =>
             String(right.created_at || '').localeCompare(String(left.created_at || '')),
           )
@@ -6171,7 +6221,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     async ({ actor, verified, params, body, res, requestId }) => {
       try {
         const propertyId = String(params.propertyId || '').trim()
-        await requirePropertyManager({ actor, verified, propertyId })
+        await requirePropertyRecordWriter({ actor, verified, propertyId })
         const property = await getFirestorePropertyById(propertyId)
         if (!property) throw createApiError(404, 'PROPERTY_NOT_FOUND', 'Property not found.')
         const input = body?.lease || {}
@@ -7358,8 +7408,16 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
           const property = propertySnap.data() || {}
           const field = propertyAccessUserIdsField(accessRole)
           const currentIds = [...new Set(Array.isArray(property[field]) ? property[field] : [])]
-          if (!currentIds.includes(userId))
+          const rolesSnapshot = await tx.get(db.collection('users').doc(userId).collection('roles'))
+          const matchingRoles = rolesSnapshot.docs.filter((roleDoc) => {
+            const role = roleDoc.data() || {}
+            return extractPropertyId(role.property_id) === propertyId &&
+              (propertyAccessMembershipRole(role.role) || String(role.role || '').trim().toLowerCase()) === propertyAccessMembershipRole(accessRole)
+          })
+          if (!currentIds.includes(userId)) {
+            matchingRoles.forEach((roleDoc) => tx.delete(roleDoc.ref))
             return { idempotent: true, primaryOwnerUserId: property.primary_owner_user_id || null }
+          }
           const nextIds = currentIds.filter((id) => id !== userId)
           const now = new Date()
           const update = { [field]: nextIds, updated_by_user_id: actor.id, updated_at: now }
@@ -7386,6 +7444,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
             update.ownership_mode = 'self_owned'
           }
           tx.set(propertyRef, update, { merge: true })
+          matchingRoles.forEach((roleDoc) => tx.delete(roleDoc.ref))
           tx.delete(
             db
               .collection('users')
@@ -10448,7 +10507,7 @@ export const createApiServer = ({ store = createInMemoryStore(), config = {} } =
     try {
       const rawUrl = (req.url || '/').replace(/^\/api/, '') || '/'
       const url = new URL(rawUrl, 'http://localhost')
-      const requestBodyForAuthBypass = ['POST', 'PUT', 'PATCH'].includes(req.method || '')
+      const requestBodyForAuthBypass = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method || '')
         ? await readBody(req)
         : {}
       const authContext = await resolveActorFromRequest(req)

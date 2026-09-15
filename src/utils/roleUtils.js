@@ -18,6 +18,13 @@ export const normalizeMembershipRole = (value) => {
 
 export const normalizeRoleValue = (value) => normalizeMembershipRole(value)
 
+export const transactionPartyAbbreviation = (value) => {
+  const role = normalizeMembershipRole(value)
+  if (['pm', 'po', 'tt', 'sp'].includes(role)) return role.toUpperCase()
+  const text = String(value || '').trim()
+  return { hoa: 'HOA', government: 'Govt', other: 'Other' }[text.toLowerCase()] || text || 'Unknown'
+}
+
 export const normalizeAccountType = (value) => {
   const raw = String(value || '')
     .trim()

@@ -9,6 +9,8 @@ import routes from './routes'
 import { useUserDataStore } from '../stores/userDataStore'
 import { auth, authStateReady } from '../boot/firebase'
 import { isNativeMobileRuntime } from '../utils/mobileRuntime'
+import { isOwnerWorkspacePath } from '../utils/ownerWorkspace'
+import { supportsPropertyScope, readPropertyScope, propertyScopeLocation, isPropertyBrowser } from '../utils/workspaceScope'
 
 /*
  * If not building with SSR mode, you can
@@ -34,6 +36,20 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
+  })
+  const propertyScopes = new Map()
+  const scopeKey = (uid) => `handout_property_scope:${uid}`
+  const rememberedScope = (uid) => {
+    if (propertyScopes.has(uid)) return propertyScopes.get(uid)
+    try { return sessionStorage.getItem(scopeKey(uid)) || '' } catch { return '' }
+  }
+  Router.afterEach((to, _from, failure) => {
+    if (failure || isNativeMobileRuntime() || !supportsPropertyScope(to.path) || isPropertyBrowser(to.path)) return
+    const uid = useUserDataStore().userId
+    if (!uid) return
+    const value = readPropertyScope(to) || ''
+    propertyScopes.set(uid, value)
+    try { sessionStorage.setItem(scopeKey(uid), value) } catch { /* Storage may be disabled. */ }
   })
 
   const getLandingTarget = (redirectPath = '/') => {
@@ -302,9 +318,15 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const hasPoMembership = Boolean(userDataStore.hasPoMembership)
     const hasPmMembership = Boolean(userDataStore.hasPmMembership)
     const hasLegacyPoAccount = Boolean(userDataStore.hasLegacyPoAccount)
-    const isOwnerWorkspaceOnly = Boolean(userDataStore.isOwnerOnlyUser)
+    const isOwnerWorkspaceOnly = Boolean(userDataStore.isOwnerOnlyUser || userDataStore.isViewerOnlyUser)
     const isManagerCapableUser = Boolean(userDataStore.isManagerCapableUser)
-    const canAccessOwnerWorkspace = Boolean(userDataStore.hasOwnerWorkspaceAccess)
+    const canAccessOwnerWorkspace = Boolean(userDataStore.hasOwnerWorkspaceAccess || userDataStore.hasViewerMembership)
+    const sharedHome = userDataStore.isViewerOnlyUser ? '/owner/properties' : '/po-dashboard'
+
+    if (to.path.startsWith('/owner/') && !canAccessOwnerWorkspace) {
+      next('/')
+      return
+    }
 
     if (to.path.startsWith('/create-property') && !isManagerCapableUser) {
       next(canAccessOwnerWorkspace ? '/po-dashboard' : '/')
@@ -312,17 +334,14 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     }
 
     if (canAccessOwnerWorkspace && (isOwnerWorkspaceOnly || to.path.startsWith('/po-dashboard'))) {
-      if (to.path === '/') {
-        next('/po-dashboard')
+      if (to.path === '/' || (userDataStore.isViewerOnlyUser && to.path === '/po-dashboard')) {
+        next(sharedHome)
         return
       }
-      const poAllowedRoutes = ['/po-dashboard']
-      const isPoAllowed = poAllowedRoutes.some((route) =>
-        route === '/' ? to.path === '/' : to.path.startsWith(route),
-      )
+      const isPoAllowed = isOwnerWorkspacePath(to.path) || to.path === '/user-profile'
       if (isOwnerWorkspaceOnly && !isPoAllowed) {
         console.log('Router Guard - PO attempting to access restricted route:', to.path)
-        next('/po-dashboard')
+        next(sharedHome)
         return
       }
     }
@@ -346,6 +365,21 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
     // NOTE: PM/PO tenant-home block removed for cross-role testing
 
+    // Preserve the user's scope on links that omit it; an explicit empty ID means All.
+    if (!isNativeMobileRuntime() && supportsPropertyScope(to.path) && !isPropertyBrowser(to.path)) {
+      const hasExplicitScope = Object.prototype.hasOwnProperty.call(to.query, 'propertyId') || Boolean(to.params.propertyId)
+      const previous = rememberedScope(userDataStore.userId)
+      const wanted = hasExplicitScope ? readPropertyScope(to) : previous
+      const allowed = wanted && userDataStore.userAccessibleProperties.some((property) => String(property.id) === wanted)
+      if (wanted && !allowed) {
+        next({ ...propertyScopeLocation(to, null), replace: true })
+        return
+      }
+      if (!hasExplicitScope && allowed) {
+        next({ path: to.path, query: { ...to.query, propertyId: wanted }, hash: to.hash, replace: true })
+        return
+      }
+    }
     // Allow navigation
     next()
   })

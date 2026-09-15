@@ -75,7 +75,7 @@
     <div v-else class="services-grid entity-tiles">
       <q-card
         v-for="service in filteredServices"
-        :key="service.id"
+        :key="`${service.property_id}:${service.id}`"
         flat
         bordered
         class="service-card entity-tile"
@@ -106,8 +106,6 @@
       <q-card class="create-fullscreen-card">
         <q-card-section class="create-fullscreen-body">
           <CreateService
-            :property-id="selectedProperty?.id"
-            :property-name="selectedProperty?.nickname || selectedProperty?.address || ''"
             :allow-property-edit="true"
             @service-created="onServiceCreated"
             @cancel="showServiceDialog = false"
@@ -210,6 +208,10 @@
                 <div class="detail-label">Term</div>
                 <div class="detail-value">{{ selectedService.term || 'N/A' }}</div>
               </div>
+              <div class="detail-block service-notes">
+                <div class="detail-label">Notes</div>
+                <div class="detail-value service-notes-text">{{ selectedService.notes || 'No notes added.' }}</div>
+              </div>
             </div>
           </section>
 
@@ -221,7 +223,10 @@
               </div>
             </div>
             <div class="service-detail-note-card">
-              {{ getServicePropertySummary(selectedService) || 'No linked properties yet.' }}
+              <div v-for="property in getServiceCoverage(selectedService)" :key="property.id">
+                {{ property.label }}
+              </div>
+              <span v-if="!getServiceCoverage(selectedService).length">No linked properties yet.</span>
             </div>
           </section>
 
@@ -310,6 +315,8 @@
                 label="Term"
                 :disable="serviceDisabled"
               />
+              <q-input v-model="serviceForm.notes" type="textarea" autogrow outlined dense
+                label="Notes (optional)" :disable="serviceDisabled" class="service-notes" />
               <q-input
                 v-model="serviceForm.service_start_date"
                 dense
@@ -387,6 +394,7 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import DetailShell from '../components/details/DetailShell.vue'
 import CreateService from '../components/CreateService.vue'
+import { servicePropertyIds, serviceCoversProperty } from '../utils/serviceCoverage'
 
 const route = useRoute()
 const router = useRouter()
@@ -425,6 +433,7 @@ const serviceForm = ref({
   agent_email: '',
   service_start_date: '',
   term: '',
+  notes: '',
 })
 
 const selectedPropertyId = ref('')
@@ -450,14 +459,14 @@ const propertySelectOptions = computed(() =>
   })),
 )
 
-const serviceDisabled = computed(() => !canManageRecords.value || !selectedProperty.value)
+const serviceDisabled = computed(() => !canManageRecords.value)
 
 const serviceTypeFilterLabel = computed(() => {
   return serviceTypeOptions.find((option) => option.value === serviceTypeFilter.value)?.label || 'All services'
 })
 
 const filteredServices = computed(() => {
-  let list = services.value
+  let list = services.value.filter((service) => serviceCoversProperty(service, selectedPropertyId.value))
 
   if (serviceTypeFilter.value) {
     list = list.filter((service) => service.service_type === serviceTypeFilter.value)
@@ -475,7 +484,7 @@ const filteredServices = computed(() => {
         service.agent?.phone,
         service.agent?.email,
         service.term,
-        getServicePropertySummary(service),
+        getServiceCoverage(service).map((property) => property.label).join(' '),
       ]
         .filter(Boolean)
         .join(' ')
@@ -500,18 +509,13 @@ const hydrateServiceInfoFromData = (service) => {
       agent_email: '',
       service_start_date: '',
       term: '',
+      notes: '',
     }
     return
   }
   serviceForm.value = {
     service_type: service.service_type || 'loan',
-    property_ids: Array.isArray(service.property_ids)
-      ? service.property_ids.map((id) => String(id || '').trim()).filter(Boolean)
-      : service.property_id
-        ? [String(service.property_id).trim()]
-        : selectedProperty.value?.id
-          ? [String(selectedProperty.value.id).trim()]
-          : [],
+    property_ids: servicePropertyIds(service),
     company_name: service.company_name || '',
     company_website: service.company_website || '',
     agent_company: service.agent?.company || '',
@@ -520,6 +524,7 @@ const hydrateServiceInfoFromData = (service) => {
     agent_email: service.agent?.email || '',
     service_start_date: service.service_start_date || '',
     term: service.term || '',
+    notes: service.notes || '',
   }
 }
 
@@ -561,27 +566,28 @@ const getLegacyService = (property) => {
   return null
 }
 
-const loadServices = async (propertyId) => {
-  if (!propertyId) return
+let servicesRequest = 0
+const loadServices = async () => {
+  const request = ++servicesRequest
   try {
     servicesLoading.value = true
-    const list = await getAllDocuments(`properties/${propertyId}/services`)
-    if (list && list.length > 0) {
-      services.value = list.sort((a, b) => {
-        const aDate = new Date(a.updated_at || a.created_at || 0).getTime()
-        const bDate = new Date(b.updated_at || b.created_at || 0).getTime()
-        return bDate - aDate
-      })
-    } else {
-      const legacy = getLegacyService(selectedProperty.value)
-      services.value = legacy ? [{ id: 'legacy', ...legacy, legacy: true }] : []
+    const scope = userDataStore.userAccessibleProperties
+    const records = []
+    for (const property of scope) {
+      const list = await getAllDocuments(`properties/${property.id}/services`)
+      const legacy = !list?.length ? getLegacyService(property) : null
+      records.push(...(list?.length ? list : legacy ? [{ ...legacy, id: 'legacy', legacy: true }] : [])
+        .map((record) => ({ ...record, property_id: property.id })))
     }
+    if (request !== servicesRequest) return
+    services.value = records.sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))
   } catch (error) {
     console.error('Failed to load service info:', error)
-    const legacy = getLegacyService(selectedProperty.value)
-    services.value = legacy ? [{ id: 'legacy', ...legacy, legacy: true }] : []
+    if (request !== servicesRequest) return
+    services.value = []
+    Notify.create({ type: 'negative', message: 'Unable to load services. Please refresh.' })
   } finally {
-    servicesLoading.value = false
+    if (request === servicesRequest) servicesLoading.value = false
   }
 }
 
@@ -608,7 +614,7 @@ const normalizeExternalUrl = (value) => {
 }
 
 const openCreateService = () => {
-  if (!selectedProperty.value) return
+  if (!canManageRecords.value) return
   isEditingServiceDetail.value = false
   showServiceDialog.value = true
 }
@@ -620,9 +626,7 @@ const onServiceCreated = async () => {
     message: 'Service created.',
     position: 'top',
   })
-  if (selectedProperty.value?.id) {
-    await loadServices(selectedProperty.value.id)
-  }
+  await loadServices()
 }
 
 const openServiceDetails = (service) => {
@@ -650,7 +654,7 @@ const buildServicePayload = () => ({
   property_ids: Array.from(
     new Set(
       (Array.isArray(serviceForm.value.property_ids) ? serviceForm.value.property_ids : [])
-        .concat(selectedProperty.value?.id ? [selectedProperty.value.id] : [])
+        .concat(selectedService.value?.property_id || selectedProperty.value?.id || [])
         .map((id) => String(id || '').trim())
         .filter(Boolean),
     ),
@@ -658,7 +662,7 @@ const buildServicePayload = () => ({
   properties: Array.from(
     new Set(
       (Array.isArray(serviceForm.value.property_ids) ? serviceForm.value.property_ids : [])
-        .concat(selectedProperty.value?.id ? [selectedProperty.value.id] : [])
+        .concat(selectedService.value?.property_id || selectedProperty.value?.id || [])
         .map((id) => String(id || '').trim())
         .filter(Boolean),
     ),
@@ -671,6 +675,7 @@ const buildServicePayload = () => ({
   })),
   company_name: serviceForm.value.company_name || '',
   company_website: serviceForm.value.company_website || '',
+  notes: String(serviceForm.value.notes || '').trim(),
   agent: {
     company: serviceForm.value.agent_company || '',
     name: serviceForm.value.agent_name || '',
@@ -682,19 +687,20 @@ const buildServicePayload = () => ({
 })
 
 const saveServiceInfo = async () => {
-  if (!selectedProperty.value) return
+  const propertyId = selectedService.value?.property_id || selectedProperty.value?.id
+  if (!propertyId) return
   if (!canManageRecords.value) return
   try {
     savingServiceInfo.value = true
     const payload = buildServicePayload()
     const now = new Date().toISOString()
     if (activeServiceId.value && activeServiceId.value !== 'legacy') {
-      await updateDocument(`properties/${selectedProperty.value.id}/services`, activeServiceId.value, {
+      await updateDocument(`properties/${propertyId}/services`, activeServiceId.value, {
         ...payload,
         updated_at: now,
       })
     } else {
-      await createDocument(`properties/${selectedProperty.value.id}/services`, {
+      await createDocument(`properties/${propertyId}/services`, {
         ...payload,
         created_at: now,
         updated_at: now,
@@ -716,7 +722,7 @@ const saveServiceInfo = async () => {
     } else {
       showServiceDialog.value = false
     }
-    await loadServices(selectedProperty.value.id)
+    await loadServices(selectedPropertyId.value)
   } catch (error) {
     console.error('Failed to save service:', error)
     Notify.create({
@@ -729,62 +735,50 @@ const saveServiceInfo = async () => {
   }
 }
 
+const getServiceCoverage = (service) => servicePropertyIds(service).map((id) => ({
+  id,
+  label: propertySelectOptions.value.find((option) => String(option.value) === id)?.label
+    || service?.properties?.find((property) => String(property.id) === id)?.label
+    || id,
+}))
+
 const getServicePropertySummary = (service) => {
-  const labels = Array.isArray(service?.properties)
-    ? service.properties.map((entry) => entry?.label).filter(Boolean)
-    : Array.isArray(service?.property_ids)
-      ? service.property_ids
-        .map((id) => userDataStore.getPropertyName(id))
-        .filter(Boolean)
-      : []
+  const labels = getServiceCoverage(service).map((property) => property.label)
   if (!labels.length) return ''
   if (labels.length === 1) return `Used by ${labels[0]}`
   return `Used by ${labels[0]} + ${labels.length - 1} more`
 }
 
-watch(selectedProperty, (property) => {
-  if (property) loadServices(property.id)
-})
-
-watch(selectedPropertyId, (nextId) => {
-  if (nextId) loadServices(nextId)
-})
+watch([selectedPropertyId, () => userDataStore.userAccessibleProperties.map((property) => property.id).join('|')], () => {
+  selectedService.value = null
+  showServiceDetail.value = false
+  loadServices(selectedPropertyId.value)
+}, { immediate: true })
 
 watch(
   () => route.query.propertyId,
   (propertyId) => {
     const value = String(propertyId || '').trim()
-    if (value) {
-      selectedPropertyId.value = value
-      return
-    }
-    if (!selectedPropertyId.value && userDataStore.userAccessibleProperties.length > 0) {
-      selectedPropertyId.value = userDataStore.userAccessibleProperties[0].id
-    }
+    selectedPropertyId.value = value
   },
   { immediate: true },
 )
 
 onMounted(() => {
   const queryId = String(route.query.propertyId || '').trim()
-  if (queryId) {
-    selectedPropertyId.value = queryId
-  } else if (userDataStore.userAccessibleProperties.length > 0) {
-    selectedPropertyId.value = userDataStore.userAccessibleProperties[0].id
-  }
+  selectedPropertyId.value = queryId
 
   if (!userDataStore.isAuthenticated) {
     router.push('/')
     return
   }
 
-  if (selectedPropertyId.value) {
-    loadServices(selectedPropertyId.value)
-  }
 })
 </script>
 
 <style scoped>
+.service-notes { grid-column: 1 / -1; }
+.service-notes-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .property-services-page {
   max-width: 960px;
   margin: 0 auto;

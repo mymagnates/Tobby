@@ -142,8 +142,8 @@
             <div class="description-title">{{ transaction.transac_type || 'Unknown Type' }}</div>
             <div class="description-subtitle">
               {{ getPropertyName(transaction.property_id) }} •
-              {{ capitalizeFirst(transaction.transac_from || 'Unknown') }} →
-              {{ capitalizeFirst(transaction.transac_to || 'Unknown') }}
+              {{ transactionPartyAbbreviation(transaction.transac_from) }} →
+              {{ transactionPartyAbbreviation(transaction.transac_to) }}
             </div>
           </div>
 
@@ -491,7 +491,7 @@ import CreateTransaction from '../components/CreateTransaction.vue'
 import DetailShell from '../components/details/DetailShell.vue'
 import { extractPropertyId } from '../utils/propertyIdUtils'
 import { Notify } from 'quasar'
-import { roleLabel } from '../utils/roleUtils'
+import { roleLabel, transactionPartyAbbreviation } from '../utils/roleUtils'
 
 const userDataStore = useUserDataStore()
 const { updateDocument, uploadImages } = useFirebase()

@@ -1061,14 +1061,14 @@
                       <q-item-section side>
                         <div class="column items-end q-gutter-xs">
                           <q-chip
-                            :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                            :color="tenant.lease_status === 'Active' ? 'positive' : 'grey'"
                             text-color="white"
                             size="sm"
                           >
-                            {{ tenant.status || 'Active' }}
+                            {{ tenant.lease_status || 'Unavailable' }}
                           </q-chip>
                           <div class="text-caption text-grey-7">
-                            ${{ tenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                            ${{ tenant.lease_info?.monthly_rent ?? 'N/A' }}/{{ tenant.lease_info?.rate_type || 'period' }}
                           </div>
                         </div>
                       </q-item-section>

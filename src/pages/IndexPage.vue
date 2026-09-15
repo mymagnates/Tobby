@@ -1164,6 +1164,7 @@ import { useUserDataStore } from '../stores/userDataStore'
 import { useFirebase } from '../composables/useFirebase'
 import { Notify } from 'quasar'
 import { marketplaceApi } from '../services/webApiClient'
+import { transactionPartyAbbreviation } from '../utils/roleUtils'
 const CreateMxRecord = defineAsyncComponent(() => import('../components/CreateMxRecord.vue'))
 const CreateTransaction = defineAsyncComponent(() => import('../components/CreateTransaction.vue'))
 const CreateLease = defineAsyncComponent(() => import('../components/CreateLease.vue'))
@@ -2248,9 +2249,9 @@ const safeDisplay = (value) => {
 }
 
 const formatTransactionFlow = (transaction) => {
-  const from = capitalizeFirst(transaction?.transac_from)
-  const to = capitalizeFirst(transaction?.transac_to)
-  if (from && to) return `${from} to ${to}`
+  const from = transaction?.transac_from ? transactionPartyAbbreviation(transaction.transac_from) : ''
+  const to = transaction?.transac_to ? transactionPartyAbbreviation(transaction.transac_to) : ''
+  if (from && to) return `${from} → ${to}`
   return safeDisplay(from || to)
 }
 

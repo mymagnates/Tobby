@@ -142,6 +142,8 @@
                 :disable="serviceDisabled"
                 bg-color="grey-1"
               />
+              <q-input v-model="serviceForm.notes" type="textarea" autogrow outlined dense
+                label="Notes (optional)" :disable="serviceDisabled" class="service-notes" />
             </div>
           </section>
 
@@ -235,6 +237,7 @@ const serviceForm = ref({
   agent_email: '',
   service_start_date: '',
   term: '',
+  notes: '',
 })
 
 const serviceTypeOptions = [
@@ -303,6 +306,7 @@ const applyPrefill = (value) => {
     agent_email: value.agent_email || value.agent?.email || '',
     service_start_date: value.service_start_date || '',
     term: value.term || '',
+    notes: value.notes || '',
   }
 }
 
@@ -348,6 +352,7 @@ const onSubmit = async () => {
       },
       service_start_date: serviceForm.value.service_start_date || '',
       term: serviceForm.value.term || '',
+      notes: String(serviceForm.value.notes || '').trim(),
       created_at: now,
       updated_at: now,
     }
@@ -386,6 +391,7 @@ watch(
 </script>
 
 <style scoped>
+.service-notes { grid-column: 1 / -1; }
 .create-service {
   max-width: 1200px;
   margin: 0 auto;

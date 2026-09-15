@@ -60,6 +60,7 @@ import MobilePageHeader from 'components/mobile/MobilePageHeader.vue'
 import { useFirebase } from 'src/composables/useFirebase'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useMobileModeration } from 'src/pages/mobile/useMobileModeration'
+import { servicePropertyIds } from 'src/utils/serviceCoverage'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,11 +224,18 @@ const detailFields = computed(() => {
   if (recordType.value === 'services') {
     return [
       { label: 'Type', value: row.service_type || '-' },
+      { label: 'Coverage', value: servicePropertyIds({ ...row, property_id: propertyId.value }).map((id) => {
+        const property = userDataStore.userAccessibleProperties.find((entry) => String(entry.id) === id)
+        return property?.nickname || property?.address
+          || row.properties?.find((entry) => String(entry.id) === id)?.label || id
+      }).join(' · ') || '-' },
       { label: 'Company', value: row.company_name || row.agent?.company || '-' },
       { label: 'Contact', value: row.agent?.name || row.agent_name || '-' },
       { label: 'Phone', value: row.agent?.phone || row.agent_phone || '-' },
       { label: 'Email', value: row.agent?.email || row.agent_email || '-' },
       { label: 'Start Date', value: normalizeDate(row.service_start_date) || '-' },
+      { label: 'Term', value: row.term || '-' },
+      { label: 'Notes', value: row.notes || 'No notes added.' },
     ]
   }
   if (recordType.value === 'assets') {

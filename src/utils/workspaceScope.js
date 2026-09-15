@@ -12,6 +12,8 @@ export const PROPERTY_SCOPE_ROUTES = [
   '/leases',
   '/documents',
   '/reports',
+  '/owner',
+  '/po-dashboard',
 ]
 
 export const supportsPropertyScope = (path) =>
@@ -19,8 +21,11 @@ export const supportsPropertyScope = (path) =>
     (prefix) => path === prefix || (prefix !== '/' && path.startsWith(`${prefix}/`)),
   )
 
+export const isPropertyBrowser = (path) =>
+  ['/my-properties', '/property-view', '/owner/properties'].includes(path)
+
 export const requiresSingleProperty = (path) =>
-  ['/my-properties', '/property-view', '/property-services'].includes(path)
+  ['/my-properties', '/property-view'].includes(path)
 
 export const readPropertyScope = (route) => {
   const value = route.params?.propertyId || route.query?.propertyId
@@ -30,7 +35,7 @@ export const readPropertyScope = (route) => {
 export const propertyScopeLocation = (route, propertyId) => {
   const query = { ...route.query }
   if (propertyId) query.propertyId = propertyId
-  else delete query.propertyId
+  else query.propertyId = ''
   // Legacy asset deep links use a path parameter that would override the query.
   const path = route.path.startsWith('/assets/') ? '/assets' : route.path
   return { path, query, hash: route.hash || '' }

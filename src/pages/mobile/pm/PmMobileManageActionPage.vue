@@ -234,12 +234,13 @@
           />
           <q-input
             v-model="form.term"
-            label="Term / Note"
+            label="Term"
             type="textarea"
             autogrow
             outlined
             dense
           />
+          <q-input v-model="form.notes" label="Notes (optional)" type="textarea" autogrow outlined dense />
         </div>
       </MobileCard>
 
@@ -431,7 +432,7 @@ const toRoleOptions = computed(() => {
 watch(
   propertyOptions,
   (options) => {
-    if (!selectedPropertyId.value && options.length > 0) {
+    if (action.value !== 'service' && !selectedPropertyId.value && options.length > 0) {
       selectedPropertyId.value = options[0].value
     }
   },
@@ -647,6 +648,7 @@ const saveService = async (propertyId) => {
     },
     service_start_date: form.service_start_date || '',
     term: form.term || '',
+    notes: String(form.notes || '').trim(),
     created_at: now,
     updated_at: now,
   })

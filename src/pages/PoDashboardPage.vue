@@ -783,6 +783,8 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { propertyScopeLocation, readPropertyScope } from '../utils/workspaceScope'
 import { useUserDataStore } from '../stores/userDataStore'
 import { normalizePropertyId } from '../utils/propertyIdUtils'
 import { Notify } from 'quasar'
@@ -792,7 +794,9 @@ import OwnerLeaseHistoryView from '../components/OwnerLeaseHistoryView.vue'
 
 const userDataStore = useUserDataStore()
 
-const selectedPropertyId = ref(userDataStore.userAccessibleProperties[0]?.id || null)
+const route = useRoute()
+const router = useRouter()
+const selectedPropertyId = computed(() => readPropertyScope(route))
 const propertyPickerDialogOpen = ref(false)
 const transactionDialogOpen = ref(false)
 const transactionListDialogOpen = ref(false)
@@ -803,25 +807,21 @@ const leaseHistoryDialogOpen = ref(false)
 const selectedTransaction = ref(null)
 const selectedTask = ref(null)
 const selectedLease = ref(null)
+watch(selectedPropertyId, () => {
+  selectedTransaction.value = null
+  selectedTask.value = null
+  selectedLease.value = null
+  transactionDialogOpen.value = false
+  transactionListDialogOpen.value = false
+  taskDialogOpen.value = false
+  taskHistoryDialogOpen.value = false
+  leaseDialogOpen.value = false
+  leaseHistoryDialogOpen.value = false
+})
 const coreCashFlowChartCanvas = ref(null)
 const maintenanceChartCanvas = ref(null)
 let coreCashFlowChart = null
 let maintenanceChart = null
-
-watch(
-  () => userDataStore.userAccessibleProperties,
-  (properties) => {
-    if (!properties.length) {
-      selectedPropertyId.value = null
-      return
-    }
-    const stillExists = properties.some((property) => property.id === selectedPropertyId.value)
-    if (!stillExists) {
-      selectedPropertyId.value = properties[0]?.id || null
-    }
-  },
-  { immediate: true, deep: true },
-)
 
 const selectedProperty = computed(
   () =>
@@ -1469,7 +1469,7 @@ const handleLeaseListSelect = (item) => {
 }
 
 const selectProperty = (propertyId) => {
-  selectedPropertyId.value = propertyId
+  router.replace(propertyScopeLocation(route, propertyId))
   propertyPickerDialogOpen.value = false
 }
 

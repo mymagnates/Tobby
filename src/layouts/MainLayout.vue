@@ -74,7 +74,7 @@
           v-model="activePropertyId"
           :properties="userDataStore.userAccessibleProperties"
           :include-all="!requiresSingleProperty(route.path)"
-          :show-create="userDataStore.isManagerCapableUser && !isOwnerWorkspaceOnly"
+          :show-create="isOwnerWorkspaceOnly ? canCreateSharedRecords : userDataStore.isManagerCapableUser"
           :user-id="userDataStore.userId || ''"
           @create="goToCreatePropertyPage"
           @manage="navigateTo('/my-properties')"
@@ -584,11 +584,13 @@ import { agentApi } from '../services/webApiClient'
 import { localCalendarDate } from '../utils/reportingDates'
 import PropertySidebarPicker from '../components/PropertySidebarPicker.vue'
 import PropertyContextSwitcher from '../components/PropertyContextSwitcher.vue'
+import { ownerWorkspaceLinks } from '../utils/ownerWorkspace'
 import { useWebFormTheme } from '../composables/useWebFormTheme'
 import {
   propertyScopeLocation,
   readPropertyScope,
   requiresSingleProperty,
+  isPropertyBrowser,
   supportsPropertyScope,
 } from '../utils/workspaceScope'
 
@@ -611,6 +613,7 @@ const { locale, t } = useI18n()
 
 // Page title for header center (layout only; no color change)
 const PAGE_TITLES = {
+  ...Object.fromEntries(ownerWorkspaceLinks.map((item) => [item.link, item.title])),
   '/': 'Dashboard',
   '/pm-po-feed': 'PM/PO Feed',
   '/my-properties': 'My Properties',
@@ -622,7 +625,7 @@ const PAGE_TITLES = {
   '/reminders': 'Reminders',
   '/reports': 'Reports',
   '/documents': 'Documents',
-  '/po-dashboard': 'Handout',
+  '/po-dashboard': 'Dashboard',
   '/property-services': 'Property Services',
   '/user-profile': 'User Profile',
   '/tenant-home': 'Tenant Home',
@@ -652,7 +655,10 @@ const headerPageTitle = computed(
 const userDataStore = useUserDataStore()
 const { logout } = useFirebase()
 const hasOwnerWorkspaceAccess = computed(() => Boolean(userDataStore.hasOwnerWorkspaceAccess))
-const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUser))
+const isOwnerWorkspaceOnly = computed(() => Boolean(userDataStore.isOwnerOnlyUser || userDataStore.isViewerOnlyUser))
+const canCreateSharedRecords = computed(() => userDataStore.userAccessibleProperties.some((property) =>
+  (!readPropertyScope(route) || property.id === readPropertyScope(route)) && userDataStore.canWritePropertyRecords(property.id),
+))
 const isPmPo = computed(
   () =>
     ['pm', 'po'].includes(String(userDataStore.userCategory || '').toLowerCase()) ||
@@ -833,16 +839,6 @@ const activePropertyId = computed({
     router.replace(propertyScopeLocation(route, value)).catch(() => {})
   },
 })
-watch(
-  [() => route.path, () => route.query.propertyId, () => userDataStore.userAccessibleProperties],
-  () => {
-    if (!showPropertyContext.value || !requiresSingleProperty(route.path) || activePropertyId.value)
-      return
-    const first = userDataStore.userAccessibleProperties[0]
-    if (first) activePropertyId.value = String(first.id)
-  },
-  { immediate: true },
-)
 const showGlobalCreateDialog = ref(false)
 const showGlobalContactsDialog = ref(false)
 const showAssistantPanel = ref(false)
@@ -928,7 +924,7 @@ const filteredGlobalCreateOptions = computed(() => {
     ? globalCreateOptions.filter((option) => option.key !== 'tenant')
     : globalCreateOptions
   if (isOwnerWorkspaceOnly.value) {
-    return []
+    return canCreateSharedRecords.value ? options.filter((option) => ['task', 'lease', 'transaction', 'document', 'asset', 'reminder'].includes(option.key)) : []
   }
   return options
 })
@@ -1845,6 +1841,10 @@ const allLinksList = computed(() => [
 
 // Computed property to filter links based on user category
 const linksList = computed(() => {
+  if (isOwnerWorkspaceOnly.value) {
+    return ownerWorkspaceLinks.filter((item) => !userDataStore.isViewerOnlyUser || !['/po-dashboard', '/owner/transactions'].includes(item.link))
+      .map((item) => ({ ...item, color: 'primary', bg: 'transparent', allowedFor: ['po'] }))
+  }
   const userCategory = String(userDataStore.userCategory || '').toLowerCase()
   console.log('MainLayout - Filtering menu for user category:', userCategory)
 
@@ -1878,6 +1878,9 @@ const linksList = computed(() => {
 
 const getSectionKey = (link) => {
   const path = link?.link || ''
+  if (path === '/owner/reports') return 'dashboard'
+  if (['/owner/properties', '/owner/documents', '/owner/assets'].includes(path)) return 'propertyAssetDocuments'
+  if (path.startsWith('/owner/')) return 'taskTransactionReminderLeaseTenants'
   if (['/', '/po-dashboard', '/reports'].includes(path)) return 'dashboard'
   if (['/my-properties', '/assets', '/documents', '/property-services'].includes(path))
     return 'propertyAssetDocuments'
@@ -2089,7 +2092,7 @@ function navigateTo(link) {
   }
   const propertyId = activePropertyId.value
   router.push(
-    !isNativePmOnlyLaunch.value && propertyId && supportsPropertyScope(link)
+    !isNativePmOnlyLaunch.value && !isPropertyBrowser(route.path) && propertyId && supportsPropertyScope(link)
       ? { path: link, query: { propertyId } }
       : link,
   )
@@ -2147,6 +2150,14 @@ function goToUniversalSearch() {
 
 function handleCreateOption(option) {
   showGlobalCreateDialog.value = false
+  if (isOwnerWorkspaceOnly.value) {
+    if (!canCreateSharedRecords.value) return
+    const sections = { task: 'tasks', lease: 'leases', transaction: 'transactions', document: 'documents', asset: 'assets', reminder: 'reminders' }
+    if (!sections[option.key]) return
+    const propertyId = readPropertyScope(route)
+    router.push({ path: `/owner/${sections[option.key]}`, query: { create: 'true', ...(propertyId ? { propertyId } : {}) } })
+    return
+  }
   if (option.key && createComponentMap[option.key]) {
     activeCreateLabel.value = `Create ${option.label}`
     activeCreateComponent.value = createComponentMap[option.key]

@@ -140,6 +140,11 @@ const routes = [
       { path: 'sp-handout-builder', redirect: '/sp-profile' },
       { path: 'tenant-home', component: () => import('pages/TenantHomePage.vue') },
       { path: 'po-dashboard', component: () => import('pages/PoDashboardPage.vue') },
+      { path: 'owner/reports', component: () => import('pages/ReportsPage.vue'), props: { ownerView: true } },
+      {
+        path: 'owner/:section(properties|tasks|leases|transactions|documents|assets|reminders)',
+        component: () => import('pages/OwnerRecordsPage.vue'),
+      },
       { path: 'create-property', component: () => import('pages/CreatePropertyPage.vue') },
       {
         path: '',

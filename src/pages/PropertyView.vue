@@ -32,13 +32,31 @@
     <div v-else>
       <div class="property-view-container">
         <div class="property-content">
-          <div v-if="!selectedProperty" class="text-center q-pa-lg">
-            <q-icon name="home" size="100px" color="grey-4" />
-            <div class="text-h6 q-mt-md text-grey-6">Select a Property</div>
-            <div class="text-body2 text-grey-6 q-mt-sm">
-              Choose an available property from the selector to view detailed information.
+          <section v-if="!selectedProperty" class="property-picker" aria-labelledby="property-picker-title">
+            <header class="property-picker__header">
+              <div>
+                <h1 id="property-picker-title">Your properties</h1>
+                <p>Select a property to view its records.</p>
+              </div>
+              <q-btn v-if="canManageRecords" unelevated no-caps color="primary" icon="add" label="Add property" @click="openCreatePropertyDialog" />
+            </header>
+            <div class="property-picker__grid">
+              <button
+                v-for="property in userProperties"
+                :key="property.id"
+                type="button"
+                class="property-picker__card"
+                @click="selectProperty(property)"
+              >
+                <span class="property-picker__icon"><q-icon name="home" size="26px" /></span>
+                <span class="property-picker__identity">
+                  <strong>{{ property.nickname || property.name || property.address || 'Property' }}</strong>
+                  <span>{{ [property.address, property.city, property.state].filter(Boolean).join(', ') || 'Address not set' }}</span>
+                </span>
+                <q-icon name="chevron_right" size="20px" aria-hidden="true" />
+              </button>
             </div>
-          </div>
+          </section>
 
           <div v-else class="property-workspace">
             <header class="property-workspace__header">
@@ -2668,11 +2686,6 @@ onMounted(() => {
       document.addEventListener('visibilitychange', handleVisibilityChange)
     }
 
-    // Auto-select first property if available
-    if (userProperties.value.length > 0 && !selectedProperty.value && !route.query.propertyId) {
-      selectedProperty.value = cloneProperty(userProperties.value[0])
-    }
-
     // Data is automatically loaded by the store when user is authenticated
   } catch (error) {
     console.error('PropertyView - Error in onMounted:', error)
@@ -2720,17 +2733,6 @@ watch(
       }, 100)
     }
   },
-)
-
-// Watch for userProperties changes to auto-select first property
-watch(
-  userProperties,
-  (newProperties) => {
-    if (newProperties.length > 0 && !selectedProperty.value && !route.query.propertyId) {
-      selectedProperty.value = cloneProperty(newProperties[0])
-    }
-  },
-  { immediate: true },
 )
 
 // Watch for property changes to load photos
@@ -2894,7 +2896,10 @@ watch(
   [() => route.query.propertyId, userProperties],
   ([propertyId, properties]) => {
     const normalizedId = String(propertyId || '').trim()
-    if (!normalizedId) return
+    if (!normalizedId) {
+      selectedProperty.value = null
+      return
+    }
     const property = (properties || []).find((item) => String(item?.id || '') === normalizedId)
     if (!property) {
       selectedProperty.value = null
@@ -3498,6 +3503,41 @@ const cancelEdit = () => {
 </script>
 
 <style scoped>
+.property-picker {
+  padding: clamp(8px, 2vw, 24px);
+  color: var(--brand-ink, #243830);
+}
+.property-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.property-picker__header h1 { margin: 0; font-size: 26px; line-height: 1.3; font-weight: 650; }
+.property-picker__header p { margin: 8px 0 0; color: var(--brand-muted, #65776e); }
+.property-picker__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.property-picker__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 104px;
+  padding: 20px;
+  border: 1px solid var(--brand-border, #dbe3dc);
+  border-radius: 14px;
+  background: var(--brand-surface, #fff);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.property-picker__card:hover { border-color: var(--q-primary, #254d3e); }
+.property-picker__card:focus-visible { outline: 2px solid var(--q-primary, #254d3e); outline-offset: 3px; }
+.property-picker__icon { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: var(--brand-surface-soft, #edf3ed); color: var(--q-primary, #254d3e); }
+.property-picker__identity { display: grid; gap: 6px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.property-picker__identity strong { font-size: 16px; }
+.property-picker__identity > span { font-size: 13px; line-height: 1.5; color: var(--brand-muted, #65776e); }
 .property-view-container {
   --property-summary-card-height: 300px;
   width: min(100%, 1220px);

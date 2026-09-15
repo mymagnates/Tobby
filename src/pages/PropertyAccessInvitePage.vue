@@ -131,7 +131,7 @@ useWebFormTheme()
 const route = useRoute()
 const router = useRouter()
 const userDataStore = useUserDataStore()
-const { user, signIn, signUp, createDocument, getDocument } = useFirebase()
+const { user, signIn, signUp, createDocument, getDocument, getAllDocuments } = useFirebase()
 const authMode = ref('signup')
 const loadingInvite = ref(true)
 const submitting = ref(false)
@@ -159,9 +159,11 @@ const syncProfileForAccess = async (authUser) => {
   const existingAccountType = normalizeAccountType(
     baseProfile.account_type || baseProfile.user_category,
   )
-  const existingPmAccess =
-    existingAccountType === 'pm' && Boolean(baseProfile.owner_workspace_only) === false
-  const ownerWorkspaceOnly = accessRole === 'owner' && !existingPmAccess
+  const roles = await getAllDocuments(`users/${authUser.uid}/roles`)
+  const activeRoles = roles.filter((role) => String(role.status || 'active').toLowerCase() === 'active')
+  const existingPmAccess = activeRoles.some((role) => String(role.role).toLowerCase() === 'pm') || existingAccountType === 'admin'
+  const hasOwnerAccess = activeRoles.some((role) => ['po', 'owner'].includes(String(role.role).toLowerCase()))
+  const ownerWorkspaceOnly = hasOwnerAccess && !existingPmAccess
   const payload = {
     ...baseProfile,
     user_id: authUser.uid,
@@ -172,7 +174,7 @@ const syncProfileForAccess = async (authUser) => {
     user_category: baseProfile.user_category || 'pm',
     account_type_locked: true,
     owner_workspace_only: ownerWorkspaceOnly,
-    shared_access_only: accessRole === 'viewer' && !existingPmAccess,
+    shared_access_only: !existingPmAccess && !hasOwnerAccess && accessRole === 'viewer',
     manage_scope: Array.isArray(baseProfile.manage_scope) ? baseProfile.manage_scope : [],
     updated_at: new Date(),
     updatedAt: new Date(),
@@ -202,7 +204,7 @@ const acceptInviteForUser = async (authUser) => {
     Notify.create({ type: 'positive', message: 'Property access granted.', position: 'top' })
     router.replace({
       path: '/loading',
-      query: { redirect: result?.access_role === 'owner' ? '/po-dashboard' : '/my-properties' },
+      query: { redirect: result?.access_role === 'owner' ? '/po-dashboard' : result?.access_role === 'viewer' ? '/owner/properties' : '/my-properties' },
     })
   } catch (error) {
     errorMessage.value = error?.message || 'Failed to accept property access invite.'

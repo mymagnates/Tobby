@@ -115,13 +115,13 @@
                   </div>
                   <div class="tenant-meta-compact">
                     <q-chip
-                      :color="tenant.status === 'active' ? 'positive' : 'grey'"
+                      :color="tenant.lease_status === 'Active' ? 'positive' : 'grey'"
                       text-color="white"
                       size="sm"
                       dense
                       class="status-chip-compact"
                     >
-                      {{ tenant.status || 'Active' }}
+                      {{ tenant.lease_status || 'Unavailable' }}
                     </q-chip>
                     <span class="tenant-property-compact">
                       <q-icon name="home" size="12px" class="q-mr-xs" />
@@ -179,8 +179,8 @@
                 </div>
               </div>
               <div class="rent-info-compact" v-if="tenant.lease_info">
-                <div class="rent-amount-compact">${{ tenant.lease_info?.monthly_rent || 'N/A' }}</div>
-                <div class="rent-label-compact">/mo</div>
+                <div class="rent-amount-compact">${{ tenant.lease_info?.monthly_rent ?? 'N/A' }}</div>
+                <div class="rent-label-compact">/{{ tenant.lease_info?.rate_type || 'period' }}</div>
               </div>
             </div>
 
@@ -408,9 +408,9 @@
                     <div class="text-body1 text-weight-medium">{{ getPropertyName(selectedTenant.property_id) }}</div>
                   </div>
                   <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
-                    <div class="text-caption text-grey-7">Monthly Rent</div>
+                    <div class="text-caption text-grey-7">Lease Rent</div>
                     <div class="text-body1 text-weight-bold text-positive">
-                      ${{ selectedTenant.lease_info?.monthly_rent || 'N/A' }}/mo
+                      ${{ selectedTenant.lease_info?.monthly_rent ?? 'N/A' }}/{{ selectedTenant.lease_info?.rate_type || 'period' }}
                     </div>
                   </div>
                   <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
@@ -423,15 +423,15 @@
                   </div>
                   <div class="col-12 col-md-3" v-if="selectedTenant.lease_info">
                     <div class="text-caption text-grey-7">Security Deposit</div>
-                    <div class="text-body1">${{ selectedTenant.lease_info?.security_deposit || 'N/A' }}</div>
+                    <div class="text-body1">${{ selectedTenant.lease_info?.security_deposit ?? 'N/A' }}</div>
                   </div>
                   <div class="col-12 col-md-3">
                     <div class="text-caption text-grey-7">Created At</div>
                     <div class="text-body1">{{ formatDateTime(selectedTenant.created_at) }}</div>
                   </div>
                   <div class="col-12 col-md-3">
-                    <div class="text-caption text-grey-7">Status</div>
-                    <div class="text-body1 text-capitalize">{{ selectedTenant.status || 'active' }}</div>
+                    <div class="text-caption text-grey-7">Lease Status</div>
+                    <div class="text-body1">{{ selectedTenant.lease_status || 'Unavailable' }}</div>
                   </div>
                 </div>
               </q-card-section>
@@ -740,7 +740,7 @@ const searchQuery = ref('')
 const filterProperty = ref(null)
 const filterStatus = ref(null)
 
-const statusOptions = ['Active', 'Inactive', 'Past']
+const statusOptions = ['Active', 'Scheduled', 'Expired', 'Terminated', 'Draft', 'Archived', 'Not linked', 'Unavailable']
 const tenantStatusFilterLabel = computed(() => filterStatus.value || 'All statuses')
 
 // Computed
@@ -775,7 +775,7 @@ const filteredTenants = computed(() => {
   // Filter by status
   if (filterStatus.value) {
     filtered = filtered.filter(tenant => 
-      (tenant.status || 'Active').toLowerCase() === filterStatus.value.toLowerCase()
+      (tenant.lease_status || 'Unavailable').toLowerCase() === filterStatus.value.toLowerCase()
     )
   }
 

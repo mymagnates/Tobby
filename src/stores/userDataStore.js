@@ -10,6 +10,7 @@ import {
   addDoc,
   updateDoc,
   getDocs,
+  onSnapshot,
 } from 'firebase/firestore'
 import { db } from '../boot/firebase'
 import {
@@ -117,6 +118,18 @@ export const useUserDataStore = defineStore('userData', () => {
   )
   const hasPoMembership = computed(() => poMemberships.value.length > 0)
   const hasPmMembership = computed(() => pmMemberships.value.length > 0)
+  const hasViewerMembership = computed(() => activeMemberships.value.some((role) => normalizeRoleValue(role.role) === 'viewer'))
+  const isViewerOnlyUser = computed(() => hasViewerMembership.value && !hasPoMembership.value && !hasPmMembership.value)
+  const canWritePropertyRecords = (propertyId) => {
+    const id = normalizePropertyId(propertyId)
+    const property = properties.value.find((item) => normalizePropertyId(item.id) === id)
+    if (!property || !user.value?.uid) return false
+    const uid = user.value.uid
+    if (Array.isArray(property.owner_user_ids) || Array.isArray(property.manager_user_ids) || Array.isArray(property.viewer_user_ids)) {
+      return (property.owner_user_ids || []).includes(uid) || (property.manager_user_ids || []).includes(uid)
+    }
+    return activeMemberships.value.some((role) => normalizePropertyId(role.property_id) === id && ['pm', 'po'].includes(normalizeRoleValue(role.role)))
+  }
   // Owner workspace access should be driven by PO membership; the legacy PO
   // account fallback stays only to preserve pre-restructure users during migration.
   const hasOwnerWorkspaceAccess = computed(() => hasPoMembership.value || hasLegacyPoAccount.value)
@@ -190,7 +203,8 @@ export const useUserDataStore = defineStore('userData', () => {
   })
 
   const userAccessibleTransactions = computed(() => {
-    return transactions.value
+    const ids = new Set(userAccessibleProperties.value.map((property) => normalizePropertyId(property.id)))
+    return transactions.value.filter((record) => ids.has(normalizePropertyId(record.property_id)))
   })
 
   const userAccessibleLeases = computed(() => {
@@ -339,6 +353,8 @@ export const useUserDataStore = defineStore('userData', () => {
       }
       if (userRoles.value.length > 0) {
         localStorage.setItem(STORAGE_KEYS.USER_ROLES, JSON.stringify(userRoles.value))
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.USER_ROLES)
       }
       localStorage.removeItem(STORAGE_KEYS.PROPERTIES)
       localStorage.setItem(STORAGE_KEYS.DATA_TIMESTAMP, Date.now().toString())
@@ -375,10 +391,8 @@ export const useUserDataStore = defineStore('userData', () => {
         userProfile.value = JSON.parse(profileData)
       }
 
-      const rolesData = localStorage.getItem(STORAGE_KEYS.USER_ROLES)
-      if (rolesData) {
-        userRoles.value = JSON.parse(rolesData)
-      }
+      // Memberships must be confirmed by Firestore, never restored as authorization.
+      localStorage.removeItem(STORAGE_KEYS.USER_ROLES)
 
       localStorage.removeItem(STORAGE_KEYS.PROPERTIES)
 
@@ -595,39 +609,53 @@ export const useUserDataStore = defineStore('userData', () => {
 
   const loadUserRoles = async () => {
     if (!user.value) return
-
-    try {
-      userRolesLoading.value = true
-      debugLog('UserDataStore - Loading user roles...')
-      debugLog('UserDataStore - User UID:', user.value.uid)
-
-      const userRolesQuery = query(
-        collection(db, 'users', user.value.uid, 'roles'),
-        orderBy('role_date', 'desc'),
-      )
-      const snapshot = await getDocs(userRolesQuery)
-      debugLog('UserDataStore - User roles snapshot received with', snapshot.docs.length, 'roles')
-      userRoles.value = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          role: normalizeRoleValue(data?.role) || data?.role || null,
-        }
-      })
-      debugLog('UserDataStore - User roles loaded:', userRoles.value)
-      unsubscribeUserRoles.value = null
-      userRolesLoading.value = false
-    } catch (error) {
-      console.error('UserDataStore - Error setting up user roles listener:', error)
-      // If there's an error, try to set empty array to prevent blocking
-      userRoles.value = []
-      userRolesLoading.value = false
+    unsubscribeUserRoles.value?.()
+    const uid = user.value.uid
+    userRolesLoading.value = true
+    const clearRecords = () => {
+      properties.value = []
+      mxRecords.value = []
+      transactions.value = []
+      leases.value = []
     }
+    userRoles.value = []
+    clearRecords()
+    await new Promise((resolve) => {
+      let first = true
+      unsubscribeUserRoles.value = onSnapshot(collection(db, 'users', uid, 'roles'), { includeMetadataChanges: true }, (snapshot) => {
+        if (user.value?.uid !== uid || snapshot.metadata.fromCache) return
+        const previous = JSON.stringify(userRoles.value)
+        const roles = snapshot.docs.map((item) => ({ ...item.data(), id: item.id, role: normalizeRoleValue(item.data().role) }))
+        userRoles.value = roles
+        userRolesLoading.value = false
+        if (!first && previous !== JSON.stringify(roles)) {
+          clearRecords()
+          saveToStorage()
+          void (async () => {
+            await loadProperties()
+            if (user.value?.uid !== uid) return
+            await loadMxRecords()
+            await loadTransactions()
+            await loadLeases()
+          })()
+        }
+        first = false
+        resolve()
+      }, (error) => {
+        if (user.value?.uid !== uid) return resolve()
+        console.error('UserDataStore - Membership access lost:', error.code)
+        userRoles.value = []
+        clearRecords()
+        saveToStorage()
+        userRolesLoading.value = false
+        resolve()
+      })
+    })
   }
 
   const loadProperties = async () => {
     if (!user.value) return
+    const loadingUserId = user.value.uid
     if (userRoles.value.length === 0) {
       properties.value = []
       propertiesLoading.value = false
@@ -671,7 +699,9 @@ export const useUserDataStore = defineStore('userData', () => {
         }),
       )
 
-      properties.value = propertyDocs.filter(Boolean)
+      const currentIds = new Set(activeMemberships.value.map((role) => normalizePropertyId(role.property_id)))
+      if (user.value?.uid !== loadingUserId) return
+      properties.value = propertyDocs.filter((property) => property && currentIds.has(normalizePropertyId(property.id)))
       properties.value.sort((a, b) => {
         const nicknameA = (a.nickname || '').toLowerCase()
         const nicknameB = (b.nickname || '').toLowerCase()
@@ -1156,6 +1186,9 @@ export const useUserDataStore = defineStore('userData', () => {
     hasPmMembership,
     hasOwnerWorkspaceAccess,
     isOwnerOnlyUser,
+    isViewerOnlyUser,
+    hasViewerMembership,
+    canWritePropertyRecords,
     isManagerCapableUser,
     canManageProperty,
     canCreateTransactionsForProperty,

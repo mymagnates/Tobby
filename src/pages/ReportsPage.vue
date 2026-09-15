@@ -279,8 +279,10 @@
 </template>
 
 <script setup>
+const props = defineProps({ ownerView: { type: Boolean, default: false } })
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useUserDataStore } from '../stores/userDataStore'
 import {
   getReportingOptions,
   getWorkspaceReport,
@@ -587,9 +589,9 @@ async function loadOptions() {
     const result = await getReportingOptions({ signal: optionsController.signal })
     if (request !== optionsSequence) return
     properties.value = result.properties
-    account.value = result.account
+    account.value = { ...result.account, can_pm_statement: !props.ownerView && result.account.can_pm_statement }
     if (!account.value.can_pm_statement) mode.value = 'property'
-    if (!result.properties.some((p) => p.can_finance) && result.properties.some((p) => p.can_tasks))
+    if (!properties.value.some((p) => p.can_finance) && properties.value.some((p) => p.can_tasks))
       propertyType.value = 'tasks'
     selectedIds.value = headerPropertyId.value
       ? [headerPropertyId.value]
@@ -660,6 +662,15 @@ function refreshReport() {
   return loadReport()
 }
 watch(period, syncPeriod)
+const accessStore = useUserDataStore()
+watch(() => JSON.stringify(accessStore.userRoles), () => {
+  reportController?.abort()
+  reportSequence += 1
+  report.value = null
+  properties.value = []
+  selectedIds.value = []
+  void loadOptions()
+}, { flush: 'sync' })
 watch(transactionReportRevision, refreshReport, { flush: 'sync' })
 watch(headerPropertyId, (value) => {
   selectedIds.value = value

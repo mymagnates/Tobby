@@ -20,7 +20,7 @@
       <div v-else-if="visibleRows.length" class="mobile-list">
         <div
           v-for="row in visibleRows"
-          :key="row.id || row.title"
+          :key="`${row.property_id || ''}:${row.id || row.title}`"
           role="button"
           tabindex="0"
           class="mobile-list-row mobile-list-row--button"
@@ -74,6 +74,7 @@ import MobilePageHeader from 'components/mobile/MobilePageHeader.vue'
 import { useFirebase } from 'src/composables/useFirebase'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useMobileModeration } from 'src/pages/mobile/useMobileModeration'
+import { serviceCoversProperty } from 'src/utils/serviceCoverage'
 
 const route = useRoute()
 const router = useRouter()
@@ -243,7 +244,7 @@ const loadRows = async () => {
         : source
       return
     }
-    if (propertyId.value) {
+    if (propertyId.value && recordType.value !== 'services') {
       rows.value = await getAllDocuments(`properties/${propertyId.value}/${config.value.path}`).catch(() => [])
       return
     }
@@ -252,9 +253,11 @@ const loadRows = async () => {
       const id = String(property.id || property.property_id || '').trim()
       if (!id) return []
       const records = await getAllDocuments(`properties/${id}/${config.value.path}`).catch(() => [])
-      return records.map((row) => ({ ...row, property_id: row.property_id || id }))
+      return records.map((row) => ({ ...row, property_id: id }))
     }))
-    rows.value = groups.flat()
+    rows.value = recordType.value === 'services'
+      ? groups.flat().filter((row) => serviceCoversProperty(row, propertyId.value))
+      : groups.flat()
   } finally {
     loading.value = false
   }
