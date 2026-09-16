@@ -27,7 +27,13 @@
             <span>Status: {{ task.status || 'Not recorded' }}</span>
             <span>Priority: {{ task.priority || 'Not recorded' }}</span>
           </div>
-          <p v-if="task.description" class="task-copy">{{ task.description }}</p>
+        </section>
+        <section v-if="task.description" class="task-info-card">
+          <h3>Description</h3>
+          <p class="task-copy">{{ task.description }}</p>
+        </section>
+        <section v-if="attachments(task.image_urls).length" class="task-info-card">
+          <h3>Attachments</h3>
           <div v-if="attachments(task.image_urls).length" class="task-photos">
             <a
               v-for="(url, index) in attachments(task.image_urls)"
@@ -522,9 +528,17 @@ onBeforeUnmount(() => {
   scroll-padding-block: 16px;
 }
 .task-summary {
-  padding: 12px 0 24px;
-  border-bottom: 1px solid var(--task-line);
+  padding: 12px 0 20px;
 }
+.task-info-card {
+  padding: 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--task-line);
+  border-radius: 16px;
+  background: var(--task-surface);
+}
+.task-info-card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.task-info-card .task-copy { margin: 0; }
 .task-eyebrow,
 .task-muted,
 time,
@@ -581,9 +595,11 @@ time,
   margin: 0;
 }
 .task-timeline li {
-  border-left: 2px solid var(--task-line);
-  padding: 0 0 24px 16px;
-  margin-left: 3px;
+  border: 1px solid var(--task-line);
+  border-radius: 16px;
+  background: var(--task-surface);
+  padding: 16px;
+  margin: 0 0 12px;
 }
 .task-log-heading {
   display: flex;

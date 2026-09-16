@@ -22,13 +22,10 @@
       <q-btn class="ios-primary q-mt-lg" no-caps unelevated label="Done" @click="returnToContext" />
     </template>
     <template v-else>
-      <q-select
+      <WorkspaceFilterButton
         v-model="propertyId"
         :options="properties"
-        emit-value
-        map-options
-        outlined
-        label="Property"
+        label="Choose a property"
         :disable="formBusy"
         class="q-mb-lg"
       />
@@ -70,6 +67,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import WorkspaceHeader from 'src/components/mobile/WorkspaceHeader.vue'
+import WorkspaceFilterButton from 'src/components/mobile/WorkspaceFilterButton.vue'
 import { mobileAttachmentUrl, safeMobileReturnTo } from 'src/utils/mobileHome'
 const route = useRoute(),
   router = useRouter(),

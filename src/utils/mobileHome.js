@@ -82,6 +82,10 @@ export function buildMobileAttention({
 }) {
   const allowed = new Set(properties.map((row) => row.id))
   const today = mobileCalendarDate(now)
+  const recentStart = new Date(today)
+  recentStart.setDate(recentStart.getDate() - 6)
+  const upcomingEnd = new Date(today)
+  upcomingEnd.setDate(upcomingEnd.getDate() + 7)
   return [
     ...tasks.map((row) => ({ ...row, type: 'tasks' })),
     ...reminders.map((row) => ({ ...row, type: 'reminders' })),
@@ -103,6 +107,9 @@ export function buildMobileAttention({
         )
       const overdue = Boolean(due && due < today)
       const dueToday = Boolean(due && due.getTime() === today.getTime())
+      const created = mobileCalendarDate(row.created_at || row.created_datetime || row.report_date)
+      const recentTask = row.type === 'tasks' && Boolean(created && created >= recentStart && created <= today)
+      const upcoming = row.type === 'reminders' && Boolean(due && due > today && due <= upcomingEnd)
       return {
         ...row,
         attention: {
@@ -110,12 +117,14 @@ export function buildMobileAttention({
           overdue,
           dueToday,
           urgent,
-          rank: urgent ? 0 : overdue ? 1 : dueToday ? 2 : 3,
-          label: urgent ? 'Urgent' : overdue ? 'Overdue' : dueToday ? 'Today' : '',
+          recentTask,
+          upcoming,
+          rank: urgent ? 0 : overdue ? 1 : dueToday ? 2 : upcoming ? 3 : recentTask ? 4 : 5,
+          label: urgent ? 'Urgent' : overdue ? 'Overdue' : dueToday ? 'Today' : upcoming ? 'Due soon' : recentTask ? 'Recent task' : '',
         },
       }
     })
-    .filter((row) => row.attention.rank < 3)
+    .filter((row) => row.attention.rank < 5)
     .sort(
       (a, b) =>
         a.attention.rank - b.attention.rank ||

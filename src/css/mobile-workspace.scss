@@ -84,10 +84,11 @@ body.body--dark .ios-dialog {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px 0;
-    border: 0;
-    border-bottom: 1px solid var(--ios-line);
-    background: transparent;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--ios-line);
+    border-radius: 16px;
+    background: var(--brand-surface);
     color: inherit;
     text-align: left;
     font: inherit;
@@ -130,7 +131,7 @@ body.body--dark .ios-dialog {
   .ios-row-title {
     display: block;
     font-size: 16px;
-    font-weight: 400;
+    font-weight: 600;
     line-height: 1.45;
   }
   .ios-row-meta {
@@ -155,13 +156,61 @@ body.body--dark .ios-dialog {
     }
   }
   .ios-attention-label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--ios-accent);
+    background: var(--brand-soft);
+    padding: 5px 8px;
+    border-radius: 8px;
+    max-width: 96px;
+    flex-shrink: 0;
+  }
+  .ios-attention-label--warning {
+    color: #8b4b16;
+    background: #fff0de;
   }
   .ios-property-select {
     margin-bottom: 16px;
   }
+  .ios-filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+    padding: 3px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .ios-filter-row .ios-filter-button { flex: 1; min-width: 0; margin: 0; }
+  .ios-filter-row--manage .ios-filter-button { flex: 0 0 170px; }
+  .q-btn.ios-filter-card {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid var(--ios-line) !important;
+    border-radius: 10px !important;
+    background: var(--brand-surface) !important;
+    color: var(--ios-text) !important;
+    box-shadow: none !important;
+    font-size: 13px;
+    transform: none !important;
+  }
+  .ios-filter-card .q-btn__content { flex-wrap: nowrap; gap: 6px; }
+  .ios-filter-card .q-icon { font-size: 18px; margin: 0; }
+  .ios-filter-card::before { box-shadow: none !important; }
+  .ios-filter-card .q-focus-helper { display: none; }
+  .ios-filter-button.q-field .q-field__control {
+    background: var(--brand-surface) !important;
+    border: 1px solid var(--ios-line) !important;
+    border-radius: 12px !important;
+    min-height: 48px;
+    box-shadow: none !important;
+    padding-inline: 14px;
+  }
+  .ios-filter-button.q-field .q-field__control::before,
+  .ios-filter-button.q-field .q-field__control::after { border: 0 !important; background: none !important; }
+  .ios-filter-button.q-field--focused .q-field__control { border-color: var(--ios-accent) !important; }
+  .ios-filter-button .q-field__native { font-weight: 500; }
+  .ios-filter-button .q-field__marginal { height: 48px; color: var(--ios-accent); }
   .q-field__native,
   .q-field__input,
   .q-field__label,
@@ -172,23 +221,31 @@ body.body--dark .ios-dialog {
     border-color: var(--ios-line);
   }
   .ios-property {
-    padding: 18px 0;
-    border-bottom: 1px solid var(--ios-line);
+    padding: 12px 14px;
+    margin: 10px 0;
+    border: 1px solid var(--ios-line);
+    border-radius: 16px;
+    background: var(--brand-surface);
   }
   .ios-property-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 8px;
   }
+  .ios-property h2 { font-size: 17px; margin: 0 0 4px; }
+  .ios-property p { margin: 3px 0; font-size: 13px; }
+  .ios-property-actions .q-btn { padding: 4px 10px; font-size: 13px; }
   .ios-primary {
-    background: var(--ios-accent);
-    color: var(--brand-on-primary);
+    background: var(--ios-accent) !important;
+    color: var(--brand-on-primary) !important;
+    border: 0 !important;
+    box-shadow: none !important;
   }
   // Isolate this action from global animated buttons and Quasar's focus overlay.
   .q-btn.ios-new-record {
-    background: transparent !important;
-    color: var(--ios-accent) !important;
+    background: var(--ios-accent) !important;
+    color: var(--brand-on-primary) !important;
     border: 1px solid var(--ios-accent) !important;
     border-radius: 8px !important;
     box-shadow: none !important;
@@ -197,7 +254,7 @@ body.body--dark .ios-dialog {
     -webkit-tap-highlight-color: transparent;
 
     &:active {
-      background: var(--brand-soft) !important;
+      background: var(--ios-accent) !important;
     }
     &:focus:not(:focus-visible) {
       outline: none;
@@ -307,17 +364,47 @@ body.body--dark .ios-dialog {
     gap: 16px;
   }
   .ios-shared-form .q-card {
-    background: transparent;
+    background: var(--brand-surface);
     box-shadow: none;
-    border: 0;
-    border-radius: 0;
+    border: 1px solid var(--ios-line);
+    border-radius: 16px;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
   }
   .ios-shared-form .composer-head {
+    order: 2;
+    position: sticky;
+    bottom: var(--ios-actions-bottom, 0px);
+    z-index: 3;
+    background: var(--brand-surface);
+    border-top: 1px solid var(--ios-line);
+    padding: 12px 16px;
+  }
+  .ios-shared-form .composer-head > :not(.row),
+  .ios-shared-form .composer-head > .row > :first-child {
     display: none;
   }
-  .ios-shared-form .q-card__section {
-    padding-inline: 0;
+  .ios-shared-form .composer-head > .row {
+    margin: 0;
   }
+  .ios-shared-form .composer-head > .row > :last-child {
+    width: 100%;
+    padding: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .ios-shared-form .composer-head .q-btn {
+    flex: 1;
+    margin: 0;
+    min-height: 48px;
+  }
+  .ios-shared-form .q-card__section {
+    padding-inline: 16px;
+  }
+  .ios-shared-form .q-card__section:not(.composer-head) { padding-top: 20px; }
+  .ios-shared-form .create-reminder-close { display: none; }
   .ios-shared-form .text-h6 {
     font-size: 18px;
     font-weight: 500;
@@ -355,12 +442,28 @@ body.body--dark .ios-dialog {
   .ios-login {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: max(48px, env(safe-area-inset-top));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
     max-width: 420px;
   }
   .ios-login h1 {
-    margin-bottom: 28px;
+    margin-bottom: 8px;
   }
+  .ios-brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #203c60; color: white; font-size: 28px; font-weight: 700; }
+  .ios-home-brand, .ios-login-brand { display: flex; align-items: center; gap: 10px; font-size: 21px; margin-bottom: 24px; }
+  .ios-home-brand .q-btn { margin-left: auto; }
+  .q-page.ios-home { padding-bottom: 110px; }
+  .ios-home-create { position: fixed; bottom: var(--ios-actions-bottom); left: 0; right: 0; z-index: 10; padding: 12px 20px; background: var(--ios-bg); border-top: 1px solid var(--ios-line); }
+  .ios-home-create .q-btn { display: flex; width: 100%; max-width: 720px; margin: auto; min-height: 48px; }
+  .ios-login-heading { margin: 18px 0 24px; }
+  .ios-login-heading p { color: var(--ios-muted); margin: 0; }
+  .ios-login-card { padding: 24px 20px; background: var(--brand-surface); border: 1px solid var(--ios-line); border-radius: 18px; }
+  .ios-login-register { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 20px; font-size: 14px; color: var(--ios-muted); }
+  .ios-login-card .ios-primary { min-height: 48px; }
+  .ios-login .q-btn--flat { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+  .ios-login .q-btn--flat::before { box-shadow: none !important; }
+  .q-field--outlined .q-field__control { border-radius: 10px; background: var(--brand-surface); }
   :focus-visible {
     outline: 2px solid var(--ios-accent);
     outline-offset: 3px;

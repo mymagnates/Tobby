@@ -1,26 +1,33 @@
 <template>
   <q-page class="ios-login">
-    <h1>Handout</h1>
-    <q-form class="ios-form" @submit="login">
+    <div class="ios-login-brand"><span class="ios-brand-mark" aria-hidden="true">h</span><strong>Handout</strong></div>
+    <header class="ios-login-heading"><h1>Welcome back</h1><p>Sign in to manage your properties.</p></header>
+    <q-form class="ios-form ios-login-card" @submit="login">
       <q-input
         v-model="email"
         outlined
         label="Email"
         type="email"
         autocomplete="username"
+        autocapitalize="none"
+        :spellcheck="false"
         :rules="[(v) => !!v || 'Enter your email']"
       />
       <q-input
         v-model="password"
         outlined
         label="Password"
-        type="password"
+        :type="showPassword ? 'text' : 'password'"
         autocomplete="current-password"
         :rules="[(v) => !!v || 'Enter your password']"
-      />
+      >
+        <template #append><q-btn flat round dense :icon="showPassword ? 'visibility_off' : 'visibility'" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword" /></template>
+      </q-input>
       <p v-if="error" class="ios-error" role="alert">{{ error }}</p>
-      <q-btn class="ios-primary" unelevated no-caps label="Sign in" type="submit" :loading="busy" />
       <q-btn flat no-caps label="Forgot password?" :disable="busy" @click="reset" />
+      <q-btn class="ios-primary" unelevated no-caps label="Sign in" type="submit" :loading="busy" />
+    </q-form>
+    <div class="ios-login-register"><span>New to Handout?</span>
       <q-btn
         flat
         no-caps
@@ -29,7 +36,7 @@
         target="_blank"
         rel="noopener noreferrer"
       />
-    </q-form>
+    </div>
   </q-page>
 </template>
 <script setup>
@@ -43,6 +50,7 @@ const store = useUserDataStore(),
   router = useRouter(),
   route = useRoute()
 const email = ref(''),
+  showPassword = ref(false),
   password = ref(''),
   busy = ref(false),
   error = ref('')

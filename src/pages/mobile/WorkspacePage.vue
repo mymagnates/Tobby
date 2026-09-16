@@ -1,6 +1,11 @@
 <template>
-  <q-page>
+  <q-page :class="{ 'ios-home': mode === 'home' }">
+    <header v-if="mode === 'home'" class="ios-home-brand">
+      <span class="ios-brand-mark" aria-hidden="true">h</span><strong>Handout</strong>
+      <q-btn flat round icon="person_outline" aria-label="Account" @click="router.push('/mobile/pm/account')" />
+    </header>
     <WorkspaceHeader
+      v-else
       :title="title"
       :back="Boolean(route.query.returnTo)"
       @back="router.push(safeMobileReturnTo(route.query.returnTo, '/mobile/pm/home'))"
@@ -16,6 +21,9 @@
         @click="createOpen = true"
       />
     </WorkspaceHeader>
+    <div v-if="mode === 'home'" class="ios-home-create">
+      <q-btn class="ios-primary ios-new-record" :ripple="false" unelevated no-caps icon="add" label="New record" @click="createOpen = true" />
+    </div>
     <div v-if="error" class="ios-error" role="alert">
       {{ error }} <q-btn flat no-caps label="Retry" @click="load" />
     </div>
@@ -23,17 +31,17 @@
     <p v-if="!loading && selectedProperty && !properties.some((property) => property.id === selectedProperty)" class="ios-error" role="alert">
       This property is no longer available. Choose another property.
     </p>
-    <q-select
-      v-if="mode === 'home' || mode === 'manage'"
+    <div v-if="mode === 'home' || mode === 'manage'" class="ios-filter-row" :class="{ 'ios-filter-row--manage': mode === 'manage' }">
+    <WorkspaceFilterButton
       v-model="selectedProperty"
       :options="propertyOptions"
-      emit-value
-      map-options
-      outlined
       label="Property"
-      dropdown-icon="expand_more"
-      class="ios-property-select"
     />
+      <template v-if="mode === 'manage'">
+        <WorkspaceFilterButton v-model="recordFilter" :options="[{ label: 'All records', value: 'all' }, { label: 'Needs attention', value: 'attention' }]" label="Show" />
+        <WorkspaceFilterButton v-if="recordFilter !== 'attention'" v-model="recordType" :options="recordTypes" label="Record type" />
+      </template>
+    </div>
     <template v-if="mode === 'home'">
       <div class="ios-section-heading">
         <h2>Needs attention</h2>
@@ -60,7 +68,7 @@
             ></span
           ></span
         >
-        <span class="ios-attention-label">{{ item.attention.label }}</span>
+        <span class="ios-attention-label" :class="{ 'ios-attention-label--warning': item.attention.overdue || item.attention.urgent }">{{ item.attention.label }}</span>
         <q-icon name="chevron_right" />
       </button>
       <div v-if="!loading && !error && !properties.length" class="ios-empty">
@@ -68,7 +76,7 @@
         <q-btn flat no-caps label="Property setup" @click="router.push('/mobile/pm/property')" />
       </div>
       <div v-else-if="!loading && !attention.length && !error && (!selectedProperty || properties.some((property) => property.id === selectedProperty))" class="ios-empty">
-        <p>No urgent, overdue or due-today items.</p>
+        <p>No urgent, overdue, recent tasks or reminders due in the next 7 days.</p>
         <p class="ios-muted">Other open tasks may still need your attention.</p>
         <q-btn flat no-caps label="View all tasks" @click="showAllTasks" />
       </div>
@@ -86,7 +94,6 @@
             class="ios-primary"
             unelevated
             no-caps
-            icon="fact_check"
             label="Inventory List"
             :loading="leaseLoading === property.id"
             @click="openInventory(property)"
@@ -110,32 +117,9 @@
       </div>
     </template>
     <template v-else-if="mode === 'manage'">
-      <q-select
-        v-model="recordFilter"
-        :options="[
-          { label: 'All records', value: 'all' },
-          { label: 'Needs attention', value: 'attention' },
-        ]"
-        emit-value
-        map-options
-        outlined
-        label="Show"
-        class="q-mb-md"
-      />
-      <q-input v-model="search" outlined dense clearable label="Search records"
+      <q-input v-model="search" outlined dense clearable label="Search records" class="q-mb-lg"
         ><template #prepend><q-icon name="search" /></template
       ></q-input>
-      <q-select
-        v-if="recordFilter !== 'attention'"
-        v-model="recordType"
-        :options="recordTypes"
-        emit-value
-        map-options
-        outlined
-        dense
-        label="Record type"
-        class="q-mt-md"
-      />
       <button
         v-for="item in filteredRecords"
         :key="`${recordPropertyId(item)}-${item.type}-${item.id}`"
@@ -288,6 +272,7 @@ import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import { mobileRequest } from 'src/services/mobileApi'
 import WorkspaceHeader from 'src/components/mobile/WorkspaceHeader.vue'
+import WorkspaceFilterButton from 'src/components/mobile/WorkspaceFilterButton.vue'
 import LeaseLifecyclePanel from 'src/components/LeaseLifecyclePanel.vue'
 import DepositWorkspace from 'src/components/deposits/DepositWorkspace.vue'
 import { propertyLeasingStatus, leasePropertyId } from '../../../backend/leaseLifecycle.js'
