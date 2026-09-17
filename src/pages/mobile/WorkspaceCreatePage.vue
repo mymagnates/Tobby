@@ -22,13 +22,20 @@
       <q-btn class="ios-primary q-mt-lg" no-caps unelevated label="Done" @click="returnToContext" />
     </template>
     <template v-else>
-      <WorkspaceFilterButton
-        v-model="propertyId"
-        :options="properties"
-        label="Choose a property"
-        :disable="formBusy"
-        class="q-mb-lg"
-      />
+      <section class="create-property-picker" aria-labelledby="create-property-label">
+        <h2 id="create-property-label">Choose a property</h2>
+        <div class="create-property-grid">
+          <button v-for="property in properties" :key="property.value" type="button"
+            class="create-property-card" :class="{ 'is-selected': propertyId === property.value }"
+            :aria-pressed="propertyId === property.value" :disabled="formBusy"
+            @click="propertyId = property.value">
+            <q-icon name="home" size="20px" aria-hidden="true" />
+            <span>{{ property.label }}</span>
+            <q-icon v-if="propertyId === property.value" name="check" size="18px" aria-hidden="true" />
+          </button>
+        </div>
+        <p v-if="!properties.length" class="ios-muted">No properties available.</p>
+      </section>
       <div v-if="propertyId" class="ios-shared-form">
         <component
           :is="formComponent"
@@ -41,6 +48,8 @@
           @mxrecord-created="complete"
           @reminder-saved="complete"
           @document-created="complete"
+          @asset-created="complete"
+          @service-created="complete"
           @busy-change="formBusy = $event"
           @draft-change="hasDraft = $event"
           @cancel="returnToContext"
@@ -67,7 +76,6 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useUserDataStore } from 'src/stores/userDataStore'
 import { useFirebase } from 'src/composables/useFirebase'
 import WorkspaceHeader from 'src/components/mobile/WorkspaceHeader.vue'
-import WorkspaceFilterButton from 'src/components/mobile/WorkspaceFilterButton.vue'
 import { mobileAttachmentUrl, safeMobileReturnTo } from 'src/utils/mobileHome'
 const route = useRoute(),
   router = useRouter(),
@@ -78,6 +86,8 @@ const forms = {
   transaction: defineAsyncComponent(() => import('src/components/CreateTransaction.vue')),
   reminder: defineAsyncComponent(() => import('src/components/CreateReminder.vue')),
   document: defineAsyncComponent(() => import('src/components/CreateDocument.vue')),
+  asset: defineAsyncComponent(() => import('src/components/CreateAsset.vue')),
+  service: defineAsyncComponent(() => import('src/components/CreateService.vue')),
 }
 const kind = computed(() => (Object.hasOwn(forms, route.query.kind) ? route.query.kind : 'task')),
   formComponent = computed(() => forms[kind.value])
@@ -140,6 +150,16 @@ const savedFields = computed(() =>
           'status',
           'due_date',
           'report_date',
+          'nickname',
+          'type',
+          'brand',
+          'model',
+          'serial',
+          'location',
+          'service_type',
+          'company_name',
+          'term',
+          'notes',
         ].includes(key) &&
         value !== '' &&
         value !== null &&
@@ -156,6 +176,8 @@ async function complete(record) {
     transaction: 'transactions',
     reminder: 'reminders',
     document: 'documents',
+    asset: 'assets',
+    service: 'services',
   }[kind.value]
   // Read the saved record back; shared forms may reset their reactive payload after emitting.
   try {
@@ -170,6 +192,27 @@ async function complete(record) {
 onMounted(() => store.loadProperties())
 </script>
 <style scoped>
+.create-property-picker { margin-bottom: 24px; }
+.create-property-picker h2 { margin: 0 0 12px; font-size: 15px; }
+.create-property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.create-property-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--ios-line);
+  border-radius: 12px;
+  background: var(--brand-surface);
+  color: var(--ios-text);
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.create-property-card span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.create-property-card.is-selected { border-color: var(--ios-accent); background: var(--brand-soft); }
+.create-property-card:disabled { opacity: .6; cursor: default; }
 .saved-photo {
   display: block;
   width: 100%;

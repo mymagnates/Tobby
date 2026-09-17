@@ -80,7 +80,7 @@
       </div>
       <template v-if="tab === 'items'">
         <section v-for="group in groups" :key="group.area" class="inventory-group">
-          <div class="inventory-room-heading"><h2>{{ group.area }}</h2><q-btn v-if="workflowReady" flat no-caps icon="add" :aria-label="`Add item to ${group.area}`" label="Add" :disable="busy" @click="newItem(group.area)" /></div>
+          <div class="inventory-room-heading"><h2>{{ group.area }}</h2><q-btn v-if="workflowReady" flat round icon="add" :aria-label="`Add item to ${group.area}`" :disable="busy" @click="newItem(group.area)" /></div>
           <button
             v-for="item in group.items"
             :key="item.id"
@@ -1280,7 +1280,8 @@ watch(
 .inventory-group { margin: 8px 0; border: 1px solid var(--brand-border, #dbe3dc); border-radius: 8px; overflow: hidden; background: var(--brand-surface, white); }
 .inventory-group h2 { margin: 0; padding: 6px 12px; background: var(--brand-canvas, #f7f8f4); font-size: 14px; line-height: 1.4; }
 .inventory-room-heading { display: flex; align-items: center; justify-content: space-between; background: var(--brand-canvas, #f7f8f4); }
-.inventory-room-heading .q-btn { min-height: 44px; }
+.inventory-room-heading h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.inventory-room-heading .q-btn { min-height: 44px; margin-left: auto; flex-shrink: 0; }
 .inventory-group .ios-row { min-height: 48px; padding: 8px 12px; margin: 0; border: 0; border-top: 1px solid var(--brand-border, #dbe3dc); border-radius: 0; text-align: left; }
 .inventory-group .ios-row-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; }
 .inventory-group .ios-row-title { font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }

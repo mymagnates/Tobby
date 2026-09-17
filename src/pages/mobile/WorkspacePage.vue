@@ -105,6 +105,10 @@
             icon-right="chevron_right"
             @click="showPropertyRecords(property.id)"
           />
+          <q-btn flat no-caps label="Services" @click="showPropertyRecords(property.id, 'services')" />
+          <q-btn flat no-caps label="Assets" @click="showPropertyRecords(property.id, 'assets')" />
+          <q-btn flat no-caps label="Documents" @click="showPropertyRecords(property.id, 'documents')" />
+          <q-btn flat no-caps label="Reminders" @click="showPropertyRecords(property.id, 'reminders')" />
         </div>
       </section>
       <div v-if="!loading && !filteredProperties.length && !error" class="ios-empty">
@@ -174,7 +178,7 @@
       <button class="ios-row" @click="logout">Sign out</button>
     </template>
     <q-dialog v-model="leaseOpen"
-      ><q-card class="ios-dialog">
+      ><q-card class="ios-dialog ios-lease-picker">
         <h2>Choose a lease</h2>
         <p v-if="!leases.length">
           No lease is linked to this property. Add the lease on the web first.
@@ -194,7 +198,7 @@
               ></q-item-section
             ><q-item-section side><q-icon name="chevron_right" /></q-item-section></q-item
         ></q-list>
-        <q-btn flat no-caps label="Cancel" v-close-popup /> </q-card
+        <div class="ios-lease-picker__footer"><q-btn flat no-caps label="Cancel" v-close-popup /></div> </q-card
     ></q-dialog>
     <q-dialog v-model="createOpen" position="bottom"
       ><q-card class="ios-dialog"
@@ -273,6 +277,7 @@ import { useFirebase } from 'src/composables/useFirebase'
 import { mobileRequest } from 'src/services/mobileApi'
 import WorkspaceHeader from 'src/components/mobile/WorkspaceHeader.vue'
 import WorkspaceFilterButton from 'src/components/mobile/WorkspaceFilterButton.vue'
+import { serviceCoversProperty, servicePropertyIds } from 'src/utils/serviceCoverage'
 import LeaseLifecyclePanel from 'src/components/LeaseLifecyclePanel.vue'
 import DepositWorkspace from 'src/components/deposits/DepositWorkspace.vue'
 import { propertyLeasingStatus, leasePropertyId } from '../../../backend/leaseLifecycle.js'
@@ -348,6 +353,9 @@ const propertyName = (id) => {
 }
 const recordTitle = (row) =>
   row.task_title ||
+  row.company_name ||
+  row.nickname ||
+  row.service_type ||
   row.name ||
   row.title ||
   row.note ||
@@ -372,7 +380,9 @@ const filteredRecords = computed(() =>
   ).filter(
     (item) =>
       properties.value.some((property) => property.id === recordPropertyId(item)) &&
-      (!selectedProperty.value || recordPropertyId(item) === selectedProperty.value) &&
+      (!selectedProperty.value || (item.type === 'services'
+        ? serviceCoversProperty(item, selectedProperty.value)
+        : recordPropertyId(item) === selectedProperty.value)) &&
       recordTitle(item)
         .toLowerCase()
         .includes((search.value || '').toLowerCase()),
@@ -501,8 +511,8 @@ function showAllTasks() {
     },
   })
 }
-function showPropertyRecords(property) {
-  router.push({ path: '/mobile/pm/manage', query: { property, returnTo: currentReturnTo() } })
+function showPropertyRecords(property, type = 'tasks') {
+  router.push({ path: '/mobile/pm/manage', query: { property, type, filter: 'all', returnTo: currentReturnTo() } })
 }
 const createOpen = ref(false)
 const createTypes = [
@@ -511,6 +521,8 @@ const createTypes = [
   { label: 'Transaction', icon: 'payments', path: '/create-transaction' },
   { label: 'Reminder', icon: 'event', path: '/reminders' },
   { label: 'Document', icon: 'attach_file', path: '/documents' },
+  { label: 'Asset', icon: 'inventory_2', path: '/assets' },
+  { label: 'Service', icon: 'handyman', path: '/services' },
 ]
 function openCreate(item) {
   createOpen.value = false
@@ -539,6 +551,24 @@ const detailFields = computed(() =>
   selected.value
     ? [
         { label: 'Property', value: propertyName(selected.value.property_id) },
+        ...(selected.value.type === 'services' ? [
+          { label: 'Coverage', value: servicePropertyIds(selected.value).map(id => propertyName(id) || id).join(', ') },
+          { label: 'Contact', value: selected.value.agent?.name },
+          { label: 'Phone', value: selected.value.agent?.phone },
+          { label: 'Email', value: selected.value.agent?.email },
+        ] : []),
+        ...(selected.value.type === 'assets' ? [
+          { label: 'Location', value: selected.value.location },
+          { label: 'Brand', value: selected.value.brand },
+          { label: 'Model', value: selected.value.model },
+          { label: 'Serial', value: selected.value.serial },
+          { label: 'Acquired date', value: selected.value.acquired_date },
+        ] : []),
+        ...(selected.value.type === 'documents' ? [
+          { label: 'Purpose', value: selected.value.purpose },
+          { label: 'File name', value: selected.value.file_name },
+          { label: 'Uploaded', value: selected.value.upload_date || selected.value.created_datetime },
+        ] : []),
         ...[
           'description',
           'status',
@@ -547,8 +577,15 @@ const detailFields = computed(() =>
           'report_date',
           'due_date',
           'category',
+          'service_type',
+          'company_name',
+          'service_start_date',
+          'term',
+          'notes',
+          'start_date',
+          'repeat_by',
         ].map((key) => ({ label: key.replaceAll('_', ' '), value: selected.value[key] })),
-      ].filter((row) => row.value !== undefined && row.value !== '')
+      ].filter((row) => row.value !== undefined && row.value !== null && row.value !== '')
     : [],
 )
 const attachmentUrl = computed(() => mobileAttachmentUrl(selected.value))

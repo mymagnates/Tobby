@@ -2,16 +2,29 @@
   <section class="move-out-checklist">
     <div class="move-out-toolbar">
       <div><strong>{{ checkedCount }} / {{ entries.length }} checked</strong><p>{{ differenceCount }} items with differences or no reference</p></div>
-      <q-select :model-value="filter" @update:model-value="filter = $event" :options="filters" emit-value map-options outlined dense label="Show items" />
-      <q-btn outline no-caps icon="add" label="Add item" :disable="busy || readonly" @click="$emit('add', 'Other')" />
-      <q-btn flat no-caps icon="key" label="Add key / access" :disable="busy || readonly" @click="$emit('add-access')" />
+      <div class="move-out-toolbar-actions">
+      <q-btn flat no-caps :label="filters.find(option => option.value === filter)?.label" aria-label="Show items" icon-right="expand_more">
+        <q-menu><q-list><q-item v-for="option in filters" :key="option.value" clickable v-close-popup :active="filter === option.value" @click="filter = option.value"><q-item-section>{{ option.label }}</q-item-section></q-item></q-list></q-menu>
+      </q-btn>
+      <q-btn flat no-caps label="Add item" :disable="busy || readonly" @click="$emit('add', 'Other')" />
+      <q-btn flat no-caps label="Add key / access" :disable="busy || readonly" @click="$emit('add-access')" />
       <q-btn flat no-caps label="Signatures" @click="$emit('signatures')" />
+      </div>
     </div>
     <p v-if="missingMoveIn" class="move-out-notice">No confirmed move-in baseline. This checklist records move-out condition only; later records are shown as references, not move-in evidence.</p>
     <p class="move-out-help">Choose the observed condition and enter actual counts for keys / access, then mark each item checked. Reference photos are never copied into move-out evidence.</p>
     <section v-for="group in groups" :key="group.area" class="move-out-room">
       <header><h2>{{ group.area }} <small>{{ group.items.filter(item => item.checked).length }}/{{ group.items.length }} checked</small></h2>
-        <q-btn flat no-caps icon="add" :label="`Add to ${group.area}`" :disable="busy || readonly" @click="$emit('add', group.area)" /></header>
+        <q-btn flat round icon="add" :aria-label="`Add item to ${group.area}`" :disable="busy || readonly" @click="$emit('add', group.area)" /></header>
+      <div class="move-out-compact">
+        <div v-for="entry in group.items" :key="entry.item_id" class="move-out-compact-item">
+          <button type="button" class="move-out-item-open" :aria-label="`Open ${entry.name} details`" @click="$emit('edit', entry.item_id)">
+            <strong>{{ entry.name }}</strong>
+            <span>{{ conditionLabel(entry.move_in?.condition || entry.reference?.condition) }} → {{ conditionLabel(entry.condition) }}<template v-if="entry.kind === 'access'"> · Count {{ quantityLabel((entry.move_in || entry.reference)?.quantity) }} → {{ quantityLabel(entry.quantity) }}</template></span>
+          </button>
+          <q-checkbox class="move-out-item-check" dense label="Checked" :model-value="entry.checked" :aria-label="`Checked ${entry.name}`" :disable="busy || readonly || entry.condition === 'not_checked' || (entry.kind === 'access' && !validQuantity(entry.quantity))" @update:model-value="$emit('review', entry.item_id, $event)" />
+        </div>
+      </div>
       <table>
         <thead><tr><th>Item</th><th>Move-in / reference</th><th>Move-out</th><th>Checked</th></tr></thead>
         <tbody>
@@ -80,9 +93,19 @@ const groups = computed(() => {
 .move-out-toolbar > div:first-child { flex: 1 1 200px; }
 .move-out-toolbar p, .move-out-help { margin: 4px 0; color: var(--brand-muted); font-size: 14px; }
 .move-out-toolbar .q-field { min-width: 180px; }
+.move-out-toolbar-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.move-out-toolbar-actions :deep(.q-btn) { width: 100%; min-height: 44px; height: 48px; padding: 4px 8px; font-size: 13px; border-radius: 8px; }
+.move-out-compact { display: none; }
+.move-out-item-open { display: grid; gap: 4px; width: 100%; border: 0; background: none; color: inherit; padding: 10px 12px; font: inherit; text-align: left; cursor: pointer; }
+.move-out-item-open strong { padding-right: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.move-out-item-open > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-muted); font-size: 12px; }
+.move-out-compact-item { position: relative; border-top: 1px solid var(--brand-border); background: var(--brand-surface); }
+.move-out-item-check { position: absolute; right: 12px; top: 4px; min-height: 36px; font-size: 12px; }
 .move-out-notice { padding: 12px; border-left: 3px solid var(--brand-primary); background: var(--brand-soft); }
 .move-out-room { margin-top: 16px; border: 1px solid var(--brand-border); border-radius: 8px; overflow: hidden; }
-.move-out-room header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 4px 12px; background: var(--brand-soft); }
+.move-out-room header { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 12px; background: var(--brand-soft); }
+.move-out-room header h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.move-out-room header > .q-btn { margin-left: auto; flex-shrink: 0; }
 .move-out-room h2 { font-size: 16px; margin: 0; }
 .move-out-room h2 small { margin-left: 8px; font-weight: normal; }
 table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--brand-surface); }
@@ -100,7 +123,10 @@ img { width: 52px; height: 52px; object-fit: cover; margin: 4px; border-radius: 
 .quantity-field input { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; margin-top: 4px; padding: 8px; border: 1px solid var(--brand-border); border-radius: 4px; background: var(--brand-surface); color: inherit; font: inherit; }
 :deep(.q-btn) { min-height: 44px; }
 @media (max-width: 700px) {
-  table, tbody { display: block; }
+  table { display: none; }
+  .move-out-compact { display: block; }
+  .move-out-toolbar-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  tbody { display: block; }
   thead { display: none; }
   tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--brand-border); }
   td { display: block; border: 0; min-width: 0; }

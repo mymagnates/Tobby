@@ -1,5 +1,26 @@
 @use './workspace-palette' as palette;
 
+// Include teleported menus/dialogs, without changing desktop button styles.
+body:has(.ios-workspace) {
+  button,
+  .q-btn,
+  a,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    &:focus:not(:focus-visible) { outline: none !important; }
+  }
+  .q-btn {
+    transform: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+    &::before { box-shadow: none !important; }
+    .q-focus-helper,
+    .q-ripple { display: none !important; }
+    &:focus-visible { outline: 2px solid var(--q-primary); outline-offset: 3px; }
+  }
+  .q-btn__content:focus { outline: none !important; }
+}
+
 .ios-workspace,
 .ios-dialog {
   @include palette.light;
@@ -494,4 +515,20 @@ body.body--dark .ios-dialog {
   .ios-workspace .q-page {
     padding-inline: 14px;
   }
+}
+.ios-lease-picker {
+  .q-list { display: grid; gap: 10px; }
+  .q-item {
+    border: 1px solid var(--ios-line);
+    border-radius: 12px;
+    padding: 14px;
+    overflow-wrap: anywhere;
+  }
+  .ios-lease-picker__footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 28px;
+    padding-bottom: 4px;
+  }
+  .ios-lease-picker__footer .q-btn { min-width: 120px; }
 }
